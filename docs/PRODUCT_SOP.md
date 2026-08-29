@@ -93,8 +93,12 @@ Current evidence:
   one-question-at-a-time project setup state machine.
 - Spoken pause/resume, repeat, back/correct commands and visible low-confidence
   recovery are implemented in the native interview flow.
-- Still required before `PASS`: automated interview-state tests, guardian interview,
-  VoiceOver audit and clean-account voice-only QA.
+- Commit `f69c113`, GitHub CI run `33273219260`: pure interview reducer with
+  automated Swift tests for voice-only setup, interruption recovery and corrections.
+- Audience routing now includes an explicit child/guardian identity and consent
+  interview that fails closed before collecting the child's story.
+- Still required before `PASS`: VoiceOver/Accessibility Inspector audit and a
+  clean-account voice-only QA session with real microphone permissions.
 
 ## SOP-03 · Multi-project, season and episode planning — IN_PROGRESS
 

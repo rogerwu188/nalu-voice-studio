@@ -4,8 +4,11 @@ import XCTest
 final class InterviewFlowTests: XCTestCase {
     func testCompletesVoiceOnlyProjectSetup() {
         var flow = InterviewFlow()
-        XCTAssertTrue(flow.begin().contains("故事"))
-        XCTAssertEqual(flow.step, .premise)
+        XCTAssertTrue(flow.begin().contains("长辈"))
+        XCTAssertEqual(flow.step, .audience)
+
+        assertResponse(flow.consume("家里老人使用"), contains: "故事")
+        XCTAssertEqual(flow.draft.audienceMode, "older_adult")
 
         assertResponse(flow.consume("我想讲年轻时离开故乡的经历"), contains: "名字")
         XCTAssertEqual(flow.draft.description, "我想讲年轻时离开故乡的经历")
@@ -23,6 +26,7 @@ final class InterviewFlowTests: XCTestCase {
     func testPauseResumeRepeatAndCorrectionPreserveAnswers() {
         var flow = InterviewFlow()
         _ = flow.begin()
+        _ = flow.consume("我自己使用")
         _ = flow.consume("第一版故事")
 
         assertResponse(flow.consume("暂停"), contains: "已经暂停")
@@ -53,6 +57,23 @@ final class InterviewFlowTests: XCTestCase {
         XCTAssertEqual(InterviewFlow.episodeCount(from: "0"), 1)
         XCTAssertEqual(InterviewFlow.episodeCount(from: "99集"), 50)
         XCTAssertEqual(InterviewFlow.episodeCount(from: "没有说清"), 6)
+    }
+
+    func testChildProjectCannotPassGuardianSetupWithoutExplicitConsent() {
+        var flow = InterviewFlow()
+        _ = flow.begin()
+        assertResponse(flow.consume("是孩子使用"), contains: "监护人")
+        XCTAssertEqual(flow.step, .guardianName)
+        assertResponse(flow.consume("妈妈李女士"), contains: "确认")
+        XCTAssertEqual(flow.step, .guardianConsent)
+
+        assertResponse(flow.consume("我还没想好"), contains: "不能继续")
+        XCTAssertEqual(flow.step, .guardianConsent)
+        assertResponse(flow.consume("我同意并确认"), contains: "故事")
+        XCTAssertEqual(flow.step, .premise)
+        XCTAssertEqual(flow.draft.audienceMode, "child")
+        XCTAssertEqual(flow.draft.projectBible["guardian_name"], "妈妈李女士")
+        XCTAssertEqual(flow.draft.projectBible["guardian_setup_approved"], "true")
     }
 
     private func assertResponse(

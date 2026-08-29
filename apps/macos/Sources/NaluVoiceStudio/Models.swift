@@ -6,12 +6,14 @@ struct ProjectDraft: Codable, Sendable {
     var audienceMode = "general"
     var plannedEpisodeCount = 6
     var targetEpisodeSeconds = 150
+    var projectBible: [String: String] = [:]
 
     enum CodingKeys: String, CodingKey {
         case title, description
         case audienceMode = "audience_mode"
         case plannedEpisodeCount = "planned_episode_count"
         case targetEpisodeSeconds = "target_episode_seconds"
+        case projectBible = "project_bible"
     }
 }
 
