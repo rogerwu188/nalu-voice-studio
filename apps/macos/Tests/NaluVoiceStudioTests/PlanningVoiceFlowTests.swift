@@ -73,6 +73,12 @@ final class PlanningVoiceFlowTests: XCTestCase {
             flow.consume("我确认这个剧本", guardianRequired: false, guardianConfirmed: false),
             .approveScript(confirmation: "我确认这个剧本")
         )
+
+        _ = flow.begin(.scriptApproval)
+        assertResponse(
+            flow.consume("我确认这个剧本", guardianRequired: true, guardianConfirmed: false),
+            contains: "不会批准剧本"
+        )
     }
 
     private func assertResponse(

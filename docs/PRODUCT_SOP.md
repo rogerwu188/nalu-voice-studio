@@ -166,9 +166,14 @@ Current evidence:
 - Commit `42d8cc4`, GitHub CI run `33275705267`: history listing, latest-revision-only
   approval, explicit revocation and revoked-script production blocking passed 18 Runtime
   tests, real HTTP smoke, Swift tests and the full bundled macOS build.
-- Still required before `PASS`: native script drafting/review UI, spoken-summary playback,
-  voice correction and approval, child guardian negative coverage in that native flow,
-  plus human spoken-summary fidelity QA.
+- Commit `301d14a`, GitHub CI run `33275921609`: the native workbench lists and
+  compares immutable revisions, creates typed or dictated revisions, speaks the
+  plain-language summary in Mandarin, permits only latest-revision approval,
+  supports explicit visual/voice approval and revocation, and gates child approval
+  on guardian presence. Swift tests, full app build and bundled-Runtime smoke passed.
+- Still required before `PASS`: human spoken-summary fidelity QA and clean-account
+  voice correction/approval evidence; implementation and synthesized playback alone
+  do not satisfy the human acceptance criterion.
 
 ## SOP-05 · Media assets, consent and privacy — IN_PROGRESS
 

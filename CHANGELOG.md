@@ -24,3 +24,4 @@ Versioning and the Keep a Changelog structure.
 - Fail-closed voice editing and approval for season and episode planning.
 - Independent per-episode production stage, percentage and recovery presentation.
 - Latest-only script approval, complete revision history and audited approval revocation.
+- Native typed/voice script revision workbench with Mandarin summary playback.
