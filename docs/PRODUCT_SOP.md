@@ -128,8 +128,13 @@ Current evidence:
 - Commit `1de6cfb`, GitHub CI run `33274379025`: the macOS app exposes rename,
   archive/unarchive, archived-project filtering and native JSON backup/restore;
   16 Runtime tests, Swift tests, full application build and bundled-Runtime smoke passed.
-- Still required before `PASS`: native visual season-arc/outline editor, voice-driven
-  plan review/approval UI, and independent per-episode production progress presentation.
+- Commit `c38dc62`, GitHub CI run `33274544825`: the native app now edits season
+  arcs and per-episode logline/outlines, displays current/stale plan approval and
+  locked episode state, supports visual plan approval, and fails closed on child
+  approval until the guardian-presence control is confirmed. Swift tests, full
+  application build and bundled-Runtime smoke passed.
+- Still required before `PASS`: voice-driven plan review/approval UI and independent
+  per-episode production progress presentation, followed by the clean-account QA.
 
 ## SOP-04 · Script creation, review and approval — TODO
 
