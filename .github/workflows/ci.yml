@@ -18,8 +18,10 @@ jobs:
           python-version: "3.13"
           cache: pip
       - run: python -m pip install -e '.[dev]'
-      - run: ruff check services tests
+      - run: ruff check services tests scripts/export-openapi.py scripts/real-http-smoke.py
+      - run: python scripts/export-openapi.py --check
       - run: pytest -q
+      - run: python scripts/real-http-smoke.py
 
   macos:
     runs-on: macos-15

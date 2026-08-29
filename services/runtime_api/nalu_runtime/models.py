@@ -122,6 +122,15 @@ class ApprovalCreate(BaseModel):
     guardian_approval: bool = False
 
 
+class ApprovalRecord(ApprovalCreate):
+    id: str
+    action_type: str
+    project_id: str
+    episode_id: str
+    script_revision: int
+    created_at: str
+
+
 class AssetCreate(BaseModel):
     kind: AssetKind
     name: str = Field(min_length=1, max_length=160)

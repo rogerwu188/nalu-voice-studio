@@ -51,6 +51,14 @@ QA:
 - API contract, concurrency, restart recovery, migration and negative tests.
 - Real HTTP smoke test against a clean data directory.
 
+Current evidence:
+
+- Stable hierarchy, script revisions, approval audit records and schema migration v1.
+- Committed OpenAPI snapshot with CI freshness check.
+- Ordered concurrent production-event test and clean-directory real HTTP smoke test.
+- Still required before `PASS`: complete lifecycle transition table, idempotent mutation
+  contract, restart recovery suite and reviewed compatibility policy.
+
 ## SOP-02 · Voice interview and accessible conversation — TODO
 
 Acceptance:
@@ -162,6 +170,12 @@ QA:
 - Crash/restart tests at every paid transaction boundary.
 - Event sequence and idempotency tests under concurrent requests.
 
+Current evidence:
+
+- Ordered persistent events, cancellation, preflight resume and concurrent writer test.
+- Still required before `PASS`: durable remote bindings, transaction-boundary crash tests,
+  ambiguous-charge reconciliation and stage-level progress.
+
 ## SOP-09 · Postproduction and release-blocking QA — TODO
 
 Acceptance:
@@ -223,4 +237,3 @@ Completion evidence:
 - Costs, task IDs, receipts, QA reports and published IDs reconcile.
 - No P0/P1 defects remain open.
 - SOP-00 through SOP-11 are revalidated on the same release commit.
-

@@ -1,3 +1,5 @@
+import sqlite3
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -51,6 +53,28 @@ def test_project_season_episode_hierarchy(tmp_path: Path) -> None:
     stored = api.get(f"/v1/episodes/{episode['id']}").json()
     assert stored["status"] == "script_approved"
     assert stored["approved_script_revision"] == 1
+
+    approvals = api.get(f"/v1/episodes/{episode['id']}/script-approvals").json()
+    assert len(approvals) == 1
+    assert approvals[0]["approved_by"] == "user"
+    assert approvals[0]["spoken_confirmation"] == "我确认这个剧本"
+
+
+def test_database_migration_preserves_existing_database(tmp_path: Path) -> None:
+    database_path = tmp_path / "legacy.sqlite3"
+    with sqlite3.connect(database_path) as connection:
+        connection.execute("CREATE TABLE legacy_marker (value TEXT NOT NULL)")
+        connection.execute("INSERT INTO legacy_marker VALUES ('preserve-me')")
+
+    api = create_app(database_path, tmp_path / "data")
+    assert api.state.repository.db.schema_version() == 1
+    with sqlite3.connect(database_path) as connection:
+        marker = connection.execute("SELECT value FROM legacy_marker").fetchone()[0]
+        approval_table = connection.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'approval_records'"
+        ).fetchone()
+    assert marker == "preserve-me"
+    assert approval_table == ("approval_records",)
 
 
 def test_biometric_asset_requires_consent(tmp_path: Path) -> None:
@@ -142,3 +166,22 @@ def test_run_events_cancel_and_resume(tmp_path: Path) -> None:
 
     events = api.get(f"/v1/production-runs/{run['id']}/events").json()
     assert [event["sequence"] for event in events] == [1, 2, 3]
+
+
+def test_run_events_are_ordered_under_concurrent_writes(tmp_path: Path) -> None:
+    api = client(tmp_path)
+    _, _, episode = create_approved_episode(api)
+    run = api.post(
+        f"/v1/episodes/{episode['id']}/production-runs",
+        json={"dry_run": True},
+    ).json()
+    repository = api.app.state.repository
+
+    def append(index: int) -> None:
+        repository.append_run_event(run["id"], "progress", payload={"index": index})
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        list(pool.map(append, range(8)))
+
+    events = api.get(f"/v1/production-runs/{run['id']}/events").json()
+    assert [event["sequence"] for event in events] == list(range(1, 10))

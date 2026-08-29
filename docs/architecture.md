@@ -36,6 +36,10 @@ Qingshan adapter
 A downstream tool may enrich directing and generation contracts, but it may not
 silently alter an approved narrative authority.
 
+SQLite changes are applied as numbered migrations and surfaced by the health
+endpoint. Script confirmations are retained as separate approval audit records,
+including approver identity, spoken confirmation and guardian authorization.
+
 ## Multi-episode inheritance
 
 Assets belong to a project and may be scoped to a season or episode. Starting a

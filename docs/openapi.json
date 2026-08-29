@@ -1,0 +1,1928 @@
+{
+  "components": {
+    "schemas": {
+      "ApprovalCreate": {
+        "properties": {
+          "approved_by": {
+            "minLength": 1,
+            "title": "Approved By",
+            "type": "string"
+          },
+          "guardian_approval": {
+            "default": false,
+            "title": "Guardian Approval",
+            "type": "boolean"
+          },
+          "spoken_confirmation": {
+            "default": "",
+            "title": "Spoken Confirmation",
+            "type": "string"
+          }
+        },
+        "required": [
+          "approved_by"
+        ],
+        "title": "ApprovalCreate",
+        "type": "object"
+      },
+      "ApprovalRecord": {
+        "properties": {
+          "action_type": {
+            "title": "Action Type",
+            "type": "string"
+          },
+          "approved_by": {
+            "minLength": 1,
+            "title": "Approved By",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "episode_id": {
+            "title": "Episode Id",
+            "type": "string"
+          },
+          "guardian_approval": {
+            "default": false,
+            "title": "Guardian Approval",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "script_revision": {
+            "title": "Script Revision",
+            "type": "integer"
+          },
+          "spoken_confirmation": {
+            "default": "",
+            "title": "Spoken Confirmation",
+            "type": "string"
+          }
+        },
+        "required": [
+          "approved_by",
+          "id",
+          "action_type",
+          "project_id",
+          "episode_id",
+          "script_revision",
+          "created_at"
+        ],
+        "title": "ApprovalRecord",
+        "type": "object"
+      },
+      "Asset": {
+        "properties": {
+          "consent_granted": {
+            "default": false,
+            "title": "Consent Granted",
+            "type": "boolean"
+          },
+          "consent_scope": {
+            "$ref": "#/components/schemas/ConsentScope",
+            "default": "project_only"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "episode_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Episode Id"
+          },
+          "guardian_approved": {
+            "default": false,
+            "title": "Guardian Approved",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/AssetKind"
+          },
+          "local_uri": {
+            "minLength": 1,
+            "title": "Local Uri",
+            "type": "string"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "title": "Metadata",
+            "type": "object"
+          },
+          "name": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "subject_name": {
+            "default": "",
+            "title": "Subject Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "name",
+          "local_uri",
+          "id",
+          "project_id",
+          "created_at"
+        ],
+        "title": "Asset",
+        "type": "object"
+      },
+      "AssetCreate": {
+        "properties": {
+          "consent_granted": {
+            "default": false,
+            "title": "Consent Granted",
+            "type": "boolean"
+          },
+          "consent_scope": {
+            "$ref": "#/components/schemas/ConsentScope",
+            "default": "project_only"
+          },
+          "episode_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Episode Id"
+          },
+          "guardian_approved": {
+            "default": false,
+            "title": "Guardian Approved",
+            "type": "boolean"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/AssetKind"
+          },
+          "local_uri": {
+            "minLength": 1,
+            "title": "Local Uri",
+            "type": "string"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "title": "Metadata",
+            "type": "object"
+          },
+          "name": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "subject_name": {
+            "default": "",
+            "title": "Subject Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "name",
+          "local_uri"
+        ],
+        "title": "AssetCreate",
+        "type": "object"
+      },
+      "AssetKind": {
+        "enum": [
+          "character_image",
+          "voice_reference",
+          "scene_reference",
+          "prop_reference",
+          "style_reference",
+          "source_document"
+        ],
+        "title": "AssetKind",
+        "type": "string"
+      },
+      "AudienceMode": {
+        "enum": [
+          "general",
+          "older_adult",
+          "child",
+          "family"
+        ],
+        "title": "AudienceMode",
+        "type": "string"
+      },
+      "ConsentScope": {
+        "enum": [
+          "project_only",
+          "series",
+          "unrestricted"
+        ],
+        "title": "ConsentScope",
+        "type": "string"
+      },
+      "ContinuitySnapshot": {
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "episode_id": {
+            "title": "Episode Id",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "source_episode_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Episode Id"
+          },
+          "state": {
+            "additionalProperties": true,
+            "title": "State",
+            "type": "object"
+          },
+          "unresolved_hooks": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Unresolved Hooks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "episode_id",
+          "created_at"
+        ],
+        "title": "ContinuitySnapshot",
+        "type": "object"
+      },
+      "ContinuitySnapshotCreate": {
+        "properties": {
+          "source_episode_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Episode Id"
+          },
+          "state": {
+            "additionalProperties": true,
+            "title": "State",
+            "type": "object"
+          },
+          "unresolved_hooks": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Unresolved Hooks",
+            "type": "array"
+          }
+        },
+        "title": "ContinuitySnapshotCreate",
+        "type": "object"
+      },
+      "Episode": {
+        "properties": {
+          "approved_script_revision": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved Script Revision"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "episode_number": {
+            "minimum": 1.0,
+            "title": "Episode Number",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "logline": {
+            "default": "",
+            "title": "Logline",
+            "type": "string"
+          },
+          "outline": {
+            "additionalProperties": true,
+            "title": "Outline",
+            "type": "object"
+          },
+          "season_id": {
+            "title": "Season Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/EpisodeStatus"
+          },
+          "target_seconds": {
+            "default": 150,
+            "maximum": 3600.0,
+            "minimum": 15.0,
+            "title": "Target Seconds",
+            "type": "integer"
+          },
+          "title": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "episode_number",
+          "id",
+          "season_id",
+          "status",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "Episode",
+        "type": "object"
+      },
+      "EpisodeCreate": {
+        "properties": {
+          "episode_number": {
+            "minimum": 1.0,
+            "title": "Episode Number",
+            "type": "integer"
+          },
+          "logline": {
+            "default": "",
+            "title": "Logline",
+            "type": "string"
+          },
+          "outline": {
+            "additionalProperties": true,
+            "title": "Outline",
+            "type": "object"
+          },
+          "target_seconds": {
+            "default": 150,
+            "maximum": 3600.0,
+            "minimum": 15.0,
+            "title": "Target Seconds",
+            "type": "integer"
+          },
+          "title": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "episode_number"
+        ],
+        "title": "EpisodeCreate",
+        "type": "object"
+      },
+      "EpisodeStatus": {
+        "enum": [
+          "planned",
+          "script_draft",
+          "script_review",
+          "script_approved",
+          "preproduction",
+          "generating",
+          "postproduction",
+          "qa_review",
+          "ready_to_publish",
+          "published",
+          "blocked"
+        ],
+        "title": "EpisodeStatus",
+        "type": "string"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "ProductionRun": {
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "dry_run": {
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "episode_id": {
+            "title": "Episode Id",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "estimated_budget_credits": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimated Budget Credits"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "package_path": {
+            "title": "Package Path",
+            "type": "string"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "requested_model": {
+            "title": "Requested Model",
+            "type": "string"
+          },
+          "season_id": {
+            "title": "Season Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RunStatus"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "project_id",
+          "season_id",
+          "episode_id",
+          "status",
+          "dry_run",
+          "requested_model",
+          "estimated_budget_credits",
+          "package_path",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ProductionRun",
+        "type": "object"
+      },
+      "ProductionRunCreate": {
+        "properties": {
+          "approved_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved By"
+          },
+          "dry_run": {
+            "default": true,
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "estimated_budget_credits": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimated Budget Credits"
+          },
+          "paid_generation_approved": {
+            "default": false,
+            "title": "Paid Generation Approved",
+            "type": "boolean"
+          },
+          "requested_model": {
+            "default": "seedance-2.0-pro",
+            "title": "Requested Model",
+            "type": "string"
+          }
+        },
+        "title": "ProductionRunCreate",
+        "type": "object"
+      },
+      "Project": {
+        "properties": {
+          "aspect_ratio": {
+            "default": "9:16",
+            "pattern": "^\\d+:\\d+$",
+            "title": "Aspect Ratio",
+            "type": "string"
+          },
+          "audience_mode": {
+            "$ref": "#/components/schemas/AudienceMode",
+            "default": "general"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "planned_episode_count": {
+            "default": 1,
+            "maximum": 500.0,
+            "minimum": 1.0,
+            "title": "Planned Episode Count",
+            "type": "integer"
+          },
+          "project_bible": {
+            "additionalProperties": true,
+            "title": "Project Bible",
+            "type": "object"
+          },
+          "target_episode_seconds": {
+            "default": 150,
+            "maximum": 3600.0,
+            "minimum": 15.0,
+            "title": "Target Episode Seconds",
+            "type": "integer"
+          },
+          "title": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          },
+          "visual_style": {
+            "default": "warm cinematic realism",
+            "title": "Visual Style",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "id",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "Project",
+        "type": "object"
+      },
+      "ProjectCreate": {
+        "properties": {
+          "aspect_ratio": {
+            "default": "9:16",
+            "pattern": "^\\d+:\\d+$",
+            "title": "Aspect Ratio",
+            "type": "string"
+          },
+          "audience_mode": {
+            "$ref": "#/components/schemas/AudienceMode",
+            "default": "general"
+          },
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
+          "planned_episode_count": {
+            "default": 1,
+            "maximum": 500.0,
+            "minimum": 1.0,
+            "title": "Planned Episode Count",
+            "type": "integer"
+          },
+          "project_bible": {
+            "additionalProperties": true,
+            "title": "Project Bible",
+            "type": "object"
+          },
+          "target_episode_seconds": {
+            "default": 150,
+            "maximum": 3600.0,
+            "minimum": 15.0,
+            "title": "Target Episode Seconds",
+            "type": "integer"
+          },
+          "title": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "visual_style": {
+            "default": "warm cinematic realism",
+            "title": "Visual Style",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "title": "ProjectCreate",
+        "type": "object"
+      },
+      "RunActionRequest": {
+        "properties": {
+          "reason": {
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "requested_by": {
+            "minLength": 1,
+            "title": "Requested By",
+            "type": "string"
+          }
+        },
+        "required": [
+          "requested_by",
+          "reason"
+        ],
+        "title": "RunActionRequest",
+        "type": "object"
+      },
+      "RunEvent": {
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "event_type": {
+            "title": "Event Type",
+            "type": "string"
+          },
+          "from_status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RunStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "message": {
+            "default": "",
+            "title": "Message",
+            "type": "string"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "title": "Payload",
+            "type": "object"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "sequence": {
+            "title": "Sequence",
+            "type": "integer"
+          },
+          "to_status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RunStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "run_id",
+          "sequence",
+          "event_type",
+          "created_at"
+        ],
+        "title": "RunEvent",
+        "type": "object"
+      },
+      "RunResumeRequest": {
+        "properties": {
+          "reason": {
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "requested_by": {
+            "minLength": 1,
+            "title": "Requested By",
+            "type": "string"
+          },
+          "resume_from_preflight": {
+            "default": true,
+            "title": "Resume From Preflight",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "requested_by",
+          "reason"
+        ],
+        "title": "RunResumeRequest",
+        "type": "object"
+      },
+      "RunStatus": {
+        "enum": [
+          "created",
+          "preflight",
+          "waiting_for_approval",
+          "queued",
+          "running",
+          "qa_review",
+          "completed",
+          "failed",
+          "cancelled"
+        ],
+        "title": "RunStatus",
+        "type": "string"
+      },
+      "ScriptRevision": {
+        "properties": {
+          "approved_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved At"
+          },
+          "content": {
+            "minLength": 1,
+            "title": "Content",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "episode_id": {
+            "title": "Episode Id",
+            "type": "string"
+          },
+          "narrative_metadata": {
+            "additionalProperties": true,
+            "title": "Narrative Metadata",
+            "type": "object"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "source_transcript": {
+            "default": "",
+            "title": "Source Transcript",
+            "type": "string"
+          },
+          "summary_for_voice_review": {
+            "minLength": 1,
+            "title": "Summary For Voice Review",
+            "type": "string"
+          }
+        },
+        "required": [
+          "content",
+          "summary_for_voice_review",
+          "episode_id",
+          "revision",
+          "created_at"
+        ],
+        "title": "ScriptRevision",
+        "type": "object"
+      },
+      "ScriptRevisionCreate": {
+        "properties": {
+          "content": {
+            "minLength": 1,
+            "title": "Content",
+            "type": "string"
+          },
+          "narrative_metadata": {
+            "additionalProperties": true,
+            "title": "Narrative Metadata",
+            "type": "object"
+          },
+          "source_transcript": {
+            "default": "",
+            "title": "Source Transcript",
+            "type": "string"
+          },
+          "summary_for_voice_review": {
+            "minLength": 1,
+            "title": "Summary For Voice Review",
+            "type": "string"
+          }
+        },
+        "required": [
+          "content",
+          "summary_for_voice_review"
+        ],
+        "title": "ScriptRevisionCreate",
+        "type": "object"
+      },
+      "Season": {
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "planned_episode_count": {
+            "default": 1,
+            "maximum": 500.0,
+            "minimum": 1.0,
+            "title": "Planned Episode Count",
+            "type": "integer"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "season_arc": {
+            "additionalProperties": true,
+            "title": "Season Arc",
+            "type": "object"
+          },
+          "season_number": {
+            "minimum": 1.0,
+            "title": "Season Number",
+            "type": "integer"
+          },
+          "title": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "season_number",
+          "id",
+          "project_id",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "Season",
+        "type": "object"
+      },
+      "SeasonCreate": {
+        "properties": {
+          "planned_episode_count": {
+            "default": 1,
+            "maximum": 500.0,
+            "minimum": 1.0,
+            "title": "Planned Episode Count",
+            "type": "integer"
+          },
+          "season_arc": {
+            "additionalProperties": true,
+            "title": "Season Arc",
+            "type": "object"
+          },
+          "season_number": {
+            "minimum": 1.0,
+            "title": "Season Number",
+            "type": "integer"
+          },
+          "title": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "season_number"
+        ],
+        "title": "SeasonCreate",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "Local project, episode, asset and Qingshan production runtime.",
+    "title": "Nalu Voice Studio Runtime API",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/health": {
+      "get": {
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Health Health Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health"
+      }
+    },
+    "/v1/episodes/{episode_id}": {
+      "get": {
+        "operationId": "get_episode_v1_episodes__episode_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "episode_id",
+            "required": true,
+            "schema": {
+              "title": "Episode Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Episode"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Episode"
+      }
+    },
+    "/v1/episodes/{episode_id}/continuity-snapshots": {
+      "post": {
+        "operationId": "create_continuity_v1_episodes__episode_id__continuity_snapshots_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "episode_id",
+            "required": true,
+            "schema": {
+              "title": "Episode Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContinuitySnapshotCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContinuitySnapshot"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Continuity"
+      }
+    },
+    "/v1/episodes/{episode_id}/production-runs": {
+      "post": {
+        "operationId": "start_production_v1_episodes__episode_id__production_runs_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "episode_id",
+            "required": true,
+            "schema": {
+              "title": "Episode Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductionRunCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductionRun"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Start Production"
+      }
+    },
+    "/v1/episodes/{episode_id}/script-approvals": {
+      "get": {
+        "operationId": "list_script_approvals_v1_episodes__episode_id__script_approvals_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "episode_id",
+            "required": true,
+            "schema": {
+              "title": "Episode Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ApprovalRecord"
+                  },
+                  "title": "Response List Script Approvals V1 Episodes  Episode Id  Script Approvals Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Script Approvals"
+      }
+    },
+    "/v1/episodes/{episode_id}/scripts": {
+      "post": {
+        "operationId": "create_script_v1_episodes__episode_id__scripts_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "episode_id",
+            "required": true,
+            "schema": {
+              "title": "Episode Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScriptRevisionCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScriptRevision"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Script"
+      }
+    },
+    "/v1/episodes/{episode_id}/scripts/{revision}/approve": {
+      "post": {
+        "operationId": "approve_script_v1_episodes__episode_id__scripts__revision__approve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "episode_id",
+            "required": true,
+            "schema": {
+              "title": "Episode Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "revision",
+            "required": true,
+            "schema": {
+              "title": "Revision",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApprovalCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScriptRevision"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Approve Script"
+      }
+    },
+    "/v1/production-runs/{run_id}": {
+      "get": {
+        "operationId": "get_run_v1_production_runs__run_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductionRun"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Run"
+      }
+    },
+    "/v1/production-runs/{run_id}/cancel": {
+      "post": {
+        "operationId": "cancel_run_v1_production_runs__run_id__cancel_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunActionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductionRun"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cancel Run"
+      }
+    },
+    "/v1/production-runs/{run_id}/events": {
+      "get": {
+        "operationId": "get_run_events_v1_production_runs__run_id__events_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RunEvent"
+                  },
+                  "title": "Response Get Run Events V1 Production Runs  Run Id  Events Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Run Events"
+      }
+    },
+    "/v1/production-runs/{run_id}/resume": {
+      "post": {
+        "operationId": "resume_run_v1_production_runs__run_id__resume_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunResumeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductionRun"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Resume Run"
+      }
+    },
+    "/v1/projects": {
+      "get": {
+        "operationId": "list_projects_v1_projects_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Project"
+                  },
+                  "title": "Response List Projects V1 Projects Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Projects"
+      },
+      "post": {
+        "operationId": "create_project_v1_projects_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Project"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Project"
+      }
+    },
+    "/v1/projects/{project_id}": {
+      "get": {
+        "operationId": "get_project_v1_projects__project_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Project"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Project"
+      }
+    },
+    "/v1/projects/{project_id}/assets": {
+      "get": {
+        "operationId": "list_assets_v1_projects__project_id__assets_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "episode_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Episode Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Asset"
+                  },
+                  "title": "Response List Assets V1 Projects  Project Id  Assets Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Assets"
+      },
+      "post": {
+        "operationId": "create_asset_v1_projects__project_id__assets_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssetCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Asset"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Asset"
+      }
+    },
+    "/v1/projects/{project_id}/seasons": {
+      "get": {
+        "operationId": "list_seasons_v1_projects__project_id__seasons_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Season"
+                  },
+                  "title": "Response List Seasons V1 Projects  Project Id  Seasons Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Seasons"
+      },
+      "post": {
+        "operationId": "create_season_v1_projects__project_id__seasons_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SeasonCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Season"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Season"
+      }
+    },
+    "/v1/seasons/{season_id}/episodes": {
+      "get": {
+        "operationId": "list_episodes_v1_seasons__season_id__episodes_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "season_id",
+            "required": true,
+            "schema": {
+              "title": "Season Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Episode"
+                  },
+                  "title": "Response List Episodes V1 Seasons  Season Id  Episodes Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Episodes"
+      },
+      "post": {
+        "operationId": "create_episode_v1_seasons__season_id__episodes_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "season_id",
+            "required": true,
+            "schema": {
+              "title": "Season Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EpisodeCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Episode"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Episode"
+      }
+    }
+  }
+}

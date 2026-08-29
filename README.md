@@ -81,6 +81,9 @@ The default runtime is safe and local:
 
 Project completion is governed by [the product SOP](docs/PRODUCT_SOP.md). A
 module, milestone, or green CI run is not treated as completion of the product.
+The committed [OpenAPI contract](docs/openapi.json) must be regenerated with
+`scripts/export-openapi.py` whenever an endpoint or schema changes; CI rejects
+an unreviewed stale contract.
 
 ## Upstream
 

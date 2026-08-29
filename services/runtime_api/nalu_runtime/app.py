@@ -10,6 +10,7 @@ from .database import Database
 from .engine import ProductionService
 from .models import (
     ApprovalCreate,
+    ApprovalRecord,
     Asset,
     AssetCreate,
     ContinuitySnapshot,
@@ -60,7 +61,12 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
 
     @app.get("/health")
     def health() -> dict[str, str]:
-        return {"status": "ok", "service": "nalu-runtime", "version": "0.1.0"}
+        return {
+            "status": "ok",
+            "service": "nalu-runtime",
+            "version": "0.1.0",
+            "schema_version": str(database.schema_version()),
+        }
 
     @app.post("/v1/projects", response_model=Project, status_code=201)
     def create_project(request: ProjectCreate) -> Project:
@@ -111,7 +117,13 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
         project = repository.get_project(season.project_id)
         if project.audience_mode == "child" and not approval.guardian_approval:
             raise HTTPException(status_code=409, detail="child projects require guardian approval")
-        return repository.approve_script(episode_id, revision)
+        return repository.approve_script(episode_id, revision, approval)
+
+    @app.get(
+        "/v1/episodes/{episode_id}/script-approvals", response_model=list[ApprovalRecord]
+    )
+    def list_script_approvals(episode_id: str) -> list[ApprovalRecord]:
+        return repository.list_script_approvals(episode_id)
 
     @app.post("/v1/projects/{project_id}/assets", response_model=Asset, status_code=201)
     def create_asset(project_id: str, request: AssetCreate) -> Asset:

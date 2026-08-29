@@ -7,6 +7,8 @@ from uuid import uuid4
 
 from .database import Database
 from .models import (
+    ApprovalCreate,
+    ApprovalRecord,
     Asset,
     AssetCreate,
     ContinuitySnapshot,
@@ -180,6 +182,7 @@ class Repository:
         episode = self.get_episode(episode_id)
         now = utc_now()
         with self.db.connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
             row = connection.execute(
                 "SELECT COALESCE(MAX(revision), 0) + 1 AS revision FROM script_revisions WHERE episode_id = ?",
                 (episode_id,),
@@ -216,9 +219,14 @@ class Repository:
         data["narrative_metadata"] = decode(data.pop("narrative_metadata_json"))
         return ScriptRevision.model_validate(data)
 
-    def approve_script(self, episode_id: str, revision: int) -> ScriptRevision:
+    def approve_script(
+        self, episode_id: str, revision: int, approval: ApprovalCreate
+    ) -> ScriptRevision:
         self.get_script(episode_id, revision)
+        episode = self.get_episode(episode_id)
+        season = self.get_season(episode.season_id)
         now = utc_now()
+        approval_id = new_id("apr")
         with self.db.connect() as connection:
             connection.execute(
                 "UPDATE script_revisions SET approved_at = NULL WHERE episode_id = ?", (episode_id,)
@@ -231,7 +239,35 @@ class Repository:
                 "UPDATE episodes SET approved_script_revision = ?, status = ?, updated_at = ? WHERE id = ?",
                 (revision, EpisodeStatus.SCRIPT_APPROVED, now, episode_id),
             )
+            connection.execute(
+                """INSERT INTO approval_records VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    approval_id,
+                    "script_approved",
+                    season.project_id,
+                    episode_id,
+                    revision,
+                    approval.approved_by,
+                    approval.spoken_confirmation,
+                    int(approval.guardian_approval),
+                    now,
+                ),
+            )
         return self.get_script(episode_id, revision)
+
+    def list_script_approvals(self, episode_id: str) -> list[ApprovalRecord]:
+        self.get_episode(episode_id)
+        with self.db.connect() as connection:
+            rows = connection.execute(
+                "SELECT * FROM approval_records WHERE episode_id = ? ORDER BY created_at, id",
+                (episode_id,),
+            ).fetchall()
+        records = []
+        for row in rows:
+            data = dict(row)
+            data["guardian_approval"] = bool(data["guardian_approval"])
+            records.append(ApprovalRecord.model_validate(data))
+        return records
 
     def create_asset(self, project_id: str, request: AssetCreate) -> Asset:
         self.get_project(project_id)
@@ -377,6 +413,7 @@ class Repository:
         self.get_run(run_id)
         event_id, now = new_id("evt"), utc_now()
         with self.db.connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
             row = connection.execute(
                 "SELECT COALESCE(MAX(sequence), 0) + 1 AS sequence FROM run_events WHERE run_id = ?",
                 (run_id,),

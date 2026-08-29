@@ -110,7 +110,37 @@ CREATE TABLE IF NOT EXISTS run_events (
   created_at TEXT NOT NULL,
   UNIQUE(run_id, sequence)
 );
+
+CREATE TABLE IF NOT EXISTS schema_migrations (
+  version INTEGER PRIMARY KEY,
+  name TEXT NOT NULL,
+  applied_at TEXT NOT NULL
+);
 """
+
+MIGRATIONS = (
+    (
+        1,
+        "approval_audit_records",
+        """
+        CREATE TABLE approval_records (
+          id TEXT PRIMARY KEY,
+          action_type TEXT NOT NULL,
+          project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+          episode_id TEXT NOT NULL REFERENCES episodes(id) ON DELETE CASCADE,
+          script_revision INTEGER NOT NULL,
+          approved_by TEXT NOT NULL,
+          spoken_confirmation TEXT NOT NULL,
+          guardian_approval INTEGER NOT NULL,
+          created_at TEXT NOT NULL,
+          FOREIGN KEY(episode_id, script_revision)
+            REFERENCES script_revisions(episode_id, revision)
+        );
+        CREATE INDEX approval_records_episode_idx
+          ON approval_records(episode_id, created_at);
+        """,
+    ),
+)
 
 
 class Database:
@@ -122,8 +152,28 @@ class Database:
         connection = sqlite3.connect(self.path)
         connection.row_factory = sqlite3.Row
         connection.execute("PRAGMA foreign_keys = ON")
+        connection.execute("PRAGMA busy_timeout = 5000")
         return connection
 
     def initialize(self) -> None:
         with self.connect() as connection:
             connection.executescript(SCHEMA)
+            applied = {
+                row["version"]
+                for row in connection.execute("SELECT version FROM schema_migrations")
+            }
+            for version, name, sql in MIGRATIONS:
+                if version in applied:
+                    continue
+                connection.executescript(sql)
+                connection.execute(
+                    "INSERT INTO schema_migrations VALUES (?, ?, datetime('now'))",
+                    (version, name),
+                )
+
+    def schema_version(self) -> int:
+        with self.connect() as connection:
+            row = connection.execute(
+                "SELECT COALESCE(MAX(version), 0) AS version FROM schema_migrations"
+            ).fetchone()
+        return int(row["version"])
