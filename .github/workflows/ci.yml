@@ -13,13 +13,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
           cache: pip
       - run: python -m pip install -e '.[dev]'
-      - run: ruff check services tests scripts/export-openapi.py scripts/real-http-smoke.py
+      - run: ruff check services tests scripts/export-openapi.py scripts/real-http-smoke.py scripts/check_openapi_compatibility.py
       - run: python scripts/export-openapi.py --check
+      - if: github.event_name == 'push'
+        run: python scripts/check_openapi_compatibility.py --base HEAD^
+      - if: github.event_name == 'pull_request'
+        run: python scripts/check_openapi_compatibility.py --base origin/${{ github.base_ref }}
       - run: pytest -q
       - run: python scripts/real-http-smoke.py
 

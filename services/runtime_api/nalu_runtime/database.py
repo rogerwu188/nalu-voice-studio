@@ -140,6 +140,32 @@ MIGRATIONS = (
           ON approval_records(episode_id, created_at);
         """,
     ),
+    (
+        2,
+        "episode_events_and_idempotency",
+        """
+        CREATE TABLE episode_events (
+          id TEXT PRIMARY KEY,
+          episode_id TEXT NOT NULL REFERENCES episodes(id) ON DELETE CASCADE,
+          sequence INTEGER NOT NULL,
+          event_type TEXT NOT NULL,
+          from_status TEXT NOT NULL,
+          to_status TEXT NOT NULL,
+          requested_by TEXT NOT NULL,
+          reason TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          UNIQUE(episode_id, sequence)
+        );
+        CREATE TABLE idempotency_records (
+          scope TEXT NOT NULL,
+          idempotency_key TEXT NOT NULL,
+          request_sha256 TEXT NOT NULL,
+          response_json TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          PRIMARY KEY(scope, idempotency_key)
+        );
+        """,
+    ),
 )
 
 

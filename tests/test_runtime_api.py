@@ -90,6 +90,71 @@ def test_atomic_multi_episode_project_plan(tmp_path: Path) -> None:
     assert [project["title"] for project in projects] == ["十集自传"]
 
 
+def test_project_plan_idempotency_is_concurrent_and_payload_bound(tmp_path: Path) -> None:
+    api = client(tmp_path)
+    payload = {
+        "project": {"title": "只创建一次", "planned_episode_count": 3},
+        "season_title": "第一季",
+    }
+
+    def create_once(_index: int):
+        return api.post(
+            "/v1/project-plans",
+            json=payload,
+            headers={"Idempotency-Key": "voice-session-001"},
+        )
+
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        responses = list(pool.map(create_once, range(6)))
+
+    assert {response.status_code for response in responses} == {201}
+    assert len({response.json()["project"]["id"] for response in responses}) == 1
+    assert len(api.get("/v1/projects").json()) == 1
+
+    conflict = api.post(
+        "/v1/project-plans",
+        json={"project": {"title": "不同请求", "planned_episode_count": 1}},
+        headers={"Idempotency-Key": "voice-session-001"},
+    )
+    assert conflict.status_code == 409
+
+
+def test_episode_lifecycle_and_restart_recovery(tmp_path: Path) -> None:
+    database_path = tmp_path / "restart.sqlite3"
+    data_root = tmp_path / "data"
+    first = TestClient(create_app(database_path, data_root))
+    _, _, episode = create_approved_episode(first)
+
+    lifecycle = first.get(f"/v1/episodes/{episode['id']}/events").json()
+    assert [(row["from_status"], row["to_status"]) for row in lifecycle] == [
+        ("planned", "script_review"),
+        ("script_review", "script_approved"),
+    ]
+    invalid = first.post(
+        f"/v1/episodes/{episode['id']}/transition",
+        json={
+            "target_status": "published",
+            "requested_by": "test",
+            "reason": "attempt to skip required gates",
+        },
+    )
+    assert invalid.status_code == 409
+
+    run = first.post(
+        f"/v1/episodes/{episode['id']}/production-runs", json={"dry_run": True}
+    ).json()
+    assert first.get(f"/v1/episodes/{episode['id']}").json()["status"] == "preproduction"
+
+    restarted = TestClient(create_app(database_path, data_root))
+    assert restarted.get(f"/v1/production-runs/{run['id']}").json()["id"] == run["id"]
+    assert restarted.get(f"/v1/production-runs/{run['id']}/events").json()[0][
+        "event_type"
+    ] == "run_created"
+    assert restarted.get(f"/v1/episodes/{episode['id']}/events").json()[-1][
+        "to_status"
+    ] == "preproduction"
+
+
 def test_database_migration_preserves_existing_database(tmp_path: Path) -> None:
     database_path = tmp_path / "legacy.sqlite3"
     with sqlite3.connect(database_path) as connection:
@@ -97,7 +162,7 @@ def test_database_migration_preserves_existing_database(tmp_path: Path) -> None:
         connection.execute("INSERT INTO legacy_marker VALUES ('preserve-me')")
 
     api = create_app(database_path, tmp_path / "data")
-    assert api.state.repository.db.schema_version() == 1
+    assert api.state.repository.db.schema_version() == 2
     with sqlite3.connect(database_path) as connection:
         marker = connection.execute("SELECT value FROM legacy_marker").fetchone()[0]
         approval_table = connection.execute(

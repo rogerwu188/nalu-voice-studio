@@ -6,6 +6,8 @@ from pathlib import Path
 
 from .models import (
     AudienceMode,
+    EpisodeStatus,
+    EpisodeTransitionRequest,
     ProductionPackage,
     ProductionRun,
     ProductionRunCreate,
@@ -33,6 +35,8 @@ class ProductionService:
         episode = self.repository.get_episode(episode_id)
         if episode.approved_script_revision is None:
             raise ConflictError("an approved episode script is required before production")
+        if episode.status != EpisodeStatus.SCRIPT_APPROVED:
+            raise ConflictError(f"episode in {episode.status} cannot start a new production run")
 
         season = self.repository.get_season(episode.season_id)
         project = self.repository.get_project(season.project_id)
@@ -118,6 +122,14 @@ class ProductionService:
             to_status=run.status,
             message="Immutable production package created and Qingshan preflight passed.",
             payload={"package_path": run.package_path, "dry_run": run.dry_run},
+        )
+        self.repository.transition_episode(
+            episode.id,
+            EpisodeTransitionRequest(
+                target_status=EpisodeStatus.PREPRODUCTION,
+                requested_by="production-service",
+                reason=f"production run {run.id} passed preflight",
+            ),
         )
         return run
 

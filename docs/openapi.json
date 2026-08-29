@@ -431,6 +431,57 @@
         "title": "EpisodeCreate",
         "type": "object"
       },
+      "EpisodeEvent": {
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "episode_id": {
+            "title": "Episode Id",
+            "type": "string"
+          },
+          "event_type": {
+            "title": "Event Type",
+            "type": "string"
+          },
+          "from_status": {
+            "$ref": "#/components/schemas/EpisodeStatus"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "requested_by": {
+            "title": "Requested By",
+            "type": "string"
+          },
+          "sequence": {
+            "title": "Sequence",
+            "type": "integer"
+          },
+          "to_status": {
+            "$ref": "#/components/schemas/EpisodeStatus"
+          }
+        },
+        "required": [
+          "id",
+          "episode_id",
+          "sequence",
+          "event_type",
+          "from_status",
+          "to_status",
+          "requested_by",
+          "reason",
+          "created_at"
+        ],
+        "title": "EpisodeEvent",
+        "type": "object"
+      },
       "EpisodeStatus": {
         "enum": [
           "planned",
@@ -447,6 +498,30 @@
         ],
         "title": "EpisodeStatus",
         "type": "string"
+      },
+      "EpisodeTransitionRequest": {
+        "properties": {
+          "reason": {
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "requested_by": {
+            "minLength": 1,
+            "title": "Requested By",
+            "type": "string"
+          },
+          "target_status": {
+            "$ref": "#/components/schemas/EpisodeStatus"
+          }
+        },
+        "required": [
+          "target_status",
+          "requested_by",
+          "reason"
+        ],
+        "title": "EpisodeTransitionRequest",
+        "type": "object"
       },
       "HTTPValidationError": {
         "properties": {
@@ -1219,6 +1294,49 @@
         "summary": "Create Continuity"
       }
     },
+    "/v1/episodes/{episode_id}/events": {
+      "get": {
+        "operationId": "list_episode_events_v1_episodes__episode_id__events_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "episode_id",
+            "required": true,
+            "schema": {
+              "title": "Episode Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EpisodeEvent"
+                  },
+                  "title": "Response List Episode Events V1 Episodes  Episode Id  Events Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Episode Events"
+      }
+    },
     "/v1/episodes/{episode_id}/production-runs": {
       "post": {
         "operationId": "start_production_v1_episodes__episode_id__production_runs_post",
@@ -1418,6 +1536,55 @@
         "summary": "Approve Script"
       }
     },
+    "/v1/episodes/{episode_id}/transition": {
+      "post": {
+        "operationId": "transition_episode_v1_episodes__episode_id__transition_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "episode_id",
+            "required": true,
+            "schema": {
+              "title": "Episode Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EpisodeTransitionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Episode"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Transition Episode"
+      }
+    },
     "/v1/production-runs/{run_id}": {
       "get": {
         "operationId": "get_run_v1_production_runs__run_id__get",
@@ -1601,6 +1768,24 @@
     "/v1/project-plans": {
       "post": {
         "operationId": "create_project_plan_v1_project_plans_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {

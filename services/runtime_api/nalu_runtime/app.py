@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Header, HTTPException
 from fastapi.responses import JSONResponse
 
 from .database import Database
@@ -17,6 +17,8 @@ from .models import (
     ContinuitySnapshotCreate,
     Episode,
     EpisodeCreate,
+    EpisodeEvent,
+    EpisodeTransitionRequest,
     ProductionRun,
     ProductionRunCreate,
     Project,
@@ -75,8 +77,11 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
         return repository.create_project(request)
 
     @app.post("/v1/project-plans", response_model=ProjectPlan, status_code=201)
-    def create_project_plan(request: ProjectPlanCreate) -> ProjectPlan:
-        return repository.create_project_plan(request)
+    def create_project_plan(
+        request: ProjectPlanCreate,
+        idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    ) -> ProjectPlan:
+        return repository.create_project_plan(request, idempotency_key)
 
     @app.get("/v1/projects", response_model=list[Project])
     def list_projects() -> list[Project]:
@@ -105,6 +110,16 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
     @app.get("/v1/episodes/{episode_id}", response_model=Episode)
     def get_episode(episode_id: str) -> Episode:
         return repository.get_episode(episode_id)
+
+    @app.post("/v1/episodes/{episode_id}/transition", response_model=Episode)
+    def transition_episode(
+        episode_id: str, request: EpisodeTransitionRequest
+    ) -> Episode:
+        return repository.transition_episode(episode_id, request)
+
+    @app.get("/v1/episodes/{episode_id}/events", response_model=list[EpisodeEvent])
+    def list_episode_events(episode_id: str) -> list[EpisodeEvent]:
+        return repository.list_episode_events(episode_id)
 
     @app.post(
         "/v1/episodes/{episode_id}/scripts", response_model=ScriptRevision, status_code=201

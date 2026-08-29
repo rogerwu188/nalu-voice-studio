@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from datetime import UTC, datetime
 from typing import Any
@@ -15,7 +16,9 @@ from .models import (
     ContinuitySnapshotCreate,
     Episode,
     EpisodeCreate,
+    EpisodeEvent,
     EpisodeStatus,
+    EpisodeTransitionRequest,
     ProductionRun,
     Project,
     ProjectCreate,
@@ -54,6 +57,31 @@ class ConflictError(RuntimeError):
     pass
 
 
+EPISODE_TRANSITIONS: dict[EpisodeStatus, set[EpisodeStatus]] = {
+    EpisodeStatus.PLANNED: {EpisodeStatus.SCRIPT_REVIEW, EpisodeStatus.BLOCKED},
+    EpisodeStatus.SCRIPT_DRAFT: {EpisodeStatus.SCRIPT_REVIEW, EpisodeStatus.BLOCKED},
+    EpisodeStatus.SCRIPT_REVIEW: {EpisodeStatus.SCRIPT_APPROVED, EpisodeStatus.BLOCKED},
+    EpisodeStatus.SCRIPT_APPROVED: {
+        EpisodeStatus.SCRIPT_REVIEW,
+        EpisodeStatus.PREPRODUCTION,
+        EpisodeStatus.BLOCKED,
+    },
+    EpisodeStatus.PREPRODUCTION: {EpisodeStatus.GENERATING, EpisodeStatus.BLOCKED},
+    EpisodeStatus.GENERATING: {EpisodeStatus.POSTPRODUCTION, EpisodeStatus.BLOCKED},
+    EpisodeStatus.POSTPRODUCTION: {EpisodeStatus.QA_REVIEW, EpisodeStatus.BLOCKED},
+    EpisodeStatus.QA_REVIEW: {EpisodeStatus.READY_TO_PUBLISH, EpisodeStatus.BLOCKED},
+    EpisodeStatus.READY_TO_PUBLISH: {EpisodeStatus.PUBLISHED, EpisodeStatus.BLOCKED},
+    EpisodeStatus.PUBLISHED: set(),
+    EpisodeStatus.BLOCKED: {
+        EpisodeStatus.SCRIPT_REVIEW,
+        EpisodeStatus.PREPRODUCTION,
+        EpisodeStatus.GENERATING,
+        EpisodeStatus.POSTPRODUCTION,
+        EpisodeStatus.QA_REVIEW,
+    },
+}
+
+
 class Repository:
     def __init__(self, database: Database):
         self.db = database
@@ -79,8 +107,12 @@ class Repository:
             )
         return self.get_project(project_id)
 
-    def create_project_plan(self, request: ProjectPlanCreate) -> ProjectPlan:
+    def create_project_plan(
+        self, request: ProjectPlanCreate, idempotency_key: str | None = None
+    ) -> ProjectPlan:
         """Create a project, its first season and episode slots atomically."""
+        canonical_request = request.model_dump_json(exclude_none=True)
+        request_sha = hashlib.sha256(canonical_request.encode()).hexdigest()
         project_id, season_id, now = new_id("prj"), new_id("sea"), utc_now()
         episode_count = request.project.planned_episode_count
         titles = request.episode_titles or [f"第{number}集" for number in range(1, episode_count + 1)]
@@ -89,6 +121,16 @@ class Repository:
         episode_ids: list[str] = []
         with self.db.connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
+            if idempotency_key:
+                existing = connection.execute(
+                    """SELECT request_sha256, response_json FROM idempotency_records
+                       WHERE scope = ? AND idempotency_key = ?""",
+                    ("project-plan", idempotency_key),
+                ).fetchone()
+                if existing:
+                    if existing["request_sha256"] != request_sha:
+                        raise ConflictError("idempotency key was already used for another request")
+                    return ProjectPlan.model_validate_json(existing["response_json"])
             connection.execute(
                 "INSERT INTO projects VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
@@ -137,11 +179,53 @@ class Repository:
                         now,
                     ),
                 )
-        return ProjectPlan(
-            project=self.get_project(project_id),
-            season=self.get_season(season_id),
-            episodes=[self.get_episode(episode_id) for episode_id in episode_ids],
-        )
+            plan = ProjectPlan(
+                project=Project(
+                    id=project_id,
+                    **request.project.model_dump(),
+                    created_at=now,
+                    updated_at=now,
+                ),
+                season=Season(
+                    id=season_id,
+                    project_id=project_id,
+                    title=request.season_title,
+                    season_number=request.season_number,
+                    planned_episode_count=episode_count,
+                    season_arc={},
+                    created_at=now,
+                    updated_at=now,
+                ),
+                episodes=[
+                    Episode(
+                        id=episode_id,
+                        season_id=season_id,
+                        title=title.strip(),
+                        episode_number=number,
+                        logline="等待和用户一起完善",
+                        outline={},
+                        target_seconds=request.project.target_episode_seconds,
+                        status=EpisodeStatus.PLANNED,
+                        created_at=now,
+                        updated_at=now,
+                    )
+                    for number, (episode_id, title) in enumerate(
+                        zip(episode_ids, titles, strict=True), start=1
+                    )
+                ],
+            )
+            if idempotency_key:
+                connection.execute(
+                    "INSERT INTO idempotency_records VALUES (?, ?, ?, ?, ?)",
+                    (
+                        "project-plan",
+                        idempotency_key,
+                        request_sha,
+                        plan.model_dump_json(),
+                        now,
+                    ),
+                )
+        return plan
 
     def get_project(self, project_id: str) -> Project:
         with self.db.connect() as connection:
@@ -244,8 +328,81 @@ class Repository:
             ]
         return [self.get_episode(episode_id) for episode_id in ids]
 
+    def _record_episode_transition(
+        self,
+        connection,
+        episode_id: str,
+        from_status: EpisodeStatus,
+        to_status: EpisodeStatus,
+        requested_by: str,
+        reason: str,
+    ) -> None:
+        row = connection.execute(
+            "SELECT COALESCE(MAX(sequence), 0) + 1 AS sequence FROM episode_events WHERE episode_id = ?",
+            (episode_id,),
+        ).fetchone()
+        connection.execute(
+            "INSERT INTO episode_events VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                new_id("eev"),
+                episode_id,
+                int(row["sequence"]),
+                "status_transition",
+                from_status,
+                to_status,
+                requested_by,
+                reason,
+                utc_now(),
+            ),
+        )
+
+    def transition_episode(
+        self, episode_id: str, request: EpisodeTransitionRequest
+    ) -> Episode:
+        episode = self.get_episode(episode_id)
+        if request.target_status not in EPISODE_TRANSITIONS[episode.status]:
+            raise ConflictError(
+                f"episode transition {episode.status} -> {request.target_status} is not allowed"
+            )
+        if request.target_status in {EpisodeStatus.SCRIPT_APPROVED, EpisodeStatus.PUBLISHED}:
+            raise ConflictError("this transition requires its dedicated approval endpoint")
+        now = utc_now()
+        with self.db.connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            current = EpisodeStatus(
+                connection.execute(
+                    "SELECT status FROM episodes WHERE id = ?", (episode_id,)
+                ).fetchone()["status"]
+            )
+            if current != episode.status:
+                raise ConflictError("episode state changed; reload and retry")
+            connection.execute(
+                "UPDATE episodes SET status = ?, updated_at = ? WHERE id = ?",
+                (request.target_status, now, episode_id),
+            )
+            self._record_episode_transition(
+                connection,
+                episode_id,
+                current,
+                request.target_status,
+                request.requested_by,
+                request.reason,
+            )
+        return self.get_episode(episode_id)
+
+    def list_episode_events(self, episode_id: str) -> list[EpisodeEvent]:
+        self.get_episode(episode_id)
+        with self.db.connect() as connection:
+            rows = connection.execute(
+                "SELECT * FROM episode_events WHERE episode_id = ? ORDER BY sequence",
+                (episode_id,),
+            ).fetchall()
+        return [EpisodeEvent.model_validate(dict(row)) for row in rows]
+
     def create_script(self, episode_id: str, request: ScriptRevisionCreate) -> ScriptRevision:
         episode = self.get_episode(episode_id)
+        if EpisodeStatus.SCRIPT_REVIEW not in EPISODE_TRANSITIONS[episode.status] and episode.status != EpisodeStatus.SCRIPT_REVIEW:
+            raise ConflictError(f"cannot create a script revision while episode is {episode.status}")
         now = utc_now()
         with self.db.connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
@@ -271,6 +428,15 @@ class Repository:
                 "UPDATE episodes SET status = ?, updated_at = ? WHERE id = ?",
                 (EpisodeStatus.SCRIPT_REVIEW, now, episode.id),
             )
+            if episode.status != EpisodeStatus.SCRIPT_REVIEW:
+                self._record_episode_transition(
+                    connection,
+                    episode_id,
+                    episode.status,
+                    EpisodeStatus.SCRIPT_REVIEW,
+                    "script-service",
+                    f"script revision {revision} created",
+                )
         return self.get_script(episode_id, revision)
 
     def get_script(self, episode_id: str, revision: int) -> ScriptRevision:
@@ -290,12 +456,23 @@ class Repository:
     ) -> ScriptRevision:
         self.get_script(episode_id, revision)
         episode = self.get_episode(episode_id)
+        if episode.status != EpisodeStatus.SCRIPT_REVIEW:
+            raise ConflictError("only a script in review may be approved")
         season = self.get_season(episode.season_id)
         now = utc_now()
         approval_id = new_id("apr")
         with self.db.connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
             connection.execute(
                 "UPDATE script_revisions SET approved_at = NULL WHERE episode_id = ?", (episode_id,)
+            )
+            self._record_episode_transition(
+                connection,
+                episode_id,
+                episode.status,
+                EpisodeStatus.SCRIPT_APPROVED,
+                approval.approved_by,
+                f"approved script revision {revision}",
             )
             connection.execute(
                 "UPDATE script_revisions SET approved_at = ? WHERE episode_id = ? AND revision = ?",

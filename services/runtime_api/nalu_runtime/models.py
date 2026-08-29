@@ -102,6 +102,24 @@ class Episode(EpisodeCreate):
     updated_at: str
 
 
+class EpisodeTransitionRequest(BaseModel):
+    target_status: EpisodeStatus
+    requested_by: str = Field(min_length=1)
+    reason: str = Field(min_length=1)
+
+
+class EpisodeEvent(BaseModel):
+    id: str
+    episode_id: str
+    sequence: int
+    event_type: str
+    from_status: EpisodeStatus
+    to_status: EpisodeStatus
+    requested_by: str
+    reason: str
+    created_at: str
+
+
 class ProjectPlanCreate(BaseModel):
     project: ProjectCreate
     season_title: str = Field(default="第一季", min_length=1, max_length=160)
