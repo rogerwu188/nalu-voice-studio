@@ -1,0 +1,116 @@
+from __future__ import annotations
+
+import sqlite3
+from pathlib import Path
+
+SCHEMA = """
+PRAGMA foreign_keys = ON;
+
+CREATE TABLE IF NOT EXISTS projects (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  description TEXT NOT NULL,
+  audience_mode TEXT NOT NULL,
+  visual_style TEXT NOT NULL,
+  aspect_ratio TEXT NOT NULL,
+  planned_episode_count INTEGER NOT NULL,
+  target_episode_seconds INTEGER NOT NULL,
+  project_bible_json TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS seasons (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  season_number INTEGER NOT NULL,
+  planned_episode_count INTEGER NOT NULL,
+  season_arc_json TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  UNIQUE(project_id, season_number)
+);
+
+CREATE TABLE IF NOT EXISTS episodes (
+  id TEXT PRIMARY KEY,
+  season_id TEXT NOT NULL REFERENCES seasons(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  episode_number INTEGER NOT NULL,
+  logline TEXT NOT NULL,
+  outline_json TEXT NOT NULL,
+  target_seconds INTEGER NOT NULL,
+  status TEXT NOT NULL,
+  approved_script_revision INTEGER,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  UNIQUE(season_id, episode_number)
+);
+
+CREATE TABLE IF NOT EXISTS script_revisions (
+  episode_id TEXT NOT NULL REFERENCES episodes(id) ON DELETE CASCADE,
+  revision INTEGER NOT NULL,
+  content TEXT NOT NULL,
+  summary_for_voice_review TEXT NOT NULL,
+  source_transcript TEXT NOT NULL,
+  narrative_metadata_json TEXT NOT NULL,
+  approved_at TEXT,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY(episode_id, revision)
+);
+
+CREATE TABLE IF NOT EXISTS assets (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  episode_id TEXT REFERENCES episodes(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL,
+  name TEXT NOT NULL,
+  local_uri TEXT NOT NULL,
+  subject_name TEXT NOT NULL,
+  metadata_json TEXT NOT NULL,
+  consent_granted INTEGER NOT NULL,
+  consent_scope TEXT NOT NULL,
+  guardian_approved INTEGER NOT NULL,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS continuity_snapshots (
+  id TEXT PRIMARY KEY,
+  episode_id TEXT NOT NULL REFERENCES episodes(id) ON DELETE CASCADE,
+  source_episode_id TEXT REFERENCES episodes(id),
+  state_json TEXT NOT NULL,
+  unresolved_hooks_json TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS production_runs (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id),
+  season_id TEXT NOT NULL REFERENCES seasons(id),
+  episode_id TEXT NOT NULL REFERENCES episodes(id),
+  status TEXT NOT NULL,
+  dry_run INTEGER NOT NULL,
+  requested_model TEXT NOT NULL,
+  estimated_budget_credits INTEGER,
+  package_path TEXT NOT NULL,
+  error TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+"""
+
+
+class Database:
+    def __init__(self, path: Path):
+        self.path = path
+
+    def connect(self) -> sqlite3.Connection:
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        connection = sqlite3.connect(self.path)
+        connection.row_factory = sqlite3.Row
+        connection.execute("PRAGMA foreign_keys = ON")
+        return connection
+
+    def initialize(self) -> None:
+        with self.connect() as connection:
+            connection.executescript(SCHEMA)

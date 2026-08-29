@@ -1,0 +1,14 @@
+{
+  "schema_version": "nalu.model-policy/v1",
+  "policy_version": "2026.08.29",
+  "allowed_video_models": [
+    "seedance-2.0-pro",
+    "MiniMax-H3"
+  ],
+  "prohibited_video_models": [
+    "seedance-2.0-fast",
+    "seedance-2.0-mini",
+    "seedance-2.0"
+  ],
+  "notes": "This file is the productized runtime authority. Imported historical documents are non-authoritative."
+}

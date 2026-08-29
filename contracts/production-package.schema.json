@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nalu.studio/contracts/production-package-v1.schema.json",
+  "title": "Nalu episode production package",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "project",
+    "season",
+    "episode",
+    "approved_script",
+    "inherited_assets",
+    "production_policy",
+    "package_sha256"
+  ],
+  "properties": {
+    "schema_version": { "const": "nalu.production-package/v1" },
+    "project": { "type": "object", "required": ["id", "title", "project_bible"] },
+    "season": { "type": "object", "required": ["id", "project_id", "season_number"] },
+    "episode": {
+      "type": "object",
+      "required": ["id", "season_id", "episode_number", "approved_script_revision"]
+    },
+    "approved_script": {
+      "type": "object",
+      "required": ["episode_id", "revision", "content", "approved_at"]
+    },
+    "inherited_assets": { "type": "array", "items": { "type": "object" } },
+    "continuity": { "type": ["object", "null"] },
+    "production_policy": {
+      "type": "object",
+      "required": [
+        "model_policy",
+        "requested_model",
+        "dry_run",
+        "paid_submitter_required",
+        "release_fail_closed"
+      ]
+    },
+    "package_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+  },
+  "additionalProperties": false
+}
