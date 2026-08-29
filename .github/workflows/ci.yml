@@ -37,4 +37,5 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
+      - run: swift test --package-path apps/macos
       - run: scripts/build-macos-app.sh

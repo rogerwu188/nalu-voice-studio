@@ -8,6 +8,7 @@ let package = Package(
         .executable(name: "NaluVoiceStudio", targets: ["NaluVoiceStudio"])
     ],
     targets: [
-        .executableTarget(name: "NaluVoiceStudio")
+        .executableTarget(name: "NaluVoiceStudio"),
+        .testTarget(name: "NaluVoiceStudioTests", dependencies: ["NaluVoiceStudio"])
     ]
 )
