@@ -56,6 +56,7 @@ struct ContentView: View {
     @State private var realtimeCloudConsent = false
     @State private var realtimeGuardianConsent = false
     @State private var realtimeCredentialIsConfigured = false
+    @State private var realtimeSessionLimitMinutes = 10
     private let keychain = KeychainSecretStore()
 
     var body: some View {
@@ -272,13 +273,39 @@ struct ContentView: View {
                 .opacity(0.01)
                 .accessibilityHidden(true)
             if realtimeVoice.state != .off {
-                Label(realtimeVoice.state.label, systemImage: realtimeVoice.state.systemImage)
-                    .font(.headline)
-                    .foregroundStyle(realtimeVoice.state.isActive ? .purple : .orange)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 10)
-                    .background(Color.purple.opacity(0.07))
+                HStack(spacing: 12) {
+                    if realtimeVoice.state.isActive {
+                        ProgressView()
+                            .controlSize(.small)
+                            .accessibilityLabel("自然语音正在运行")
+                    } else {
+                        Image(systemName: realtimeVoice.state.systemImage)
+                    }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(realtimeVoice.state.label).font(.headline)
+                        if realtimeVoice.sessionStartedAt != nil {
+                            Text(
+                                "本次时长 " + RealtimeSessionLimit.elapsedLabel(
+                                    seconds: realtimeVoice.sessionElapsedSeconds,
+                                    limitMinutes: realtimeVoice.sessionLimitMinutes
+                                )
+                            )
+                            .font(.caption.monospacedDigit())
+                        }
+                    }
+                    Spacer()
+                    if realtimeVoice.retryAllowed {
+                        Button("重新连接", systemImage: "arrow.clockwise") {
+                            Task { await realtimeVoice.retry() }
+                        }
+                        .controlSize(.large)
+                    }
+                }
+                .foregroundStyle(realtimeVoice.state.isActive ? .purple : .orange)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 10)
+                .background(Color.purple.opacity(0.07))
                 Divider()
             }
             if selectedProject != nil {
@@ -770,6 +797,15 @@ struct ContentView: View {
             }
             Toggle("我知道声音会离开这台 Mac，并同意开启这次云端语音会话", isOn: $realtimeCloudConsent)
                 .font(.headline)
+            Picker("本次最长时长", selection: $realtimeSessionLimitMinutes) {
+                ForEach(RealtimeSessionLimit.choices, id: \.self) { minutes in
+                    Text("\(minutes) 分钟").tag(minutes)
+                }
+            }
+            .pickerStyle(.segmented)
+            Text("到达上限会自动断开，避免忘记关闭。实际费用由您的 OpenAI 账户用量决定。")
+                .font(.caption)
+                .foregroundStyle(.secondary)
             if selectedProject?.audienceMode == "child" {
                 Toggle("监护人正在现场，并同意孩子开启这次云端语音会话", isOn: $realtimeGuardianConsent)
                     .font(.headline)
@@ -1367,6 +1403,9 @@ struct ContentView: View {
         realtimeVoice.onAssistantTranscript = { text in
             model.receiveRealtimeTranscript(text, from: InterviewMessage.Speaker.nalu)
         }
+        realtimeVoice.onInterviewAnswer = { answer in
+            model.recordRealtimeInterviewAnswer(answer)
+        }
         let projectName = selectedProject?.title ?? "尚未命名的故事"
         let currentPrompt = model.currentInterviewPrompt
         let instructions = """
@@ -1374,10 +1413,18 @@ struct ContentView: View {
         当前项目叫“\(projectName)”。当前尚未完成的问题是：“\(currentPrompt)”
         用户不必服从固定流程。用户提出问题、质疑、闲聊或纠正时，必须先直接回答当下内容，
         不要答非所问；回答清楚后，再用一句自然的话回到尚未完成的问题。
+        只有用户直接回答当前问题，或明确说暂停、继续、重复问题、返回上一步时，才调用
+        record_interview_answer；调用后等本地结果返回，再简短复述结果并询问 nextPrompt。
+        用户只是提问、抱怨、闲聊或纠正你的回答时不要调用工具。
         一次只问一个问题，句子简短，语速舒缓。允许用户停顿和随时插话。
         不得声称已经保存、批准、付费生成、删除或发布任何内容；这些操作必须回到可见界面确认。
         """
-        Task { await realtimeVoice.start(instructions: instructions) }
+        Task {
+            await realtimeVoice.start(
+                instructions: instructions,
+                limitMinutes: realtimeSessionLimitMinutes
+            )
+        }
     }
 
     private func refreshCredentialStatus() {

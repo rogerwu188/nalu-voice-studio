@@ -918,6 +918,41 @@ final class VoiceInterviewViewModel {
         messages.append(.init(speaker: speaker, text: cleaned))
     }
 
+    func recordRealtimeInterviewAnswer(_ answer: String) -> RealtimeInterviewToolResult {
+        guard planningVoiceFlow.mode == nil else {
+            return RealtimeInterviewToolResult(
+                accepted: false,
+                message: "分集规划和剧本批准需要回到可见界面核对，未自动保存。",
+                nextPrompt: planningVoiceFlow.mode?.prompt ?? "",
+                requiresVisibleConfirmation: true
+            )
+        }
+        let action = interviewFlow.consume(answer)
+        switch action {
+        case .respond(let message):
+            // Realtime will speak the returned message. Avoid a second local TTS voice.
+            if interviewFlow.step == .episodeCount,
+               !interviewFlow.draft.title.isEmpty {
+                Task { await renameDraftProjectDuringInterview() }
+            }
+            return RealtimeInterviewToolResult(
+                accepted: true,
+                message: message,
+                nextPrompt: interviewFlow.prompt,
+                requiresVisibleConfirmation: false
+            )
+        case .create(let draft, let message):
+            messages.append(.init(speaker: .nalu, text: message))
+            Task { await createInterviewedProject(draft) }
+            return RealtimeInterviewToolResult(
+                accepted: true,
+                message: message,
+                nextPrompt: "项目建立后，请继续逐集完善故事。",
+                requiresVisibleConfirmation: false
+            )
+        }
+    }
+
     var currentInterviewPrompt: String {
         planningVoiceFlow.mode?.prompt ?? interviewFlow.prompt
     }

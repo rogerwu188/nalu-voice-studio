@@ -6,6 +6,7 @@ import WebKit
 enum RealtimeVoiceState: Equatable {
     case off
     case connecting
+    case reconnecting
     case listening
     case thinking
     case speaking
@@ -15,6 +16,7 @@ enum RealtimeVoiceState: Equatable {
         switch self {
         case .off: "自然语音未开启"
         case .connecting: "正在连接自然语音…"
+        case .reconnecting: "连接中断，正在尝试恢复…"
         case .listening: "正在听您说话"
         case .thinking: "正在想怎么回答"
         case .speaking: "Nalu 正在回答，可以随时插话"
@@ -26,6 +28,7 @@ enum RealtimeVoiceState: Equatable {
         switch self {
         case .off: "waveform.slash"
         case .connecting: "arrow.triangle.2.circlepath"
+        case .reconnecting: "wifi.exclamationmark"
         case .listening: "ear.fill"
         case .thinking: "ellipsis.bubble.fill"
         case .speaking: "speaker.wave.3.fill"
@@ -35,14 +38,57 @@ enum RealtimeVoiceState: Equatable {
 
     var isActive: Bool {
         switch self {
-        case .connecting, .listening, .thinking, .speaking: true
+        case .connecting, .reconnecting, .listening, .thinking, .speaking: true
         case .off, .unavailable: false
         }
     }
 }
 
+enum RealtimeSessionLimit {
+    static let choices = [5, 10, 20]
+
+    static func normalized(_ minutes: Int) -> Int {
+        choices.contains(minutes) ? minutes : 10
+    }
+
+    static func elapsedLabel(seconds: Int, limitMinutes: Int) -> String {
+        let safeSeconds = max(0, seconds)
+        return String(
+            format: "%02d:%02d / %d:00",
+            safeSeconds / 60,
+            safeSeconds % 60,
+            normalized(limitMinutes)
+        )
+    }
+}
+
 struct RealtimeSessionConfiguration {
     static let model = "gpt-realtime-2.1"
+    static let interviewToolName = "record_interview_answer"
+
+    static var interviewTool: [String: Any] {
+        [
+            "type": "function",
+            "name": interviewToolName,
+            "description": """
+            Record a direct answer to Nalu's current unfinished interview question, or apply an
+            explicit pause, resume, repeat-question, or go-back command in the local project flow.
+            Do not call this for questions, complaints, unrelated corrections, small talk,
+            approval, deletion, paid generation, or publishing requests.
+            """,
+            "parameters": [
+                "type": "object",
+                "properties": [
+                    "answer": [
+                        "type": "string",
+                        "description": "The user's direct answer, preserving their meaning.",
+                    ]
+                ],
+                "required": ["answer"],
+                "additionalProperties": false,
+            ],
+        ]
+    }
 
     static func requestBody(instructions: String) throws -> Data {
         try JSONSerialization.data(
@@ -53,6 +99,8 @@ struct RealtimeSessionConfiguration {
                     "instructions": instructions,
                     "output_modalities": ["audio"],
                     "max_output_tokens": 512,
+                    "tools": [interviewTool],
+                    "tool_choice": "auto",
                     "audio": [
                         "input": [
                             "transcription": [
@@ -71,6 +119,48 @@ struct RealtimeSessionConfiguration {
                 ]
             ]
         )
+    }
+}
+
+struct RealtimeInterviewToolResult: Codable, Equatable {
+    let accepted: Bool
+    let message: String
+    let nextPrompt: String
+    let requiresVisibleConfirmation: Bool
+
+    func jsonString() -> String {
+        guard let data = try? JSONEncoder().encode(self),
+              let value = String(data: data, encoding: .utf8) else {
+            return #"{"accepted":false,"message":"本地结果编码失败。","nextPrompt":"","requiresVisibleConfirmation":true}"#
+        }
+        return value
+    }
+}
+
+enum RealtimeJavaScriptBridge {
+    static func stringLiteral(_ value: String) -> String? {
+        guard let data = try? JSONEncoder().encode(value) else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
+}
+
+struct RealtimeInterviewToolCall: Equatable {
+    let callID: String
+    let answer: String
+
+    static func parse(_ payload: [String: Any]) -> RealtimeInterviewToolCall? {
+        guard payload["name"] as? String == RealtimeSessionConfiguration.interviewToolName,
+              let callID = payload["callID"] as? String,
+              !callID.isEmpty,
+              let arguments = payload["arguments"] as? String,
+              arguments.utf8.count <= 8_192,
+              let data = arguments.data(using: .utf8),
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              object.keys.allSatisfy({ $0 == "answer" }),
+              let rawAnswer = object["answer"] as? String else { return nil }
+        let answer = rawAnswer.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !answer.isEmpty, answer.count <= 2_000 else { return nil }
+        return RealtimeInterviewToolCall(callID: callID, answer: answer)
     }
 }
 
@@ -137,13 +227,20 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
     WKNavigationDelegate, WKUIDelegate {
     var state: RealtimeVoiceState = .off
     var sessionStartedAt: Date?
+    var sessionElapsedSeconds = 0
+    var sessionLimitMinutes = 10
+    var retryAllowed = false
     var onUserTranscript: ((String) -> Void)?
     var onAssistantTranscript: ((String) -> Void)?
+    var onInterviewAnswer: ((String) -> RealtimeInterviewToolResult)?
 
     private let broker = RealtimeSessionBroker()
     private weak var webView: WKWebView?
     private var isPageReady = false
     private var pendingToken: String?
+    private var completedToolCallIDs: Set<String> = []
+    private var lastInstructions: String?
+    private var sessionClock: Task<Void, Never>?
 
     func attach(_ webView: WKWebView) {
         guard self.webView !== webView else { return }
@@ -157,11 +254,18 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
         webView.loadHTMLString(Self.webRTCPage, baseURL: URL(string: "https://api.openai.com"))
     }
 
-    func start(instructions: String) async {
+    func start(instructions: String, limitMinutes: Int = 10) async {
         guard webView != nil else {
             state = .unavailable(RealtimeVoiceError.webViewNotReady.localizedDescription)
             return
         }
+        stopSessionClock()
+        sessionStartedAt = nil
+        sessionElapsedSeconds = 0
+        sessionLimitMinutes = RealtimeSessionLimit.normalized(limitMinutes)
+        lastInstructions = instructions
+        completedToolCallIDs.removeAll()
+        retryAllowed = false
         state = .connecting
         do {
             let token = try await broker.createClientSecret(instructions: instructions)
@@ -169,13 +273,24 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
             startWebRTCIfReady()
         } catch {
             state = .unavailable(error.localizedDescription)
+            retryAllowed = true
         }
+    }
+
+    func retry() async {
+        guard retryAllowed, let lastInstructions else { return }
+        await start(instructions: lastInstructions, limitMinutes: sessionLimitMinutes)
     }
 
     func stop() {
         webView?.evaluateJavaScript("window.naluRealtime.stop()")
         pendingToken = nil
         sessionStartedAt = nil
+        sessionElapsedSeconds = 0
+        stopSessionClock()
+        completedToolCallIDs.removeAll()
+        lastInstructions = nil
+        retryAllowed = false
         state = .off
     }
 
@@ -206,10 +321,14 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
         if kind == "status", let value = payload["value"] as? String {
             switch value {
             case "connected", "listening":
-                if sessionStartedAt == nil { sessionStartedAt = Date() }
+                if sessionStartedAt == nil {
+                    sessionStartedAt = Date()
+                    startSessionClock()
+                }
                 state = .listening
             case "thinking": state = .thinking
             case "speaking": state = .speaking
+            case "reconnecting": state = .reconnecting
             case "off": state = .off
             default: break
             }
@@ -221,22 +340,90 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
                   let text = payload["text"] as? String, !text.isEmpty {
             onAssistantTranscript?(text)
         } else if kind == "error", let text = payload["text"] as? String {
-            state = .unavailable(text)
+            failSession(reason: text, allowRetry: true)
+        } else if kind == "tool" {
+            handleToolCall(payload)
+        }
+    }
+
+    private func startSessionClock() {
+        stopSessionClock()
+        sessionClock = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(1))
+                guard let self, !Task.isCancelled, self.state.isActive else { break }
+                self.sessionElapsedSeconds += 1
+                if self.sessionElapsedSeconds >= self.sessionLimitMinutes * 60 {
+                    self.failSession(
+                        reason: "已达到本次 \(self.sessionLimitMinutes) 分钟上限，已自动断开。",
+                        allowRetry: false
+                    )
+                    break
+                }
+            }
+        }
+    }
+
+    private func stopSessionClock() {
+        sessionClock?.cancel()
+        sessionClock = nil
+    }
+
+    private func failSession(reason: String, allowRetry: Bool) {
+        webView?.evaluateJavaScript("window.naluRealtime.stop(false)")
+        pendingToken = nil
+        stopSessionClock()
+        retryAllowed = allowRetry
+        state = .unavailable(reason)
+    }
+
+    private func handleToolCall(_ payload: [String: Any]) {
+        guard let callID = payload["callID"] as? String,
+              !callID.isEmpty,
+              !completedToolCallIDs.contains(callID) else { return }
+        completedToolCallIDs.insert(callID)
+
+        let rejected = RealtimeInterviewToolResult(
+            accepted: false,
+            message: "这个语音操作没有被允许，请回到可见界面确认。",
+            nextPrompt: "",
+            requiresVisibleConfirmation: true
+        )
+        guard let call = RealtimeInterviewToolCall.parse(payload),
+              let onInterviewAnswer else {
+            completeToolCall(callID: callID, result: rejected)
+            return
+        }
+        completeToolCall(callID: callID, result: onInterviewAnswer(call.answer))
+    }
+
+    private func completeToolCall(callID: String, result: RealtimeInterviewToolResult) {
+        guard let callIDJSON = RealtimeJavaScriptBridge.stringLiteral(callID),
+              let outputJSON = RealtimeJavaScriptBridge.stringLiteral(result.jsonString()) else {
+            return
+        }
+        webView?.evaluateJavaScript(
+            "window.naluRealtime.completeToolCall(\(callIDJSON), \(outputJSON))"
+        ) { _, error in
+            if let error {
+                Task { @MainActor in
+                    self.failSession(reason: error.localizedDescription, allowRetry: true)
+                }
+            }
         }
     }
 
     private func startWebRTCIfReady() {
         guard isPageReady, let token = pendingToken, let webView else { return }
         pendingToken = nil
-        guard let tokenData = try? JSONSerialization.data(withJSONObject: token),
-              let tokenJSON = String(data: tokenData, encoding: .utf8) else {
+        guard let tokenJSON = RealtimeJavaScriptBridge.stringLiteral(token) else {
             state = .unavailable(RealtimeVoiceError.invalidSessionResponse.localizedDescription)
             return
         }
         webView.evaluateJavaScript("window.naluRealtime.start(\(tokenJSON))") { _, error in
             if let error {
                 Task { @MainActor in
-                    self.state = .unavailable(error.localizedDescription)
+                    self.failSession(reason: error.localizedDescription, allowRetry: true)
                 }
             }
         }
@@ -245,13 +432,31 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
     private static let webRTCPage = #"""
     <!doctype html><html><body><script>
     window.naluRealtime = (() => {
-      let pc = null, dc = null, stream = null, audio = null;
+      let pc = null, dc = null, stream = null, audio = null, disconnectTimer = null;
       const post = (kind, value) => window.webkit.messageHandlers.naluRealtime.postMessage({kind, value});
       async function start(token) {
         try {
           stop();
           post("status", "connecting");
           pc = new RTCPeerConnection();
+          pc.onconnectionstatechange = () => {
+            if (!pc) return;
+            if (pc.connectionState === "connected") {
+              if (disconnectTimer) clearTimeout(disconnectTimer);
+              disconnectTimer = null;
+              post("status", "connected");
+            } else if (pc.connectionState === "disconnected") {
+              post("status", "reconnecting");
+              if (disconnectTimer) clearTimeout(disconnectTimer);
+              disconnectTimer = setTimeout(() => {
+                if (pc && pc.connectionState === "disconnected") {
+                  post("error", "网络连接中断，请检查网络后重新连接");
+                }
+              }, 3000);
+            } else if (pc.connectionState === "failed") {
+              post("error", "实时语音连接已失败，请重新连接");
+            }
+          };
           audio = document.createElement("audio");
           audio.autoplay = true;
           document.body.appendChild(audio);
@@ -273,7 +478,16 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
               post("assistant", value.transcript || "");
               post("status", "listening");
             }
-            if (value.type === "error") post("error", value.error?.message || "实时语音发生错误");
+            if (value.type === "response.done") {
+              const calls = value.response?.output?.filter(item => item.type === "function_call") || [];
+              calls.forEach(call => window.webkit.messageHandlers.naluRealtime.postMessage({
+                kind: "tool", name: call.name || "", callID: call.call_id || "",
+                arguments: call.arguments || "{}"
+              }));
+            }
+            if (value.type === "error") {
+              post("error", value.error?.message || value.message || "实时语音发生错误");
+            }
           });
           const offer = await pc.createOffer();
           await pc.setLocalDescription(offer);
@@ -289,6 +503,8 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
         }
       }
       function stop(notify = true) {
+        if (disconnectTimer) clearTimeout(disconnectTimer);
+        disconnectTimer = null;
         if (dc) dc.close();
         if (pc) pc.close();
         if (stream) stream.getTracks().forEach(track => track.stop());
@@ -296,7 +512,18 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
         pc = dc = stream = audio = null;
         if (notify) post("status", "off");
       }
-      return {start, stop};
+      function completeToolCall(callID, output) {
+        if (!dc || dc.readyState !== "open") {
+          post("error", "语音采访结果无法返回，请重新连接");
+          return;
+        }
+        dc.send(JSON.stringify({
+          type: "conversation.item.create",
+          item: {type: "function_call_output", call_id: callID, output}
+        }));
+        dc.send(JSON.stringify({type: "response.create"}));
+      }
+      return {start, stop, completeToolCall};
     })();
     </script></body></html>
     """#
