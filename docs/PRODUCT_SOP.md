@@ -34,6 +34,8 @@ Evidence:
 
 - Commit: `d94e66c`
 - GitHub CI: run `33269963489`, runtime and macOS jobs passed.
+- Revalidated on commit `60f4626`: GitHub CI run `33272141000`, runtime and
+  macOS jobs passed.
 
 ## SOP-01 · Versioned product domain and Runtime API — IN_PROGRESS
 
@@ -61,6 +63,8 @@ Current evidence:
   backward-compatibility check for the committed OpenAPI contract.
 - Commit `e71c91e`: schema migration v3 and payload-bound production-run
   idempotency; paid production now rejects requests without an idempotency key.
+- GitHub CI run `33272141000`: 12 Runtime tests, real loopback HTTP smoke,
+  OpenAPI freshness/compatibility and full macOS build passed.
 - Still required before `PASS`: expanded restart boundaries and a populated
   release-candidate upgrade/rollback migration rehearsal.
 
