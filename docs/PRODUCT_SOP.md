@@ -197,6 +197,8 @@ Current evidence:
 - Daily release discovery, whole-tree/capability hash verification and the
   `docs/QINGSHAN_UPGRADE_SOP.md` promotion process continuously productize new
   upstream results without following a moving branch.
+- Commit `fb7be81`, GitHub CI run `33273732021`: complete upstream file-set and
+  changed-area Qingshan contract tests passed alongside Nalu Runtime and macOS QA.
 - Still required before `PASS`: separate SD2 Pro/H3 compilers, full registered gate
   execution, durable paid-transaction binding and authorized sandbox evidence.
 
@@ -272,6 +274,10 @@ Current evidence:
   Runtime, pinned Qingshan resources and a native Runtime supervisor.
 - CI launches the bundled executable against a clean Application Support data root
   and verifies the real loopback health endpoint before uploading the app artifact.
+- Commit `fb7be81`, GitHub CI run `33273732021`: Swift tests, self-contained
+  Runtime build, application build, bundled-Runtime smoke and artifact upload passed.
+  Artifact `Nalu-Voice-Studio-macOS` is 22,164,755 bytes; downloaded zip SHA-256 is
+  `b7b1fbe4ac16a78d7b8048b35ae4da05a7a75542758e795d3ff241656c7cfd63`.
 - Still required before `PASS`: Developer ID signing, hardened runtime, notarized
   universal release, update channel, disk diagnostics and clean-Mac upgrade/rollback QA.
 

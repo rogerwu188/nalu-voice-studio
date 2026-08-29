@@ -14,3 +14,7 @@ Versioning and the Keep a Changelog structure.
 - Immutable production packages and dry-run Qingshan adapter.
 - Native SwiftUI voice-interviewer application skeleton.
 - Open-source governance, security and CI foundations.
+- Tested interview state machine with correction, pause/resume and guardian onboarding.
+- Self-contained macOS bundle with a supervised local Runtime and downloadable CI artifact.
+- Continuous Qingshan release discovery, pinned capability hashes and upgrade SOP.
+- Qingshan `v2026.08.29.1` with upstream MIT license and submission-boundary contracts.
