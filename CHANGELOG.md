@@ -21,3 +21,6 @@ Versioning and the Keep a Changelog structure.
 - Local-only Application Support SQLite storage and documented provider privacy boundary.
 - Versioned project backup/restore with digest, schema and ownership validation.
 - Immutable, reviewable season-plan revisions and macOS project management controls.
+- Fail-closed voice editing and approval for season and episode planning.
+- Independent per-episode production stage, percentage and recovery presentation.
+- Latest-only script approval, complete revision history and audited approval revocation.

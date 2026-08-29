@@ -97,6 +97,9 @@ Current evidence:
   automated Swift tests for voice-only setup, interruption recovery and corrections.
 - Audience routing now includes an explicit child/guardian identity and consent
   interview that fails closed before collecting the child's story.
+- Commit `9a70b08`, GitHub CI run `33275504662`: the microphone flow now edits
+  season and episode plans and records explicit voice approval. Ambiguous speech,
+  negative speech and child approval without guardian presence fail closed in Swift tests.
 - Still required before `PASS`: VoiceOver/Accessibility Inspector audit and a
   clean-account voice-only QA session with real microphone permissions.
 
@@ -133,10 +136,15 @@ Current evidence:
   locked episode state, supports visual plan approval, and fails closed on child
   approval until the guardian-presence control is confirmed. Swift tests, full
   application build and bundled-Runtime smoke passed.
-- Still required before `PASS`: voice-driven plan review/approval UI and independent
-  per-episode production progress presentation, followed by the clean-account QA.
+- Commit `9a70b08`, GitHub CI run `33275504662`: voice dictation edits season and
+  episode plans while explicit voice confirmation binds approval to the current revision.
+- Commit `c4d31ff`, GitHub CI run `33275631055`: every episode has an independent
+  persisted-state-derived stage, percentage, current action, explanation and
+  cancel/resume capability; the native episode strip and editor display that state.
+- Still required before `PASS`: clean-account voice-only, accessibility and restart/import
+  QA evidence on the same release candidate. Implementation alone is not acceptance.
 
-## SOP-04 · Script creation, review and approval — TODO
+## SOP-04 · Script creation, review and approval — IN_PROGRESS
 
 Acceptance:
 
@@ -150,6 +158,17 @@ QA:
 
 - Approval, revocation, stale revision and child guardian negative tests.
 - Human review confirms the spoken summary matches the locked script.
+
+Current evidence:
+
+- Script revisions preserve content, plain-language voice summary, source transcript,
+  narrative metadata and approval audit history; production rejects unapproved scripts.
+- Commit `42d8cc4`, GitHub CI run `33275705267`: history listing, latest-revision-only
+  approval, explicit revocation and revoked-script production blocking passed 18 Runtime
+  tests, real HTTP smoke, Swift tests and the full bundled macOS build.
+- Still required before `PASS`: native script drafting/review UI, spoken-summary playback,
+  voice correction and approval, child guardian negative coverage in that native flow,
+  plus human spoken-summary fidelity QA.
 
 ## SOP-05 · Media assets, consent and privacy — IN_PROGRESS
 
