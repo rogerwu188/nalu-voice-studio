@@ -125,6 +125,12 @@ Current evidence:
   elapsed-time/status strip, attempts short network recovery, offers explicit retry and
   enforces a user-selected 5/10/20-minute ceiling. Runtime tests, Swift tests, full app
   build, bundled smoke and downloadable artifact passed.
+- Commits `07fba19` and `e4b6a52`, GitHub CI run `33280779469`: an active Realtime
+  session now owns season, episode and script dictation without starting a competing
+  local microphone. It reads the newly selected task, serializes overlapping responses,
+  saves reversible revisions, and permits season/script approval only when that exact
+  native confirmation task was visibly armed and its phrase/guardian gates pass. Swift
+  tests, full app build, bundled Runtime smoke and downloadable artifact passed.
 - Still required before `PASS`: authorized paid Realtime connectivity, interruption,
   real function-call, network-loss, session-expiry and provider usage/cost QA;
   VoiceOver/Accessibility Inspector audit; and a clean-account voice-only QA session
@@ -167,6 +173,10 @@ Current evidence:
   application build and bundled-Runtime smoke passed.
 - Commit `9a70b08`, GitHub CI run `33275504662`: voice dictation edits season and
   episode plans while explicit voice confirmation binds approval to the current revision.
+- Commits `07fba19` and `e4b6a52`, GitHub CI run `33280779469`: the same live WebRTC
+  session can receive season and episode plan revisions and an explicitly armed plan
+  approval without opening a second microphone; protected task state and guardian gates
+  remain native.
 - Commit `c4d31ff`, GitHub CI run `33275631055`: every episode has an independent
   persisted-state-derived stage, percentage, current action, explanation and
   cancel/resume capability; the native episode strip and editor display that state.
@@ -200,6 +210,10 @@ Current evidence:
   plain-language summary in Mandarin, permits only latest-revision approval,
   supports explicit visual/voice approval and revocation, and gates child approval
   on guardian presence. Swift tests, full app build and bundled-Runtime smoke passed.
+- Commits `07fba19` and `e4b6a52`, GitHub CI run `33280779469`: Realtime speech can
+  create an immutable script revision and complete an explicitly armed script approval;
+  unarmed approval cannot route to the approval API and overlapping spoken prompts are
+  serialized.
 - Still required before `PASS`: human spoken-summary fidelity QA and clean-account
   voice correction/approval evidence; implementation and synthesized playback alone
   do not satisfy the human acceptance criterion.

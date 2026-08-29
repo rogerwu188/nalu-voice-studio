@@ -57,13 +57,20 @@ until the key exists and the user has accepted the per-session cloud-audio/cost 
 - The WebRTC data channel maps listening, thinking, speaking, error and transcript
   events into the same visible conversation UI.
 - A single allowlisted `record_interview_answer` function can advance the local setup
-  interview after a direct answer or an explicit pause/resume/repeat/back command. A
-  question, complaint or small talk is answered first without advancing the reducer.
+  interview, save reversible season/episode/script revisions, and apply explicit
+  pause/resume/repeat/back commands. A question, complaint or small talk is answered
+  first without advancing the reducer.
+- When a Realtime session is already active, the visible “用语音讲…” controls reuse that
+  WebRTC microphone instead of opening Apple speech capture concurrently. Nalu cancels
+  an unfinished answer before reading the newly selected planning question.
+- Season and script approval can pass through the same function only after the user has
+  visibly armed that exact approval task, the reducer hears an exact positive phrase,
+  and the child guardian gate passes. The approval audit records `voice_realtime`.
 - Tool names and exact arguments are locally validated, payloads are bounded, duplicate
   call IDs are ignored, and function output returns through the documented
   `function_call_output` → `response.create` event sequence.
-- Planning approval, deletion, paid generation, biometric use and publishing are not
-  exposed as Realtime tools; those actions remain behind visible product gates.
+- Unarmed approval, deletion, paid generation, biometric consent/use and publishing are
+  not exposed as Realtime operations; those actions remain behind product gates.
 - The status strip has an indeterminate running indicator, explicit listening/thinking/
   speaking/reconnecting states, elapsed time, and a manual reconnect action after failure.
 - The user chooses a 5, 10 or 20 minute session ceiling. Nalu stops microphone capture and
@@ -93,9 +100,10 @@ inspection and the full human accessibility matrix below.
 ## Tool boundary
 
 Realtime model function calls are proposals. The current handler exposes exactly one
-bounded setup-interview function, validates its exact JSON shape and rejects every other
-name. Destructive, biometric, paid, publishing, planning and script-approval actions
-require the same explicit confirmations as the visual workflow. Voice must never bypass
+bounded conversation-flow function, validates its exact JSON shape and rejects every
+other name. A season/script approval is accepted only while its native approval reducer
+is explicitly armed and its existing guardian and exact-language checks pass. Destructive,
+biometric-consent, paid and publishing actions are not callable. Voice must never bypass
 an existing product gate.
 
 ## Acceptance
