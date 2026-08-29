@@ -542,6 +542,91 @@
         "title": "EpisodePlanUpdate",
         "type": "object"
       },
+      "EpisodeProductionProgress": {
+        "properties": {
+          "can_cancel": {
+            "default": false,
+            "title": "Can Cancel",
+            "type": "boolean"
+          },
+          "can_resume": {
+            "default": false,
+            "title": "Can Resume",
+            "type": "boolean"
+          },
+          "current_action": {
+            "title": "Current Action",
+            "type": "string"
+          },
+          "episode_id": {
+            "title": "Episode Id",
+            "type": "string"
+          },
+          "episode_number": {
+            "title": "Episode Number",
+            "type": "integer"
+          },
+          "episode_status": {
+            "$ref": "#/components/schemas/EpisodeStatus"
+          },
+          "explanation": {
+            "title": "Explanation",
+            "type": "string"
+          },
+          "progress_percent": {
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Progress Percent",
+            "type": "integer"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "run_status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RunStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "stage": {
+            "title": "Stage",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "episode_id",
+          "episode_number",
+          "title",
+          "episode_status",
+          "stage",
+          "progress_percent",
+          "current_action",
+          "explanation",
+          "updated_at"
+        ],
+        "title": "EpisodeProductionProgress",
+        "type": "object"
+      },
       "EpisodeStatus": {
         "enum": [
           "planned",
@@ -1688,6 +1773,45 @@
           }
         },
         "summary": "List Episode Events"
+      }
+    },
+    "/v1/episodes/{episode_id}/production-progress": {
+      "get": {
+        "operationId": "get_episode_production_progress_v1_episodes__episode_id__production_progress_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "episode_id",
+            "required": true,
+            "schema": {
+              "title": "Episode Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EpisodeProductionProgress"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Episode Production Progress"
       }
     },
     "/v1/episodes/{episode_id}/production-runs": {
@@ -2948,6 +3072,49 @@
           }
         },
         "summary": "List Season Plan Revisions"
+      }
+    },
+    "/v1/seasons/{season_id}/production-progress": {
+      "get": {
+        "operationId": "get_season_production_progress_v1_seasons__season_id__production_progress_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "season_id",
+            "required": true,
+            "schema": {
+              "title": "Season Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EpisodeProductionProgress"
+                  },
+                  "title": "Response Get Season Production Progress V1 Seasons  Season Id  Production Progress Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Season Production Progress"
       }
     }
   }

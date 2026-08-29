@@ -6,6 +6,7 @@ from pathlib import Path
 
 from .models import (
     AudienceMode,
+    EpisodeProductionProgress,
     EpisodeStatus,
     EpisodeTransitionRequest,
     ProductionPackage,
@@ -18,6 +19,37 @@ from .models import (
 )
 from .qingshan_adapter import QingshanAdapter, QingshanAdapterError
 from .repository import ConflictError, Repository, new_id, utc_now
+
+EPISODE_PROGRESS = {
+    EpisodeStatus.PLANNED: ("planning", 0, "等待完善分集规划", "这一集还在规划中。"),
+    EpisodeStatus.SCRIPT_DRAFT: ("script", 10, "正在撰写剧本", "剧本正在形成初稿。"),
+    EpisodeStatus.SCRIPT_REVIEW: ("script_review", 15, "等待确认剧本", "请检查并确认本集剧本。"),
+    EpisodeStatus.SCRIPT_APPROVED: ("ready", 20, "可以进入制作", "本集剧本已确认。"),
+    EpisodeStatus.PREPRODUCTION: ("preproduction", 30, "正在准备制作", "素材和生产包正在预检。"),
+    EpisodeStatus.GENERATING: ("generation", 60, "正在生成镜头", "专业生产线正在生成本集。"),
+    EpisodeStatus.POSTPRODUCTION: ("postproduction", 80, "正在后期制作", "画面、声音和字幕正在合成。"),
+    EpisodeStatus.QA_REVIEW: ("qa", 90, "正在质量检查", "本集正在通过发布前检查。"),
+    EpisodeStatus.READY_TO_PUBLISH: ("ready_to_publish", 100, "成片待发行", "本集成片已经准备好。"),
+    EpisodeStatus.PUBLISHED: ("published", 100, "已经发行", "本集已经完成发行。"),
+    EpisodeStatus.BLOCKED: ("blocked", 0, "需要处理问题", "本集已暂停，等待解决阻塞问题。"),
+}
+
+RUN_PROGRESS = {
+    RunStatus.CREATED: ("package", 25, "正在创建生产包", "正在整理已批准的剧本和素材。"),
+    RunStatus.PREFLIGHT: ("preflight", 30, "预检已通过", "生产包已通过本地预检。"),
+    RunStatus.WAITING_FOR_APPROVAL: (
+        "approval",
+        35,
+        "等待付费授权",
+        "未获得明确授权前不会调用付费服务。",
+    ),
+    RunStatus.QUEUED: ("queued", 40, "等待生产", "任务已经安全进入生产队列。"),
+    RunStatus.RUNNING: ("generation", 60, "正在生成", "专业生产线正在处理本集。"),
+    RunStatus.QA_REVIEW: ("qa", 90, "正在质量检查", "正在检查本集成片。"),
+    RunStatus.COMPLETED: ("completed", 100, "制作完成", "本集制作已经完成。"),
+    RunStatus.FAILED: ("failed", 0, "制作遇到问题", "任务已停止，可查看原因后恢复。"),
+    RunStatus.CANCELLED: ("cancelled", 0, "已经取消", "任务已安全取消，可以从检查点恢复。"),
+}
 
 
 class ProductionService:
@@ -212,3 +244,46 @@ class ProductionService:
 
     def events(self, run_id: str) -> list[RunEvent]:
         return self.repository.list_run_events(run_id)
+
+    def episode_progress(self, episode_id: str) -> EpisodeProductionProgress:
+        episode = self.repository.get_episode(episode_id)
+        run = self.repository.latest_run_for_episode(episode_id)
+        stage, percent, action, explanation = EPISODE_PROGRESS[episode.status]
+        if run is not None:
+            stage, percent, action, explanation = RUN_PROGRESS[run.status]
+            if run.status in {RunStatus.FAILED, RunStatus.CANCELLED}:
+                percent = EPISODE_PROGRESS[episode.status][1]
+        return EpisodeProductionProgress(
+            episode_id=episode.id,
+            episode_number=episode.episode_number,
+            title=episode.title,
+            episode_status=episode.status,
+            run_id=run.id if run else None,
+            run_status=run.status if run else None,
+            stage=stage,
+            progress_percent=percent,
+            current_action=action,
+            explanation=run.error if run and run.error else explanation,
+            can_cancel=bool(
+                run
+                and run.status
+                in {
+                    RunStatus.CREATED,
+                    RunStatus.PREFLIGHT,
+                    RunStatus.WAITING_FOR_APPROVAL,
+                    RunStatus.QUEUED,
+                    RunStatus.RUNNING,
+                    RunStatus.QA_REVIEW,
+                }
+            ),
+            can_resume=bool(
+                run and run.status in {RunStatus.FAILED, RunStatus.CANCELLED}
+            ),
+            updated_at=run.updated_at if run else episode.updated_at,
+        )
+
+    def season_progress(self, season_id: str) -> list[EpisodeProductionProgress]:
+        return [
+            self.episode_progress(episode.id)
+            for episode in self.repository.list_season_episodes(season_id)
+        ]

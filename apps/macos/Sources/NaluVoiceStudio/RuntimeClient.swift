@@ -107,6 +107,10 @@ actor RuntimeClient {
         try await get("v1/seasons/\(seasonID)/episodes")
     }
 
+    func listEpisodeProgress(seasonID: String) async throws -> [EpisodeProductionProgress] {
+        try await get("v1/seasons/\(seasonID)/production-progress")
+    }
+
     func createEpisode(seasonID: String, draft: EpisodeDraft) async throws -> NaluEpisode {
         try await post("v1/seasons/\(seasonID)/episodes", body: draft)
     }

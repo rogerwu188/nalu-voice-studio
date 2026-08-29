@@ -8,6 +8,7 @@ final class VoiceInterviewViewModel {
     var selectedProjectID: String?
     var seasons: [NaluSeason] = []
     var episodes: [NaluEpisode] = []
+    var episodeProgressByID: [String: EpisodeProductionProgress] = [:]
     var selectedEpisodeID: String?
     var messages: [InterviewMessage] = [
         InterviewMessage(
@@ -111,6 +112,10 @@ final class VoiceInterviewViewModel {
             seasons = try await runtime.listSeasons(projectID: projectID)
             if let season = seasons.first {
                 episodes = try await runtime.listEpisodes(seasonID: season.id)
+                let progress = try await runtime.listEpisodeProgress(seasonID: season.id)
+                episodeProgressByID = Dictionary(
+                    uniqueKeysWithValues: progress.map { ($0.episodeID, $0) }
+                )
                 seasonPlanSummary = season.seasonArc["summary"]?.displayText ?? ""
                 if let first = episodes.first {
                     selectEpisode(first.id)
@@ -121,6 +126,7 @@ final class VoiceInterviewViewModel {
                 }
             } else {
                 episodes = []
+                episodeProgressByID = [:]
                 selectedEpisodeID = nil
                 seasonPlanSummary = ""
                 episodeLogline = ""
@@ -232,6 +238,7 @@ final class VoiceInterviewViewModel {
                 selectedProjectID = nil
                 seasons = []
                 episodes = []
+                episodeProgressByID = [:]
                 selectedEpisodeID = nil
             }
         } catch {

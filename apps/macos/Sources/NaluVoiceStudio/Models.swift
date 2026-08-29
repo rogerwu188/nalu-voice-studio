@@ -198,6 +198,37 @@ struct NaluEpisode: Codable, Identifiable, Sendable {
     }
 }
 
+struct EpisodeProductionProgress: Codable, Identifiable, Sendable {
+    var id: String { episodeID }
+    let episodeID: String
+    let episodeNumber: Int
+    let title: String
+    let episodeStatus: String
+    let runID: String?
+    let runStatus: String?
+    let stage: String
+    let progressPercent: Int
+    let currentAction: String
+    let explanation: String
+    let canCancel: Bool
+    let canResume: Bool
+    let updatedAt: String
+
+    enum CodingKeys: String, CodingKey {
+        case title, stage, explanation
+        case episodeID = "episode_id"
+        case episodeNumber = "episode_number"
+        case episodeStatus = "episode_status"
+        case runID = "run_id"
+        case runStatus = "run_status"
+        case progressPercent = "progress_percent"
+        case currentAction = "current_action"
+        case canCancel = "can_cancel"
+        case canResume = "can_resume"
+        case updatedAt = "updated_at"
+    }
+}
+
 struct EpisodePlanUpdateDraft: Codable, Sendable {
     let logline: String
     let outline: [String: JSONValue]

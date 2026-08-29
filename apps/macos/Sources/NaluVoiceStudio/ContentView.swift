@@ -126,8 +126,19 @@ struct ContentView: View {
                 ScrollView(.horizontal) {
                     HStack(spacing: 10) {
                         ForEach(model.episodes) { episode in
-                            Button("第 \(episode.episodeNumber) 集") {
+                            Button {
                                 model.selectEpisode(episode.id)
+                            } label: {
+                                VStack(alignment: .leading, spacing: 5) {
+                                    Text("第 \(episode.episodeNumber) 集")
+                                        .font(.headline)
+                                    if let progress = model.episodeProgressByID[episode.id] {
+                                        ProgressView(value: Double(progress.progressPercent), total: 100)
+                                            .frame(width: 105)
+                                        Text("\(progress.currentAction) · \(progress.progressPercent)%")
+                                            .font(.caption)
+                                    }
+                                }
                             }
                             .buttonStyle(.borderedProminent)
                             .tint(episode.id == model.selectedEpisodeID ? .blue : .gray)
@@ -235,6 +246,16 @@ struct ContentView: View {
                 Divider()
                 Text("第 \(episode.episodeNumber) 集 · \(episode.title)")
                     .font(.headline)
+                if let progress = selectedEpisodeProgress {
+                    HStack(spacing: 12) {
+                        ProgressView(value: Double(progress.progressPercent), total: 100)
+                            .frame(maxWidth: 240)
+                        Text("\(progress.progressPercent)% · \(progress.currentAction)")
+                            .font(.headline)
+                    }
+                    Text(progress.explanation)
+                        .foregroundStyle(.secondary)
+                }
                 TextField("这一集发生什么", text: episodeLoglineBinding)
                     .textFieldStyle(.roundedBorder)
                 TextField("起因、转折和结尾", text: episodeOutlineBinding, axis: .vertical)
@@ -308,6 +329,11 @@ struct ContentView: View {
 
     private var selectedEpisode: NaluEpisode? {
         model.episodes.first { $0.id == model.selectedEpisodeID }
+    }
+
+    private var selectedEpisodeProgress: EpisodeProductionProgress? {
+        guard let selectedEpisodeID = model.selectedEpisodeID else { return nil }
+        return model.episodeProgressByID[selectedEpisodeID]
     }
 
     private var seasonPlanIsCurrent: Bool {

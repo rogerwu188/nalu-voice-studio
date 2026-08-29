@@ -19,6 +19,7 @@ from .models import (
     EpisodeCreate,
     EpisodeEvent,
     EpisodePlanUpdate,
+    EpisodeProductionProgress,
     EpisodeTransitionRequest,
     ProductionRun,
     ProductionRunCreate,
@@ -174,6 +175,22 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
     @app.patch("/v1/episodes/{episode_id}", response_model=Episode)
     def update_episode_plan(episode_id: str, request: EpisodePlanUpdate) -> Episode:
         return repository.update_episode_plan(episode_id, request)
+
+    @app.get(
+        "/v1/episodes/{episode_id}/production-progress",
+        response_model=EpisodeProductionProgress,
+    )
+    def get_episode_production_progress(episode_id: str) -> EpisodeProductionProgress:
+        return production.episode_progress(episode_id)
+
+    @app.get(
+        "/v1/seasons/{season_id}/production-progress",
+        response_model=list[EpisodeProductionProgress],
+    )
+    def get_season_production_progress(
+        season_id: str,
+    ) -> list[EpisodeProductionProgress]:
+        return production.season_progress(season_id)
 
     @app.post("/v1/episodes/{episode_id}/transition", response_model=Episode)
     def transition_episode(

@@ -176,6 +176,50 @@ def test_concurrent_episode_planning_has_stable_numbering(tmp_path: Path) -> Non
     assert len({episode["id"] for episode in episodes}) == 10
 
 
+def test_each_episode_has_independent_production_progress(tmp_path: Path) -> None:
+    api = client(tmp_path)
+    plan = api.post(
+        "/v1/project-plans",
+        json={"project": {"title": "三集进度", "planned_episode_count": 3}},
+    ).json()
+    season_id = plan["season"]["id"]
+    first = plan["episodes"][0]
+    initial = api.get(f"/v1/seasons/{season_id}/production-progress").json()
+    assert [item["progress_percent"] for item in initial] == [0, 0, 0]
+    assert len({item["episode_id"] for item in initial}) == 3
+
+    script = api.post(
+        f"/v1/episodes/{first['id']}/scripts",
+        json={"content": "第一集剧本", "summary_for_voice_review": "第一集摘要"},
+    ).json()
+    api.post(
+        f"/v1/episodes/{first['id']}/scripts/{script['revision']}/approve",
+        json={"approved_by": "user", "spoken_confirmation": "我确认第一集"},
+    )
+    ready = api.get(f"/v1/episodes/{first['id']}/production-progress").json()
+    assert ready["progress_percent"] == 20
+    assert ready["current_action"] == "可以进入制作"
+
+    run = api.post(
+        f"/v1/episodes/{first['id']}/production-runs",
+        json={"dry_run": True},
+        headers={"Idempotency-Key": "progress-run"},
+    ).json()
+    progress = api.get(f"/v1/seasons/{season_id}/production-progress").json()
+    assert [item["progress_percent"] for item in progress] == [30, 0, 0]
+    assert progress[0]["run_id"] == run["id"]
+    assert progress[0]["can_cancel"] is True
+
+    api.post(
+        f"/v1/production-runs/{run['id']}/cancel",
+        json={"requested_by": "user", "reason": "稍后继续"},
+    )
+    cancelled = api.get(f"/v1/episodes/{first['id']}/production-progress").json()
+    assert cancelled["stage"] == "cancelled"
+    assert cancelled["can_resume"] is True
+    assert cancelled["progress_percent"] == 30
+
+
 def test_project_rename_archive_export_and_restore(tmp_path: Path) -> None:
     source = client(tmp_path / "source")
     plan = source.post(

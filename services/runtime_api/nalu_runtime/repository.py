@@ -1082,6 +1082,16 @@ class Repository:
         data["dry_run"] = bool(data["dry_run"])
         return ProductionRun.model_validate(data)
 
+    def latest_run_for_episode(self, episode_id: str) -> ProductionRun | None:
+        self.get_episode(episode_id)
+        with self.db.connect() as connection:
+            row = connection.execute(
+                """SELECT id FROM production_runs WHERE episode_id = ?
+                   ORDER BY created_at DESC, id DESC LIMIT 1""",
+                (episode_id,),
+            ).fetchone()
+        return self.get_run(row["id"]) if row else None
+
     def append_run_event(
         self,
         run_id: str,

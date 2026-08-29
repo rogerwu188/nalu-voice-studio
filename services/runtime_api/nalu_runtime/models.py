@@ -299,6 +299,22 @@ class ProductionRun(BaseModel):
     updated_at: str
 
 
+class EpisodeProductionProgress(BaseModel):
+    episode_id: str
+    episode_number: int
+    title: str
+    episode_status: EpisodeStatus
+    run_id: str | None = None
+    run_status: RunStatus | None = None
+    stage: str
+    progress_percent: int = Field(ge=0, le=100)
+    current_action: str
+    explanation: str
+    can_cancel: bool = False
+    can_resume: bool = False
+    updated_at: str
+
+
 class RunEvent(BaseModel):
     id: str
     run_id: str
