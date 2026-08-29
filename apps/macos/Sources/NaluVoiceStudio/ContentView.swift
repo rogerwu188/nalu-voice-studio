@@ -166,6 +166,14 @@ struct ContentView: View {
                 .background(Color.blue.opacity(0.08))
                 .padding(.horizontal, 24)
             }
+            if let planningVoiceLabel = model.planningVoiceLabel {
+                Label("当前语音任务：\(planningVoiceLabel)", systemImage: "waveform.badge.mic")
+                    .font(.headline)
+                    .foregroundStyle(.blue)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 24)
+                    .padding(.top, 12)
+            }
             Button(action: toggleMicrophone) {
                 Label(
                     model.isListening ? "说完了" : "按一下，然后开始说",
@@ -200,11 +208,22 @@ struct ContentView: View {
             HStack {
                 Button("保存季纲") { Task { await model.saveSeasonPlan() } }
                     .buttonStyle(.borderedProminent)
+                Button("用语音讲季纲", systemImage: "mic") {
+                    Task { await model.beginSeasonPlanDictation() }
+                }
                 if selectedProject?.audienceMode == "child" {
                     Toggle("监护人已在场确认", isOn: guardianPlanBinding)
                 }
                 Button("我已看过并确认") {
                     Task { await model.approveSeasonPlanVisually() }
+                }
+                .disabled(
+                    !seasonPlanCanApprove
+                        || (selectedProject?.audienceMode == "child"
+                            && !model.guardianConfirmedForPlan)
+                )
+                Button("用语音确认", systemImage: "waveform") {
+                    Task { await model.beginSeasonPlanVoiceApproval() }
                 }
                 .disabled(
                     !seasonPlanCanApprove
@@ -226,6 +245,10 @@ struct ContentView: View {
                         Task { await model.saveSelectedEpisodePlan() }
                     }
                     .buttonStyle(.borderedProminent)
+                    .disabled(!episodePlanIsEditable)
+                    Button("用语音讲本集", systemImage: "mic") {
+                        Task { await model.beginEpisodePlanDictation() }
+                    }
                     .disabled(!episodePlanIsEditable)
                     if !episodePlanIsEditable {
                         Label("本集已批准或进入制作，规划已锁定", systemImage: "lock.fill")

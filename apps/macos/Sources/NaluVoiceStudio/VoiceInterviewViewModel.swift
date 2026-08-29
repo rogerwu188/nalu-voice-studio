@@ -26,10 +26,12 @@ final class VoiceInterviewViewModel {
     var episodeLogline = ""
     var episodeOutlineSummary = ""
     var guardianConfirmedForPlan = false
+    var planningVoiceLabel: String? { planningVoiceFlow.mode?.prompt }
 
     private let runtime = RuntimeClient()
     private let speech = SpeechRecorder()
     private var interviewFlow = InterviewFlow()
+    private var planningVoiceFlow = PlanningVoiceFlow()
 
     func load() async {
         do {
@@ -80,10 +82,21 @@ final class VoiceInterviewViewModel {
         messages.append(InterviewMessage(speaker: .user, text: spoken))
         transcript = ""
         transcriptConfidence = 0
-        handle(interviewFlow.consume(spoken))
+        if planningVoiceFlow.mode != nil {
+            handle(
+                planningVoiceFlow.consume(
+                    spoken,
+                    guardianRequired: selectedProject?.audienceMode == "child",
+                    guardianConfirmed: guardianConfirmedForPlan
+                )
+            )
+        } else {
+            handle(interviewFlow.consume(spoken))
+        }
     }
 
     func beginProject() {
+        planningVoiceFlow = PlanningVoiceFlow()
         messages = [
             InterviewMessage(
                 speaker: .nalu,
@@ -125,49 +138,86 @@ final class VoiceInterviewViewModel {
         episodeOutlineSummary = episode.outline["summary"]?.displayText ?? ""
     }
 
-    func saveSeasonPlan() async {
+    func saveSeasonPlan(sourceTranscript: String = "") async {
         guard let season = seasons.first else { return }
         do {
             _ = try await runtime.updateSeasonPlan(
-                seasonID: season.id, summary: seasonPlanSummary
+                seasonID: season.id,
+                summary: seasonPlanSummary,
+                sourceTranscript: sourceTranscript
             )
             if let projectID = selectedProjectID { await selectProject(projectID) }
+            if !sourceTranscript.isEmpty {
+                messages.append(.init(speaker: .nalu, text: "新的季纲版本已经安全保存在本机。"))
+            }
         } catch {
             errorMessage = error.localizedDescription
         }
     }
 
     func approveSeasonPlanVisually() async {
+        await approveSeasonPlan(
+            confirmation: "我已查看并确认当前分集计划", reviewChannel: "visual"
+        )
+    }
+
+    private func approveSeasonPlan(
+        confirmation: String, reviewChannel: String
+    ) async {
         guard let season = seasons.first else { return }
         do {
             _ = try await runtime.approveSeasonPlan(
                 seasonID: season.id,
-                confirmation: "我已查看并确认当前分集计划",
-                reviewChannel: "visual",
+                confirmation: confirmation,
+                reviewChannel: reviewChannel,
                 guardianApproval: guardianConfirmedForPlan
             )
             if let projectID = selectedProjectID { await selectProject(projectID) }
+            messages.append(.init(speaker: .nalu, text: "当前分集计划已经确认并记录。"))
         } catch {
             errorMessage = error.localizedDescription
         }
     }
 
-    func saveSelectedEpisodePlan() async {
+    func saveSelectedEpisodePlan(sourceTranscript: String = "") async {
         guard let selectedEpisodeID else { return }
         do {
             _ = try await runtime.updateEpisodePlan(
                 episodeID: selectedEpisodeID,
                 logline: episodeLogline,
-                outlineSummary: episodeOutlineSummary
+                outlineSummary: episodeOutlineSummary,
+                sourceTranscript: sourceTranscript
             )
             if let projectID = selectedProjectID {
                 let episodeID = selectedEpisodeID
                 await selectProject(projectID)
                 if episodes.contains(where: { $0.id == episodeID }) { selectEpisode(episodeID) }
             }
+            if !sourceTranscript.isEmpty {
+                messages.append(.init(speaker: .nalu, text: "本集的新规划版本已经安全保存在本机。"))
+            }
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    func beginSeasonPlanDictation() async {
+        await beginPlanningVoice(.seasonPlan)
+    }
+
+    func beginEpisodePlanDictation() async {
+        guard selectedEpisodeID != nil else { return }
+        await beginPlanningVoice(.episodePlan)
+    }
+
+    func beginSeasonPlanVoiceApproval() async {
+        await beginPlanningVoice(.seasonApproval)
+    }
+
+    private func beginPlanningVoice(_ mode: PlanningVoiceMode) async {
+        let prompt = planningVoiceFlow.begin(mode)
+        messages.append(.init(speaker: .nalu, text: prompt))
+        if !isListening { await toggleListening() }
     }
 
     func reloadProjects() async {
@@ -242,6 +292,31 @@ final class VoiceInterviewViewModel {
         }
     }
 
+    private func handle(_ action: PlanningVoiceAction) {
+        switch action {
+        case .updateSeason(let summary, let sourceTranscript):
+            seasonPlanSummary = summary
+            messages.append(.init(speaker: .nalu, text: "好的，我记下了，正在保存新的季纲版本。"))
+            Task { await saveSeasonPlan(sourceTranscript: sourceTranscript) }
+        case .updateEpisode(let summary, let sourceTranscript):
+            episodeOutlineSummary = summary
+            if episodeLogline.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                episodeLogline = summary
+            }
+            messages.append(.init(speaker: .nalu, text: "好的，我记下了，正在保存本集的新规划。"))
+            Task { await saveSelectedEpisodePlan(sourceTranscript: sourceTranscript) }
+        case .approveSeason(let confirmation):
+            messages.append(.init(speaker: .nalu, text: "我听到了明确确认，正在记录当前分集计划。"))
+            Task {
+                await approveSeasonPlan(
+                    confirmation: confirmation, reviewChannel: "voice"
+                )
+            }
+        case .respond(let message):
+            messages.append(.init(speaker: .nalu, text: message))
+        }
+    }
+
     private func createInterviewedProject(_ draft: ProjectDraft) async {
         do {
             let plan = try await runtime.createProjectPlan(
@@ -263,6 +338,12 @@ final class VoiceInterviewViewModel {
     }
 
     func repeatCurrentQuestion() {
-        messages.append(.init(speaker: .nalu, text: interviewFlow.prompt))
+        messages.append(
+            .init(speaker: .nalu, text: planningVoiceFlow.mode?.prompt ?? interviewFlow.prompt)
+        )
+    }
+
+    private var selectedProject: NaluProject? {
+        projects.first { $0.id == selectedProjectID }
     }
 }
