@@ -111,8 +111,17 @@ Current evidence:
 - Commit `2b90ce6`, GitHub CI run `33278702366`: memory cards can be read aloud,
   corrected by voice, re-read and explicitly confirmed against the reviewed revision.
   Runtime tests, Swift tests, full app build and bundled smoke passed.
-- Still required before `PASS`: VoiceOver/Accessibility Inspector audit and a
-  clean-account voice-only QA session with real microphone permissions.
+- Commits `67c8179` and `69785f7`, GitHub CI run `33279727263`: conversational
+  interruptions are answered without advancing or polluting the interview state; the
+  answer is spoken and returns to the unfinished prompt. The native client now exposes
+  a consent-gated WebRTC mode using an ephemeral client secret, `gpt-realtime-2.1`,
+  low-eagerness semantic VAD, interruption, visible states and transcript events.
+  Runtime tests, Swift tests, full app build and bundled smoke passed.
+- Manual native QA on the CI artifact confirmed the visible natural-voice entry and
+  fail-closed consent sheet: without a Keychain credential, the start action is disabled.
+- Still required before `PASS`: authorized paid Realtime connectivity/interruption QA,
+  structured interview tool integration, reconnect/cost QA, VoiceOver/Accessibility
+  Inspector audit and a clean-account voice-only QA session with real permissions.
 
 ## SOP-03 · Multi-project, season and episode planning — IN_PROGRESS
 
@@ -231,8 +240,13 @@ Current evidence:
   project export/restore and cascade deletion. The native app runs Apple Vision OCR
   locally, reads cards aloud, accepts typed/voice corrections and requires re-review
   after every edit. Cross-project evidence and stale confirmation fail closed in tests.
+- Commit `0a12ec1`, GitHub CI run `33278834223`: the native picker accepts scanned
+  handwriting as an image source. Commit `67c8179` moves the oversized inline form to
+  a dedicated scrollable sheet and replaces it with a prominent guided upload card.
 - Still required before `PASS`: human privacy/deletion QA and clean-account OCR,
-  correction and voice archive QA on the same signed release candidate.
+  correction and voice archive QA on the same signed release candidate. Automated
+  Computer Use crashed while opening the new asset sheet, while Nalu stayed running,
+  so that visual sheet check remains explicitly unaccepted.
 
 ## SOP-06 · Cross-episode inheritance and continuity — IN_PROGRESS
 
