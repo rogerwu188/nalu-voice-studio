@@ -56,6 +56,13 @@ Assets belong to a project and may be scoped to a season or episode. Starting a
 production run snapshots the resolved assets and latest continuity state. Later
 asset edits do not mutate an in-flight or completed episode.
 
+The current Runtime and native client implement managed project and episode
+scope; season-specific scope remains an explicit SOP-05 gap. Imported bytes are
+copied under the Runtime data root after path, MIME and size checks. Face and
+voice consent actions are separate audit records. Revocation blocks new
+production, while immutable run dependency snapshots prevent deletion from
+silently rewriting production history.
+
 At episode completion, the production line writes an end-state snapshot for the
 next episode: character location and wardrobe, injuries, prop ownership,
 relationship changes, revealed facts, time/weather, and unresolved hooks.
