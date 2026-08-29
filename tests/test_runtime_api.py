@@ -140,8 +140,11 @@ def test_episode_lifecycle_and_restart_recovery(tmp_path: Path) -> None:
     )
     assert invalid.status_code == 409
 
+    production_path = f"/v1/episodes/{episode['id']}/production-runs"
     run = first.post(
-        f"/v1/episodes/{episode['id']}/production-runs", json={"dry_run": True}
+        production_path,
+        json={"dry_run": True},
+        headers={"Idempotency-Key": "restart-safe-run"},
     ).json()
     assert first.get(f"/v1/episodes/{episode['id']}").json()["status"] == "preproduction"
 
@@ -153,6 +156,13 @@ def test_episode_lifecycle_and_restart_recovery(tmp_path: Path) -> None:
     assert restarted.get(f"/v1/episodes/{episode['id']}/events").json()[-1][
         "to_status"
     ] == "preproduction"
+    replay = restarted.post(
+        production_path,
+        json={"dry_run": True},
+        headers={"Idempotency-Key": "restart-safe-run"},
+    )
+    assert replay.status_code == 201
+    assert replay.json()["id"] == run["id"]
 
 
 def test_database_migration_preserves_existing_database(tmp_path: Path) -> None:
@@ -170,6 +180,28 @@ def test_database_migration_preserves_existing_database(tmp_path: Path) -> None:
         ).fetchone()
     assert marker == "preserve-me"
     assert approval_table == ("approval_records",)
+
+
+def test_populated_v1_database_upgrades_without_project_loss(tmp_path: Path) -> None:
+    database_path = tmp_path / "populated.sqlite3"
+    data_root = tmp_path / "data"
+    before = TestClient(create_app(database_path, data_root))
+    project, _, episode = create_approved_episode(before)
+
+    with sqlite3.connect(database_path) as connection:
+        connection.execute("DROP TABLE episode_events")
+        connection.execute("DROP TABLE idempotency_records")
+        connection.execute("DROP TABLE idempotent_operations")
+        connection.execute("DELETE FROM schema_migrations WHERE version >= 2")
+
+    after = TestClient(create_app(database_path, data_root))
+    assert after.app.state.repository.db.schema_version() == 3
+    assert after.get(f"/v1/projects/{project['id']}").json()["title"] == "我的一生"
+    assert after.get(f"/v1/episodes/{episode['id']}").json()[
+        "approved_script_revision"
+    ] == 1
+    approvals = after.get(f"/v1/episodes/{episode['id']}/script-approvals").json()
+    assert approvals[0]["spoken_confirmation"] == "我确认这个剧本"
 
 
 def test_biometric_asset_requires_consent(tmp_path: Path) -> None:
