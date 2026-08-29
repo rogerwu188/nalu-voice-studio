@@ -33,6 +33,64 @@ struct RuntimeHealth: Codable, Sendable {
     let status: String
     let service: String
     let version: String
+    let schemaVersion: String
+
+    enum CodingKeys: String, CodingKey {
+        case status, service, version
+        case schemaVersion = "schema_version"
+    }
+}
+
+struct SeasonDraft: Codable, Sendable {
+    let title: String
+    let seasonNumber: Int
+    let plannedEpisodeCount: Int
+
+    enum CodingKeys: String, CodingKey {
+        case title
+        case seasonNumber = "season_number"
+        case plannedEpisodeCount = "planned_episode_count"
+    }
+}
+
+struct NaluSeason: Codable, Identifiable, Sendable {
+    let id: String
+    let projectID: String
+    let title: String
+    let seasonNumber: Int
+    let plannedEpisodeCount: Int
+
+    enum CodingKeys: String, CodingKey {
+        case id, title
+        case projectID = "project_id"
+        case seasonNumber = "season_number"
+        case plannedEpisodeCount = "planned_episode_count"
+    }
+}
+
+struct EpisodeDraft: Codable, Sendable {
+    let title: String
+    let episodeNumber: Int
+    let logline: String
+    let targetSeconds: Int
+
+    enum CodingKeys: String, CodingKey {
+        case title, logline
+        case episodeNumber = "episode_number"
+        case targetSeconds = "target_seconds"
+    }
+}
+
+struct NaluEpisode: Codable, Identifiable, Sendable {
+    let id: String
+    let title: String
+    let episodeNumber: Int
+    let status: String
+
+    enum CodingKeys: String, CodingKey {
+        case id, title, status
+        case episodeNumber = "episode_number"
+    }
 }
 
 struct InterviewMessage: Identifiable, Sendable {

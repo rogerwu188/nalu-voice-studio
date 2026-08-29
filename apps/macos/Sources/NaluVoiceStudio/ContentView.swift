@@ -21,11 +21,16 @@ struct ContentView: View {
                 .font(.headline)
                 .padding(.horizontal, 18)
             List(model.projects) { project in
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(project.title).font(.headline)
-                    Text("计划 \(project.plannedEpisodeCount) 集")
-                        .foregroundStyle(.secondary)
+                Button {
+                    Task { await model.selectProject(project.id) }
+                } label: {
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(project.title).font(.headline)
+                        Text("计划 \(project.plannedEpisodeCount) 集")
+                            .foregroundStyle(.secondary)
+                    }
                 }
+                .buttonStyle(.plain)
                 .padding(.vertical, 5)
             }
             Button(action: beginProject) {
@@ -50,6 +55,24 @@ struct ContentView: View {
             }
             .padding(24)
             Divider()
+            if !model.episodes.isEmpty {
+                ScrollView(.horizontal) {
+                    HStack(spacing: 10) {
+                        ForEach(model.episodes) { episode in
+                            Button("第 \(episode.episodeNumber) 集") {
+                                model.selectedEpisodeID = episode.id
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(episode.id == model.selectedEpisodeID ? .blue : .gray)
+                            .controlSize(.large)
+                            .help(episode.status)
+                        }
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 12)
+                }
+                Divider()
+            }
             ScrollView {
                 LazyVStack(spacing: 18) {
                     ForEach(model.messages) { message in
@@ -114,12 +137,7 @@ struct ContentView: View {
     }
 
     private func beginProject() {
-        model.messages = [
-            InterviewMessage(
-                speaker: .nalu,
-                text: "我们来建立一个新项目。您想讲一个真实故事，还是创造一个全新的故事？"
-            )
-        ]
+        model.beginProject()
     }
 
     private func repeatQuestion() {

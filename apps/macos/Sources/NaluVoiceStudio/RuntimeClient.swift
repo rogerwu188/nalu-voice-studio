@@ -26,13 +26,41 @@ actor RuntimeClient {
     }
 
     func createProject(_ draft: ProjectDraft) async throws -> NaluProject {
-        var request = URLRequest(url: baseURL.appending(path: "v1/projects"))
+        try await post("v1/projects", body: draft)
+    }
+
+    func listSeasons(projectID: String) async throws -> [NaluSeason] {
+        try await get("v1/projects/\(projectID)/seasons")
+    }
+
+    func createSeason(projectID: String, draft: SeasonDraft) async throws -> NaluSeason {
+        try await post("v1/projects/\(projectID)/seasons", body: draft)
+    }
+
+    func listEpisodes(seasonID: String) async throws -> [NaluEpisode] {
+        try await get("v1/seasons/\(seasonID)/episodes")
+    }
+
+    func createEpisode(seasonID: String, draft: EpisodeDraft) async throws -> NaluEpisode {
+        try await post("v1/seasons/\(seasonID)/episodes", body: draft)
+    }
+
+    private func get<Response: Decodable>(_ path: String) async throws -> Response {
+        let (data, response) = try await session.data(from: baseURL.appending(path: path))
+        try validate(response, data: data)
+        return try decoder.decode(Response.self, from: data)
+    }
+
+    private func post<Body: Encodable, Response: Decodable>(
+        _ path: String, body: Body
+    ) async throws -> Response {
+        var request = URLRequest(url: baseURL.appending(path: path))
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try encoder.encode(draft)
+        request.httpBody = try encoder.encode(body)
         let (data, response) = try await session.data(for: request)
         try validate(response, data: data)
-        return try decoder.decode(NaluProject.self, from: data)
+        return try decoder.decode(Response.self, from: data)
     }
 
     private func validate(_ response: URLResponse, data: Data) throws {

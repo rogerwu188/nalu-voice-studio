@@ -59,7 +59,7 @@ Current evidence:
 - Still required before `PASS`: complete lifecycle transition table, idempotent mutation
   contract, restart recovery suite and reviewed compatibility policy.
 
-## SOP-02 · Voice interview and accessible conversation — TODO
+## SOP-02 · Voice interview and accessible conversation — IN_PROGRESS
 
 Acceptance:
 
@@ -76,7 +76,14 @@ QA:
 - Voice-only completion of a sample project on a clean Mac user account.
 - Accessibility Inspector and VoiceOver report.
 
-## SOP-03 · Multi-project, season and episode planning — TODO
+Current evidence:
+
+- Native push-to-talk, visible transcript, large controls, repeat action and a
+  one-question-at-a-time project setup state machine.
+- Still required before `PASS`: correction/back/pause semantics, confidence recovery,
+  guardian interview, VoiceOver audit and clean-account voice-only QA.
+
+## SOP-03 · Multi-project, season and episode planning — IN_PROGRESS
 
 Acceptance:
 
@@ -90,6 +97,13 @@ QA:
 
 - A 10-episode project survives application restart and export/import.
 - Concurrent episode planning has no numbering or state collision.
+
+Current evidence:
+
+- Voice answers create a persisted Project → first Season → numbered Episode plan;
+  existing projects and episode selectors reload from the Runtime API.
+- Still required before `PASS`: rename/archive/export/restore, editable season arcs,
+  plan approval, restart/import QA and immutable-future-edit tests.
 
 ## SOP-04 · Script creation, review and approval — TODO
 
