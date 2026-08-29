@@ -57,6 +57,18 @@ work queue, task record, project asset indexes, inherited continuity, production
 policy, and a SHA-256 workspace manifest. Product paths use stable episode IDs
 and never call imported E40/E41-specific commands directly.
 
+## Continuous upstream productization
+
+Qingshan is an evolving upstream capability source, not a copied application
+surface. Nalu checks releases daily. Each candidate is quarantined, diffed and
+classified into capability additions, contract changes, migrations and unsafe
+historical assumptions. The reviewed release, commit, whole-tree digest and
+critical capability hashes are pinned in `configs/qingshan-upstream.json`.
+
+An upgrade reaches `vendor/qingshan` only after upstream fixtures, Nalu package
+contracts, model policy, Runtime regression, macOS build and relevant end-to-end
+QA pass. Paid execution remains disabled throughout automated upgrade work.
+
 ## Safety
 
 - Face and voice assets require explicit consent metadata.

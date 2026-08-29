@@ -52,9 +52,15 @@ Open `http://127.0.0.1:8765/docs` for the local OpenAPI explorer.
 Build the unsigned local macOS application bundle:
 
 ```bash
-scripts/build-macos-app.sh
+scripts/build-macos-release.sh
 open "dist/Nalu Voice Studio.app"
 ```
+
+The release script creates a self-contained app and zip. It bundles the Python
+Runtime, pinned Qingshan resources and local supervisor; users do not manually
+start a server after launching the app. Building requires macOS 14+, Xcode
+Command Line Tools and Python 3.11+. Python is a build dependency, not an
+end-user runtime dependency.
 
 The default runtime is safe and local:
 
@@ -93,7 +99,7 @@ an unreviewed stale contract.
 
 ## Upstream
 
-The production-line import is pinned to Qingshan release `v2026.08.29`.
+The production-line import is pinned to Qingshan release `v2026.08.29.1`.
 See [NOTICE.md](NOTICE.md) for provenance and [docs/architecture.md](docs/architecture.md)
 for the productization boundary.
 

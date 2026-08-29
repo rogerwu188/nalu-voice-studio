@@ -4,7 +4,6 @@ import hashlib
 import json
 import shutil
 from pathlib import Path
-from typing import ClassVar
 
 
 class QingshanAdapterError(RuntimeError):
@@ -14,22 +13,17 @@ class QingshanAdapterError(RuntimeError):
 class QingshanAdapter:
     """Stable boundary around the pinned, history-oriented Qingshan source tree."""
 
-    upstream_release = "v2026.08.29"
-    upstream_commit = "e2b5ff48bde2f0ce41d5f6f7f08cb182c80c7c43"
-
-    required_capabilities: ClassVar[dict[str, str]] = {
-        "regression_ci": "tools/run_regression_ci.py",
-        "episode_generation_guard": "tools/episode_video_generation_guard.py",
-        "continuity_audit": "tools/continuity_auditor.py",
-        "character_anchor_audit": "tools/character_anchor_auditor.py",
-        "dialogue_safety": "tools/dialogue_cut_safety.py",
-        "media_boundary_acceptance": "tools/media_boundary_acceptance.py",
-        "release_signoff": "tools/release_signoff_integrity_gate.py",
-    }
-
     def __init__(self, repository_root: Path):
         self.repository_root = repository_root
         self.vendor_root = repository_root / "vendor" / "qingshan"
+        manifest_path = repository_root / "configs" / "qingshan-upstream.json"
+        self.upstream_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        self.upstream_release = self.upstream_manifest["release"]
+        self.upstream_commit = self.upstream_manifest["commit"]
+        self.capability_contracts = self.upstream_manifest["capabilities"]
+        self.required_capabilities = {
+            name: contract["path"] for name, contract in self.capability_contracts.items()
+        }
 
     @staticmethod
     def _write_json(path: Path, value: dict | list) -> None:
@@ -161,6 +155,12 @@ class QingshanAdapter:
             for name, relative_path in self.required_capabilities.items()
             if not (self.vendor_root / relative_path).is_file()
         ]
+        changed = [
+            name
+            for name, contract in self.capability_contracts.items()
+            if (self.vendor_root / contract["path"]).is_file()
+            and self._sha256(self.vendor_root / contract["path"]) != contract["sha256"]
+        ]
         failures: list[str] = []
         if package.get("schema_version") != "nalu.production-package/v1":
             failures.append("unsupported production package schema")
@@ -168,6 +168,8 @@ class QingshanAdapter:
             failures.append("package digest is absent")
         if missing:
             failures.append("missing imported capabilities: " + ", ".join(missing))
+        if changed:
+            failures.append("unreviewed capability changes: " + ", ".join(changed))
         workspace_manifest = workspace / "workspace-manifest.json"
         if not workspace_manifest.is_file():
             failures.append("standard Qingshan workspace manifest is absent")
@@ -183,7 +185,9 @@ class QingshanAdapter:
             ),
             "package_sha256": package.get("package_sha256"),
             "capabilities": self.required_capabilities,
+            "capability_contracts": self.capability_contracts,
             "missing_capabilities": missing,
+            "changed_capabilities": changed,
             "status": "PASS" if not failures else "FAIL",
             "failures": failures,
             "paid_execution_enabled": False,

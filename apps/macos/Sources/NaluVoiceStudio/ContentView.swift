@@ -8,7 +8,14 @@ struct ContentView: View {
             sidebar.frame(minWidth: 260, idealWidth: 290, maxWidth: 340)
             interview
         }
-        .task { await model.load() }
+        .task {
+            do {
+                try await RuntimeSupervisor.shared.start()
+            } catch {
+                model.errorMessage = error.localizedDescription
+            }
+            await model.load()
+        }
     }
 
     private var sidebar: some View {

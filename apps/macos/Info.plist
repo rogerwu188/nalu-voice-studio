@@ -16,6 +16,11 @@
     <string>1</string>
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
+    <key>NSAppTransportSecurity</key>
+    <dict>
+        <key>NSAllowsLocalNetworking</key>
+        <true/>
+    </dict>
     <key>NSMicrophoneUsageDescription</key>
     <string>Nalu 使用麦克风听您讲故事和录制授权的声音素材。</string>
     <key>NSSpeechRecognitionUsageDescription</key>

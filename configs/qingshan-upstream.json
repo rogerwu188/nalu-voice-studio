@@ -1,0 +1,42 @@
+{
+  "schema_version": "nalu.qingshan-upstream/v1",
+  "repository": "rogerwu188/qingshan-short-drama-production-line",
+  "release": "v2026.08.29.1",
+  "commit": "26a8857dbde04dd945cf67e36ca1525639fe8b0d",
+  "vendor_content_sha256": "503b6640e006a7bf136f18440bf89fc367b0f342dfc00b9a2eb5a4664c28009c",
+  "upgrade_policy": "quarantine-diff-contract-tests-ci-then-pin",
+  "capabilities": {
+    "regression_ci": {
+      "path": "tools/run_regression_ci.py",
+      "sha256": "822011e2831e5bfd1350fcaf23572ff01a05f9de611a26c7555d262aeedad9fc"
+    },
+    "episode_generation_guard": {
+      "path": "tools/episode_video_generation_guard.py",
+      "sha256": "06257dad1e7dac86d2b17d9bab9a3edd089ad47eca7ce3df8a541cb183cb3e6c"
+    },
+    "continuity_audit": {
+      "path": "tools/continuity_auditor.py",
+      "sha256": "d4ba3a0bdd09c68f45ca9772f45b4ee30b7b620a9045addfe468b552c9ba3c9c"
+    },
+    "character_anchor_audit": {
+      "path": "tools/character_anchor_auditor.py",
+      "sha256": "f7876dbad27604304f30a2c8158ffb662b9e960460541223e1158bb0e06ed2de"
+    },
+    "dialogue_safety": {
+      "path": "tools/dialogue_cut_safety.py",
+      "sha256": "ad5eaabf02a98e53bc523772c6ab275baccc3a23c001597ac8ef26fb4a8a0993"
+    },
+    "media_boundary_acceptance": {
+      "path": "tools/media_boundary_acceptance.py",
+      "sha256": "94911fa154981345b1c037666dc600db9e435a5120f8dfa997c521c83d9f7ef2"
+    },
+    "release_signoff": {
+      "path": "tools/release_signoff_integrity_gate.py",
+      "sha256": "24dde03453d2d3a0b9262c72ee353c0a37638ba49d8b482b34f65f02bf76cb7f"
+    },
+    "durable_submitter": {
+      "path": "tools/submit_giggle_video_manifest_v2.py",
+      "sha256": "dd2ccfb55ac2dc03ff772d08e168bd5e2803ec0da3e5a1a24b727247262e77d9"
+    }
+  }
+}

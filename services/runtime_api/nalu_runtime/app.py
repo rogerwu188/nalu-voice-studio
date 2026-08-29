@@ -37,7 +37,9 @@ from .repository import ConflictError, NotFoundError, Repository
 
 
 def create_app(database_path: Path | None = None, data_root: Path | None = None) -> FastAPI:
-    repository_root = Path(__file__).resolve().parents[3]
+    repository_root = Path(
+        os.environ.get("NALU_REPOSITORY_ROOT", Path(__file__).resolve().parents[3])
+    )
     data_root = data_root or Path(os.environ.get("NALU_DATA_ROOT", repository_root / "data"))
     database_path = database_path or Path(
         os.environ.get("NALU_DATABASE_PATH", data_root / "nalu.sqlite3")

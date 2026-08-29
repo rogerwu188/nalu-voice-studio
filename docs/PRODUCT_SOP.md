@@ -174,6 +174,7 @@ QA:
 Acceptance:
 
 - Pinned upstream source and capability manifest verified by hash.
+- Scheduled release discovery and a quarantined, rollback-safe upgrade process.
 - Nalu production package materializes a clean Qingshan workspace.
 - No product path depends on E40/E41-specific filenames or absolute user paths.
 - SD2 Pro and MiniMax-H3 compile through separate adapters.
@@ -190,6 +191,12 @@ Current evidence:
 
 - Pinned upstream snapshot, capability checks, immutable Nalu package, clean
   per-run workspace materializer and SHA-256 preflight evidence.
+- Qingshan `v2026.08.29.1` candidate diff was quarantined and promoted after its
+  changed contract test passed; the pin now includes the upstream MIT license and
+  durable-submit preservation of wardrobe, dialogue-cut and pose-transition gates.
+- Daily release discovery, whole-tree/capability hash verification and the
+  `docs/QINGSHAN_UPGRADE_SOP.md` promotion process continuously productize new
+  upstream results without following a moving branch.
 - Still required before `PASS`: separate SD2 Pro/H3 compilers, full registered gate
   execution, durable paid-transaction binding and authorized sandbox evidence.
 
@@ -244,7 +251,7 @@ QA:
 - Dry-run platform adapters and duplicate/replacement protection tests.
 - Authorized test-channel publication and state reconciliation evidence.
 
-## SOP-11 · macOS packaging, updates and operations — TODO
+## SOP-11 · macOS packaging, updates and operations — IN_PROGRESS
 
 Acceptance:
 
@@ -258,6 +265,15 @@ QA:
 
 - Clean installation on supported Apple Silicon macOS versions.
 - Upgrade and rollback rehearsal with a populated multi-episode project.
+
+Current evidence:
+
+- One-command source build creates an application and zip containing a PyInstaller
+  Runtime, pinned Qingshan resources and a native Runtime supervisor.
+- CI launches the bundled executable against a clean Application Support data root
+  and verifies the real loopback health endpoint before uploading the app artifact.
+- Still required before `PASS`: Developer ID signing, hardened runtime, notarized
+  universal release, update channel, disk diagnostics and clean-Mac upgrade/rollback QA.
 
 ## SOP-12 · End-to-end release-candidate acceptance — TODO
 

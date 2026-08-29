@@ -10,6 +10,31 @@ build_root="$repo_root/.build/nalu-macos"
 binary_path="$build_root/NaluVoiceStudio"
 mkdir -p "$build_root"
 
+runtime_binary="${NALU_RUNTIME_BINARY:-}"
+if [[ -z "$runtime_binary" ]]; then
+  if ! python3 -c 'import PyInstaller' >/dev/null 2>&1; then
+    echo "PyInstaller is required. Run: python3 -m pip install -e '.[packaging]'" >&2
+    exit 1
+  fi
+  python3 -m PyInstaller \
+    --clean \
+    --noconfirm \
+    --onefile \
+    --name nalu-runtime \
+    --hidden-import nalu_runtime.app \
+    --collect-submodules uvicorn \
+    --distpath "$build_root/runtime-dist" \
+    --workpath "$build_root/pyinstaller-work" \
+    --specpath "$build_root" \
+    "$repo_root/scripts/nalu_runtime_entry.py"
+  runtime_binary="$build_root/runtime-dist/nalu-runtime"
+fi
+
+if [[ ! -x "$runtime_binary" ]]; then
+  echo "Bundled Runtime is missing or not executable: $runtime_binary" >&2
+  exit 1
+fi
+
 swiftc -parse-as-library \
   "$app_root"/Sources/NaluVoiceStudio/*.swift \
   -framework SwiftUI \
@@ -18,8 +43,17 @@ swiftc -parse-as-library \
   -framework Speech \
   -o "$binary_path"
 
-mkdir -p "$bundle/Contents/MacOS" "$bundle/Contents/Resources"
+if [[ -d "$bundle" && "$bundle" == "$output_root/"* ]]; then
+  rm -rf "$bundle"
+fi
+mkdir -p \
+  "$bundle/Contents/MacOS" \
+  "$bundle/Contents/Resources/runtime" \
+  "$bundle/Contents/Resources/runtime-resources"
 cp "$binary_path" "$bundle/Contents/MacOS/NaluVoiceStudio"
+cp "$runtime_binary" "$bundle/Contents/Resources/runtime/nalu-runtime"
+cp -R "$repo_root/configs" "$bundle/Contents/Resources/runtime-resources/configs"
+cp -R "$repo_root/vendor" "$bundle/Contents/Resources/runtime-resources/vendor"
 cp "$app_root/Info.plist" "$bundle/Contents/Info.plist"
 
 codesign --force --deep --sign - "$bundle"
