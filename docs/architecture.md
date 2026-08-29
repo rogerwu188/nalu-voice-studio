@@ -36,6 +36,11 @@ Qingshan adapter
 A downstream tool may enrich directing and generation contracts, but it may not
 silently alter an approved narrative authority.
 
+Season and episode-plan edits append a full season-plan revision. Spoken and
+visual approval records bind to one revision; any later edit makes that approval
+visibly stale. Once an episode script is approved or enters production, its plan
+fields are immutable even while later episodes continue to change.
+
 SQLite changes are applied as numbered migrations and surfaced by the health
 endpoint. Script confirmations are retained as separate approval audit records,
 including approver identity, spoken confirmation and guardian authorization.

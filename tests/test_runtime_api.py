@@ -93,6 +93,89 @@ def test_atomic_multi_episode_project_plan(tmp_path: Path) -> None:
     assert [project["title"] for project in projects] == ["十集自传"]
 
 
+def test_season_plan_revisions_approval_and_episode_immutability(tmp_path: Path) -> None:
+    api = client(tmp_path)
+    plan = api.post(
+        "/v1/project-plans",
+        json={"project": {"title": "三代人的家", "planned_episode_count": 3}},
+    ).json()
+    season_id = plan["season"]["id"]
+    first, second, third = plan["episodes"]
+
+    changed = api.patch(
+        f"/v1/episodes/{second['id']}",
+        json={
+            "logline": "母亲讲述搬进新城的第一晚",
+            "outline": {"turn": "一家人在停电中重新靠近"},
+            "source_transcript": "第二集讲妈妈搬家的故事",
+        },
+    )
+    assert changed.status_code == 200
+    assert changed.json()["outline"]["turn"] == "一家人在停电中重新靠近"
+    season = api.patch(
+        f"/v1/seasons/{season_id}",
+        json={
+            "season_arc": {"theme": "三代人如何成为一家人"},
+            "source_transcript": "这一季从分离讲到团聚",
+        },
+    ).json()
+    approval = api.post(
+        f"/v1/seasons/{season_id}/plan-approvals",
+        json={
+            "approved_by": "user",
+            "spoken_confirmation": "我看过也听过，同意这个分集计划",
+            "review_channel": "voice_and_visual",
+        },
+    )
+    assert approval.status_code == 201
+    assert approval.json()["plan_revision"] == season["plan_revision"]
+
+    script = api.post(
+        f"/v1/episodes/{first['id']}/scripts",
+        json={"content": "锁定的第一集", "summary_for_voice_review": "第一集摘要"},
+    ).json()
+    api.post(
+        f"/v1/episodes/{first['id']}/scripts/{script['revision']}/approve",
+        json={"approved_by": "user", "spoken_confirmation": "确认第一集"},
+    )
+    locked_before = api.get(f"/v1/episodes/{first['id']}").json()
+    rejected = api.patch(
+        f"/v1/episodes/{first['id']}", json={"title": "不允许覆盖的标题"}
+    )
+    assert rejected.status_code == 409
+
+    assert api.patch(
+        f"/v1/episodes/{third['id']}", json={"title": "未来的团圆"}
+    ).status_code == 200
+    assert api.get(f"/v1/episodes/{first['id']}").json() == locked_before
+    latest_season = api.get(f"/v1/projects/{plan['project']['id']}/seasons").json()[0]
+    assert latest_season["plan_revision"] > latest_season["approved_plan_revision"]
+    revisions = api.get(f"/v1/seasons/{season_id}/plan-revisions").json()
+    assert revisions[-1]["plan"]["episodes"][2]["title"] == "未来的团圆"
+
+
+def test_concurrent_episode_planning_has_stable_numbering(tmp_path: Path) -> None:
+    api = client(tmp_path)
+    project = api.post("/v1/projects", json={"title": "并发分集"}).json()
+    season = api.post(
+        f"/v1/projects/{project['id']}/seasons",
+        json={"title": "第一季", "season_number": 1, "planned_episode_count": 10},
+    ).json()
+
+    def create_episode(number: int):
+        return api.post(
+            f"/v1/seasons/{season['id']}/episodes",
+            json={"title": f"第{number}集", "episode_number": number},
+        )
+
+    with ThreadPoolExecutor(max_workers=10) as pool:
+        responses = list(pool.map(create_episode, range(1, 11)))
+    assert {response.status_code for response in responses} == {201}
+    episodes = api.get(f"/v1/seasons/{season['id']}/episodes").json()
+    assert [episode["episode_number"] for episode in episodes] == list(range(1, 11))
+    assert len({episode["id"] for episode in episodes}) == 10
+
+
 def test_project_rename_archive_export_and_restore(tmp_path: Path) -> None:
     source = client(tmp_path / "source")
     plan = source.post(
@@ -136,6 +219,15 @@ def test_project_rename_archive_export_and_restore(tmp_path: Path) -> None:
     foreign["payload_sha256"] = hashlib.sha256(canonical.encode()).hexdigest()
     rejected = client(tmp_path / "foreign").post("/v1/project-imports", json=foreign)
     assert rejected.status_code == 409
+
+    legacy = deepcopy(backup)
+    legacy["schema_version"] = "nalu.project-export/v1"
+    legacy["payload"].pop("season_plan_revisions")
+    legacy["payload"].pop("season_plan_approval_records")
+    canonical = json.dumps(legacy["payload"], ensure_ascii=False, sort_keys=True)
+    legacy["payload_sha256"] = hashlib.sha256(canonical.encode()).hexdigest()
+    restored_legacy = client(tmp_path / "legacy").post("/v1/project-imports", json=legacy)
+    assert restored_legacy.status_code == 201
 
 
 def test_project_plan_idempotency_is_concurrent_and_payload_bound(tmp_path: Path) -> None:
@@ -220,7 +312,7 @@ def test_database_migration_preserves_existing_database(tmp_path: Path) -> None:
         connection.execute("INSERT INTO legacy_marker VALUES ('preserve-me')")
 
     api = create_app(database_path, tmp_path / "data")
-    assert api.state.repository.db.schema_version() == 4
+    assert api.state.repository.db.schema_version() == 5
     with sqlite3.connect(database_path) as connection:
         marker = connection.execute("SELECT value FROM legacy_marker").fetchone()[0]
         approval_table = connection.execute(
@@ -243,7 +335,7 @@ def test_populated_v1_database_upgrades_without_project_loss(tmp_path: Path) -> 
         connection.execute("DELETE FROM schema_migrations WHERE version >= 2")
 
     after = TestClient(create_app(database_path, data_root))
-    assert after.app.state.repository.db.schema_version() == 4
+    assert after.app.state.repository.db.schema_version() == 5
     assert after.get(f"/v1/projects/{project['id']}").json()["title"] == "我的一生"
     assert after.get(f"/v1/episodes/{episode['id']}").json()[
         "approved_script_revision"

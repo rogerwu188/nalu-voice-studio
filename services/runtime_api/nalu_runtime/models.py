@@ -81,7 +81,9 @@ class ProjectArchiveRequest(BaseModel):
 
 
 class ProjectExport(BaseModel):
-    schema_version: Literal["nalu.project-export/v1"] = "nalu.project-export/v1"
+    schema_version: Literal["nalu.project-export/v1", "nalu.project-export/v2"] = (
+        "nalu.project-export/v2"
+    )
     exported_at: str
     payload: dict[str, Any]
     payload_sha256: str
@@ -97,8 +99,61 @@ class SeasonCreate(BaseModel):
 class Season(SeasonCreate):
     id: str
     project_id: str
+    plan_revision: int = 0
+    approved_plan_revision: int | None = None
     created_at: str
     updated_at: str
+
+
+class SeasonPlanUpdate(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=160)
+    season_arc: dict[str, Any] | None = None
+    source_transcript: str = ""
+
+    @model_validator(mode="after")
+    def require_change(self) -> SeasonPlanUpdate:
+        if self.title is None and self.season_arc is None:
+            raise ValueError("season plan update requires a title or season arc")
+        return self
+
+
+class EpisodePlanUpdate(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=160)
+    logline: str | None = None
+    outline: dict[str, Any] | None = None
+    target_seconds: int | None = Field(default=None, ge=15, le=3600)
+    source_transcript: str = ""
+
+    @model_validator(mode="after")
+    def require_change(self) -> EpisodePlanUpdate:
+        if all(
+            value is None
+            for value in (self.title, self.logline, self.outline, self.target_seconds)
+        ):
+            raise ValueError("episode plan update requires at least one changed field")
+        return self
+
+
+class SeasonPlanRevision(BaseModel):
+    season_id: str
+    revision: int
+    plan: dict[str, Any]
+    source_transcript: str
+    created_at: str
+
+
+class SeasonPlanApprovalCreate(BaseModel):
+    approved_by: str = Field(min_length=1)
+    spoken_confirmation: str = Field(min_length=1)
+    review_channel: Literal["voice", "visual", "voice_and_visual"]
+    guardian_approval: bool = False
+
+
+class SeasonPlanApproval(SeasonPlanApprovalCreate):
+    id: str
+    season_id: str
+    plan_revision: int
+    created_at: str
 
 
 class EpisodeCreate(BaseModel):

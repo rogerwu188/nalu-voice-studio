@@ -18,6 +18,7 @@ from .models import (
     Episode,
     EpisodeCreate,
     EpisodeEvent,
+    EpisodePlanUpdate,
     EpisodeTransitionRequest,
     ProductionRun,
     ProductionRunCreate,
@@ -35,6 +36,10 @@ from .models import (
     ScriptRevisionCreate,
     Season,
     SeasonCreate,
+    SeasonPlanApproval,
+    SeasonPlanApprovalCreate,
+    SeasonPlanRevision,
+    SeasonPlanUpdate,
 )
 from .repository import ConflictError, NotFoundError, Repository
 
@@ -120,6 +125,40 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
     def list_seasons(project_id: str) -> list[Season]:
         return repository.list_project_seasons(project_id)
 
+    @app.patch("/v1/seasons/{season_id}", response_model=Season)
+    def update_season_plan(season_id: str, request: SeasonPlanUpdate) -> Season:
+        return repository.update_season_plan(season_id, request)
+
+    @app.get(
+        "/v1/seasons/{season_id}/plan-revisions",
+        response_model=list[SeasonPlanRevision],
+    )
+    def list_season_plan_revisions(season_id: str) -> list[SeasonPlanRevision]:
+        return repository.list_season_plan_revisions(season_id)
+
+    @app.post(
+        "/v1/seasons/{season_id}/plan-approvals",
+        response_model=SeasonPlanApproval,
+        status_code=201,
+    )
+    def approve_season_plan(
+        season_id: str, request: SeasonPlanApprovalCreate
+    ) -> SeasonPlanApproval:
+        season = repository.get_season(season_id)
+        project = repository.get_project(season.project_id)
+        if project.audience_mode == "child" and not request.guardian_approval:
+            raise HTTPException(
+                status_code=409, detail="child projects require guardian approval"
+            )
+        return repository.approve_season_plan(season_id, request)
+
+    @app.get(
+        "/v1/seasons/{season_id}/plan-approvals",
+        response_model=list[SeasonPlanApproval],
+    )
+    def list_season_plan_approvals(season_id: str) -> list[SeasonPlanApproval]:
+        return repository.list_season_plan_approvals(season_id)
+
     @app.post("/v1/seasons/{season_id}/episodes", response_model=Episode, status_code=201)
     def create_episode(season_id: str, request: EpisodeCreate) -> Episode:
         return repository.create_episode(season_id, request)
@@ -131,6 +170,10 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
     @app.get("/v1/episodes/{episode_id}", response_model=Episode)
     def get_episode(episode_id: str) -> Episode:
         return repository.get_episode(episode_id)
+
+    @app.patch("/v1/episodes/{episode_id}", response_model=Episode)
+    def update_episode_plan(episode_id: str, request: EpisodePlanUpdate) -> Episode:
+        return repository.update_episode_plan(episode_id, request)
 
     @app.post("/v1/episodes/{episode_id}/transition", response_model=Episode)
     def transition_episode(

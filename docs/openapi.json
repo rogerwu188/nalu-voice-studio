@@ -482,6 +482,66 @@
         "title": "EpisodeEvent",
         "type": "object"
       },
+      "EpisodePlanUpdate": {
+        "properties": {
+          "logline": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logline"
+          },
+          "outline": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outline"
+          },
+          "source_transcript": {
+            "default": "",
+            "title": "Source Transcript",
+            "type": "string"
+          },
+          "target_seconds": {
+            "anyOf": [
+              {
+                "maximum": 3600.0,
+                "minimum": 15.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Seconds"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 160,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "title": "EpisodePlanUpdate",
+        "type": "object"
+      },
       "EpisodeStatus": {
         "enum": [
           "planned",
@@ -821,8 +881,11 @@
             "type": "string"
           },
           "schema_version": {
-            "const": "nalu.project-export/v1",
-            "default": "nalu.project-export/v1",
+            "default": "nalu.project-export/v2",
+            "enum": [
+              "nalu.project-export/v1",
+              "nalu.project-export/v2"
+            ],
             "title": "Schema Version",
             "type": "string"
           }
@@ -1118,6 +1181,17 @@
       },
       "Season": {
         "properties": {
+          "approved_plan_revision": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved Plan Revision"
+          },
           "created_at": {
             "title": "Created At",
             "type": "string"
@@ -1125,6 +1199,11 @@
           "id": {
             "title": "Id",
             "type": "string"
+          },
+          "plan_revision": {
+            "default": 0,
+            "title": "Plan Revision",
+            "type": "integer"
           },
           "planned_episode_count": {
             "default": 1,
@@ -1200,6 +1279,166 @@
           "season_number"
         ],
         "title": "SeasonCreate",
+        "type": "object"
+      },
+      "SeasonPlanApproval": {
+        "properties": {
+          "approved_by": {
+            "minLength": 1,
+            "title": "Approved By",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "guardian_approval": {
+            "default": false,
+            "title": "Guardian Approval",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "plan_revision": {
+            "title": "Plan Revision",
+            "type": "integer"
+          },
+          "review_channel": {
+            "enum": [
+              "voice",
+              "visual",
+              "voice_and_visual"
+            ],
+            "title": "Review Channel",
+            "type": "string"
+          },
+          "season_id": {
+            "title": "Season Id",
+            "type": "string"
+          },
+          "spoken_confirmation": {
+            "minLength": 1,
+            "title": "Spoken Confirmation",
+            "type": "string"
+          }
+        },
+        "required": [
+          "approved_by",
+          "spoken_confirmation",
+          "review_channel",
+          "id",
+          "season_id",
+          "plan_revision",
+          "created_at"
+        ],
+        "title": "SeasonPlanApproval",
+        "type": "object"
+      },
+      "SeasonPlanApprovalCreate": {
+        "properties": {
+          "approved_by": {
+            "minLength": 1,
+            "title": "Approved By",
+            "type": "string"
+          },
+          "guardian_approval": {
+            "default": false,
+            "title": "Guardian Approval",
+            "type": "boolean"
+          },
+          "review_channel": {
+            "enum": [
+              "voice",
+              "visual",
+              "voice_and_visual"
+            ],
+            "title": "Review Channel",
+            "type": "string"
+          },
+          "spoken_confirmation": {
+            "minLength": 1,
+            "title": "Spoken Confirmation",
+            "type": "string"
+          }
+        },
+        "required": [
+          "approved_by",
+          "spoken_confirmation",
+          "review_channel"
+        ],
+        "title": "SeasonPlanApprovalCreate",
+        "type": "object"
+      },
+      "SeasonPlanRevision": {
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "plan": {
+            "additionalProperties": true,
+            "title": "Plan",
+            "type": "object"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "season_id": {
+            "title": "Season Id",
+            "type": "string"
+          },
+          "source_transcript": {
+            "title": "Source Transcript",
+            "type": "string"
+          }
+        },
+        "required": [
+          "season_id",
+          "revision",
+          "plan",
+          "source_transcript",
+          "created_at"
+        ],
+        "title": "SeasonPlanRevision",
+        "type": "object"
+      },
+      "SeasonPlanUpdate": {
+        "properties": {
+          "season_arc": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Season Arc"
+          },
+          "source_transcript": {
+            "default": "",
+            "title": "Source Transcript",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 160,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "title": "SeasonPlanUpdate",
         "type": "object"
       },
       "ValidationError": {
@@ -1310,6 +1549,53 @@
           }
         },
         "summary": "Get Episode"
+      },
+      "patch": {
+        "operationId": "update_episode_plan_v1_episodes__episode_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "episode_id",
+            "required": true,
+            "schema": {
+              "title": "Episode Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EpisodePlanUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Episode"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Episode Plan"
       }
     },
     "/v1/episodes/{episode_id}/continuity-snapshots": {
@@ -2392,6 +2678,55 @@
         "summary": "Create Season"
       }
     },
+    "/v1/seasons/{season_id}": {
+      "patch": {
+        "operationId": "update_season_plan_v1_seasons__season_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "season_id",
+            "required": true,
+            "schema": {
+              "title": "Season Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SeasonPlanUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Season"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Season Plan"
+      }
+    },
     "/v1/seasons/{season_id}/episodes": {
       "get": {
         "operationId": "list_episodes_v1_seasons__season_id__episodes_get",
@@ -2480,6 +2815,139 @@
           }
         },
         "summary": "Create Episode"
+      }
+    },
+    "/v1/seasons/{season_id}/plan-approvals": {
+      "get": {
+        "operationId": "list_season_plan_approvals_v1_seasons__season_id__plan_approvals_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "season_id",
+            "required": true,
+            "schema": {
+              "title": "Season Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SeasonPlanApproval"
+                  },
+                  "title": "Response List Season Plan Approvals V1 Seasons  Season Id  Plan Approvals Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Season Plan Approvals"
+      },
+      "post": {
+        "operationId": "approve_season_plan_v1_seasons__season_id__plan_approvals_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "season_id",
+            "required": true,
+            "schema": {
+              "title": "Season Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SeasonPlanApprovalCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeasonPlanApproval"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Approve Season Plan"
+      }
+    },
+    "/v1/seasons/{season_id}/plan-revisions": {
+      "get": {
+        "operationId": "list_season_plan_revisions_v1_seasons__season_id__plan_revisions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "season_id",
+            "required": true,
+            "schema": {
+              "title": "Season Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SeasonPlanRevision"
+                  },
+                  "title": "Response List Season Plan Revisions V1 Seasons  Season Id  Plan Revisions Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Season Plan Revisions"
       }
     }
   }

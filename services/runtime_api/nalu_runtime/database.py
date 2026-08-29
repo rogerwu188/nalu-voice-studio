@@ -190,6 +190,34 @@ MIGRATIONS = (
         ALTER TABLE projects ADD COLUMN archived_at TEXT;
         """,
     ),
+    (
+        5,
+        "season_plan_revisions",
+        """
+        CREATE TABLE IF NOT EXISTS season_plan_revisions (
+          season_id TEXT NOT NULL REFERENCES seasons(id) ON DELETE CASCADE,
+          revision INTEGER NOT NULL,
+          plan_json TEXT NOT NULL,
+          source_transcript TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          PRIMARY KEY(season_id, revision)
+        );
+        CREATE TABLE IF NOT EXISTS season_plan_approval_records (
+          id TEXT PRIMARY KEY,
+          season_id TEXT NOT NULL REFERENCES seasons(id) ON DELETE CASCADE,
+          plan_revision INTEGER NOT NULL,
+          approved_by TEXT NOT NULL,
+          spoken_confirmation TEXT NOT NULL,
+          review_channel TEXT NOT NULL,
+          guardian_approval INTEGER NOT NULL,
+          created_at TEXT NOT NULL,
+          FOREIGN KEY(season_id, plan_revision)
+            REFERENCES season_plan_revisions(season_id, revision)
+        );
+        CREATE INDEX IF NOT EXISTS season_plan_approvals_idx
+          ON season_plan_approval_records(season_id, created_at);
+        """,
+    ),
 )
 
 

@@ -17,6 +17,7 @@ from .models import (
     Episode,
     EpisodeCreate,
     EpisodeEvent,
+    EpisodePlanUpdate,
     EpisodeStatus,
     EpisodeTransitionRequest,
     ProductionRun,
@@ -33,6 +34,10 @@ from .models import (
     ScriptRevisionCreate,
     Season,
     SeasonCreate,
+    SeasonPlanApproval,
+    SeasonPlanApprovalCreate,
+    SeasonPlanRevision,
+    SeasonPlanUpdate,
 )
 
 
@@ -82,6 +87,12 @@ EPISODE_TRANSITIONS: dict[EpisodeStatus, set[EpisodeStatus]] = {
         EpisodeStatus.POSTPRODUCTION,
         EpisodeStatus.QA_REVIEW,
     },
+}
+
+EDITABLE_EPISODE_PLAN_STATUSES = {
+    EpisodeStatus.PLANNED,
+    EpisodeStatus.SCRIPT_DRAFT,
+    EpisodeStatus.SCRIPT_REVIEW,
 }
 
 
@@ -242,6 +253,7 @@ class Repository:
                         now,
                     ),
                 )
+            self._snapshot_season_plan(connection, season_id, "")
             plan = ProjectPlan(
                 project=Project(
                     id=project_id,
@@ -256,6 +268,7 @@ class Repository:
                     season_number=request.season_number,
                     planned_episode_count=episode_count,
                     season_arc={},
+                    plan_revision=1,
                     created_at=now,
                     updated_at=now,
                 ),
@@ -339,6 +352,16 @@ class Repository:
                    WHERE s.project_id = ?""",
                 (project_id,),
             ),
+            "season_plan_revisions": (
+                """SELECT r.* FROM season_plan_revisions r
+                   JOIN seasons s ON s.id = r.season_id WHERE s.project_id = ?""",
+                (project_id,),
+            ),
+            "season_plan_approval_records": (
+                """SELECT a.* FROM season_plan_approval_records a
+                   JOIN seasons s ON s.id = a.season_id WHERE s.project_id = ?""",
+                (project_id,),
+            ),
             "script_revisions": (
                 """SELECT r.* FROM script_revisions r
                    JOIN episodes e ON e.id = r.episode_id
@@ -386,6 +409,13 @@ class Repository:
                 "id", "season_id", "title", "episode_number", "logline", "outline_json",
                 "target_seconds", "status", "approved_script_revision", "created_at", "updated_at",
             ),
+            "season_plan_revisions": (
+                "season_id", "revision", "plan_json", "source_transcript", "created_at",
+            ),
+            "season_plan_approval_records": (
+                "id", "season_id", "plan_revision", "approved_by",
+                "spoken_confirmation", "review_channel", "guardian_approval", "created_at",
+            ),
             "script_revisions": (
                 "episode_id", "revision", "content", "summary_for_voice_review",
                 "source_transcript", "narrative_metadata_json", "approved_at", "created_at",
@@ -404,6 +434,9 @@ class Repository:
                 "approved_by", "spoken_confirmation", "guardian_approval", "created_at",
             ),
         }
+        if backup.schema_version == "nalu.project-export/v1":
+            allowed_columns.pop("season_plan_revisions")
+            allowed_columns.pop("season_plan_approval_records")
         if set(backup.payload) != set(allowed_columns):
             raise ConflictError("project export contains an unsupported table set")
         project_rows = backup.payload["projects"]
@@ -418,6 +451,21 @@ class Repository:
             raise ConflictError("project export contains a season from another project")
         if any(row.get("season_id") not in season_ids for row in backup.payload["episodes"]):
             raise ConflictError("project export contains an episode from another project")
+        plan_revision_keys = {
+            (row.get("season_id"), row.get("revision"))
+            for row in backup.payload.get("season_plan_revisions", [])
+        }
+        if any(
+            row.get("season_id") not in season_ids
+            for row in backup.payload.get("season_plan_revisions", [])
+        ):
+            raise ConflictError("project export contains a plan from another project")
+        if any(
+            row.get("season_id") not in season_ids
+            or (row.get("season_id"), row.get("plan_revision")) not in plan_revision_keys
+            for row in backup.payload.get("season_plan_approval_records", [])
+        ):
+            raise ConflictError("project export contains plan approval from another project")
         if any(
             row.get("episode_id") not in episode_ids
             for row in backup.payload["script_revisions"]
@@ -480,18 +528,151 @@ class Repository:
                         now,
                     ),
                 )
+                self._snapshot_season_plan(connection, season_id, "")
         except Exception as exc:
             raise ConflictError("season number already exists") from exc
         return self.get_season(season_id)
 
     def get_season(self, season_id: str) -> Season:
         with self.db.connect() as connection:
-            row = connection.execute("SELECT * FROM seasons WHERE id = ?", (season_id,)).fetchone()
+            row = connection.execute(
+                """SELECT s.*,
+                          COALESCE((SELECT MAX(revision) FROM season_plan_revisions
+                                    WHERE season_id = s.id), 0) AS plan_revision,
+                          (SELECT MAX(plan_revision) FROM season_plan_approval_records
+                           WHERE season_id = s.id) AS approved_plan_revision
+                   FROM seasons s WHERE s.id = ?""",
+                (season_id,),
+            ).fetchone()
         if row is None:
             raise NotFoundError("season not found")
         data = dict(row)
         data["season_arc"] = decode(data.pop("season_arc_json"))
         return Season.model_validate(data)
+
+    def _snapshot_season_plan(
+        self, connection, season_id: str, source_transcript: str
+    ) -> SeasonPlanRevision:
+        season = connection.execute(
+            "SELECT * FROM seasons WHERE id = ?", (season_id,)
+        ).fetchone()
+        if season is None:
+            raise NotFoundError("season not found")
+        episodes = [
+            dict(row)
+            for row in connection.execute(
+                """SELECT id, title, episode_number, logline, outline_json,
+                          target_seconds, status, approved_script_revision
+                   FROM episodes WHERE season_id = ? ORDER BY episode_number""",
+                (season_id,),
+            )
+        ]
+        for episode in episodes:
+            episode["outline"] = decode(episode.pop("outline_json"))
+        current = connection.execute(
+            "SELECT COALESCE(MAX(revision), 0) AS revision FROM season_plan_revisions WHERE season_id = ?",
+            (season_id,),
+        ).fetchone()
+        revision, now = int(current["revision"]) + 1, utc_now()
+        plan = {
+            "season": {
+                "title": season["title"],
+                "season_number": season["season_number"],
+                "planned_episode_count": season["planned_episode_count"],
+                "season_arc": decode(season["season_arc_json"]),
+            },
+            "episodes": episodes,
+        }
+        connection.execute(
+            "INSERT INTO season_plan_revisions VALUES (?, ?, ?, ?, ?)",
+            (season_id, revision, encode(plan), source_transcript, now),
+        )
+        return SeasonPlanRevision(
+            season_id=season_id,
+            revision=revision,
+            plan=plan,
+            source_transcript=source_transcript,
+            created_at=now,
+        )
+
+    def update_season_plan(self, season_id: str, request: SeasonPlanUpdate) -> Season:
+        self.get_season(season_id)
+        with self.db.connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            if request.title is not None:
+                connection.execute(
+                    "UPDATE seasons SET title = ?, updated_at = ? WHERE id = ?",
+                    (request.title, utc_now(), season_id),
+                )
+            if request.season_arc is not None:
+                connection.execute(
+                    "UPDATE seasons SET season_arc_json = ?, updated_at = ? WHERE id = ?",
+                    (encode(request.season_arc), utc_now(), season_id),
+                )
+            self._snapshot_season_plan(connection, season_id, request.source_transcript)
+        return self.get_season(season_id)
+
+    def list_season_plan_revisions(self, season_id: str) -> list[SeasonPlanRevision]:
+        self.get_season(season_id)
+        with self.db.connect() as connection:
+            rows = list(
+                connection.execute(
+                    "SELECT * FROM season_plan_revisions WHERE season_id = ? ORDER BY revision",
+                    (season_id,),
+                )
+            )
+        return [
+            SeasonPlanRevision(
+                season_id=row["season_id"],
+                revision=row["revision"],
+                plan=decode(row["plan_json"]),
+                source_transcript=row["source_transcript"],
+                created_at=row["created_at"],
+            )
+            for row in rows
+        ]
+
+    def approve_season_plan(
+        self, season_id: str, request: SeasonPlanApprovalCreate
+    ) -> SeasonPlanApproval:
+        season = self.get_season(season_id)
+        if season.plan_revision == 0:
+            raise ConflictError("season plan has no revision to approve")
+        approval_id, now = new_id("spa"), utc_now()
+        with self.db.connect() as connection:
+            connection.execute(
+                """INSERT INTO season_plan_approval_records
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    approval_id,
+                    season_id,
+                    season.plan_revision,
+                    request.approved_by,
+                    request.spoken_confirmation,
+                    request.review_channel,
+                    int(request.guardian_approval),
+                    now,
+                ),
+            )
+        return SeasonPlanApproval(
+            id=approval_id,
+            season_id=season_id,
+            plan_revision=season.plan_revision,
+            created_at=now,
+            **request.model_dump(),
+        )
+
+    def list_season_plan_approvals(self, season_id: str) -> list[SeasonPlanApproval]:
+        self.get_season(season_id)
+        with self.db.connect() as connection:
+            rows = list(
+                connection.execute(
+                    """SELECT * FROM season_plan_approval_records
+                       WHERE season_id = ? ORDER BY created_at""",
+                    (season_id,),
+                )
+            )
+        return [SeasonPlanApproval.model_validate(dict(row)) for row in rows]
 
     def list_project_seasons(self, project_id: str) -> list[Season]:
         self.get_project(project_id)
@@ -525,8 +706,45 @@ class Repository:
                         now,
                     ),
                 )
+                self._snapshot_season_plan(connection, season_id, "")
         except Exception as exc:
             raise ConflictError("episode number already exists") from exc
+        return self.get_episode(episode_id)
+
+    def update_episode_plan(self, episode_id: str, request: EpisodePlanUpdate) -> Episode:
+        episode = self.get_episode(episode_id)
+        if episode.status not in EDITABLE_EPISODE_PLAN_STATUSES:
+            raise ConflictError("approved or production-stage episode plans are immutable")
+        updates: list[str] = []
+        values: list[Any] = []
+        for column, value in (
+            ("title", request.title),
+            ("logline", request.logline),
+            ("target_seconds", request.target_seconds),
+        ):
+            if value is not None:
+                updates.append(f"{column} = ?")
+                values.append(value)
+        if request.outline is not None:
+            updates.append("outline_json = ?")
+            values.append(encode(request.outline))
+        updates.append("updated_at = ?")
+        values.extend((utc_now(), episode_id))
+        with self.db.connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            current = connection.execute(
+                "SELECT status, season_id FROM episodes WHERE id = ?", (episode_id,)
+            ).fetchone()
+            if current is None:
+                raise NotFoundError("episode not found")
+            if EpisodeStatus(current["status"]) not in EDITABLE_EPISODE_PLAN_STATUSES:
+                raise ConflictError("approved or production-stage episode plans are immutable")
+            connection.execute(
+                f"UPDATE episodes SET {', '.join(updates)} WHERE id = ?", values
+            )
+            self._snapshot_season_plan(
+                connection, current["season_id"], request.source_transcript
+            )
         return self.get_episode(episode_id)
 
     def get_episode(self, episode_id: str) -> Episode:

@@ -88,7 +88,11 @@ backup boundaries and deletion behavior.
 - `GET /v1/projects/{project_id}/export`
 - `POST /v1/project-imports`
 - `POST /v1/projects/{project_id}/seasons`
+- `PATCH /v1/seasons/{season_id}`
+- `GET /v1/seasons/{season_id}/plan-revisions`
+- `POST /v1/seasons/{season_id}/plan-approvals`
 - `POST /v1/seasons/{season_id}/episodes`
+- `PATCH /v1/episodes/{episode_id}`
 - `POST /v1/episodes/{episode_id}/scripts`
 - `POST /v1/episodes/{episode_id}/scripts/{revision}/approve`
 - `GET /v1/episodes/{episode_id}/script-approvals`
