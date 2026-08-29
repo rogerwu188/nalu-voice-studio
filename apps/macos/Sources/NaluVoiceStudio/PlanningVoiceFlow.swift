@@ -4,6 +4,8 @@ enum PlanningVoiceMode: Equatable, Sendable {
     case seasonPlan
     case episodePlan
     case seasonApproval
+    case scriptDraft
+    case scriptApproval
 
     var prompt: String {
         switch self {
@@ -13,6 +15,10 @@ enum PlanningVoiceMode: Equatable, Sendable {
             "请告诉我这一集发生什么，最重要的转折和结尾是什么？"
         case .seasonApproval:
             "如果您同意当前分集计划，请明确说“我确认这个分集计划”；如果还要修改，请说“不确认”。"
+        case .scriptDraft:
+            "请把这一集要说的话讲给我听。我会把它保存成新的剧本版本，不会覆盖旧版本。"
+        case .scriptApproval:
+            "如果您同意当前剧本，请明确说“我确认这个剧本”；如果还要修改，请说“不确认”。"
         }
     }
 }
@@ -21,6 +27,8 @@ enum PlanningVoiceAction: Equatable, Sendable {
     case updateSeason(summary: String, transcript: String)
     case updateEpisode(summary: String, transcript: String)
     case approveSeason(confirmation: String)
+    case updateScript(content: String, transcript: String)
+    case approveScript(confirmation: String)
     case respond(String)
 }
 
@@ -48,6 +56,9 @@ struct PlanningVoiceFlow: Sendable {
         case .episodePlan:
             self.mode = nil
             return .updateEpisode(summary: spoken, transcript: spoken)
+        case .scriptDraft:
+            self.mode = nil
+            return .updateScript(content: spoken, transcript: spoken)
         case .seasonApproval:
             if guardianRequired && !guardianConfirmed {
                 self.mode = nil
@@ -64,6 +75,22 @@ struct PlanningVoiceFlow: Sendable {
                 return .approveSeason(confirmation: spoken)
             }
             return .respond("为了避免误操作，请明确说“我确认这个分集计划”，或者说“不确认”。")
+        case .scriptApproval:
+            if guardianRequired && !guardianConfirmed {
+                self.mode = nil
+                return .respond("这是儿童项目。监护人未确认在场，我不会批准剧本。")
+            }
+            let negative = ["不确认", "不同意", "取消", "还要改", "再修改", "不可以"]
+            if negative.contains(where: spoken.contains) {
+                self.mode = nil
+                return .respond("好的，我没有批准剧本。我们可以继续修改。")
+            }
+            let positive = ["我确认", "我同意", "确认这个", "同意这个", "就按这个"]
+            if positive.contains(where: spoken.contains) {
+                self.mode = nil
+                return .approveScript(confirmation: spoken)
+            }
+            return .respond("为了避免误操作，请明确说“我确认这个剧本”，或者说“不确认”。")
         }
     }
 }

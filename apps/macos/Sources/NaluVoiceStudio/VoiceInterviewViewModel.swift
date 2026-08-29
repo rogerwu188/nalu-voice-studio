@@ -27,10 +27,16 @@ final class VoiceInterviewViewModel {
     var episodeLogline = ""
     var episodeOutlineSummary = ""
     var guardianConfirmedForPlan = false
+    var scriptRevisions: [ScriptRevision] = []
+    var scriptContent = ""
+    var scriptSummary = ""
+    var viewedScriptRevision: Int?
+    var guardianConfirmedForScript = false
     var planningVoiceLabel: String? { planningVoiceFlow.mode?.prompt }
 
     private let runtime = RuntimeClient()
     private let speech = SpeechRecorder()
+    private let speechPlayback = SpeechPlayback()
     private var interviewFlow = InterviewFlow()
     private var planningVoiceFlow = PlanningVoiceFlow()
 
@@ -84,11 +90,13 @@ final class VoiceInterviewViewModel {
         transcript = ""
         transcriptConfidence = 0
         if planningVoiceFlow.mode != nil {
+            let guardianConfirmed = planningVoiceFlow.mode == .scriptApproval
+                ? guardianConfirmedForScript : guardianConfirmedForPlan
             handle(
                 planningVoiceFlow.consume(
                     spoken,
                     guardianRequired: selectedProject?.audienceMode == "child",
-                    guardianConfirmed: guardianConfirmedForPlan
+                    guardianConfirmed: guardianConfirmed
                 )
             )
         } else {
@@ -128,6 +136,10 @@ final class VoiceInterviewViewModel {
                 episodes = []
                 episodeProgressByID = [:]
                 selectedEpisodeID = nil
+                scriptRevisions = []
+                scriptContent = ""
+                scriptSummary = ""
+                viewedScriptRevision = nil
                 seasonPlanSummary = ""
                 episodeLogline = ""
                 episodeOutlineSummary = ""
@@ -142,6 +154,35 @@ final class VoiceInterviewViewModel {
         guard let episode = episodes.first(where: { $0.id == episodeID }) else { return }
         episodeLogline = episode.logline
         episodeOutlineSummary = episode.outline["summary"]?.displayText ?? ""
+        Task { await loadScripts(episodeID: episodeID) }
+    }
+
+    private func loadScripts(episodeID: String) async {
+        do {
+            let revisions = try await runtime.listScripts(episodeID: episodeID)
+            guard selectedEpisodeID == episodeID else { return }
+            scriptRevisions = revisions
+            if let latest = revisions.last {
+                viewedScriptRevision = latest.revision
+                scriptContent = latest.content
+                scriptSummary = latest.summaryForVoiceReview
+            } else {
+                viewedScriptRevision = nil
+                scriptContent = ""
+                scriptSummary = ""
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func viewScriptRevision(_ revision: Int) {
+        guard let script = scriptRevisions.first(where: { $0.revision == revision }) else {
+            return
+        }
+        viewedScriptRevision = revision
+        scriptContent = script.content
+        scriptSummary = script.summaryForVoiceReview
     }
 
     func saveSeasonPlan(sourceTranscript: String = "") async {
@@ -220,10 +261,88 @@ final class VoiceInterviewViewModel {
         await beginPlanningVoice(.seasonApproval)
     }
 
+    func beginScriptDictation() async {
+        guard selectedEpisodeID != nil else { return }
+        await beginPlanningVoice(.scriptDraft)
+    }
+
+    func beginScriptVoiceApproval() async {
+        guard !scriptRevisions.isEmpty else { return }
+        await beginPlanningVoice(.scriptApproval)
+    }
+
     private func beginPlanningVoice(_ mode: PlanningVoiceMode) async {
         let prompt = planningVoiceFlow.begin(mode)
         messages.append(.init(speaker: .nalu, text: prompt))
         if !isListening { await toggleListening() }
+    }
+
+    func saveScriptRevision(sourceTranscript: String = "") async {
+        guard let episodeID = selectedEpisodeID else { return }
+        let content = scriptContent.trimmingCharacters(in: .whitespacesAndNewlines)
+        let summary = scriptSummary.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !content.isEmpty, !summary.isEmpty else {
+            errorMessage = "请先填写剧本和朗读摘要。"
+            return
+        }
+        do {
+            _ = try await runtime.createScript(
+                episodeID: episodeID,
+                content: content,
+                summary: summary,
+                sourceTranscript: sourceTranscript
+            )
+            await loadScripts(episodeID: episodeID)
+            if let projectID = selectedProjectID { await selectProject(projectID) }
+            if episodes.contains(where: { $0.id == episodeID }) { selectEpisode(episodeID) }
+            messages.append(.init(speaker: .nalu, text: "新的剧本版本已经保存在本机，旧版本仍然保留。"))
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func approveScriptVisually() async {
+        await approveCurrentScript(
+            confirmation: "我已查看并确认当前剧本"
+        )
+    }
+
+    private func approveCurrentScript(confirmation: String) async {
+        guard let episodeID = selectedEpisodeID, let latest = scriptRevisions.last else { return }
+        do {
+            _ = try await runtime.approveScript(
+                episodeID: episodeID,
+                revision: latest.revision,
+                confirmation: confirmation,
+                guardianApproval: guardianConfirmedForScript
+            )
+            await loadScripts(episodeID: episodeID)
+            if let projectID = selectedProjectID { await selectProject(projectID) }
+            if episodes.contains(where: { $0.id == episodeID }) { selectEpisode(episodeID) }
+            messages.append(.init(speaker: .nalu, text: "当前剧本版本已经确认，可以进入制作准备。"))
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func revokeCurrentScriptApproval() async {
+        guard let episodeID = selectedEpisodeID,
+              let approved = scriptRevisions.last(where: { $0.approvedAt != nil }) else { return }
+        do {
+            _ = try await runtime.revokeScript(
+                episodeID: episodeID, revision: approved.revision
+            )
+            await loadScripts(episodeID: episodeID)
+            if let projectID = selectedProjectID { await selectProject(projectID) }
+            if episodes.contains(where: { $0.id == episodeID }) { selectEpisode(episodeID) }
+            messages.append(.init(speaker: .nalu, text: "批准已撤销。这一集不会进入生产，可以继续修改。"))
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func speakCurrentScriptSummary() {
+        speechPlayback.speak(scriptSummary)
     }
 
     func reloadProjects() async {
@@ -240,6 +359,10 @@ final class VoiceInterviewViewModel {
                 episodes = []
                 episodeProgressByID = [:]
                 selectedEpisodeID = nil
+                scriptRevisions = []
+                scriptContent = ""
+                scriptSummary = ""
+                viewedScriptRevision = nil
             }
         } catch {
             errorMessage = error.localizedDescription
@@ -319,6 +442,14 @@ final class VoiceInterviewViewModel {
                     confirmation: confirmation, reviewChannel: "voice"
                 )
             }
+        case .updateScript(let content, let sourceTranscript):
+            scriptContent = content
+            scriptSummary = String(content.prefix(120))
+            messages.append(.init(speaker: .nalu, text: "我记下了，正在保存为新的剧本版本。"))
+            Task { await saveScriptRevision(sourceTranscript: sourceTranscript) }
+        case .approveScript(let confirmation):
+            messages.append(.init(speaker: .nalu, text: "我听到了明确确认，正在记录剧本批准。"))
+            Task { await approveCurrentScript(confirmation: confirmation) }
         case .respond(let message):
             messages.append(.init(speaker: .nalu, text: message))
         }

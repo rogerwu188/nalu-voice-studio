@@ -54,6 +54,27 @@ final class PlanningVoiceFlowTests: XCTestCase {
         XCTAssertNil(flow.mode)
     }
 
+    func testScriptDictationAndApprovalAreExplicit() {
+        var flow = PlanningVoiceFlow()
+        _ = flow.begin(.scriptDraft)
+        XCTAssertEqual(
+            flow.consume("清晨，主人公走进车站", guardianRequired: false, guardianConfirmed: false),
+            .updateScript(
+                content: "清晨，主人公走进车站",
+                transcript: "清晨，主人公走进车站"
+            )
+        )
+        _ = flow.begin(.scriptApproval)
+        assertResponse(
+            flow.consume("差不多吧", guardianRequired: false, guardianConfirmed: false),
+            contains: "明确说"
+        )
+        XCTAssertEqual(
+            flow.consume("我确认这个剧本", guardianRequired: false, guardianConfirmed: false),
+            .approveScript(confirmation: "我确认这个剧本")
+        )
+    }
+
     private func assertResponse(
         _ action: PlanningVoiceAction,
         contains expected: String,

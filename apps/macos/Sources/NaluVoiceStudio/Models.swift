@@ -240,6 +240,60 @@ struct EpisodePlanUpdateDraft: Codable, Sendable {
     }
 }
 
+struct ScriptRevision: Codable, Identifiable, Sendable {
+    var id: String { "\(episodeID)-\(revision)" }
+    let episodeID: String
+    let revision: Int
+    let content: String
+    let summaryForVoiceReview: String
+    let sourceTranscript: String
+    let approvedAt: String?
+    let createdAt: String
+
+    enum CodingKeys: String, CodingKey {
+        case revision, content
+        case episodeID = "episode_id"
+        case summaryForVoiceReview = "summary_for_voice_review"
+        case sourceTranscript = "source_transcript"
+        case approvedAt = "approved_at"
+        case createdAt = "created_at"
+    }
+}
+
+struct ScriptRevisionDraft: Codable, Sendable {
+    let content: String
+    let summaryForVoiceReview: String
+    let sourceTranscript: String
+
+    enum CodingKeys: String, CodingKey {
+        case content
+        case summaryForVoiceReview = "summary_for_voice_review"
+        case sourceTranscript = "source_transcript"
+    }
+}
+
+struct ScriptApprovalDraft: Codable, Sendable {
+    let approvedBy: String
+    let spokenConfirmation: String
+    let guardianApproval: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case approvedBy = "approved_by"
+        case spokenConfirmation = "spoken_confirmation"
+        case guardianApproval = "guardian_approval"
+    }
+}
+
+struct ScriptRevocationDraft: Codable, Sendable {
+    let requestedBy: String
+    let reason: String
+
+    enum CodingKeys: String, CodingKey {
+        case requestedBy = "requested_by"
+        case reason
+    }
+}
+
 struct ProjectPlanDraft: Codable, Sendable {
     let project: ProjectDraft
     let seasonTitle: String

@@ -8,6 +8,7 @@ struct ContentView: View {
     @State private var isImportingProject = false
     @State private var isExportingProject = false
     @State private var exportDocument: ProjectBackupDocument?
+    @State private var isScriptEditorExpanded = false
 
     var body: some View {
         HSplitView {
@@ -276,11 +277,85 @@ struct ContentView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+                DisclosureGroup("剧本创作与确认", isExpanded: $isScriptEditorExpanded) {
+                    scriptEditor
+                        .padding(.top, 10)
+                }
+                .font(.headline)
             }
         }
         .padding(.horizontal, 24)
         .padding(.vertical, 14)
         .background(Color.secondary.opacity(0.04))
+    }
+
+    private var scriptEditor: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if !model.scriptRevisions.isEmpty {
+                ScrollView(.horizontal) {
+                    HStack {
+                        ForEach(model.scriptRevisions) { script in
+                            Button("第 \(script.revision) 版\(script.approvedAt == nil ? "" : " · 已批准")") {
+                                model.viewScriptRevision(script.revision)
+                            }
+                            .buttonStyle(.bordered)
+                            .tint(
+                                script.revision == model.viewedScriptRevision ? .blue : .gray
+                            )
+                        }
+                    }
+                }
+            } else {
+                Text("还没有剧本。您可以直接说，也可以输入第一版。")
+                    .foregroundStyle(.secondary)
+            }
+            TextEditor(text: scriptContentBinding)
+                .font(.body)
+                .frame(minHeight: 110, maxHeight: 180)
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.secondary.opacity(0.3)))
+            TextField("给长辈和孩子听的简短摘要", text: scriptSummaryBinding, axis: .vertical)
+                .textFieldStyle(.roundedBorder)
+                .lineLimit(2...4)
+            HStack {
+                Button("保存为新版本") {
+                    Task { await model.saveScriptRevision() }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(!scriptCanCreateRevision)
+                Button("用语音讲剧本", systemImage: "mic") {
+                    Task { await model.beginScriptDictation() }
+                }
+                .disabled(!scriptCanCreateRevision)
+                Button("朗读摘要", systemImage: "speaker.wave.2") {
+                    model.speakCurrentScriptSummary()
+                }
+                .disabled(model.scriptSummary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+            HStack {
+                if selectedProject?.audienceMode == "child" {
+                    Toggle("监护人确认本集剧本", isOn: guardianScriptBinding)
+                }
+                Button("批准当前剧本") {
+                    Task { await model.approveScriptVisually() }
+                }
+                .disabled(!scriptCanApprove)
+                Button("用语音批准", systemImage: "waveform") {
+                    Task { await model.beginScriptVoiceApproval() }
+                }
+                .disabled(!scriptCanApprove)
+                if scriptHasApproval {
+                    Button("撤销批准", role: .destructive) {
+                        Task { await model.revokeCurrentScriptApproval() }
+                    }
+                }
+            }
+            if !scriptIsLatestViewed {
+                Label("正在查看旧版本；旧版本不能批准，保存会创建一个新的最新版本。", systemImage: "clock.arrow.circlepath")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
+        }
+        .font(.body)
     }
 
     private func bubble(_ message: InterviewMessage) -> some View {
@@ -357,6 +432,29 @@ struct ContentView: View {
         return ["planned", "script_draft", "script_review"].contains(status)
     }
 
+    private var scriptIsLatestViewed: Bool {
+        model.viewedScriptRevision == model.scriptRevisions.last?.revision
+    }
+
+    private var scriptHasApproval: Bool {
+        model.scriptRevisions.contains { $0.approvedAt != nil }
+    }
+
+    private var scriptCanCreateRevision: Bool {
+        guard let status = selectedEpisode?.status else { return false }
+        return ["planned", "script_draft", "script_review", "script_approved"].contains(status)
+    }
+
+    private var scriptCanApprove: Bool {
+        guard selectedEpisode?.status == "script_review",
+              !model.scriptRevisions.isEmpty,
+              scriptIsLatestViewed else { return false }
+        if selectedProject?.audienceMode == "child" && !model.guardianConfirmedForScript {
+            return false
+        }
+        return model.scriptRevisions.last?.approvedAt == nil
+    }
+
     private var seasonPlanBinding: Binding<String> {
         Binding(get: { model.seasonPlanSummary }, set: { model.seasonPlanSummary = $0 })
     }
@@ -377,6 +475,21 @@ struct ContentView: View {
             get: { model.guardianConfirmedForPlan },
             set: { model.guardianConfirmedForPlan = $0 }
         )
+    }
+
+    private var guardianScriptBinding: Binding<Bool> {
+        Binding(
+            get: { model.guardianConfirmedForScript },
+            set: { model.guardianConfirmedForScript = $0 }
+        )
+    }
+
+    private var scriptContentBinding: Binding<String> {
+        Binding(get: { model.scriptContent }, set: { model.scriptContent = $0 })
+    }
+
+    private var scriptSummaryBinding: Binding<String> {
+        Binding(get: { model.scriptSummary }, set: { model.scriptSummary = $0 })
     }
 
     private var exportFilename: String {

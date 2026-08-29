@@ -130,6 +130,46 @@ actor RuntimeClient {
         )
     }
 
+    func listScripts(episodeID: String) async throws -> [ScriptRevision] {
+        try await get("v1/episodes/\(episodeID)/scripts")
+    }
+
+    func createScript(
+        episodeID: String, content: String, summary: String, sourceTranscript: String = ""
+    ) async throws -> ScriptRevision {
+        try await post(
+            "v1/episodes/\(episodeID)/scripts",
+            body: ScriptRevisionDraft(
+                content: content,
+                summaryForVoiceReview: summary,
+                sourceTranscript: sourceTranscript
+            )
+        )
+    }
+
+    func approveScript(
+        episodeID: String, revision: Int, confirmation: String, guardianApproval: Bool
+    ) async throws -> ScriptRevision {
+        try await post(
+            "v1/episodes/\(episodeID)/scripts/\(revision)/approve",
+            body: ScriptApprovalDraft(
+                approvedBy: "local-user",
+                spokenConfirmation: confirmation,
+                guardianApproval: guardianApproval
+            )
+        )
+    }
+
+    func revokeScript(episodeID: String, revision: Int) async throws -> ScriptRevision {
+        try await post(
+            "v1/episodes/\(episodeID)/scripts/\(revision)/revoke",
+            body: ScriptRevocationDraft(
+                requestedBy: "local-user",
+                reason: "用户要求继续修改剧本"
+            )
+        )
+    }
+
     private func get<Response: Decodable>(_ path: String) async throws -> Response {
         let (data, response) = try await session.data(from: baseURL.appending(path: path))
         try validate(response, data: data)
