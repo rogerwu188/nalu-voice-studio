@@ -133,7 +133,8 @@ enum RealtimeVoiceError: LocalizedError {
 
 @MainActor
 @Observable
-final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
+final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
+    WKNavigationDelegate, WKUIDelegate {
     var state: RealtimeVoiceState = .off
     var sessionStartedAt: Date?
     var onUserTranscript: ((String) -> Void)?
@@ -148,6 +149,7 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler, WKNaviga
         guard self.webView !== webView else { return }
         self.webView = webView
         webView.navigationDelegate = self
+        webView.uiDelegate = self
         webView.configuration.userContentController.removeScriptMessageHandler(
             forName: "naluRealtime"
         )
@@ -180,6 +182,19 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler, WKNaviga
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         isPageReady = true
         startWebRTCIfReady()
+    }
+
+    func webView(
+        _ webView: WKWebView,
+        requestMediaCapturePermissionFor origin: WKSecurityOrigin,
+        initiatedByFrame frame: WKFrameInfo,
+        type: WKMediaCaptureType,
+        decisionHandler: @escaping (WKPermissionDecision) -> Void
+    ) {
+        // macOS still owns the app-level microphone permission. This grants the
+        // embedded, non-persistent WebRTC view only after Nalu's explicit cloud
+        // audio consent sheet has initiated a session.
+        decisionHandler(state == .connecting ? .grant : .deny)
     }
 
     func userContentController(

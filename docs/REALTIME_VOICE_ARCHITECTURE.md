@@ -54,6 +54,8 @@ until the key exists and the user has accepted the per-session cloud-audio/cost 
   creation and interruption are encoded in a unit-tested session configuration.
 - The WebRTC data channel maps listening, thinking, speaking, error and transcript
   events into the same visible conversation UI.
+- WebKit media capture is granted only while an explicitly consented session is
+  connecting; macOS still enforces the app-level microphone permission.
 - The original local push-to-talk control remains available and is disabled only while
   a live Realtime session is active.
 - The Realtime prompt requires Nalu to answer an interruption first, then return to the
