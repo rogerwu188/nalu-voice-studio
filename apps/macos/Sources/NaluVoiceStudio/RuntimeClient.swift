@@ -59,6 +59,67 @@ actor RuntimeClient {
         return try decoder.decode(NaluProject.self, from: responseData)
     }
 
+    func listAssets(projectID: String) async throws -> [NaluAsset] {
+        try await get("v1/projects/\(projectID)/assets")
+    }
+
+    func importAsset(
+        projectID: String,
+        data: Data,
+        filename: String,
+        contentType: String,
+        kind: String,
+        name: String,
+        subjectName: String,
+        episodeID: String?,
+        consentGranted: Bool,
+        guardianApproved: Bool,
+        consentStatement: String
+    ) async throws -> NaluAsset {
+        var components = URLComponents(
+            url: baseURL.appending(path: "v1/projects/\(projectID)/asset-imports"),
+            resolvingAgainstBaseURL: false
+        )!
+        var items = [
+            URLQueryItem(name: "filename", value: filename),
+            URLQueryItem(name: "kind", value: kind),
+            URLQueryItem(name: "name", value: name),
+            URLQueryItem(name: "subject_name", value: subjectName),
+            URLQueryItem(name: "consent_granted", value: consentGranted ? "true" : "false"),
+            URLQueryItem(name: "consent_scope", value: "project_only"),
+            URLQueryItem(name: "guardian_approved", value: guardianApproved ? "true" : "false"),
+            URLQueryItem(name: "consent_granted_by", value: consentGranted ? "local-user" : ""),
+            URLQueryItem(name: "consent_statement", value: consentStatement),
+        ]
+        if let episodeID { items.append(URLQueryItem(name: "episode_id", value: episodeID)) }
+        components.queryItems = items
+        var request = URLRequest(url: components.url!)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 120
+        request.setValue(contentType, forHTTPHeaderField: "Content-Type")
+        request.httpBody = data
+        let (responseData, response) = try await session.data(for: request)
+        try validate(response, data: responseData)
+        return try decoder.decode(NaluAsset.self, from: responseData)
+    }
+
+    func revokeAssetConsent(assetID: String) async throws -> AssetConsentRecord {
+        try await post(
+            "v1/assets/\(assetID)/consent-revocations",
+            body: AssetConsentRevocationDraft(
+                requestedBy: "local-user", reason: "用户在本机撤销素材授权"
+            )
+        )
+    }
+
+    func privacyExport(projectID: String) async throws -> Data {
+        let (data, response) = try await session.data(
+            from: baseURL.appending(path: "v1/projects/\(projectID)/privacy-export")
+        )
+        try validate(response, data: data)
+        return data
+    }
+
     func createProject(_ draft: ProjectDraft) async throws -> NaluProject {
         try await post("v1/projects", body: draft)
     }

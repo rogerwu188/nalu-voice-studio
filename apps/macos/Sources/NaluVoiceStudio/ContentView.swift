@@ -9,6 +9,17 @@ struct ContentView: View {
     @State private var isExportingProject = false
     @State private var exportDocument: ProjectBackupDocument?
     @State private var isScriptEditorExpanded = false
+    @State private var isAssetEditorExpanded = false
+    @State private var isImportingAsset = false
+    @State private var assetKind = "character_image"
+    @State private var assetName = ""
+    @State private var assetSubjectName = ""
+    @State private var assetConsentGranted = false
+    @State private var assetGuardianApproved = false
+    @State private var assetConsentStatement = ""
+    @State private var scopeAssetToEpisode = false
+    @State private var isExportingPrivacy = false
+    @State private var privacyDocument: PrivacyExportDocument?
 
     var body: some View {
         HSplitView {
@@ -34,6 +45,22 @@ struct ContentView: View {
             document: exportDocument,
             contentType: .json,
             defaultFilename: exportFilename
+        ) { result in
+            if case .failure(let error) = result {
+                model.errorMessage = error.localizedDescription
+            }
+        }
+        .fileImporter(
+            isPresented: $isImportingAsset,
+            allowedContentTypes: allowedAssetContentTypes,
+            allowsMultipleSelection: false,
+            onCompletion: importAsset
+        )
+        .fileExporter(
+            isPresented: $isExportingPrivacy,
+            document: privacyDocument,
+            contentType: .zip,
+            defaultFilename: privacyExportFilename
         ) { result in
             if case .failure(let error) = result {
                 model.errorMessage = error.localizedDescription
@@ -91,6 +118,10 @@ struct ContentView: View {
             }
             .controlSize(.large)
             .padding(.horizontal, 18)
+            Button("隐私包", systemImage: "lock.doc", action: exportPrivacy)
+                .controlSize(.large)
+                .padding(.horizontal, 18)
+                .disabled(selectedProject == nil)
             if let project = selectedProject {
                 Button(
                     project.archivedAt == nil ? "归档这个项目" : "移回项目列表",
@@ -243,6 +274,11 @@ struct ContentView: View {
                             && !model.guardianConfirmedForPlan)
                 )
             }
+            DisclosureGroup("人物、声音和参考素材", isExpanded: $isAssetEditorExpanded) {
+                assetEditor
+                    .padding(.top, 10)
+            }
+            .font(.headline)
             if let episode = selectedEpisode {
                 Divider()
                 Text("第 \(episode.episodeNumber) 集 · \(episode.title)")
@@ -356,6 +392,92 @@ struct ContentView: View {
             }
         }
         .font(.body)
+    }
+
+    private var assetEditor: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("文件会复制到这个项目的本地目录，不会只记住原文件位置。")
+                .font(.body)
+                .foregroundStyle(.secondary)
+            HStack {
+                Picker("素材类型", selection: $assetKind) {
+                    ForEach(assetKindOptions, id: \.value) { option in
+                        Text(option.label).tag(option.value)
+                    }
+                }
+                .frame(maxWidth: 260)
+                TextField("素材名称", text: $assetName)
+                    .textFieldStyle(.roundedBorder)
+            }
+            if assetIsBiometric {
+                TextField("照片或声音属于谁", text: $assetSubjectName)
+                    .textFieldStyle(.roundedBorder)
+                Toggle("本人或合法授权人同意用于本项目短剧制作", isOn: $assetConsentGranted)
+                TextField("请写明授权范围，例如：同意把这张照片用于《我的故事》", text: $assetConsentStatement)
+                    .textFieldStyle(.roundedBorder)
+                if selectedProject?.audienceMode == "child" {
+                    Toggle("监护人已在场并同意儿童肖像或声音使用", isOn: $assetGuardianApproved)
+                }
+            }
+            Toggle("只用于当前选中的这一集", isOn: $scopeAssetToEpisode)
+                .disabled(selectedEpisode == nil)
+            HStack {
+                Button("选择并复制文件", systemImage: "plus.rectangle.on.folder") {
+                    isImportingAsset = true
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(!assetImportIsReady)
+                if assetIsBiometric && !assetConsentGranted {
+                    Label("人物照片和声音必须先取得明确授权", systemImage: "hand.raised.fill")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
+            }
+            if model.assets.isEmpty {
+                Text("这个项目还没有素材。")
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+            } else {
+                Divider()
+                ForEach(model.assets) { asset in
+                    HStack(alignment: .top, spacing: 12) {
+                        Image(systemName: assetIcon(asset.kind))
+                            .font(.title2)
+                            .foregroundStyle(.blue)
+                            .frame(width: 28)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(asset.name).font(.body.bold())
+                            Text("\(assetKindLabel(asset.kind)) · \(assetScopeLabel(asset))")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            if assetIsBiometricKind(asset.kind) {
+                                Label(
+                                    asset.consentGranted ? "授权有效" : "授权已撤销",
+                                    systemImage: asset.consentGranted
+                                        ? "checkmark.shield.fill" : "xmark.shield.fill"
+                                )
+                                .font(.caption)
+                                .foregroundStyle(asset.consentGranted ? .green : .red)
+                            }
+                        }
+                        Spacer()
+                        if assetIsBiometricKind(asset.kind) && asset.consentGranted {
+                            Button("撤销授权", role: .destructive) {
+                                Task { await model.revokeAssetConsent(asset.id) }
+                            }
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+        }
+        .font(.body)
+        .onChange(of: assetKind) {
+            assetConsentGranted = false
+            assetGuardianApproved = false
+            assetConsentStatement = ""
+            assetSubjectName = ""
+        }
     }
 
     private func bubble(_ message: InterviewMessage) -> some View {
@@ -497,6 +619,48 @@ struct ContentView: View {
         return "\(title)-Nalu备份.json"
     }
 
+    private var privacyExportFilename: String {
+        let title = selectedProject?.title ?? "Nalu项目"
+        return "\(title)-Nalu隐私包.zip"
+    }
+
+    private var assetKindOptions: [(value: String, label: String)] {
+        [
+            ("character_image", "人物照片"),
+            ("voice_reference", "人物声音"),
+            ("scene_reference", "场景参考"),
+            ("prop_reference", "道具参考"),
+            ("style_reference", "画面风格参考"),
+            ("source_document", "文字或 PDF 资料"),
+        ]
+    }
+
+    private var assetIsBiometric: Bool { assetIsBiometricKind(assetKind) }
+
+    private var assetImportIsReady: Bool {
+        guard !assetName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return false
+        }
+        guard !scopeAssetToEpisode || selectedEpisode != nil else { return false }
+        guard assetIsBiometric else { return true }
+        guard assetConsentGranted,
+              !assetSubjectName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              !assetConsentStatement.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return false
+        }
+        return selectedProject?.audienceMode != "child" || assetGuardianApproved
+    }
+
+    private var allowedAssetContentTypes: [UTType] {
+        switch assetKind {
+        case "character_image": [.image]
+        case "voice_reference": [.audio]
+        case "scene_reference", "prop_reference", "style_reference": [.image, .movie]
+        case "source_document": [.plainText, .pdf, .json]
+        default: [.data]
+        }
+    }
+
     private func presentRename() {
         guard let project = selectedProject else { return }
         renameTitle = project.title
@@ -511,6 +675,14 @@ struct ContentView: View {
         }
     }
 
+    private func exportPrivacy() {
+        Task {
+            guard let data = await model.exportPrivacyBundle() else { return }
+            privacyDocument = PrivacyExportDocument(data: data)
+            isExportingPrivacy = true
+        }
+    }
+
     private func importProject(_ result: Result<[URL], Error>) {
         do {
             guard let url = try result.get().first else { return }
@@ -520,6 +692,67 @@ struct ContentView: View {
             Task { await model.restoreProject(from: data) }
         } catch {
             model.errorMessage = error.localizedDescription
+        }
+    }
+
+    private func importAsset(_ result: Result<[URL], Error>) {
+        do {
+            guard let url = try result.get().first else { return }
+            let accessing = url.startAccessingSecurityScopedResource()
+            defer { if accessing { url.stopAccessingSecurityScopedResource() } }
+            let data = try Data(contentsOf: url)
+            let contentType = UTType(filenameExtension: url.pathExtension)?.preferredMIMEType
+                ?? "application/octet-stream"
+            let importedName = assetName
+            let importedSubjectName = assetSubjectName
+            let importedKind = assetKind
+            let importedConsent = assetConsentGranted
+            let importedGuardianApproval = assetGuardianApproved
+            let importedConsentStatement = assetConsentStatement
+            let importedEpisodeScope = scopeAssetToEpisode
+            Task {
+                await model.importAsset(
+                    data: data,
+                    filename: url.lastPathComponent,
+                    contentType: contentType,
+                    kind: importedKind,
+                    name: importedName,
+                    subjectName: importedSubjectName,
+                    scopeToSelectedEpisode: importedEpisodeScope,
+                    consentGranted: importedConsent,
+                    guardianApproved: importedGuardianApproval,
+                    consentStatement: importedConsentStatement
+                )
+            }
+        } catch {
+            model.errorMessage = error.localizedDescription
+        }
+    }
+
+    private func assetIsBiometricKind(_ kind: String) -> Bool {
+        kind == "character_image" || kind == "voice_reference"
+    }
+
+    private func assetKindLabel(_ kind: String) -> String {
+        assetKindOptions.first(where: { $0.value == kind })?.label ?? kind
+    }
+
+    private func assetScopeLabel(_ asset: NaluAsset) -> String {
+        guard let episodeID = asset.episodeID,
+              let episode = model.episodes.first(where: { $0.id == episodeID }) else {
+            return "整个项目"
+        }
+        return "第 \(episode.episodeNumber) 集"
+    }
+
+    private func assetIcon(_ kind: String) -> String {
+        switch kind {
+        case "character_image": "person.crop.rectangle"
+        case "voice_reference": "waveform"
+        case "scene_reference": "photo.on.rectangle"
+        case "prop_reference": "shippingbox"
+        case "style_reference": "paintpalette"
+        default: "doc.text"
         }
     }
 

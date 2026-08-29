@@ -32,6 +32,7 @@ final class VoiceInterviewViewModel {
     var scriptSummary = ""
     var viewedScriptRevision: Int?
     var guardianConfirmedForScript = false
+    var assets: [NaluAsset] = []
     var planningVoiceLabel: String? { planningVoiceFlow.mode?.prompt }
 
     private let runtime = RuntimeClient()
@@ -117,6 +118,7 @@ final class VoiceInterviewViewModel {
     func selectProject(_ projectID: String) async {
         selectedProjectID = projectID
         do {
+            assets = try await runtime.listAssets(projectID: projectID)
             seasons = try await runtime.listSeasons(projectID: projectID)
             if let season = seasons.first {
                 episodes = try await runtime.listEpisodes(seasonID: season.id)
@@ -363,6 +365,7 @@ final class VoiceInterviewViewModel {
                 scriptContent = ""
                 scriptSummary = ""
                 viewedScriptRevision = nil
+                assets = []
             }
         } catch {
             errorMessage = error.localizedDescription
@@ -409,6 +412,61 @@ final class VoiceInterviewViewModel {
             await selectProject(project.id)
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+
+    func importAsset(
+        data: Data,
+        filename: String,
+        contentType: String,
+        kind: String,
+        name: String,
+        subjectName: String,
+        scopeToSelectedEpisode: Bool,
+        consentGranted: Bool,
+        guardianApproved: Bool,
+        consentStatement: String
+    ) async {
+        guard let projectID = selectedProjectID else { return }
+        do {
+            _ = try await runtime.importAsset(
+                projectID: projectID,
+                data: data,
+                filename: filename,
+                contentType: contentType,
+                kind: kind,
+                name: name,
+                subjectName: subjectName,
+                episodeID: scopeToSelectedEpisode ? selectedEpisodeID : nil,
+                consentGranted: consentGranted,
+                guardianApproved: guardianApproved,
+                consentStatement: consentStatement
+            )
+            assets = try await runtime.listAssets(projectID: projectID)
+            messages.append(.init(speaker: .nalu, text: "素材已复制到 Nalu 的本地项目目录。"))
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func revokeAssetConsent(_ assetID: String) async {
+        guard let projectID = selectedProjectID else { return }
+        do {
+            _ = try await runtime.revokeAssetConsent(assetID: assetID)
+            assets = try await runtime.listAssets(projectID: projectID)
+            messages.append(.init(speaker: .nalu, text: "素材授权已撤销，后续生产将拒绝使用。"))
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func exportPrivacyBundle() async -> Data? {
+        guard let projectID = selectedProjectID else { return nil }
+        do {
+            return try await runtime.privacyExport(projectID: projectID)
+        } catch {
+            errorMessage = error.localizedDescription
+            return nil
         }
     }
 

@@ -294,6 +294,55 @@ struct ScriptRevocationDraft: Codable, Sendable {
     }
 }
 
+struct NaluAsset: Codable, Identifiable, Sendable {
+    let id: String
+    let projectID: String
+    let episodeID: String?
+    let kind: String
+    let name: String
+    let localURI: String
+    let subjectName: String
+    let metadata: [String: JSONValue]
+    let consentGranted: Bool
+    let consentScope: String
+    let guardianApproved: Bool
+    let createdAt: String
+
+    enum CodingKeys: String, CodingKey {
+        case id, kind, name, metadata
+        case projectID = "project_id"
+        case episodeID = "episode_id"
+        case localURI = "local_uri"
+        case subjectName = "subject_name"
+        case consentGranted = "consent_granted"
+        case consentScope = "consent_scope"
+        case guardianApproved = "guardian_approved"
+        case createdAt = "created_at"
+    }
+}
+
+struct AssetConsentRevocationDraft: Codable, Sendable {
+    let requestedBy: String
+    let reason: String
+
+    enum CodingKeys: String, CodingKey {
+        case requestedBy = "requested_by"
+        case reason
+    }
+}
+
+struct AssetConsentRecord: Codable, Sendable {
+    let id: String
+    let assetID: String
+    let actionType: String
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case assetID = "asset_id"
+        case actionType = "action_type"
+    }
+}
+
 struct ProjectPlanDraft: Codable, Sendable {
     let project: ProjectDraft
     let seasonTitle: String
