@@ -1,7 +1,13 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct ContentView: View {
     @Environment(VoiceInterviewViewModel.self) private var model
+    @State private var isRenamingProject = false
+    @State private var renameTitle = ""
+    @State private var isImportingProject = false
+    @State private var isExportingProject = false
+    @State private var exportDocument: ProjectBackupDocument?
 
     var body: some View {
         HSplitView {
@@ -15,6 +21,31 @@ struct ContentView: View {
                 model.errorMessage = error.localizedDescription
             }
             await model.load()
+        }
+        .fileImporter(
+            isPresented: $isImportingProject,
+            allowedContentTypes: [.json],
+            allowsMultipleSelection: false,
+            onCompletion: importProject
+        )
+        .fileExporter(
+            isPresented: $isExportingProject,
+            document: exportDocument,
+            contentType: .json,
+            defaultFilename: exportFilename
+        ) { result in
+            if case .failure(let error) = result {
+                model.errorMessage = error.localizedDescription
+            }
+        }
+        .alert("给项目换个名字", isPresented: $isRenamingProject) {
+            TextField("项目名称", text: $renameTitle)
+            Button("取消", role: .cancel) {}
+            Button("保存") {
+                Task { await model.renameSelectedProject(to: renameTitle) }
+            }
+        } message: {
+            Text("原来的分集、人物素材和制作记录都会保留。")
         }
     }
 
@@ -35,10 +66,39 @@ struct ContentView: View {
                         Text(project.title).font(.headline)
                         Text("计划 \(project.plannedEpisodeCount) 集")
                             .foregroundStyle(.secondary)
+                        if project.archivedAt != nil {
+                            Label("已归档", systemImage: "archivebox")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
                 .buttonStyle(.plain)
                 .padding(.vertical, 5)
+            }
+            Toggle("显示已归档项目", isOn: archivedProjectsBinding)
+                .toggleStyle(.switch)
+                .padding(.horizontal, 18)
+            HStack(spacing: 10) {
+                Button("改名", systemImage: "pencil", action: presentRename)
+                    .disabled(selectedProject == nil)
+                Button("备份", systemImage: "square.and.arrow.up", action: exportProject)
+                    .disabled(selectedProject == nil)
+                Button("恢复", systemImage: "square.and.arrow.down") {
+                    isImportingProject = true
+                }
+            }
+            .controlSize(.large)
+            .padding(.horizontal, 18)
+            if let project = selectedProject {
+                Button(
+                    project.archivedAt == nil ? "归档这个项目" : "移回项目列表",
+                    systemImage: project.archivedAt == nil ? "archivebox" : "tray.and.arrow.up"
+                ) {
+                    Task { await model.setSelectedProjectArchived(project.archivedAt == nil) }
+                }
+                .controlSize(.large)
+                .padding(.horizontal, 18)
             }
             Button(action: beginProject) {
                 Label("创建新项目", systemImage: "plus.circle.fill")
@@ -147,6 +207,51 @@ struct ContentView: View {
             get: { model.errorMessage != nil },
             set: { if !$0 { model.errorMessage = nil } }
         )
+    }
+
+    private var archivedProjectsBinding: Binding<Bool> {
+        Binding(
+            get: { model.includeArchivedProjects },
+            set: { value in
+                model.includeArchivedProjects = value
+                Task { await model.reloadProjects() }
+            }
+        )
+    }
+
+    private var selectedProject: NaluProject? {
+        model.projects.first { $0.id == model.selectedProjectID }
+    }
+
+    private var exportFilename: String {
+        let title = selectedProject?.title ?? "Nalu项目"
+        return "\(title)-Nalu备份.json"
+    }
+
+    private func presentRename() {
+        guard let project = selectedProject else { return }
+        renameTitle = project.title
+        isRenamingProject = true
+    }
+
+    private func exportProject() {
+        Task {
+            guard let data = await model.exportSelectedProject() else { return }
+            exportDocument = ProjectBackupDocument(data: data)
+            isExportingProject = true
+        }
+    }
+
+    private func importProject(_ result: Result<[URL], Error>) {
+        do {
+            guard let url = try result.get().first else { return }
+            let accessing = url.startAccessingSecurityScopedResource()
+            defer { if accessing { url.stopAccessingSecurityScopedResource() } }
+            let data = try Data(contentsOf: url)
+            Task { await model.restoreProject(from: data) }
+        } catch {
+            model.errorMessage = error.localizedDescription
+        }
     }
 
     private func beginProject() {

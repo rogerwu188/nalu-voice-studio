@@ -19,10 +19,44 @@ actor RuntimeClient {
         return try decoder.decode(RuntimeHealth.self, from: data)
     }
 
-    func listProjects() async throws -> [NaluProject] {
-        let (data, response) = try await session.data(from: baseURL.appending(path: "v1/projects"))
+    func listProjects(includeArchived: Bool = false) async throws -> [NaluProject] {
+        var components = URLComponents(
+            url: baseURL.appending(path: "v1/projects"), resolvingAgainstBaseURL: false
+        )!
+        if includeArchived {
+            components.queryItems = [URLQueryItem(name: "include_archived", value: "true")]
+        }
+        let (data, response) = try await session.data(from: components.url!)
         try validate(response, data: data)
         return try decoder.decode([NaluProject].self, from: data)
+    }
+
+    func renameProject(id: String, title: String) async throws -> NaluProject {
+        try await send("v1/projects/\(id)", method: "PATCH", body: ProjectRenameDraft(title: title))
+    }
+
+    func archiveProject(id: String, archived: Bool = true) async throws -> NaluProject {
+        try await post(
+            "v1/projects/\(id)/archive", body: ProjectArchiveDraft(archived: archived)
+        )
+    }
+
+    func exportProject(id: String) async throws -> Data {
+        let (data, response) = try await session.data(
+            from: baseURL.appending(path: "v1/projects/\(id)/export")
+        )
+        try validate(response, data: data)
+        return data
+    }
+
+    func restoreProject(data: Data) async throws -> NaluProject {
+        var request = URLRequest(url: baseURL.appending(path: "v1/project-imports"))
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = data
+        let (responseData, response) = try await session.data(for: request)
+        try validate(response, data: responseData)
+        return try decoder.decode(NaluProject.self, from: responseData)
     }
 
     func createProject(_ draft: ProjectDraft) async throws -> NaluProject {
@@ -58,8 +92,14 @@ actor RuntimeClient {
     private func post<Body: Encodable, Response: Decodable>(
         _ path: String, body: Body
     ) async throws -> Response {
+        try await send(path, method: "POST", body: body)
+    }
+
+    private func send<Body: Encodable, Response: Decodable>(
+        _ path: String, method: String, body: Body
+    ) async throws -> Response {
         var request = URLRequest(url: baseURL.appending(path: path))
-        request.httpMethod = "POST"
+        request.httpMethod = method
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try encoder.encode(body)
         let (data, response) = try await session.data(for: request)

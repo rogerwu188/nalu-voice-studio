@@ -23,12 +23,22 @@ struct NaluProject: Codable, Identifiable, Sendable {
     let description: String
     let audienceMode: String
     let plannedEpisodeCount: Int
+    let archivedAt: String?
 
     enum CodingKeys: String, CodingKey {
         case id, title, description
         case audienceMode = "audience_mode"
         case plannedEpisodeCount = "planned_episode_count"
+        case archivedAt = "archived_at"
     }
+}
+
+struct ProjectRenameDraft: Codable, Sendable {
+    let title: String
+}
+
+struct ProjectArchiveDraft: Codable, Sendable {
+    let archived: Bool
 }
 
 struct RuntimeHealth: Codable, Sendable {

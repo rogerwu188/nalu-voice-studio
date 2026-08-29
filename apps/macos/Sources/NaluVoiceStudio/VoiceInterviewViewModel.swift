@@ -21,6 +21,7 @@ final class VoiceInterviewViewModel {
     var isInterviewPaused: Bool { interviewFlow.isPaused }
     var runtimeStatus = "正在连接本地制片厂…"
     var errorMessage: String?
+    var includeArchivedProjects = false
 
     private let runtime = RuntimeClient()
     private let speech = SpeechRecorder()
@@ -30,7 +31,7 @@ final class VoiceInterviewViewModel {
         do {
             let health = try await runtime.health()
             runtimeStatus = "本地制片厂已就绪 · \(health.version)"
-            projects = try await runtime.listProjects()
+            projects = try await runtime.listProjects(includeArchived: includeArchivedProjects)
             if let first = projects.first { await selectProject(first.id) }
         } catch {
             runtimeStatus = "本地制片厂尚未启动"
@@ -103,6 +104,68 @@ final class VoiceInterviewViewModel {
         }
     }
 
+    func reloadProjects() async {
+        do {
+            projects = try await runtime.listProjects(includeArchived: includeArchivedProjects)
+            if let selectedProjectID,
+               projects.contains(where: { $0.id == selectedProjectID }) {
+                await selectProject(selectedProjectID)
+            } else if let first = projects.first {
+                await selectProject(first.id)
+            } else {
+                selectedProjectID = nil
+                seasons = []
+                episodes = []
+                selectedEpisodeID = nil
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func renameSelectedProject(to title: String) async {
+        guard let selectedProjectID else { return }
+        let cleaned = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleaned.isEmpty else { return }
+        do {
+            _ = try await runtime.renameProject(id: selectedProjectID, title: cleaned)
+            await reloadProjects()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func setSelectedProjectArchived(_ archived: Bool) async {
+        guard let selectedProjectID else { return }
+        do {
+            _ = try await runtime.archiveProject(id: selectedProjectID, archived: archived)
+            await reloadProjects()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func exportSelectedProject() async -> Data? {
+        guard let selectedProjectID else { return nil }
+        do {
+            return try await runtime.exportProject(id: selectedProjectID)
+        } catch {
+            errorMessage = error.localizedDescription
+            return nil
+        }
+    }
+
+    func restoreProject(from data: Data) async {
+        do {
+            let project = try await runtime.restoreProject(data: data)
+            includeArchivedProjects = project.archivedAt != nil
+            await reloadProjects()
+            await selectProject(project.id)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
     private func handle(_ action: InterviewFlowAction) {
         switch action {
         case .respond(let message):
@@ -118,7 +181,7 @@ final class VoiceInterviewViewModel {
             let plan = try await runtime.createProjectPlan(
                 ProjectPlanDraft(project: draft, seasonTitle: "第一季")
             )
-            projects = try await runtime.listProjects()
+            projects = try await runtime.listProjects(includeArchived: includeArchivedProjects)
             await selectProject(plan.project.id)
             interviewFlow.creationSucceeded()
             messages.append(
