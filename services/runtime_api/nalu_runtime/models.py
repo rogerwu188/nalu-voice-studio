@@ -224,6 +224,11 @@ class ApprovalCreate(BaseModel):
     guardian_approval: bool = False
 
 
+class ApprovalRevocationCreate(BaseModel):
+    requested_by: str = Field(min_length=1)
+    reason: str = Field(min_length=1)
+
+
 class ApprovalRecord(ApprovalCreate):
     id: str
     action_type: str

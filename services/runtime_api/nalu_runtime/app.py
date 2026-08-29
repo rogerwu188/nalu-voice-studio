@@ -11,6 +11,7 @@ from .engine import ProductionService
 from .models import (
     ApprovalCreate,
     ApprovalRecord,
+    ApprovalRevocationCreate,
     Asset,
     AssetCreate,
     ContinuitySnapshot,
@@ -208,6 +209,12 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
     def create_script(episode_id: str, request: ScriptRevisionCreate) -> ScriptRevision:
         return repository.create_script(episode_id, request)
 
+    @app.get(
+        "/v1/episodes/{episode_id}/scripts", response_model=list[ScriptRevision]
+    )
+    def list_scripts(episode_id: str) -> list[ScriptRevision]:
+        return repository.list_scripts(episode_id)
+
     @app.post(
         "/v1/episodes/{episode_id}/scripts/{revision}/approve", response_model=ScriptRevision
     )
@@ -220,6 +227,15 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
         if project.audience_mode == "child" and not approval.guardian_approval:
             raise HTTPException(status_code=409, detail="child projects require guardian approval")
         return repository.approve_script(episode_id, revision, approval)
+
+    @app.post(
+        "/v1/episodes/{episode_id}/scripts/{revision}/revoke",
+        response_model=ScriptRevision,
+    )
+    def revoke_script_approval(
+        episode_id: str, revision: int, request: ApprovalRevocationCreate
+    ) -> ScriptRevision:
+        return repository.revoke_script_approval(episode_id, revision, request)
 
     @app.get(
         "/v1/episodes/{episode_id}/script-approvals", response_model=list[ApprovalRecord]

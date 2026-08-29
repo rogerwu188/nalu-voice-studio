@@ -63,6 +63,62 @@ def test_project_season_episode_hierarchy(tmp_path: Path) -> None:
     assert approvals[0]["spoken_confirmation"] == "我确认这个剧本"
 
 
+def test_script_history_stale_approval_and_revocation(tmp_path: Path) -> None:
+    api = client(tmp_path)
+    project = api.post("/v1/projects", json={"title": "剧本版本"}).json()
+    season = api.post(
+        f"/v1/projects/{project['id']}/seasons",
+        json={"title": "第一季", "season_number": 1},
+    ).json()
+    episode = api.post(
+        f"/v1/seasons/{season['id']}/episodes",
+        json={"title": "第一集", "episode_number": 1},
+    ).json()
+    first = api.post(
+        f"/v1/episodes/{episode['id']}/scripts",
+        json={"content": "第一版", "summary_for_voice_review": "第一版摘要"},
+    ).json()
+    second = api.post(
+        f"/v1/episodes/{episode['id']}/scripts",
+        json={"content": "第二版", "summary_for_voice_review": "第二版摘要"},
+    ).json()
+    history = api.get(f"/v1/episodes/{episode['id']}/scripts").json()
+    assert [script["revision"] for script in history] == [1, 2]
+    assert history[0]["content"] == "第一版"
+
+    stale = api.post(
+        f"/v1/episodes/{episode['id']}/scripts/{first['revision']}/approve",
+        json={"approved_by": "user", "spoken_confirmation": "误选旧版"},
+    )
+    assert stale.status_code == 409
+    approved = api.post(
+        f"/v1/episodes/{episode['id']}/scripts/{second['revision']}/approve",
+        json={"approved_by": "user", "spoken_confirmation": "我确认第二版"},
+    )
+    assert approved.status_code == 200
+
+    revoked = api.post(
+        f"/v1/episodes/{episode['id']}/scripts/{second['revision']}/revoke",
+        json={"requested_by": "user", "reason": "发现人物年龄有误"},
+    )
+    assert revoked.status_code == 200
+    assert revoked.json()["approved_at"] is None
+    stored = api.get(f"/v1/episodes/{episode['id']}").json()
+    assert stored["status"] == "script_review"
+    assert stored["approved_script_revision"] is None
+    records = api.get(f"/v1/episodes/{episode['id']}/script-approvals").json()
+    assert [record["action_type"] for record in records] == [
+        "script_approved",
+        "script_revoked",
+    ]
+    blocked = api.post(
+        f"/v1/episodes/{episode['id']}/production-runs",
+        json={"dry_run": True},
+        headers={"Idempotency-Key": "revoked-script"},
+    )
+    assert blocked.status_code == 409
+
+
 def test_atomic_multi_episode_project_plan(tmp_path: Path) -> None:
     api = client(tmp_path)
     response = api.post(

@@ -10,6 +10,7 @@ from .database import Database
 from .models import (
     ApprovalCreate,
     ApprovalRecord,
+    ApprovalRevocationCreate,
     Asset,
     AssetCreate,
     ContinuitySnapshot,
@@ -890,6 +891,19 @@ class Repository:
         data["narrative_metadata"] = decode(data.pop("narrative_metadata_json"))
         return ScriptRevision.model_validate(data)
 
+    def list_scripts(self, episode_id: str) -> list[ScriptRevision]:
+        self.get_episode(episode_id)
+        with self.db.connect() as connection:
+            revisions = [
+                row["revision"]
+                for row in connection.execute(
+                    """SELECT revision FROM script_revisions
+                       WHERE episode_id = ? ORDER BY revision""",
+                    (episode_id,),
+                )
+            ]
+        return [self.get_script(episode_id, revision) for revision in revisions]
+
     def approve_script(
         self, episode_id: str, revision: int, approval: ApprovalCreate
     ) -> ScriptRevision:
@@ -902,6 +916,21 @@ class Repository:
         approval_id = new_id("apr")
         with self.db.connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
+            current = connection.execute(
+                "SELECT status FROM episodes WHERE id = ?", (episode_id,)
+            ).fetchone()
+            latest = connection.execute(
+                """SELECT MAX(revision) AS revision FROM script_revisions
+                   WHERE episode_id = ?""",
+                (episode_id,),
+            ).fetchone()
+            if (
+                current is None
+                or EpisodeStatus(current["status"]) != EpisodeStatus.SCRIPT_REVIEW
+                or latest is None
+                or revision != latest["revision"]
+            ):
+                raise ConflictError("only the latest script revision in review may be approved")
             connection.execute(
                 "UPDATE script_revisions SET approved_at = NULL WHERE episode_id = ?", (episode_id,)
             )
@@ -932,6 +961,66 @@ class Repository:
                     approval.approved_by,
                     approval.spoken_confirmation,
                     int(approval.guardian_approval),
+                    now,
+                ),
+            )
+        return self.get_script(episode_id, revision)
+
+    def revoke_script_approval(
+        self, episode_id: str, revision: int, request: ApprovalRevocationCreate
+    ) -> ScriptRevision:
+        script = self.get_script(episode_id, revision)
+        episode = self.get_episode(episode_id)
+        if (
+            episode.status != EpisodeStatus.SCRIPT_APPROVED
+            or episode.approved_script_revision != revision
+            or script.approved_at is None
+        ):
+            raise ConflictError("only the currently approved script may be revoked")
+        season = self.get_season(episode.season_id)
+        approval_id, now = new_id("apr"), utc_now()
+        with self.db.connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            current = connection.execute(
+                """SELECT status, approved_script_revision FROM episodes
+                   WHERE id = ?""",
+                (episode_id,),
+            ).fetchone()
+            if (
+                current is None
+                or EpisodeStatus(current["status"]) != EpisodeStatus.SCRIPT_APPROVED
+                or current["approved_script_revision"] != revision
+            ):
+                raise ConflictError("script approval changed before revocation")
+            connection.execute(
+                """UPDATE script_revisions SET approved_at = NULL
+                   WHERE episode_id = ? AND revision = ?""",
+                (episode_id, revision),
+            )
+            connection.execute(
+                """UPDATE episodes SET approved_script_revision = NULL,
+                   status = ?, updated_at = ? WHERE id = ?""",
+                (EpisodeStatus.SCRIPT_REVIEW, now, episode_id),
+            )
+            self._record_episode_transition(
+                connection,
+                episode_id,
+                EpisodeStatus.SCRIPT_APPROVED,
+                EpisodeStatus.SCRIPT_REVIEW,
+                request.requested_by,
+                request.reason,
+            )
+            connection.execute(
+                """INSERT INTO approval_records VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    approval_id,
+                    "script_revoked",
+                    season.project_id,
+                    episode_id,
+                    revision,
+                    request.requested_by,
+                    request.reason,
+                    0,
                     now,
                 ),
             )
