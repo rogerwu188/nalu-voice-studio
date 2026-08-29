@@ -104,6 +104,13 @@ Current evidence:
 - Commit `9a70b08`, GitHub CI run `33275504662`: the microphone flow now edits
   season and episode plans and records explicit voice approval. Ambiguous speech,
   negative speech and child approval without guardian presence fail closed in Swift tests.
+- Commit `a0aad4e`, GitHub CI run `33278236616`: the conversation now follows live
+  transcription automatically, shows animated listening and Runtime state, creates a
+  visible persisted draft project immediately, exposes a large media button, and applies
+  reversible voice comfort commands. Swift tests, full app build and bundled smoke passed.
+- Commit `2b90ce6`, GitHub CI run `33278702366`: memory cards can be read aloud,
+  corrected by voice, re-read and explicitly confirmed against the reviewed revision.
+  Runtime tests, Swift tests, full app build and bundled smoke passed.
 - Still required before `PASS`: VoiceOver/Accessibility Inspector audit and a
   clean-account voice-only QA session with real microphone permissions.
 
@@ -219,12 +226,15 @@ Current evidence:
   authorization and child guardian confirmation, scopes to the project or selected
   episode, shows/revokes consent, exports the privacy ZIP, and passed Swift tests,
   full application build and bundled-Runtime smoke.
-- Still required before `PASS`: season-specific asset scope, native dependency and
-  complete-project-deletion review UI, Keychain integration, local at-rest
-  encryption decision/implementation, and human privacy/deletion QA on the same
-  release candidate.
+- Commit `2b90ce6`, GitHub CI run `33278702366`: schema migration v10 adds local
+  versioned family-memory cards, evidence links, revision-bound confirmation records,
+  project export/restore and cascade deletion. The native app runs Apple Vision OCR
+  locally, reads cards aloud, accepts typed/voice corrections and requires re-review
+  after every edit. Cross-project evidence and stale confirmation fail closed in tests.
+- Still required before `PASS`: human privacy/deletion QA and clean-account OCR,
+  correction and voice archive QA on the same signed release candidate.
 
-## SOP-06 · Cross-episode inheritance and continuity — TODO
+## SOP-06 · Cross-episode inheritance and continuity — IN_PROGRESS
 
 Acceptance:
 
@@ -241,6 +251,16 @@ QA:
 
 - At least three multi-episode continuity fixtures with positive and negative cases.
 - Regression verifies completed episodes do not change after library edits.
+
+Current evidence:
+
+- Commit `2b90ce6`, GitHub CI run `33278702366`: structured people, date, place,
+  relevance and permitted-use fields are bound to local source assets with immutable
+  revisions and confirmation audit. `docs/FAMILY_MEMORY_LIBRARY.md` defines the
+  provenance and conflict boundary.
+- Still required before `PASS`: entity resolution, contradiction gates, complete
+  character/scene/prop libraries, end-state extraction, continuity overrides and the
+  required multi-episode positive/negative fixtures.
 
 ## SOP-07 · Productized Qingshan execution adapter — IN_PROGRESS
 
@@ -405,6 +425,9 @@ Current evidence:
 
 - Local SQLite feedback queue, voice/text native entry, explicit share flag, child
   guardian gate and deterministic redaction are implemented with Runtime tests.
+- Commit `a0aad4e`, GitHub CI run `33278236616`: the feedback queue, native voice/text
+  entry and local reversible comfort preferences passed Runtime and Swift tests, full
+  macOS build and bundled-Runtime smoke.
 - `docs/CONTROLLED_EVOLUTION.md` defines the trust boundary and release state machine.
 - Still required before `PASS`: preference controls, authorized issue export, agent
   triage integration, signed staged updater and end-to-end improvement/rollback QA.

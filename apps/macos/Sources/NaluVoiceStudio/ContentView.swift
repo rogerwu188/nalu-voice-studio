@@ -1065,7 +1065,7 @@ struct ContentView: View {
             ("scene_reference", "场景参考"),
             ("prop_reference", "道具参考"),
             ("style_reference", "画面风格参考"),
-            ("source_document", "文字或 PDF 资料"),
+            ("source_document", "手写照片、文字或 PDF"),
         ]
     }
 
@@ -1091,7 +1091,7 @@ struct ContentView: View {
         case "character_image": [.image]
         case "voice_reference": [.audio]
         case "scene_reference", "prop_reference", "style_reference": [.image, .movie]
-        case "source_document": [.plainText, .pdf, .json]
+        case "source_document": [.image, .plainText, .pdf, .json]
         default: [.data]
         }
     }
