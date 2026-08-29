@@ -18,3 +18,6 @@ Versioning and the Keep a Changelog structure.
 - Self-contained macOS bundle with a supervised local Runtime and downloadable CI artifact.
 - Continuous Qingshan release discovery, pinned capability hashes and upgrade SOP.
 - Qingshan `v2026.08.29.1` with upstream MIT license and submission-boundary contracts.
+- Local-only Application Support SQLite storage and documented provider privacy boundary.
+- Versioned project backup/restore with digest, schema and ownership validation.
+- Immutable, reviewable season-plan revisions and macOS project management controls.

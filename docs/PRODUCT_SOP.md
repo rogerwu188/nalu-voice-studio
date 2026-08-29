@@ -119,8 +119,17 @@ Current evidence:
 
 - Voice answers atomically create a persisted Project → first Season → numbered
   Episode plan; existing projects and episode selectors reload from the Runtime API.
-- Still required before `PASS`: rename/archive/export/restore, editable season arcs,
-  plan approval, restart/import QA and immutable-future-edit tests.
+- Commit `755b52d`, GitHub CI run `33274124753`: local rename, archive, versioned
+  digest-checked export/restore and the 10-episode clean-database restart rehearsal passed.
+- Commit `020bb3b`: season arcs and episode outlines append full plan revisions;
+  spoken/visual approval binds to one revision, later edits make it stale, and
+  approved/production episode plans reject mutation. Concurrent creation preserves
+  ten unique, ordered episode numbers; v1 project backups remain importable.
+- Commit `1de6cfb`, GitHub CI run `33274379025`: the macOS app exposes rename,
+  archive/unarchive, archived-project filtering and native JSON backup/restore;
+  16 Runtime tests, Swift tests, full application build and bundled-Runtime smoke passed.
+- Still required before `PASS`: native visual season-arc/outline editor, voice-driven
+  plan review/approval UI, and independent per-episode production progress presentation.
 
 ## SOP-04 · Script creation, review and approval — TODO
 
@@ -137,7 +146,7 @@ QA:
 - Approval, revocation, stale revision and child guardian negative tests.
 - Human review confirms the spoken summary matches the locked script.
 
-## SOP-05 · Media assets, consent and privacy — TODO
+## SOP-05 · Media assets, consent and privacy — IN_PROGRESS
 
 Acceptance:
 
@@ -152,6 +161,18 @@ QA:
 
 - Unauthorized biometric use and path traversal tests fail closed.
 - Privacy export and complete project deletion verification.
+
+Current evidence:
+
+- The packaged app uses the single local SQLite database
+  `~/Library/Application Support/Nalu Voice Studio/nalu.sqlite3`; the Runtime is
+  loopback-only and has no database sync or telemetry-upload path.
+- `docs/LOCAL_DATA.md` defines the local database, working-data, Keychain and
+  provider boundary. Project exports exclude secrets, validate format/digest/schema
+  and cross-project references, and clearly disclose that media files are not yet embedded.
+- Still required before `PASS`: sandboxed media import/copy, consent revocation and
+  dependency reporting, Keychain integration, local encryption decision, complete
+  privacy export/deletion and their negative QA suites.
 
 ## SOP-06 · Cross-episode inheritance and continuity — TODO
 
