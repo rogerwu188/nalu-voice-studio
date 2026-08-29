@@ -56,8 +56,11 @@ Current evidence:
 - Stable hierarchy, script revisions, approval audit records and schema migration v1.
 - Committed OpenAPI snapshot with CI freshness check.
 - Ordered concurrent production-event test and clean-directory real HTTP smoke test.
-- Still required before `PASS`: complete lifecycle transition table, idempotent mutation
-  contract, restart recovery suite and reviewed compatibility policy.
+- Commit `1f2b8d5`: persisted lifecycle transitions, schema migration v2,
+  concurrency-bound project-plan idempotency, restart recovery test and executable
+  backward-compatibility check for the committed OpenAPI contract.
+- Still required before `PASS`: idempotency for production and other retryable
+  mutations, expanded restart boundaries and release-candidate migration rehearsal.
 
 ## SOP-02 · Voice interview and accessible conversation — IN_PROGRESS
 
