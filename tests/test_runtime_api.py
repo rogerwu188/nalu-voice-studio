@@ -2,6 +2,7 @@ import hashlib
 import io
 import json
 import sqlite3
+import stat
 import zipfile
 from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
@@ -424,6 +425,35 @@ def test_database_migration_preserves_existing_database(tmp_path: Path) -> None:
         ).fetchone()
     assert marker == "preserve-me"
     assert approval_table == ("approval_records",)
+
+
+def test_local_runtime_files_are_private_to_current_user(tmp_path: Path) -> None:
+    api = client(tmp_path)
+    project, _, episode = create_approved_episode(api)
+    imported = api.post(
+        f"/v1/projects/{project['id']}/asset-imports",
+        params={
+            "filename": "private.txt",
+            "kind": "source_document",
+            "name": "私人采访",
+        },
+        content=b"private",
+        headers={"Content-Type": "text/plain"},
+    ).json()
+    stored_path = Path(unquote(urlparse(imported["local_uri"]).path))
+    run = api.post(
+        f"/v1/episodes/{episode['id']}/production-runs",
+        json={"dry_run": True},
+        headers={"Idempotency-Key": "private-file-modes"},
+    ).json()
+    package_path = Path(run["package_path"])
+
+    assert stat.S_IMODE((tmp_path / "test.sqlite3").stat().st_mode) == 0o600
+    assert stat.S_IMODE((tmp_path / "data").stat().st_mode) == 0o700
+    assert stat.S_IMODE(stored_path.parent.stat().st_mode) == 0o700
+    assert stat.S_IMODE(stored_path.stat().st_mode) == 0o600
+    assert stat.S_IMODE(package_path.parent.stat().st_mode) == 0o700
+    assert stat.S_IMODE(package_path.stat().st_mode) == 0o600
 
 
 def test_populated_v1_database_upgrades_without_project_loss(tmp_path: Path) -> None:

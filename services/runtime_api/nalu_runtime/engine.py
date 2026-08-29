@@ -19,6 +19,7 @@ from .models import (
 )
 from .qingshan_adapter import QingshanAdapter, QingshanAdapterError
 from .repository import ConflictError, Repository, new_id, utc_now
+from .secure_files import harden_tree, secure_directory, secure_file
 
 EPISODE_PROGRESS = {
     EpisodeStatus.PLANNED: ("planning", 0, "等待完善分集规划", "这一集还在规划中。"),
@@ -55,7 +56,8 @@ RUN_PROGRESS = {
 class ProductionService:
     def __init__(self, repository: Repository, data_root: Path, repository_root: Path):
         self.repository = repository
-        self.data_root = data_root
+        self.data_root = data_root.resolve()
+        secure_directory(self.data_root)
         self.repository_root = repository_root
         self.adapter = QingshanAdapter(repository_root)
 
@@ -171,10 +173,12 @@ class ProductionService:
         now = utc_now()
         run_dir = self.data_root / "runs" / run_id
         run_dir.mkdir(parents=True, exist_ok=False)
+        secure_directory(run_dir)
         package_path = run_dir / "production-package.json"
         package_path.write_text(
             package.model_dump_json(indent=2, exclude_none=True) + "\n", encoding="utf-8"
         )
+        secure_file(package_path)
 
         try:
             workspace = self.adapter.materialize_workspace(package_path)
@@ -185,6 +189,8 @@ class ProductionService:
                     operation_scope, idempotency_key, "failed", str(exc)
                 )
             raise ConflictError(f"Qingshan preflight failed: {exc}") from exc
+        finally:
+            harden_tree(run_dir)
 
         # Paid execution remains deliberately disabled until the imported durable
         # submitter is bound to this versioned package contract.

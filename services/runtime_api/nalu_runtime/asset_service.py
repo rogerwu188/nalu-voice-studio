@@ -9,6 +9,7 @@ from pydantic import ValidationError
 
 from .models import Asset, AssetCreate, AssetKind, AudienceMode, ConsentScope
 from .repository import ConflictError, Repository, new_id
+from .secure_files import secure_directory, secure_file
 
 MAX_ASSET_BYTES = 100 * 1024 * 1024
 
@@ -17,6 +18,8 @@ class AssetService:
     def __init__(self, repository: Repository, data_root: Path):
         self.repository = repository
         self.root = (data_root / "assets").resolve()
+        secure_directory(data_root.resolve())
+        secure_directory(self.root)
 
     def import_bytes(
         self,
@@ -51,9 +54,11 @@ class AssetService:
         directory = (self.root / project_id / asset_id).resolve()
         self._require_within(directory, self.root / project_id)
         directory.mkdir(parents=True, exist_ok=False)
+        secure_directory(directory)
         destination = (directory / safe_filename).resolve()
         self._require_within(destination, directory)
         destination.write_bytes(content)
+        secure_file(destination)
         digest = hashlib.sha256(content).hexdigest()
         try:
             request = AssetCreate(

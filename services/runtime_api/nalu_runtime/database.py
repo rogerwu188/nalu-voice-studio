@@ -3,6 +3,8 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
+from .secure_files import secure_directory, secure_file
+
 SCHEMA = """
 PRAGMA foreign_keys = ON;
 
@@ -259,8 +261,9 @@ class Database:
         self.path = path
 
     def connect(self) -> sqlite3.Connection:
-        self.path.parent.mkdir(parents=True, exist_ok=True)
+        secure_directory(self.path.parent)
         connection = sqlite3.connect(self.path)
+        secure_file(self.path)
         connection.row_factory = sqlite3.Row
         connection.execute("PRAGMA foreign_keys = ON")
         connection.execute("PRAGMA busy_timeout = 5000")

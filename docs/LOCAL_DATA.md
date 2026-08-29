@@ -61,9 +61,19 @@ that the project, media and runs are absent before reporting success. The Runtim
 contract and automated negative QA exist; a native deletion confirmation screen
 is still tracked by SOP-05.
 
-Nalu has not yet completed its at-rest encryption and Keychain integration
-acceptance criteria. Provider secrets must not be added to SQLite while that work
-remains open.
+Provider API keys are stored as `WhenUnlockedThisDeviceOnly` items in the current
+user's macOS Keychain. They are not read back into the settings interface and are
+not passed to the Runtime at startup. The Runtime inherits only a small explicit
+environment allowlist, so unrelated shell API keys and tokens cannot leak into
+the bundled process. A future paid adapter must request its named key only after
+the separate paid-action authorization gate.
+
+Nalu creates the Application Support directory, SQLite database, managed media,
+privacy exports and production packages with current-user-only POSIX modes
+(`0700` directories and `0600` files). Cryptographic protection of these local
+files relies on macOS volume encryption; enable FileVault for sensitive projects.
+Nalu does not represent the files as application-layer encrypted when FileVault
+is disabled. See [ADR 0003](adr/0003-local-secrets-and-at-rest-protection.md).
 
 ## Development overrides
 

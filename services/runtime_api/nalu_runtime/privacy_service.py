@@ -9,6 +9,7 @@ from pathlib import Path
 from .asset_service import AssetService
 from .models import ProjectDeletionRequest, ProjectDeletionResult
 from .repository import ConflictError, NotFoundError, Repository, encode, new_id, utc_now
+from .secure_files import secure_directory, secure_file
 
 
 class ProjectPrivacyService:
@@ -43,7 +44,7 @@ class ProjectPrivacyService:
         backup["payload_sha256"] = hashlib.sha256(canonical.encode()).hexdigest()
 
         export_root = self.data_root / "privacy-exports"
-        export_root.mkdir(parents=True, exist_ok=True)
+        secure_directory(export_root)
         destination = export_root / f"{project_id}-{new_id('privacy')}.zip"
         manifest = {
             "schema_version": "nalu.privacy-export/v1",
@@ -66,6 +67,7 @@ class ProjectPrivacyService:
             )
             for source, archive_path in media_files:
                 archive.write(source, archive_path)
+        secure_file(destination)
         return destination
 
     def delete_project(
@@ -85,6 +87,7 @@ class ProjectPrivacyService:
             targets.extend(export_root.glob(f"{project_id}-*.zip"))
         staging = self.data_root / "deletion-staging" / new_id("delete")
         staging.mkdir(parents=True, exist_ok=False)
+        secure_directory(staging)
         moved: list[tuple[Path, Path]] = []
         try:
             for index, target in enumerate(targets):
@@ -101,7 +104,7 @@ class ProjectPrivacyService:
             )
         except Exception:
             for staged, original in reversed(moved):
-                original.parent.mkdir(parents=True, exist_ok=True)
+                secure_directory(original.parent)
                 staged.rename(original)
             shutil.rmtree(staging)
             raise

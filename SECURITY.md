@@ -21,4 +21,6 @@ Until 1.0, only the latest tagged release receives security fixes.
 - Child projects require guardian approval.
 - Paid generation and publishing are separately approved actions.
 - Secrets and personal media are excluded from source control.
+- Provider secrets are Keychain-only and the Runtime receives an environment allowlist.
+- Local project files and directories are restricted to the current macOS user.
 - Imported historical scripts never override the product model policy.

@@ -29,3 +29,6 @@ Versioning and the Keep a Changelog structure.
 - Audited biometric consent and revocation, child guardian enforcement and immutable run dependencies.
 - Complete privacy ZIP export and transactional, verified project deletion Runtime contracts.
 - Native consent-aware asset picker, project/episode scoping and privacy-bundle export.
+- Project, season and episode asset scopes with inherited immutable run snapshots.
+- Native dependency review and exact-title, production-snapshot-aware project deletion.
+- macOS Keychain provider-secret storage, sanitized Runtime environment and private local file modes.

@@ -43,15 +43,17 @@ final class RuntimeSupervisor {
         try FileManager.default.createDirectory(
             at: applicationSupport, withIntermediateDirectories: true
         )
+        try FileManager.default.setAttributes(
+            [.posixPermissions: 0o700], ofItemAtPath: applicationSupport.path
+        )
 
         let process = Process()
         process.executableURL = executable
-        var environment = ProcessInfo.processInfo.environment
-        environment["NALU_DATA_ROOT"] = applicationSupport.appending(path: "data").path
-        environment["NALU_DATABASE_PATH"] = applicationSupport.appending(path: "nalu.sqlite3").path
-        environment["NALU_REPOSITORY_ROOT"] = resources
-            .appending(path: "runtime-resources").path
-        process.environment = environment
+        process.environment = RuntimeEnvironmentBuilder.build(
+            inherited: ProcessInfo.processInfo.environment,
+            applicationSupport: applicationSupport,
+            resources: resources
+        )
         try process.run()
         self.process = process
 

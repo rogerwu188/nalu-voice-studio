@@ -26,6 +26,12 @@ struct ContentView: View {
     @State private var deleteProductionSnapshots = false
     @State private var assetDependencyReport: AssetDependencyReport?
     @State private var isPresentingAssetDependencies = false
+    @State private var isPresentingProviderCredentials = false
+    @State private var seedanceSecretDraft = ""
+    @State private var minimaxSecretDraft = ""
+    @State private var seedanceIsConfigured = false
+    @State private var minimaxIsConfigured = false
+    private let keychain = KeychainSecretStore()
 
     var body: some View {
         HSplitView {
@@ -83,6 +89,9 @@ struct ContentView: View {
         }
         .sheet(isPresented: $isPresentingProjectDeletion) {
             projectDeletionSheet
+        }
+        .sheet(isPresented: $isPresentingProviderCredentials) {
+            providerCredentialsSheet
         }
         .alert("删除素材前的依赖检查", isPresented: $isPresentingAssetDependencies) {
             Button("取消", role: .cancel) { assetDependencyReport = nil }
@@ -142,6 +151,11 @@ struct ContentView: View {
                 .controlSize(.large)
                 .padding(.horizontal, 18)
                 .disabled(selectedProject == nil)
+            Button("模型密钥", systemImage: "key") {
+                presentProviderCredentials()
+            }
+            .controlSize(.large)
+            .padding(.horizontal, 18)
             if let project = selectedProject {
                 Button(
                     project.archivedAt == nil ? "归档这个项目" : "移回项目列表",
@@ -553,6 +567,67 @@ struct ContentView: View {
         .interactiveDismissDisabled(deletionPreview != nil)
     }
 
+    private var providerCredentialsSheet: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            Label("模型服务密钥", systemImage: "key.fill")
+                .font(.title2.bold())
+            Text("密钥只保存在当前 Mac 用户的系统钥匙串中，不写入 SQLite、项目备份、隐私包或 Runtime 启动参数。")
+                .foregroundStyle(.secondary)
+            credentialEditor(
+                credential: .seedance,
+                draft: $seedanceSecretDraft,
+                configured: seedanceIsConfigured
+            )
+            Divider()
+            credentialEditor(
+                credential: .minimax,
+                draft: $minimaxSecretDraft,
+                configured: minimaxIsConfigured
+            )
+            Text("保存密钥不会触发付费调用。模型适配器和付费事务还需要独立授权。")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            HStack {
+                Spacer()
+                Button("完成") { isPresentingProviderCredentials = false }
+                    .keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(28)
+        .frame(minWidth: 600)
+    }
+
+    private func credentialEditor(
+        credential: ProviderCredential,
+        draft: Binding<String>,
+        configured: Bool
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text(credential.label).font(.headline)
+                Spacer()
+                Label(
+                    configured ? "已存入钥匙串" : "尚未配置",
+                    systemImage: configured ? "checkmark.shield.fill" : "shield"
+                )
+                .foregroundStyle(configured ? .green : .secondary)
+            }
+            SecureField(configured ? "输入新密钥可替换现有值" : "粘贴 API 密钥", text: draft)
+                .textFieldStyle(.roundedBorder)
+            HStack {
+                Button(configured ? "替换密钥" : "保存到钥匙串") {
+                    saveCredential(credential, secret: draft.wrappedValue)
+                }
+                .disabled(draft.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                if configured {
+                    Button("从钥匙串移除", role: .destructive) {
+                        removeCredential(credential)
+                    }
+                }
+            }
+        }
+    }
+
     private func bubble(_ message: InterviewMessage) -> some View {
         HStack(alignment: .top, spacing: 12) {
             if message.speaker == .user { Spacer(minLength: 80) }
@@ -806,6 +881,42 @@ struct ContentView: View {
             guard let report = await model.assetDependencies(assetID) else { return }
             assetDependencyReport = report
             isPresentingAssetDependencies = true
+        }
+    }
+
+    private func presentProviderCredentials() {
+        refreshCredentialStatus()
+        seedanceSecretDraft = ""
+        minimaxSecretDraft = ""
+        isPresentingProviderCredentials = true
+    }
+
+    private func refreshCredentialStatus() {
+        do {
+            seedanceIsConfigured = try keychain.contains(.seedance)
+            minimaxIsConfigured = try keychain.contains(.minimax)
+        } catch {
+            model.errorMessage = error.localizedDescription
+        }
+    }
+
+    private func saveCredential(_ credential: ProviderCredential, secret: String) {
+        do {
+            try keychain.set(secret, for: credential)
+            if credential == .seedance { seedanceSecretDraft = "" }
+            if credential == .minimax { minimaxSecretDraft = "" }
+            refreshCredentialStatus()
+        } catch {
+            model.errorMessage = error.localizedDescription
+        }
+    }
+
+    private func removeCredential(_ credential: ProviderCredential) {
+        do {
+            try keychain.remove(credential)
+            refreshCredentialStatus()
+        } catch {
+            model.errorMessage = error.localizedDescription
         }
     }
 
