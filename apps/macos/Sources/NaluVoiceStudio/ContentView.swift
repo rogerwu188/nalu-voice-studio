@@ -20,6 +20,12 @@ struct ContentView: View {
     @State private var scopeAssetToEpisode = false
     @State private var isExportingPrivacy = false
     @State private var privacyDocument: PrivacyExportDocument?
+    @State private var deletionPreview: ProjectDeletionPreview?
+    @State private var isPresentingProjectDeletion = false
+    @State private var projectDeletionConfirmation = ""
+    @State private var deleteProductionSnapshots = false
+    @State private var assetDependencyReport: AssetDependencyReport?
+    @State private var isPresentingAssetDependencies = false
 
     var body: some View {
         HSplitView {
@@ -75,6 +81,20 @@ struct ContentView: View {
         } message: {
             Text("原来的分集、人物素材和制作记录都会保留。")
         }
+        .sheet(isPresented: $isPresentingProjectDeletion) {
+            projectDeletionSheet
+        }
+        .alert("删除素材前的依赖检查", isPresented: $isPresentingAssetDependencies) {
+            Button("取消", role: .cancel) { assetDependencyReport = nil }
+            if assetDependencyReport?.canDelete == true,
+               let assetID = assetDependencyReport?.assetID {
+                Button("删除本地素材", role: .destructive) {
+                    Task { await model.deleteAsset(assetID) }
+                }
+            }
+        } message: {
+            Text(assetDependencyMessage)
+        }
     }
 
     private var sidebar: some View {
@@ -128,6 +148,11 @@ struct ContentView: View {
                     systemImage: project.archivedAt == nil ? "archivebox" : "tray.and.arrow.up"
                 ) {
                     Task { await model.setSelectedProjectArchived(project.archivedAt == nil) }
+                }
+                .controlSize(.large)
+                .padding(.horizontal, 18)
+                Button("彻底删除这个项目", systemImage: "trash", role: .destructive) {
+                    prepareProjectDeletion()
                 }
                 .controlSize(.large)
                 .padding(.horizontal, 18)
@@ -466,6 +491,9 @@ struct ContentView: View {
                                 Task { await model.revokeAssetConsent(asset.id) }
                             }
                         }
+                        Button("检查删除", systemImage: "trash") {
+                            inspectAssetDependencies(asset.id)
+                        }
                     }
                     .padding(.vertical, 4)
                 }
@@ -478,6 +506,47 @@ struct ContentView: View {
             assetConsentStatement = ""
             assetSubjectName = ""
         }
+    }
+
+    private var projectDeletionSheet: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Label("永久删除本机项目", systemImage: "exclamationmark.triangle.fill")
+                .font(.title2.bold())
+                .foregroundStyle(.red)
+            if let preview = deletionPreview {
+                Text("将删除“\(preview.projectTitle)”以及 \(preview.assetCount) 个本地素材。")
+                    .font(.title3)
+                if preview.productionRunCount > 0 {
+                    Text("还包括 \(preview.productionRunCount) 个不可变制作快照和对应工作目录。")
+                        .font(.headline)
+                        .foregroundStyle(.red)
+                    Toggle(
+                        "我确认同时删除这些制作快照",
+                        isOn: $deleteProductionSnapshots
+                    )
+                }
+                Text("为防止误删，请完整输入项目名称：\(preview.projectTitle)")
+                    .foregroundStyle(.secondary)
+                TextField("项目名称", text: $projectDeletionConfirmation)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.title3)
+                HStack {
+                    Button("取消", role: .cancel) {
+                        isPresentingProjectDeletion = false
+                    }
+                    Spacer()
+                    Button("永久删除", role: .destructive) {
+                        executeProjectDeletion()
+                    }
+                    .disabled(!projectDeletionIsReady)
+                }
+            } else {
+                ProgressView("正在核对本地素材和制作快照…")
+            }
+        }
+        .padding(28)
+        .frame(minWidth: 540)
+        .interactiveDismissDisabled(deletionPreview != nil)
     }
 
     private func bubble(_ message: InterviewMessage) -> some View {
@@ -638,17 +707,17 @@ struct ContentView: View {
     private var assetIsBiometric: Bool { assetIsBiometricKind(assetKind) }
 
     private var assetImportIsReady: Bool {
-        guard !assetName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            return false
-        }
-        guard !scopeAssetToEpisode || selectedEpisode != nil else { return false }
-        guard assetIsBiometric else { return true }
-        guard assetConsentGranted,
-              !assetSubjectName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-              !assetConsentStatement.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            return false
-        }
-        return selectedProject?.audienceMode != "child" || assetGuardianApproved
+        PrivacySafety.canImportAsset(
+            kind: assetKind,
+            name: assetName,
+            subjectName: assetSubjectName,
+            consentGranted: assetConsentGranted,
+            consentStatement: assetConsentStatement,
+            guardianRequired: selectedProject?.audienceMode == "child",
+            guardianApproved: assetGuardianApproved,
+            scopeToEpisode: scopeAssetToEpisode,
+            selectedEpisodeID: selectedEpisode?.id
+        )
     }
 
     private var allowedAssetContentTypes: [UTType] {
@@ -659,6 +728,20 @@ struct ContentView: View {
         case "source_document": [.plainText, .pdf, .json]
         default: [.data]
         }
+    }
+
+    private var projectDeletionIsReady: Bool {
+        PrivacySafety.canDeleteProject(
+            preview: deletionPreview,
+            confirmationTitle: projectDeletionConfirmation,
+            deleteProductionSnapshots: deleteProductionSnapshots
+        )
+    }
+
+    private var assetDependencyMessage: String {
+        guard let report = assetDependencyReport else { return "尚未取得依赖报告。" }
+        if report.productionRunIDs.isEmpty { return report.explanation }
+        return "\(report.explanation)\n制作快照：\(report.productionRunIDs.joined(separator: "、"))"
     }
 
     private func presentRename() {
@@ -680,6 +763,44 @@ struct ContentView: View {
             guard let data = await model.exportPrivacyBundle() else { return }
             privacyDocument = PrivacyExportDocument(data: data)
             isExportingPrivacy = true
+        }
+    }
+
+    private func prepareProjectDeletion() {
+        deletionPreview = nil
+        projectDeletionConfirmation = ""
+        deleteProductionSnapshots = false
+        isPresentingProjectDeletion = true
+        Task {
+            guard let preview = await model.selectedProjectDeletionPreview() else {
+                isPresentingProjectDeletion = false
+                return
+            }
+            deletionPreview = preview
+        }
+    }
+
+    private func executeProjectDeletion() {
+        guard projectDeletionIsReady else { return }
+        let confirmation = projectDeletionConfirmation
+        let deleteSnapshots = deleteProductionSnapshots
+        Task {
+            guard await model.deleteSelectedProject(
+                confirmationTitle: confirmation,
+                deleteProductionSnapshots: deleteSnapshots
+            ) != nil else { return }
+            isPresentingProjectDeletion = false
+            deletionPreview = nil
+            projectDeletionConfirmation = ""
+            deleteProductionSnapshots = false
+        }
+    }
+
+    private func inspectAssetDependencies(_ assetID: String) {
+        Task {
+            guard let report = await model.assetDependencies(assetID) else { return }
+            assetDependencyReport = report
+            isPresentingAssetDependencies = true
         }
     }
 

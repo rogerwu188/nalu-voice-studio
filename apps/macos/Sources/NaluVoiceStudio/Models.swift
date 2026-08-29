@@ -343,6 +343,66 @@ struct AssetConsentRecord: Codable, Sendable {
     }
 }
 
+struct AssetDependencyReport: Codable, Sendable {
+    let assetID: String
+    let canDelete: Bool
+    let productionRunIDs: [String]
+    let explanation: String
+
+    enum CodingKeys: String, CodingKey {
+        case explanation
+        case assetID = "asset_id"
+        case canDelete = "can_delete"
+        case productionRunIDs = "production_run_ids"
+    }
+}
+
+struct ProjectDeletionPreview: Codable, Sendable {
+    let projectID: String
+    let projectTitle: String
+    let assetCount: Int
+    let productionRunCount: Int
+    let requiresSnapshotDeletionConfirmation: Bool
+    let explanation: String
+
+    enum CodingKeys: String, CodingKey {
+        case explanation
+        case projectID = "project_id"
+        case projectTitle = "project_title"
+        case assetCount = "asset_count"
+        case productionRunCount = "production_run_count"
+        case requiresSnapshotDeletionConfirmation = "requires_snapshot_deletion_confirmation"
+    }
+}
+
+struct ProjectDeletionDraft: Codable, Sendable {
+    let confirmationTitle: String
+    let requestedBy: String
+    let deleteProductionSnapshots: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case confirmationTitle = "confirmation_title"
+        case requestedBy = "requested_by"
+        case deleteProductionSnapshots = "delete_production_snapshots"
+    }
+}
+
+struct ProjectDeletionResult: Codable, Sendable {
+    let projectID: String
+    let deleted: Bool
+    let removedAssetCount: Int
+    let removedProductionRunCount: Int
+    let verifiedAbsent: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case deleted
+        case projectID = "project_id"
+        case removedAssetCount = "removed_asset_count"
+        case removedProductionRunCount = "removed_production_run_count"
+        case verifiedAbsent = "verified_absent"
+    }
+}
+
 struct ProjectPlanDraft: Codable, Sendable {
     let project: ProjectDraft
     let seasonTitle: String

@@ -470,6 +470,65 @@ final class VoiceInterviewViewModel {
         }
     }
 
+    func assetDependencies(_ assetID: String) async -> AssetDependencyReport? {
+        do {
+            return try await runtime.assetDependencies(assetID: assetID)
+        } catch {
+            errorMessage = error.localizedDescription
+            return nil
+        }
+    }
+
+    func deleteAsset(_ assetID: String) async {
+        guard let projectID = selectedProjectID else { return }
+        do {
+            try await runtime.deleteAsset(assetID: assetID)
+            assets = try await runtime.listAssets(projectID: projectID)
+            messages.append(.init(speaker: .nalu, text: "本地素材和素材记录已经删除。"))
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func selectedProjectDeletionPreview() async -> ProjectDeletionPreview? {
+        guard let projectID = selectedProjectID else { return nil }
+        do {
+            return try await runtime.projectDeletionPreview(projectID: projectID)
+        } catch {
+            errorMessage = error.localizedDescription
+            return nil
+        }
+    }
+
+    func deleteSelectedProject(
+        confirmationTitle: String, deleteProductionSnapshots: Bool
+    ) async -> ProjectDeletionResult? {
+        guard let projectID = selectedProjectID else { return nil }
+        do {
+            let result = try await runtime.deleteProject(
+                projectID: projectID,
+                confirmationTitle: confirmationTitle,
+                deleteProductionSnapshots: deleteProductionSnapshots
+            )
+            guard result.deleted, result.verifiedAbsent else {
+                errorMessage = "本地制片厂没有确认项目已完整删除。"
+                return nil
+            }
+            selectedProjectID = nil
+            await reloadProjects()
+            messages.append(
+                .init(
+                    speaker: .nalu,
+                    text: "项目、\(result.removedAssetCount) 个素材和 \(result.removedProductionRunCount) 个制作快照已从本机删除。"
+                )
+            )
+            return result
+        } catch {
+            errorMessage = error.localizedDescription
+            return nil
+        }
+    }
+
     private func handle(_ action: InterviewFlowAction) {
         switch action {
         case .respond(let message):

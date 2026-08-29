@@ -120,6 +120,35 @@ actor RuntimeClient {
         return data
     }
 
+    func assetDependencies(assetID: String) async throws -> AssetDependencyReport {
+        try await get("v1/assets/\(assetID)/dependencies")
+    }
+
+    func deleteAsset(assetID: String) async throws {
+        var request = URLRequest(url: baseURL.appending(path: "v1/assets/\(assetID)"))
+        request.httpMethod = "DELETE"
+        let (data, response) = try await session.data(for: request)
+        try validate(response, data: data)
+    }
+
+    func projectDeletionPreview(projectID: String) async throws -> ProjectDeletionPreview {
+        try await get("v1/projects/\(projectID)/deletion-preview")
+    }
+
+    func deleteProject(
+        projectID: String, confirmationTitle: String, deleteProductionSnapshots: Bool
+    ) async throws -> ProjectDeletionResult {
+        try await send(
+            "v1/projects/\(projectID)",
+            method: "DELETE",
+            body: ProjectDeletionDraft(
+                confirmationTitle: confirmationTitle,
+                requestedBy: "local-user",
+                deleteProductionSnapshots: deleteProductionSnapshots
+            )
+        )
+    }
+
     func createProject(_ draft: ProjectDraft) async throws -> NaluProject {
         try await post("v1/projects", body: draft)
     }
