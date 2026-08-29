@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import Annotated
 
-from fastapi import FastAPI, Header, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi import Body, FastAPI, Header, HTTPException, Query, Response
+from fastapi.responses import FileResponse, JSONResponse
 
+from .asset_service import AssetService
 from .database import Database
 from .engine import ProductionService
 from .models import (
@@ -13,7 +15,12 @@ from .models import (
     ApprovalRecord,
     ApprovalRevocationCreate,
     Asset,
+    AssetConsentRecord,
+    AssetConsentRevocationCreate,
     AssetCreate,
+    AssetDependencyReport,
+    AssetKind,
+    ConsentScope,
     ContinuitySnapshot,
     ContinuitySnapshotCreate,
     Episode,
@@ -27,6 +34,9 @@ from .models import (
     Project,
     ProjectArchiveRequest,
     ProjectCreate,
+    ProjectDeletionPreview,
+    ProjectDeletionRequest,
+    ProjectDeletionResult,
     ProjectExport,
     ProjectPlan,
     ProjectPlanCreate,
@@ -43,6 +53,7 @@ from .models import (
     SeasonPlanRevision,
     SeasonPlanUpdate,
 )
+from .privacy_service import ProjectPrivacyService
 from .repository import ConflictError, NotFoundError, Repository
 
 
@@ -58,6 +69,8 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
     database.initialize()
     repository = Repository(database)
     production = ProductionService(repository, data_root, repository_root)
+    asset_service = AssetService(repository, data_root)
+    privacy_service = ProjectPrivacyService(repository, asset_service, data_root)
 
     app = FastAPI(
         title="Nalu Voice Studio Runtime API",
@@ -118,6 +131,33 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
     @app.post("/v1/project-imports", response_model=Project, status_code=201)
     def restore_project(backup: ProjectExport) -> Project:
         return repository.restore_project(backup)
+
+    @app.get(
+        "/v1/projects/{project_id}/privacy-export",
+        response_class=FileResponse,
+    )
+    def privacy_export(project_id: str) -> FileResponse:
+        path = privacy_service.create_privacy_export(project_id)
+        return FileResponse(
+            path,
+            media_type="application/zip",
+            filename=f"Nalu-{project_id}-privacy-export.zip",
+        )
+
+    @app.get(
+        "/v1/projects/{project_id}/deletion-preview",
+        response_model=ProjectDeletionPreview,
+    )
+    def project_deletion_preview(project_id: str) -> ProjectDeletionPreview:
+        return repository.project_deletion_preview(project_id)
+
+    @app.delete(
+        "/v1/projects/{project_id}", response_model=ProjectDeletionResult
+    )
+    def delete_project(
+        project_id: str, request: ProjectDeletionRequest
+    ) -> ProjectDeletionResult:
+        return privacy_service.delete_project(project_id, request)
 
     @app.post("/v1/projects/{project_id}/seasons", response_model=Season, status_code=201)
     def create_season(project_id: str, request: SeasonCreate) -> Season:
@@ -245,11 +285,73 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
 
     @app.post("/v1/projects/{project_id}/assets", response_model=Asset, status_code=201)
     def create_asset(project_id: str, request: AssetCreate) -> Asset:
-        return repository.create_asset(project_id, request)
+        return asset_service.register_existing(project_id, request)
+
+    @app.post(
+        "/v1/projects/{project_id}/asset-imports", response_model=Asset, status_code=201
+    )
+    def import_asset(
+        project_id: str,
+        filename: Annotated[str, Query(min_length=1, max_length=255)],
+        kind: AssetKind,
+        name: Annotated[str, Query(min_length=1, max_length=160)],
+        content: Annotated[bytes, Body(media_type="application/octet-stream")],
+        content_type: Annotated[str, Header(alias="Content-Type")],
+        subject_name: Annotated[str, Query(max_length=160)] = "",
+        episode_id: str | None = None,
+        consent_granted: bool = False,
+        consent_scope: ConsentScope = ConsentScope.PROJECT_ONLY,
+        guardian_approved: bool = False,
+        consent_granted_by: Annotated[str, Query(max_length=160)] = "",
+        consent_statement: Annotated[str, Query(max_length=1000)] = "",
+    ) -> Asset:
+        return asset_service.import_bytes(
+            project_id,
+            content=content,
+            filename=filename,
+            content_type=content_type,
+            kind=kind,
+            name=name,
+            subject_name=subject_name,
+            episode_id=episode_id,
+            consent_granted=consent_granted,
+            consent_scope=consent_scope,
+            guardian_approved=guardian_approved,
+            consent_granted_by=consent_granted_by,
+            consent_statement=consent_statement,
+        )
 
     @app.get("/v1/projects/{project_id}/assets", response_model=list[Asset])
     def list_assets(project_id: str, episode_id: str | None = None) -> list[Asset]:
         return repository.list_assets(project_id, episode_id)
+
+    @app.get(
+        "/v1/assets/{asset_id}/consent-records",
+        response_model=list[AssetConsentRecord],
+    )
+    def list_asset_consent_records(asset_id: str) -> list[AssetConsentRecord]:
+        return repository.list_asset_consent_records(asset_id)
+
+    @app.post(
+        "/v1/assets/{asset_id}/consent-revocations",
+        response_model=AssetConsentRecord,
+        status_code=201,
+    )
+    def revoke_asset_consent(
+        asset_id: str, request: AssetConsentRevocationCreate
+    ) -> AssetConsentRecord:
+        return repository.revoke_asset_consent(asset_id, request)
+
+    @app.get(
+        "/v1/assets/{asset_id}/dependencies", response_model=AssetDependencyReport
+    )
+    def asset_dependencies(asset_id: str) -> AssetDependencyReport:
+        return repository.asset_dependency_report(asset_id)
+
+    @app.delete("/v1/assets/{asset_id}", status_code=204)
+    def delete_asset(asset_id: str) -> Response:
+        asset_service.delete_asset(asset_id)
+        return Response(status_code=204)
 
     @app.post(
         "/v1/episodes/{episode_id}/continuity-snapshots",

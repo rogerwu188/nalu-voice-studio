@@ -218,6 +218,30 @@ MIGRATIONS = (
           ON season_plan_approval_records(season_id, created_at);
         """,
     ),
+    (
+        6,
+        "asset_consent_and_run_dependencies",
+        """
+        CREATE TABLE IF NOT EXISTS asset_consent_records (
+          id TEXT PRIMARY KEY,
+          asset_id TEXT NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
+          action_type TEXT NOT NULL,
+          consent_scope TEXT NOT NULL,
+          recorded_by TEXT NOT NULL,
+          statement TEXT NOT NULL,
+          guardian_approved INTEGER NOT NULL,
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS asset_consent_records_asset_idx
+          ON asset_consent_records(asset_id, created_at);
+        CREATE TABLE IF NOT EXISTS production_run_assets (
+          run_id TEXT NOT NULL REFERENCES production_runs(id) ON DELETE CASCADE,
+          asset_id TEXT NOT NULL REFERENCES assets(id) ON DELETE RESTRICT,
+          asset_sha256 TEXT NOT NULL,
+          PRIMARY KEY(run_id, asset_id)
+        );
+        """,
+    ),
 )
 
 

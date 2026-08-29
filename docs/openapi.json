@@ -106,9 +106,19 @@
             "title": "Consent Granted",
             "type": "boolean"
           },
+          "consent_granted_by": {
+            "default": "",
+            "title": "Consent Granted By",
+            "type": "string"
+          },
           "consent_scope": {
             "$ref": "#/components/schemas/ConsentScope",
             "default": "project_only"
+          },
+          "consent_statement": {
+            "default": "",
+            "title": "Consent Statement",
+            "type": "string"
           },
           "created_at": {
             "title": "Created At",
@@ -174,6 +184,77 @@
         "title": "Asset",
         "type": "object"
       },
+      "AssetConsentRecord": {
+        "properties": {
+          "action_type": {
+            "enum": [
+              "granted",
+              "revoked"
+            ],
+            "title": "Action Type",
+            "type": "string"
+          },
+          "asset_id": {
+            "title": "Asset Id",
+            "type": "string"
+          },
+          "consent_scope": {
+            "$ref": "#/components/schemas/ConsentScope"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "guardian_approved": {
+            "title": "Guardian Approved",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "recorded_by": {
+            "title": "Recorded By",
+            "type": "string"
+          },
+          "statement": {
+            "title": "Statement",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "asset_id",
+          "action_type",
+          "consent_scope",
+          "recorded_by",
+          "statement",
+          "guardian_approved",
+          "created_at"
+        ],
+        "title": "AssetConsentRecord",
+        "type": "object"
+      },
+      "AssetConsentRevocationCreate": {
+        "properties": {
+          "reason": {
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "requested_by": {
+            "minLength": 1,
+            "title": "Requested By",
+            "type": "string"
+          }
+        },
+        "required": [
+          "requested_by",
+          "reason"
+        ],
+        "title": "AssetConsentRevocationCreate",
+        "type": "object"
+      },
       "AssetCreate": {
         "properties": {
           "consent_granted": {
@@ -181,9 +262,19 @@
             "title": "Consent Granted",
             "type": "boolean"
           },
+          "consent_granted_by": {
+            "default": "",
+            "title": "Consent Granted By",
+            "type": "string"
+          },
           "consent_scope": {
             "$ref": "#/components/schemas/ConsentScope",
             "default": "project_only"
+          },
+          "consent_statement": {
+            "default": "",
+            "title": "Consent Statement",
+            "type": "string"
           },
           "episode_id": {
             "anyOf": [
@@ -232,6 +323,36 @@
           "local_uri"
         ],
         "title": "AssetCreate",
+        "type": "object"
+      },
+      "AssetDependencyReport": {
+        "properties": {
+          "asset_id": {
+            "title": "Asset Id",
+            "type": "string"
+          },
+          "can_delete": {
+            "title": "Can Delete",
+            "type": "boolean"
+          },
+          "explanation": {
+            "title": "Explanation",
+            "type": "string"
+          },
+          "production_run_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Production Run Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "asset_id",
+          "can_delete",
+          "explanation"
+        ],
+        "title": "AssetDependencyReport",
         "type": "object"
       },
       "AssetKind": {
@@ -970,6 +1091,102 @@
         "title": "ProjectCreate",
         "type": "object"
       },
+      "ProjectDeletionPreview": {
+        "properties": {
+          "asset_count": {
+            "title": "Asset Count",
+            "type": "integer"
+          },
+          "explanation": {
+            "title": "Explanation",
+            "type": "string"
+          },
+          "production_run_count": {
+            "title": "Production Run Count",
+            "type": "integer"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "project_title": {
+            "title": "Project Title",
+            "type": "string"
+          },
+          "requires_snapshot_deletion_confirmation": {
+            "title": "Requires Snapshot Deletion Confirmation",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "project_id",
+          "project_title",
+          "asset_count",
+          "production_run_count",
+          "requires_snapshot_deletion_confirmation",
+          "explanation"
+        ],
+        "title": "ProjectDeletionPreview",
+        "type": "object"
+      },
+      "ProjectDeletionRequest": {
+        "properties": {
+          "confirmation_title": {
+            "minLength": 1,
+            "title": "Confirmation Title",
+            "type": "string"
+          },
+          "delete_production_snapshots": {
+            "default": false,
+            "title": "Delete Production Snapshots",
+            "type": "boolean"
+          },
+          "requested_by": {
+            "minLength": 1,
+            "title": "Requested By",
+            "type": "string"
+          }
+        },
+        "required": [
+          "confirmation_title",
+          "requested_by"
+        ],
+        "title": "ProjectDeletionRequest",
+        "type": "object"
+      },
+      "ProjectDeletionResult": {
+        "properties": {
+          "deleted": {
+            "title": "Deleted",
+            "type": "boolean"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "removed_asset_count": {
+            "title": "Removed Asset Count",
+            "type": "integer"
+          },
+          "removed_production_run_count": {
+            "title": "Removed Production Run Count",
+            "type": "integer"
+          },
+          "verified_absent": {
+            "title": "Verified Absent",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "project_id",
+          "deleted",
+          "removed_asset_count",
+          "removed_production_run_count",
+          "verified_absent"
+        ],
+        "title": "ProjectDeletionResult",
+        "type": "object"
+      },
       "ProjectExport": {
         "properties": {
           "exported_at": {
@@ -986,10 +1203,11 @@
             "type": "string"
           },
           "schema_version": {
-            "default": "nalu.project-export/v2",
+            "default": "nalu.project-export/v3",
             "enum": [
               "nalu.project-export/v1",
-              "nalu.project-export/v2"
+              "nalu.project-export/v2",
+              "nalu.project-export/v3"
             ],
             "title": "Schema Version",
             "type": "string"
@@ -1615,6 +1833,169 @@
           }
         },
         "summary": "Health"
+      }
+    },
+    "/v1/assets/{asset_id}": {
+      "delete": {
+        "operationId": "delete_asset_v1_assets__asset_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "asset_id",
+            "required": true,
+            "schema": {
+              "title": "Asset Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Asset"
+      }
+    },
+    "/v1/assets/{asset_id}/consent-records": {
+      "get": {
+        "operationId": "list_asset_consent_records_v1_assets__asset_id__consent_records_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "asset_id",
+            "required": true,
+            "schema": {
+              "title": "Asset Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AssetConsentRecord"
+                  },
+                  "title": "Response List Asset Consent Records V1 Assets  Asset Id  Consent Records Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Asset Consent Records"
+      }
+    },
+    "/v1/assets/{asset_id}/consent-revocations": {
+      "post": {
+        "operationId": "revoke_asset_consent_v1_assets__asset_id__consent_revocations_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "asset_id",
+            "required": true,
+            "schema": {
+              "title": "Asset Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssetConsentRevocationCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetConsentRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Revoke Asset Consent"
+      }
+    },
+    "/v1/assets/{asset_id}/dependencies": {
+      "get": {
+        "operationId": "asset_dependencies_v1_assets__asset_id__dependencies_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "asset_id",
+            "required": true,
+            "schema": {
+              "title": "Asset Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetDependencyReport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Asset Dependencies"
       }
     },
     "/v1/episodes/{episode_id}": {
@@ -2552,6 +2933,53 @@
       }
     },
     "/v1/projects/{project_id}": {
+      "delete": {
+        "operationId": "delete_project_v1_projects__project_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectDeletionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectDeletionResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Project"
+      },
       "get": {
         "operationId": "get_project_v1_projects__project_id__get",
         "parameters": [
@@ -2686,6 +3114,174 @@
         "summary": "Archive Project"
       }
     },
+    "/v1/projects/{project_id}/asset-imports": {
+      "post": {
+        "operationId": "import_asset_v1_projects__project_id__asset_imports_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "filename",
+            "required": true,
+            "schema": {
+              "maxLength": 255,
+              "minLength": 1,
+              "title": "Filename",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/AssetKind"
+            }
+          },
+          {
+            "in": "query",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "maxLength": 160,
+              "minLength": 1,
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "subject_name",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 160,
+              "title": "Subject Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "episode_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Episode Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "consent_granted",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Consent Granted",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "consent_scope",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/ConsentScope",
+              "default": "project_only"
+            }
+          },
+          {
+            "in": "query",
+            "name": "guardian_approved",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Guardian Approved",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "consent_granted_by",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 160,
+              "title": "Consent Granted By",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "consent_statement",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 1000,
+              "title": "Consent Statement",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Content-Type",
+            "required": true,
+            "schema": {
+              "title": "Content-Type",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "contentMediaType": "application/octet-stream",
+                "title": "Content",
+                "type": "string"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Asset"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Import Asset"
+      }
+    },
     "/v1/projects/{project_id}/assets": {
       "get": {
         "operationId": "list_assets_v1_projects__project_id__assets_get",
@@ -2792,6 +3388,45 @@
         "summary": "Create Asset"
       }
     },
+    "/v1/projects/{project_id}/deletion-preview": {
+      "get": {
+        "operationId": "project_deletion_preview_v1_projects__project_id__deletion_preview_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectDeletionPreview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Project Deletion Preview"
+      }
+    },
     "/v1/projects/{project_id}/export": {
       "get": {
         "operationId": "export_project_v1_projects__project_id__export_get",
@@ -2829,6 +3464,38 @@
           }
         },
         "summary": "Export Project"
+      }
+    },
+    "/v1/projects/{project_id}/privacy-export": {
+      "get": {
+        "operationId": "privacy_export_v1_projects__project_id__privacy_export_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Privacy Export"
       }
     },
     "/v1/projects/{project_id}/seasons": {

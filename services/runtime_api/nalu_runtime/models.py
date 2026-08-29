@@ -81,12 +81,39 @@ class ProjectArchiveRequest(BaseModel):
 
 
 class ProjectExport(BaseModel):
-    schema_version: Literal["nalu.project-export/v1", "nalu.project-export/v2"] = (
-        "nalu.project-export/v2"
+    schema_version: Literal[
+        "nalu.project-export/v1",
+        "nalu.project-export/v2",
+        "nalu.project-export/v3",
+    ] = (
+        "nalu.project-export/v3"
     )
     exported_at: str
     payload: dict[str, Any]
     payload_sha256: str
+
+
+class ProjectDeletionPreview(BaseModel):
+    project_id: str
+    project_title: str
+    asset_count: int
+    production_run_count: int
+    requires_snapshot_deletion_confirmation: bool
+    explanation: str
+
+
+class ProjectDeletionRequest(BaseModel):
+    confirmation_title: str = Field(min_length=1)
+    requested_by: str = Field(min_length=1)
+    delete_production_snapshots: bool = False
+
+
+class ProjectDeletionResult(BaseModel):
+    project_id: str
+    deleted: bool
+    removed_asset_count: int
+    removed_production_run_count: int
+    verified_absent: bool
 
 
 class SeasonCreate(BaseModel):
@@ -238,7 +265,7 @@ class ApprovalRecord(ApprovalCreate):
     created_at: str
 
 
-class AssetCreate(BaseModel):
+class AssetBase(BaseModel):
     kind: AssetKind
     name: str = Field(min_length=1, max_length=160)
     local_uri: str = Field(min_length=1)
@@ -248,19 +275,51 @@ class AssetCreate(BaseModel):
     consent_granted: bool = False
     consent_scope: ConsentScope = ConsentScope.PROJECT_ONLY
     guardian_approved: bool = False
+    consent_granted_by: str = ""
+    consent_statement: str = ""
+
+
+class AssetCreate(AssetBase):
 
     @model_validator(mode="after")
     def require_biometric_consent(self) -> AssetCreate:
         biometric = {AssetKind.CHARACTER_IMAGE, AssetKind.VOICE_REFERENCE}
         if self.kind in biometric and not self.consent_granted:
             raise ValueError("character and voice assets require explicit consent")
+        if self.kind in biometric and (
+            not self.consent_granted_by.strip() or not self.consent_statement.strip()
+        ):
+            raise ValueError("biometric consent requires recorder identity and statement")
         return self
 
 
-class Asset(AssetCreate):
+class Asset(AssetBase):
     id: str
     project_id: str
     created_at: str
+
+
+class AssetConsentRecord(BaseModel):
+    id: str
+    asset_id: str
+    action_type: Literal["granted", "revoked"]
+    consent_scope: ConsentScope
+    recorded_by: str
+    statement: str
+    guardian_approved: bool
+    created_at: str
+
+
+class AssetConsentRevocationCreate(BaseModel):
+    requested_by: str = Field(min_length=1)
+    reason: str = Field(min_length=1)
+
+
+class AssetDependencyReport(BaseModel):
+    asset_id: str
+    can_delete: bool
+    production_run_ids: list[str] = Field(default_factory=list)
+    explanation: str
 
 
 class ContinuitySnapshotCreate(BaseModel):

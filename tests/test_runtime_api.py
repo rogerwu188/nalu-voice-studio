@@ -1,9 +1,12 @@
 import hashlib
+import io
 import json
 import sqlite3
+import zipfile
 from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
 from pathlib import Path
+from urllib.parse import unquote, urlparse
 
 from fastapi.testclient import TestClient
 from nalu_runtime.app import create_app
@@ -324,6 +327,7 @@ def test_project_rename_archive_export_and_restore(tmp_path: Path) -> None:
     legacy["schema_version"] = "nalu.project-export/v1"
     legacy["payload"].pop("season_plan_revisions")
     legacy["payload"].pop("season_plan_approval_records")
+    legacy["payload"].pop("asset_consent_records")
     canonical = json.dumps(legacy["payload"], ensure_ascii=False, sort_keys=True)
     legacy["payload_sha256"] = hashlib.sha256(canonical.encode()).hexdigest()
     restored_legacy = client(tmp_path / "legacy").post("/v1/project-imports", json=legacy)
@@ -412,7 +416,7 @@ def test_database_migration_preserves_existing_database(tmp_path: Path) -> None:
         connection.execute("INSERT INTO legacy_marker VALUES ('preserve-me')")
 
     api = create_app(database_path, tmp_path / "data")
-    assert api.state.repository.db.schema_version() == 5
+    assert api.state.repository.db.schema_version() == 6
     with sqlite3.connect(database_path) as connection:
         marker = connection.execute("SELECT value FROM legacy_marker").fetchone()[0]
         approval_table = connection.execute(
@@ -435,7 +439,7 @@ def test_populated_v1_database_upgrades_without_project_loss(tmp_path: Path) -> 
         connection.execute("DELETE FROM schema_migrations WHERE version >= 2")
 
     after = TestClient(create_app(database_path, data_root))
-    assert after.app.state.repository.db.schema_version() == 5
+    assert after.app.state.repository.db.schema_version() == 6
     assert after.get(f"/v1/projects/{project['id']}").json()["title"] == "我的一生"
     assert after.get(f"/v1/episodes/{episode['id']}").json()[
         "approved_script_revision"
@@ -457,6 +461,188 @@ def test_biometric_asset_requires_consent(tmp_path: Path) -> None:
         },
     )
     assert response.status_code == 422
+
+
+def test_local_asset_import_consent_revocation_and_path_safety(tmp_path: Path) -> None:
+    api = client(tmp_path)
+    project, _, episode = create_approved_episode(api)
+    endpoint = f"/v1/projects/{project['id']}/asset-imports"
+
+    traversal = api.post(
+        endpoint,
+        params={
+            "filename": "../../portrait.jpg",
+            "kind": "character_image",
+            "name": "不安全文件",
+            "consent_granted": True,
+            "consent_granted_by": "user",
+            "consent_statement": "我同意用于本项目",
+        },
+        content=b"fake-jpeg",
+        headers={"Content-Type": "image/jpeg"},
+    )
+    assert traversal.status_code == 409
+    legacy_escape = api.post(
+        f"/v1/projects/{project['id']}/assets",
+        json={
+            "kind": "source_document",
+            "name": "系统文件",
+            "local_uri": "file:///etc/passwd",
+        },
+    )
+    assert legacy_escape.status_code == 409
+
+    missing_consent = api.post(
+        endpoint,
+        params={
+            "filename": "portrait.jpg",
+            "kind": "character_image",
+            "name": "主角照片",
+        },
+        content=b"fake-jpeg",
+        headers={"Content-Type": "image/jpeg"},
+    )
+    assert missing_consent.status_code == 409
+
+    imported = api.post(
+        endpoint,
+        params={
+            "filename": "portrait.jpg",
+            "kind": "character_image",
+            "name": "主角照片",
+            "subject_name": "主人公",
+            "episode_id": episode["id"],
+            "consent_granted": True,
+            "consent_scope": "project_only",
+            "consent_granted_by": "本人",
+            "consent_statement": "我同意这张照片仅用于本项目",
+        },
+        content=b"fake-jpeg",
+        headers={"Content-Type": "image/jpeg"},
+    )
+    assert imported.status_code == 201
+    asset = imported.json()
+    stored_path = Path(unquote(urlparse(asset["local_uri"]).path)).resolve()
+    assert stored_path.is_relative_to((tmp_path / "data" / "assets").resolve())
+    assert stored_path.read_bytes() == b"fake-jpeg"
+    records = api.get(f"/v1/assets/{asset['id']}/consent-records").json()
+    assert records[0]["action_type"] == "granted"
+    assert records[0]["statement"] == "我同意这张照片仅用于本项目"
+
+    revoked = api.post(
+        f"/v1/assets/{asset['id']}/consent-revocations",
+        json={"requested_by": "本人", "reason": "我不再同意使用照片"},
+    )
+    assert revoked.status_code == 201
+    assert revoked.json()["action_type"] == "revoked"
+    stored_asset = api.get(f"/v1/projects/{project['id']}/assets").json()[0]
+    assert stored_asset["consent_granted"] is False
+    blocked = api.post(
+        f"/v1/episodes/{episode['id']}/production-runs",
+        json={"dry_run": True},
+        headers={"Idempotency-Key": "revoked-biometric"},
+    )
+    assert blocked.status_code == 409
+
+
+def test_asset_dependency_blocks_deletion_after_snapshot(tmp_path: Path) -> None:
+    api = client(tmp_path)
+    project, _, episode = create_approved_episode(api)
+    imported = api.post(
+        f"/v1/projects/{project['id']}/asset-imports",
+        params={
+            "filename": "room.jpg",
+            "kind": "scene_reference",
+            "name": "老屋",
+        },
+        content=b"scene-image",
+        headers={"Content-Type": "image/jpeg"},
+    ).json()
+    api.post(
+        f"/v1/episodes/{episode['id']}/production-runs",
+        json={"dry_run": True},
+        headers={"Idempotency-Key": "asset-snapshot"},
+    )
+    report = api.get(f"/v1/assets/{imported['id']}/dependencies").json()
+    assert report["can_delete"] is False
+    assert len(report["production_run_ids"]) == 1
+    assert api.delete(f"/v1/assets/{imported['id']}").status_code == 409
+
+
+def test_complete_privacy_export_and_confirmed_project_deletion(tmp_path: Path) -> None:
+    api = client(tmp_path)
+    project, _, episode = create_approved_episode(api)
+    imported = api.post(
+        f"/v1/projects/{project['id']}/asset-imports",
+        params={
+            "filename": "portrait.jpg",
+            "kind": "character_image",
+            "name": "本人照片",
+            "consent_granted": True,
+            "consent_granted_by": "本人",
+            "consent_statement": "我同意仅用于这部短剧",
+        },
+        content=b"private-photo-bytes",
+        headers={"Content-Type": "image/jpeg"},
+    ).json()
+    run = api.post(
+        f"/v1/episodes/{episode['id']}/production-runs",
+        json={"dry_run": True},
+        headers={"Idempotency-Key": "privacy-deletion-run"},
+    ).json()
+
+    exported = api.get(f"/v1/projects/{project['id']}/privacy-export")
+    assert exported.status_code == 200
+    with zipfile.ZipFile(io.BytesIO(exported.content)) as archive:
+        names = set(archive.namelist())
+        media_name = f"media/{imported['id']}/portrait.jpg"
+        assert {"project-export.json", "privacy-manifest.json", media_name} <= names
+        assert archive.read(media_name) == b"private-photo-bytes"
+        project_backup = json.loads(archive.read("project-export.json"))
+        assert project_backup["schema_version"] == "nalu.project-export/v3"
+        assert project_backup["payload"]["asset_consent_records"][0][
+            "action_type"
+        ] == "granted"
+        manifest = json.loads(archive.read("privacy-manifest.json"))
+        assert manifest["database_included"] is False
+        assert manifest["secret_material_included"] is False
+
+    preview = api.get(f"/v1/projects/{project['id']}/deletion-preview").json()
+    assert preview["asset_count"] == 1
+    assert preview["production_run_count"] == 1
+    refused = api.request(
+        "DELETE",
+        f"/v1/projects/{project['id']}",
+        json={
+            "confirmation_title": project["title"],
+            "requested_by": "user",
+            "delete_production_snapshots": False,
+        },
+    )
+    assert refused.status_code == 409
+    assert api.get(f"/v1/projects/{project['id']}").status_code == 200
+
+    deleted = api.request(
+        "DELETE",
+        f"/v1/projects/{project['id']}",
+        json={
+            "confirmation_title": project["title"],
+            "requested_by": "user",
+            "delete_production_snapshots": True,
+        },
+    )
+    assert deleted.status_code == 200
+    assert deleted.json() == {
+        "project_id": project["id"],
+        "deleted": True,
+        "removed_asset_count": 1,
+        "removed_production_run_count": 1,
+        "verified_absent": True,
+    }
+    assert api.get(f"/v1/projects/{project['id']}").status_code == 404
+    assert not (tmp_path / "data" / "assets" / project["id"]).exists()
+    assert not (tmp_path / "data" / "runs" / run["id"]).exists()
+    assert list((tmp_path / "data" / "privacy-exports").glob(f"{project['id']}-*")) == []
 
 
 def test_production_requires_approved_script(tmp_path: Path) -> None:

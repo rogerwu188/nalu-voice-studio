@@ -12,7 +12,10 @@ from .models import (
     ApprovalRecord,
     ApprovalRevocationCreate,
     Asset,
+    AssetConsentRecord,
+    AssetConsentRevocationCreate,
     AssetCreate,
+    AssetDependencyReport,
     ContinuitySnapshot,
     ContinuitySnapshotCreate,
     Episode,
@@ -25,6 +28,8 @@ from .models import (
     Project,
     ProjectArchiveRequest,
     ProjectCreate,
+    ProjectDeletionPreview,
+    ProjectDeletionRequest,
     ProjectExport,
     ProjectPlan,
     ProjectPlanCreate,
@@ -370,6 +375,11 @@ class Repository:
                 (project_id,),
             ),
             "assets": ("SELECT * FROM assets WHERE project_id = ?", (project_id,)),
+            "asset_consent_records": (
+                """SELECT r.* FROM asset_consent_records r
+                   JOIN assets a ON a.id = r.asset_id WHERE a.project_id = ?""",
+                (project_id,),
+            ),
             "continuity_snapshots": (
                 """SELECT c.* FROM continuity_snapshots c
                    JOIN episodes e ON e.id = c.episode_id
@@ -426,6 +436,10 @@ class Repository:
                 "subject_name", "metadata_json", "consent_granted", "consent_scope",
                 "guardian_approved", "created_at",
             ),
+            "asset_consent_records": (
+                "id", "asset_id", "action_type", "consent_scope", "recorded_by",
+                "statement", "guardian_approved", "created_at",
+            ),
             "continuity_snapshots": (
                 "id", "episode_id", "source_episode_id", "state_json",
                 "unresolved_hooks_json", "created_at",
@@ -438,6 +452,9 @@ class Repository:
         if backup.schema_version == "nalu.project-export/v1":
             allowed_columns.pop("season_plan_revisions")
             allowed_columns.pop("season_plan_approval_records")
+            allowed_columns.pop("asset_consent_records")
+        elif backup.schema_version == "nalu.project-export/v2":
+            allowed_columns.pop("asset_consent_records")
         if set(backup.payload) != set(allowed_columns):
             raise ConflictError("project export contains an unsupported table set")
         project_rows = backup.payload["projects"]
@@ -478,6 +495,12 @@ class Repository:
             for row in backup.payload["assets"]
         ):
             raise ConflictError("project export contains an asset from another project")
+        asset_ids = {row.get("id") for row in backup.payload["assets"]}
+        if any(
+            row.get("asset_id") not in asset_ids
+            for row in backup.payload.get("asset_consent_records", [])
+        ):
+            raise ConflictError("project export contains consent from another project")
         if any(
             row.get("episode_id") not in episode_ids
             or (
@@ -510,6 +533,61 @@ class Repository:
         except Exception as exc:
             raise ConflictError("project restore conflicts with existing data") from exc
         return self.get_project(str(project_id))
+
+    def project_deletion_preview(self, project_id: str) -> ProjectDeletionPreview:
+        project = self.get_project(project_id)
+        with self.db.connect() as connection:
+            asset_count = int(
+                connection.execute(
+                    "SELECT COUNT(*) AS count FROM assets WHERE project_id = ?",
+                    (project_id,),
+                ).fetchone()["count"]
+            )
+            run_count = int(
+                connection.execute(
+                    "SELECT COUNT(*) AS count FROM production_runs WHERE project_id = ?",
+                    (project_id,),
+                ).fetchone()["count"]
+            )
+        return ProjectDeletionPreview(
+            project_id=project_id,
+            project_title=project.title,
+            asset_count=asset_count,
+            production_run_count=run_count,
+            requires_snapshot_deletion_confirmation=run_count > 0,
+            explanation=(
+                "deletion includes immutable production snapshots and requires explicit confirmation"
+                if run_count
+                else "deletion removes the project and its local managed assets"
+            ),
+        )
+
+    def delete_project_records(
+        self, project_id: str, request: ProjectDeletionRequest
+    ) -> tuple[int, int]:
+        preview = self.project_deletion_preview(project_id)
+        if request.confirmation_title != preview.project_title:
+            raise ConflictError("project title confirmation does not match")
+        if preview.production_run_count and not request.delete_production_snapshots:
+            raise ConflictError("immutable production snapshot deletion was not confirmed")
+        with self.db.connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            connection.execute(
+                "DELETE FROM production_runs WHERE project_id = ?", (project_id,)
+            )
+            connection.execute("DELETE FROM projects WHERE id = ?", (project_id,))
+        return preview.asset_count, preview.production_run_count
+
+    def project_run_ids(self, project_id: str) -> list[str]:
+        self.get_project(project_id)
+        with self.db.connect() as connection:
+            return [
+                row["id"]
+                for row in connection.execute(
+                    "SELECT id FROM production_runs WHERE project_id = ? ORDER BY id",
+                    (project_id,),
+                )
+            ]
 
     def create_season(self, project_id: str, request: SeasonCreate) -> Season:
         self.get_project(project_id)
@@ -1040,12 +1118,18 @@ class Repository:
             records.append(ApprovalRecord.model_validate(data))
         return records
 
-    def create_asset(self, project_id: str, request: AssetCreate) -> Asset:
+    def create_asset(
+        self, project_id: str, request: AssetCreate, asset_id: str | None = None
+    ) -> Asset:
         self.get_project(project_id)
         if request.episode_id:
-            self.get_episode(request.episode_id)
-        asset_id, now = new_id("ast"), utc_now()
+            episode = self.get_episode(request.episode_id)
+            season = self.get_season(episode.season_id)
+            if season.project_id != project_id:
+                raise ConflictError("asset episode belongs to another project")
+        asset_id, now = asset_id or new_id("ast"), utc_now()
         with self.db.connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
             connection.execute(
                 """INSERT INTO assets VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
@@ -1063,6 +1147,21 @@ class Repository:
                     now,
                 ),
             )
+            if request.consent_granted:
+                connection.execute(
+                    """INSERT INTO asset_consent_records
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (
+                        new_id("acr"),
+                        asset_id,
+                        "granted",
+                        request.consent_scope,
+                        request.consent_granted_by,
+                        request.consent_statement,
+                        int(request.guardian_approved),
+                        now,
+                    ),
+                )
         return self.get_asset(asset_id)
 
     def get_asset(self, asset_id: str) -> Asset:
@@ -1087,6 +1186,93 @@ class Repository:
         with self.db.connect() as connection:
             ids = [row["id"] for row in connection.execute(sql, params)]
         return [self.get_asset(asset_id) for asset_id in ids]
+
+    def list_asset_consent_records(self, asset_id: str) -> list[AssetConsentRecord]:
+        self.get_asset(asset_id)
+        with self.db.connect() as connection:
+            rows = connection.execute(
+                """SELECT * FROM asset_consent_records
+                   WHERE asset_id = ? ORDER BY created_at, id""",
+                (asset_id,),
+            ).fetchall()
+        records = []
+        for row in rows:
+            data = dict(row)
+            data["guardian_approved"] = bool(data["guardian_approved"])
+            records.append(AssetConsentRecord.model_validate(data))
+        return records
+
+    def revoke_asset_consent(
+        self, asset_id: str, request: AssetConsentRevocationCreate
+    ) -> AssetConsentRecord:
+        asset = self.get_asset(asset_id)
+        if not asset.consent_granted:
+            raise ConflictError("asset consent is not currently active")
+        record_id, now = new_id("acr"), utc_now()
+        with self.db.connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            current = connection.execute(
+                "SELECT consent_granted FROM assets WHERE id = ?", (asset_id,)
+            ).fetchone()
+            if current is None or not bool(current["consent_granted"]):
+                raise ConflictError("asset consent changed before revocation")
+            connection.execute(
+                "UPDATE assets SET consent_granted = 0 WHERE id = ?", (asset_id,)
+            )
+            connection.execute(
+                """INSERT INTO asset_consent_records
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    record_id,
+                    asset_id,
+                    "revoked",
+                    asset.consent_scope,
+                    request.requested_by,
+                    request.reason,
+                    int(asset.guardian_approved),
+                    now,
+                ),
+            )
+        return self.list_asset_consent_records(asset_id)[-1]
+
+    def bind_run_assets(self, run_id: str, assets: list[Asset]) -> None:
+        self.get_run(run_id)
+        with self.db.connect() as connection:
+            for asset in assets:
+                connection.execute(
+                    """INSERT OR IGNORE INTO production_run_assets
+                       VALUES (?, ?, ?)""",
+                    (run_id, asset.id, str(asset.metadata.get("sha256", ""))),
+                )
+
+    def asset_dependency_report(self, asset_id: str) -> AssetDependencyReport:
+        self.get_asset(asset_id)
+        with self.db.connect() as connection:
+            run_ids = [
+                row["run_id"]
+                for row in connection.execute(
+                    """SELECT run_id FROM production_run_assets
+                       WHERE asset_id = ? ORDER BY run_id""",
+                    (asset_id,),
+                )
+            ]
+        return AssetDependencyReport(
+            asset_id=asset_id,
+            can_delete=not run_ids,
+            production_run_ids=run_ids,
+            explanation=(
+                "asset is referenced by immutable production snapshots"
+                if run_ids
+                else "asset has no immutable production snapshot dependencies"
+            ),
+        )
+
+    def delete_asset_record(self, asset_id: str) -> None:
+        report = self.asset_dependency_report(asset_id)
+        if not report.can_delete:
+            raise ConflictError(report.explanation)
+        with self.db.connect() as connection:
+            connection.execute("DELETE FROM assets WHERE id = ?", (asset_id,))
 
     def create_continuity_snapshot(
         self, episode_id: str, request: ContinuitySnapshotCreate

@@ -87,6 +87,17 @@ class ProductionService:
                 f"model {request.requested_model!r} is not allowed by policy {policy['policy_version']}"
             )
 
+        revoked_biometrics = [
+            asset.id
+            for asset in assets
+            if asset.kind in {"character_image", "voice_reference"}
+            and not asset.consent_granted
+        ]
+        if revoked_biometrics:
+            raise ConflictError(
+                "biometric consent is missing or revoked: " + ", ".join(revoked_biometrics)
+            )
+
         if project.audience_mode == AudienceMode.CHILD:
             missing_guardian = [
                 asset.id
@@ -135,7 +146,12 @@ class ProductionService:
             season=season.model_dump(mode="json"),
             episode=episode.model_dump(mode="json"),
             approved_script=script.model_dump(mode="json"),
-            inherited_assets=[asset.model_dump(mode="json") for asset in assets],
+            inherited_assets=[
+                asset.model_dump(
+                    mode="json", exclude={"consent_granted_by", "consent_statement"}
+                )
+                for asset in assets
+            ],
             continuity=continuity.model_dump(mode="json") if continuity else None,
             production_policy={
                 "model_policy": policy,
@@ -187,6 +203,7 @@ class ProductionService:
             updated_at=now,
         )
         self.repository.save_run(run)
+        self.repository.bind_run_assets(run.id, assets)
         self.repository.append_run_event(
             run.id,
             "run_created",
