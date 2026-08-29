@@ -135,13 +135,14 @@ final class VoiceInterviewViewModel {
     }
 
     private func episodeCount(from answer: String) -> Int {
-        if let value = answer.firstMatch(of: /\d+/).flatMap({ Int($0.output) }) {
+        let digits = answer.filter(\.isNumber)
+        if let value = Int(digits) {
             return min(max(value, 1), 50)
         }
-        let common = ["一": 1, "两": 2, "二": 2, "三": 3, "四": 4, "五": 5,
-                      "六": 6, "七": 7, "八": 8, "九": 9, "十": 10,
-                      "十二": 12, "二十": 20]
-        return common.first(where: { answer.contains($0.key) })?.value ?? 6
+        let common = [("二十", 20), ("十二", 12), ("十", 10), ("九", 9), ("八", 8),
+                      ("七", 7), ("六", 6), ("五", 5), ("四", 4), ("三", 3),
+                      ("两", 2), ("二", 2), ("一", 1)]
+        return common.first(where: { answer.contains($0.0) })?.1 ?? 6
     }
 }
 
