@@ -416,7 +416,7 @@ def test_database_migration_preserves_existing_database(tmp_path: Path) -> None:
         connection.execute("INSERT INTO legacy_marker VALUES ('preserve-me')")
 
     api = create_app(database_path, tmp_path / "data")
-    assert api.state.repository.db.schema_version() == 6
+    assert api.state.repository.db.schema_version() == 7
     with sqlite3.connect(database_path) as connection:
         marker = connection.execute("SELECT value FROM legacy_marker").fetchone()[0]
         approval_table = connection.execute(
@@ -439,7 +439,7 @@ def test_populated_v1_database_upgrades_without_project_loss(tmp_path: Path) -> 
         connection.execute("DELETE FROM schema_migrations WHERE version >= 2")
 
     after = TestClient(create_app(database_path, data_root))
-    assert after.app.state.repository.db.schema_version() == 6
+    assert after.app.state.repository.db.schema_version() == 7
     assert after.get(f"/v1/projects/{project['id']}").json()["title"] == "我的一生"
     assert after.get(f"/v1/episodes/{episode['id']}").json()[
         "approved_script_revision"
@@ -545,6 +545,98 @@ def test_local_asset_import_consent_revocation_and_path_safety(tmp_path: Path) -
     assert blocked.status_code == 409
 
 
+def test_project_season_and_episode_asset_scope_inheritance(tmp_path: Path) -> None:
+    api = client(tmp_path)
+    project, season, episode = create_approved_episode(api)
+    endpoint = f"/v1/projects/{project['id']}/asset-imports"
+
+    project_asset = api.post(
+        endpoint,
+        params={
+            "filename": "bible.txt",
+            "kind": "source_document",
+            "name": "项目资料",
+        },
+        content=b"project",
+        headers={"Content-Type": "text/plain"},
+    )
+    season_asset = api.post(
+        endpoint,
+        params={
+            "filename": "season.jpg",
+            "kind": "scene_reference",
+            "name": "本季场景",
+            "season_id": season["id"],
+        },
+        content=b"season",
+        headers={"Content-Type": "image/jpeg"},
+    )
+    episode_asset = api.post(
+        endpoint,
+        params={
+            "filename": "episode.jpg",
+            "kind": "prop_reference",
+            "name": "本集道具",
+            "episode_id": episode["id"],
+        },
+        content=b"episode",
+        headers={"Content-Type": "image/jpeg"},
+    )
+    assert [response.status_code for response in (project_asset, season_asset, episode_asset)] == [
+        201,
+        201,
+        201,
+    ]
+    assert season_asset.json()["season_id"] == season["id"]
+    assert episode_asset.json()["episode_id"] == episode["id"]
+
+    season_assets = api.get(
+        f"/v1/projects/{project['id']}/assets", params={"season_id": season["id"]}
+    ).json()
+    assert {asset["name"] for asset in season_assets} == {"项目资料", "本季场景"}
+    episode_assets = api.get(
+        f"/v1/projects/{project['id']}/assets", params={"episode_id": episode["id"]}
+    ).json()
+    assert {asset["name"] for asset in episode_assets} == {
+        "项目资料",
+        "本季场景",
+        "本集道具",
+    }
+    run = api.post(
+        f"/v1/episodes/{episode['id']}/production-runs",
+        json={"dry_run": True},
+        headers={"Idempotency-Key": "three-level-asset-scope"},
+    )
+    assert run.status_code == 201
+    for asset in (project_asset.json(), season_asset.json(), episode_asset.json()):
+        dependencies = api.get(f"/v1/assets/{asset['id']}/dependencies").json()
+        assert dependencies["production_run_ids"] == [run.json()["id"]]
+
+    ambiguous = api.post(
+        endpoint,
+        params={
+            "filename": "ambiguous.jpg",
+            "kind": "scene_reference",
+            "name": "范围不明确",
+            "season_id": season["id"],
+            "episode_id": episode["id"],
+        },
+        content=b"ambiguous",
+        headers={"Content-Type": "image/jpeg"},
+    )
+    assert ambiguous.status_code == 409
+
+    backup = api.get(f"/v1/projects/{project['id']}/export").json()
+    legacy_v3 = deepcopy(backup)
+    legacy_v3["schema_version"] = "nalu.project-export/v3"
+    for asset in legacy_v3["payload"]["assets"]:
+        asset.pop("season_id")
+    canonical = json.dumps(legacy_v3["payload"], ensure_ascii=False, sort_keys=True)
+    legacy_v3["payload_sha256"] = hashlib.sha256(canonical.encode()).hexdigest()
+    restored = client(tmp_path / "legacy-v3").post("/v1/project-imports", json=legacy_v3)
+    assert restored.status_code == 201
+
+
 def test_asset_dependency_blocks_deletion_after_snapshot(tmp_path: Path) -> None:
     api = client(tmp_path)
     project, _, episode = create_approved_episode(api)
@@ -599,7 +691,7 @@ def test_complete_privacy_export_and_confirmed_project_deletion(tmp_path: Path) 
         assert {"project-export.json", "privacy-manifest.json", media_name} <= names
         assert archive.read(media_name) == b"private-photo-bytes"
         project_backup = json.loads(archive.read("project-export.json"))
-        assert project_backup["schema_version"] == "nalu.project-export/v3"
+        assert project_backup["schema_version"] == "nalu.project-export/v4"
         assert project_backup["payload"]["asset_consent_records"][0][
             "action_type"
         ] == "granted"

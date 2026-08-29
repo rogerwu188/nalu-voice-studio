@@ -18,8 +18,26 @@ final class PrivacySafetyTests: XCTestCase {
                 consentStatement: "",
                 guardianRequired: false,
                 guardianApproved: false,
-                scopeToEpisode: true,
+                scope: "episode",
+                selectedSeasonID: "sea_1",
                 selectedEpisodeID: nil
+            )
+        )
+    }
+
+    func testSeasonScopeRequiresSelectedSeason() {
+        XCTAssertFalse(
+            PrivacySafety.canImportAsset(
+                kind: "scene_reference",
+                name: "本季场景",
+                subjectName: "",
+                consentGranted: false,
+                consentStatement: "",
+                guardianRequired: false,
+                guardianApproved: false,
+                scope: "season",
+                selectedSeasonID: nil,
+                selectedEpisodeID: "ep_1"
             )
         )
     }
@@ -65,7 +83,8 @@ final class PrivacySafetyTests: XCTestCase {
             consentStatement: "同意用于本项目",
             guardianRequired: true,
             guardianApproved: guardianApproved,
-            scopeToEpisode: false,
+            scope: "project",
+            selectedSeasonID: nil,
             selectedEpisodeID: nil
         )
     }

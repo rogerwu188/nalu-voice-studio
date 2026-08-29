@@ -9,13 +9,16 @@ enum PrivacySafety {
         consentStatement: String,
         guardianRequired: Bool,
         guardianApproved: Bool,
-        scopeToEpisode: Bool,
+        scope: String,
+        selectedSeasonID: String?,
         selectedEpisodeID: String?
     ) -> Bool {
         guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             return false
         }
-        guard !scopeToEpisode || selectedEpisodeID != nil else { return false }
+        guard scope != "season" || selectedSeasonID != nil else { return false }
+        guard scope != "episode" || selectedEpisodeID != nil else { return false }
+        guard ["project", "season", "episode"].contains(scope) else { return false }
         guard ["character_image", "voice_reference"].contains(kind) else { return true }
         guard consentGranted,
               !subjectName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,

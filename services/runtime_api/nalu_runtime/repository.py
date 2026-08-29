@@ -432,7 +432,7 @@ class Repository:
                 "source_transcript", "narrative_metadata_json", "approved_at", "created_at",
             ),
             "assets": (
-                "id", "project_id", "episode_id", "kind", "name", "local_uri",
+                "id", "project_id", "season_id", "episode_id", "kind", "name", "local_uri",
                 "subject_name", "metadata_json", "consent_granted", "consent_scope",
                 "guardian_approved", "created_at",
             ),
@@ -449,6 +449,14 @@ class Repository:
                 "approved_by", "spoken_confirmation", "guardian_approval", "created_at",
             ),
         }
+        if backup.schema_version in {
+            "nalu.project-export/v1",
+            "nalu.project-export/v2",
+            "nalu.project-export/v3",
+        }:
+            allowed_columns["assets"] = tuple(
+                column for column in allowed_columns["assets"] if column != "season_id"
+            )
         if backup.schema_version == "nalu.project-export/v1":
             allowed_columns.pop("season_plan_revisions")
             allowed_columns.pop("season_plan_approval_records")
@@ -491,6 +499,7 @@ class Repository:
             raise ConflictError("project export contains a script from another project")
         if any(
             row.get("project_id") != project_id
+            or (row.get("season_id") is not None and row.get("season_id") not in season_ids)
             or (row.get("episode_id") is not None and row.get("episode_id") not in episode_ids)
             for row in backup.payload["assets"]
         ):
@@ -1122,6 +1131,10 @@ class Repository:
         self, project_id: str, request: AssetCreate, asset_id: str | None = None
     ) -> Asset:
         self.get_project(project_id)
+        if request.season_id:
+            season = self.get_season(request.season_id)
+            if season.project_id != project_id:
+                raise ConflictError("asset season belongs to another project")
         if request.episode_id:
             episode = self.get_episode(request.episode_id)
             season = self.get_season(episode.season_id)
@@ -1131,10 +1144,15 @@ class Repository:
         with self.db.connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
             connection.execute(
-                """INSERT INTO assets VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                """INSERT INTO assets
+                   (id, project_id, season_id, episode_id, kind, name, local_uri,
+                    subject_name, metadata_json, consent_granted, consent_scope,
+                    guardian_approved, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     asset_id,
                     project_id,
+                    request.season_id,
                     request.episode_id,
                     request.kind,
                     request.name,
@@ -1175,13 +1193,29 @@ class Repository:
         data["guardian_approved"] = bool(data["guardian_approved"])
         return Asset.model_validate(data)
 
-    def list_assets(self, project_id: str, episode_id: str | None = None) -> list[Asset]:
+    def list_assets(
+        self,
+        project_id: str,
+        episode_id: str | None = None,
+        season_id: str | None = None,
+    ) -> list[Asset]:
         self.get_project(project_id)
         sql = "SELECT id FROM assets WHERE project_id = ?"
         params: tuple[Any, ...] = (project_id,)
         if episode_id:
+            episode = self.get_episode(episode_id)
+            season = self.get_season(episode.season_id)
+            if season.project_id != project_id:
+                raise ConflictError("asset episode belongs to another project")
+            sql += " AND (season_id IS NULL OR season_id = ?)"
             sql += " AND (episode_id IS NULL OR episode_id = ?)"
-            params += (episode_id,)
+            params += (season.id, episode_id)
+        elif season_id:
+            season = self.get_season(season_id)
+            if season.project_id != project_id:
+                raise ConflictError("asset season belongs to another project")
+            sql += " AND episode_id IS NULL AND (season_id IS NULL OR season_id = ?)"
+            params += (season_id,)
         sql += " ORDER BY created_at"
         with self.db.connect() as connection:
             ids = [row["id"] for row in connection.execute(sql, params)]

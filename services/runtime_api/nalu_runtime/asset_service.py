@@ -28,6 +28,7 @@ class AssetService:
         kind: AssetKind,
         name: str,
         subject_name: str,
+        season_id: str | None,
         episode_id: str | None,
         consent_granted: bool,
         consent_scope: ConsentScope,
@@ -60,6 +61,7 @@ class AssetService:
                 name=name,
                 local_uri=destination.as_uri(),
                 subject_name=subject_name,
+                season_id=season_id,
                 episode_id=episode_id,
                 metadata={
                     "sha256": digest,

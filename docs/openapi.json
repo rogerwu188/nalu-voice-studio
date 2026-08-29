@@ -167,6 +167,17 @@
             "title": "Project Id",
             "type": "string"
           },
+          "season_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Season Id"
+          },
           "subject_name": {
             "default": "",
             "title": "Subject Name",
@@ -310,6 +321,17 @@
             "minLength": 1,
             "title": "Name",
             "type": "string"
+          },
+          "season_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Season Id"
           },
           "subject_name": {
             "default": "",
@@ -1203,11 +1225,12 @@
             "type": "string"
           },
           "schema_version": {
-            "default": "nalu.project-export/v3",
+            "default": "nalu.project-export/v4",
             "enum": [
               "nalu.project-export/v1",
               "nalu.project-export/v2",
-              "nalu.project-export/v3"
+              "nalu.project-export/v3",
+              "nalu.project-export/v4"
             ],
             "title": "Schema Version",
             "type": "string"
@@ -3170,6 +3193,22 @@
           },
           {
             "in": "query",
+            "name": "season_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Season Id"
+            }
+          },
+          {
+            "in": "query",
             "name": "episode_id",
             "required": false,
             "schema": {
@@ -3309,6 +3348,22 @@
                 }
               ],
               "title": "Episode Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "season_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Season Id"
             }
           }
         ],

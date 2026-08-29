@@ -298,6 +298,7 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
         content: Annotated[bytes, Body(media_type="application/octet-stream")],
         content_type: Annotated[str, Header(alias="Content-Type")],
         subject_name: Annotated[str, Query(max_length=160)] = "",
+        season_id: str | None = None,
         episode_id: str | None = None,
         consent_granted: bool = False,
         consent_scope: ConsentScope = ConsentScope.PROJECT_ONLY,
@@ -313,6 +314,7 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
             kind=kind,
             name=name,
             subject_name=subject_name,
+            season_id=season_id,
             episode_id=episode_id,
             consent_granted=consent_granted,
             consent_scope=consent_scope,
@@ -322,8 +324,12 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
         )
 
     @app.get("/v1/projects/{project_id}/assets", response_model=list[Asset])
-    def list_assets(project_id: str, episode_id: str | None = None) -> list[Asset]:
-        return repository.list_assets(project_id, episode_id)
+    def list_assets(
+        project_id: str,
+        episode_id: str | None = None,
+        season_id: str | None = None,
+    ) -> list[Asset]:
+        return repository.list_assets(project_id, episode_id, season_id)
 
     @app.get(
         "/v1/assets/{asset_id}/consent-records",

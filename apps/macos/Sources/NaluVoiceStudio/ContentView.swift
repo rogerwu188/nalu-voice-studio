@@ -17,7 +17,7 @@ struct ContentView: View {
     @State private var assetConsentGranted = false
     @State private var assetGuardianApproved = false
     @State private var assetConsentStatement = ""
-    @State private var scopeAssetToEpisode = false
+    @State private var assetScope = "project"
     @State private var isExportingPrivacy = false
     @State private var privacyDocument: PrivacyExportDocument?
     @State private var deletionPreview: ProjectDeletionPreview?
@@ -444,8 +444,12 @@ struct ContentView: View {
                     Toggle("监护人已在场并同意儿童肖像或声音使用", isOn: $assetGuardianApproved)
                 }
             }
-            Toggle("只用于当前选中的这一集", isOn: $scopeAssetToEpisode)
-                .disabled(selectedEpisode == nil)
+            Picker("使用范围", selection: $assetScope) {
+                Text("整个项目").tag("project")
+                Text("当前这一季").tag("season")
+                Text("当前这一集").tag("episode")
+            }
+            .pickerStyle(.segmented)
             HStack {
                 Button("选择并复制文件", systemImage: "plus.rectangle.on.folder") {
                     isImportingAsset = true
@@ -715,7 +719,8 @@ struct ContentView: View {
             consentStatement: assetConsentStatement,
             guardianRequired: selectedProject?.audienceMode == "child",
             guardianApproved: assetGuardianApproved,
-            scopeToEpisode: scopeAssetToEpisode,
+            scope: assetScope,
+            selectedSeasonID: selectedSeason?.id,
             selectedEpisodeID: selectedEpisode?.id
         )
     }
@@ -830,7 +835,7 @@ struct ContentView: View {
             let importedConsent = assetConsentGranted
             let importedGuardianApproval = assetGuardianApproved
             let importedConsentStatement = assetConsentStatement
-            let importedEpisodeScope = scopeAssetToEpisode
+            let importedScope = assetScope
             Task {
                 await model.importAsset(
                     data: data,
@@ -839,7 +844,7 @@ struct ContentView: View {
                     kind: importedKind,
                     name: importedName,
                     subjectName: importedSubjectName,
-                    scopeToSelectedEpisode: importedEpisodeScope,
+                    scope: importedScope,
                     consentGranted: importedConsent,
                     guardianApproved: importedGuardianApproval,
                     consentStatement: importedConsentStatement
@@ -859,11 +864,12 @@ struct ContentView: View {
     }
 
     private func assetScopeLabel(_ asset: NaluAsset) -> String {
-        guard let episodeID = asset.episodeID,
-              let episode = model.episodes.first(where: { $0.id == episodeID }) else {
-            return "整个项目"
+        if let episodeID = asset.episodeID,
+           let episode = model.episodes.first(where: { $0.id == episodeID }) {
+            return "第 \(episode.episodeNumber) 集"
         }
-        return "第 \(episode.episodeNumber) 集"
+        if asset.seasonID != nil { return "当前季" }
+        return "整个项目"
     }
 
     private func assetIcon(_ kind: String) -> String {

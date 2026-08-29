@@ -422,7 +422,7 @@ final class VoiceInterviewViewModel {
         kind: String,
         name: String,
         subjectName: String,
-        scopeToSelectedEpisode: Bool,
+        scope: String,
         consentGranted: Bool,
         guardianApproved: Bool,
         consentStatement: String
@@ -437,7 +437,8 @@ final class VoiceInterviewViewModel {
                 kind: kind,
                 name: name,
                 subjectName: subjectName,
-                episodeID: scopeToSelectedEpisode ? selectedEpisodeID : nil,
+                seasonID: scope == "season" ? seasons.first?.id : nil,
+                episodeID: scope == "episode" ? selectedEpisodeID : nil,
                 consentGranted: consentGranted,
                 guardianApproved: guardianApproved,
                 consentStatement: consentStatement

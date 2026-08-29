@@ -71,6 +71,7 @@ actor RuntimeClient {
         kind: String,
         name: String,
         subjectName: String,
+        seasonID: String?,
         episodeID: String?,
         consentGranted: Bool,
         guardianApproved: Bool,
@@ -91,6 +92,7 @@ actor RuntimeClient {
             URLQueryItem(name: "consent_granted_by", value: consentGranted ? "local-user" : ""),
             URLQueryItem(name: "consent_statement", value: consentStatement),
         ]
+        if let seasonID { items.append(URLQueryItem(name: "season_id", value: seasonID)) }
         if let episodeID { items.append(URLQueryItem(name: "episode_id", value: episodeID)) }
         components.queryItems = items
         var request = URLRequest(url: components.url!)

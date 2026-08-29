@@ -242,6 +242,15 @@ MIGRATIONS = (
         );
         """,
     ),
+    (
+        7,
+        "season_scoped_assets",
+        """
+        ALTER TABLE assets ADD COLUMN season_id TEXT REFERENCES seasons(id) ON DELETE CASCADE;
+        CREATE INDEX IF NOT EXISTS assets_scope_idx
+          ON assets(project_id, season_id, episode_id, created_at);
+        """,
+    ),
 )
 
 
@@ -276,6 +285,17 @@ class Database:
                         for row in connection.execute("PRAGMA table_info(projects)")
                     }
                     if "archived_at" in project_columns:
+                        connection.execute(
+                            "INSERT INTO schema_migrations VALUES (?, ?, datetime('now'))",
+                            (version, name),
+                        )
+                        continue
+                if version == 7:
+                    asset_columns = {
+                        row["name"]
+                        for row in connection.execute("PRAGMA table_info(assets)")
+                    }
+                    if "season_id" in asset_columns:
                         connection.execute(
                             "INSERT INTO schema_migrations VALUES (?, ?, datetime('now'))",
                             (version, name),

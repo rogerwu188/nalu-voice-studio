@@ -297,6 +297,7 @@ struct ScriptRevocationDraft: Codable, Sendable {
 struct NaluAsset: Codable, Identifiable, Sendable {
     let id: String
     let projectID: String
+    let seasonID: String?
     let episodeID: String?
     let kind: String
     let name: String
@@ -311,6 +312,7 @@ struct NaluAsset: Codable, Identifiable, Sendable {
     enum CodingKeys: String, CodingKey {
         case id, kind, name, metadata
         case projectID = "project_id"
+        case seasonID = "season_id"
         case episodeID = "episode_id"
         case localURI = "local_uri"
         case subjectName = "subject_name"

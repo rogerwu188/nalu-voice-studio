@@ -85,8 +85,9 @@ class ProjectExport(BaseModel):
         "nalu.project-export/v1",
         "nalu.project-export/v2",
         "nalu.project-export/v3",
+        "nalu.project-export/v4",
     ] = (
-        "nalu.project-export/v3"
+        "nalu.project-export/v4"
     )
     exported_at: str
     payload: dict[str, Any]
@@ -270,6 +271,7 @@ class AssetBase(BaseModel):
     name: str = Field(min_length=1, max_length=160)
     local_uri: str = Field(min_length=1)
     subject_name: str = ""
+    season_id: str | None = None
     episode_id: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
     consent_granted: bool = False
@@ -283,6 +285,8 @@ class AssetCreate(AssetBase):
 
     @model_validator(mode="after")
     def require_biometric_consent(self) -> AssetCreate:
+        if self.season_id is not None and self.episode_id is not None:
+            raise ValueError("asset cannot have both season and episode scope")
         biometric = {AssetKind.CHARACTER_IMAGE, AssetKind.VOICE_REFERENCE}
         if self.kind in biometric and not self.consent_granted:
             raise ValueError("character and voice assets require explicit consent")
