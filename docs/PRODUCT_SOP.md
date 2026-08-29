@@ -152,7 +152,7 @@ QA:
 - At least three multi-episode continuity fixtures with positive and negative cases.
 - Regression verifies completed episodes do not change after library edits.
 
-## SOP-07 · Productized Qingshan execution adapter — TODO
+## SOP-07 · Productized Qingshan execution adapter — IN_PROGRESS
 
 Acceptance:
 
@@ -168,6 +168,13 @@ QA:
 - Offline contract fixtures pass without credentials or paid calls.
 - Authorized sandbox generation binds transaction, task ID, result and credit receipt.
 - Duplicate submission, stale package and model-policy conflicts fail closed.
+
+Current evidence:
+
+- Pinned upstream snapshot, capability checks, immutable Nalu package, clean
+  per-run workspace materializer and SHA-256 preflight evidence.
+- Still required before `PASS`: separate SD2 Pro/H3 compilers, full registered gate
+  execution, durable paid-transaction binding and authorized sandbox evidence.
 
 ## SOP-08 · Production jobs, progress, cancellation and recovery — IN_PROGRESS
 
