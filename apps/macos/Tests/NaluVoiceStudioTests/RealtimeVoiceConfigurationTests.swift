@@ -77,6 +77,11 @@ final class RealtimeVoiceConfigurationTests: XCTestCase {
             "callID": "call_789",
             "arguments": #"{"answer":"同意","publish":true}"#,
         ]))
+        XCTAssertNil(RealtimeInterviewToolCall.parse([
+            "name": "record_interview_answer",
+            "callID": String(repeating: "x", count: 513),
+            "arguments": #"{"answer":"我自己使用"}"#,
+        ]))
     }
 
     func testSessionLimitIsBoundedAndReadable() {

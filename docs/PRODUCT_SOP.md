@@ -119,9 +119,16 @@ Current evidence:
   Runtime tests, Swift tests, full app build and bundled smoke passed.
 - Manual native QA on the CI artifact confirmed the visible natural-voice entry and
   fail-closed consent sheet: without a Keychain credential, the start action is disabled.
-- Still required before `PASS`: authorized paid Realtime connectivity/interruption QA,
-  structured interview tool integration, reconnect/cost QA, VoiceOver/Accessibility
-  Inspector audit and a clean-account voice-only QA session with real permissions.
+- Commit `f2f0c66`, GitHub CI run `33280429718`: the Realtime session now exposes one
+  exact-schema local interview tool, returns its result through the documented function
+  output event flow, rejects protected operations, ignores duplicate calls, shows a live
+  elapsed-time/status strip, attempts short network recovery, offers explicit retry and
+  enforces a user-selected 5/10/20-minute ceiling. Runtime tests, Swift tests, full app
+  build, bundled smoke and downloadable artifact passed.
+- Still required before `PASS`: authorized paid Realtime connectivity, interruption,
+  real function-call, network-loss, session-expiry and provider usage/cost QA;
+  VoiceOver/Accessibility Inspector audit; and a clean-account voice-only QA session
+  with real permissions.
 
 ## SOP-03 · Multi-project, season and episode planning — IN_PROGRESS
 

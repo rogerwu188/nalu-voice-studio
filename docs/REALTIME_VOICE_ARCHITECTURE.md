@@ -1,6 +1,7 @@
 # Realtime voice architecture
 
-Status: WebRTC implementation in progress; credential-free CI and human QA are incomplete.
+Status: WebRTC, bounded local interview tooling, reconnect UI and credential-free CI are
+implemented; credential-authorized live and human accessibility QA remain incomplete.
 
 Nalu supports two explicit conversation modes. Neither mode replaces the other.
 
@@ -28,6 +29,7 @@ Official references:
 - [GPT-Realtime-2.1 model](https://developers.openai.com/api/docs/models/gpt-realtime-2.1)
 - [Realtime WebRTC guide](https://developers.openai.com/api/docs/guides/realtime-webrtc)
 - [Realtime conversations](https://developers.openai.com/api/docs/guides/realtime-conversations)
+- [Realtime with tools](https://developers.openai.com/api/docs/guides/realtime-mcp)
 - [Voice activity detection](https://developers.openai.com/api/docs/guides/realtime-vad)
 - [API key safety](https://developers.openai.com/api/reference/overview)
 - [API data controls](https://developers.openai.com/api/docs/guides/your-data)
@@ -54,6 +56,18 @@ until the key exists and the user has accepted the per-session cloud-audio/cost 
   creation and interruption are encoded in a unit-tested session configuration.
 - The WebRTC data channel maps listening, thinking, speaking, error and transcript
   events into the same visible conversation UI.
+- A single allowlisted `record_interview_answer` function can advance the local setup
+  interview after a direct answer or an explicit pause/resume/repeat/back command. A
+  question, complaint or small talk is answered first without advancing the reducer.
+- Tool names and exact arguments are locally validated, payloads are bounded, duplicate
+  call IDs are ignored, and function output returns through the documented
+  `function_call_output` → `response.create` event sequence.
+- Planning approval, deletion, paid generation, biometric use and publishing are not
+  exposed as Realtime tools; those actions remain behind visible product gates.
+- The status strip has an indeterminate running indicator, explicit listening/thinking/
+  speaking/reconnecting states, elapsed time, and a manual reconnect action after failure.
+- The user chooses a 5, 10 or 20 minute session ceiling. Nalu stops microphone capture and
+  the peer connection at the ceiling; choosing a new session requires a fresh consent flow.
 - WebKit media capture is granted only while an explicitly consented session is
   connecting; macOS still enforces the app-level microphone permission.
 - The original local push-to-talk control remains available and is disabled only while
@@ -61,9 +75,9 @@ until the key exists and the user has accepted the per-session cloud-audio/cost 
 - The Realtime prompt requires Nalu to answer an interruption first, then return to the
   unfinished interview prompt. It cannot claim that a protected local action occurred.
 
-Still required: a credential-authorized paid connectivity test, usage/cost accounting,
-session expiry/reconnect behavior, tool-call integration with the structured interview,
-packet inspection and the full human accessibility matrix below.
+Still required: a credential-authorized paid connectivity/interruption/tool-call test,
+provider usage/cost reconciliation, live network-loss/session-expiry recovery, packet
+inspection and the full human accessibility matrix below.
 
 ## Consent, children, and cost
 
@@ -78,10 +92,11 @@ packet inspection and the full human accessibility matrix below.
 
 ## Tool boundary
 
-Realtime model function calls are proposals. An allowlisted local command handler
-validates arguments and project state. Destructive, biometric, paid, publishing,
-and script-approval actions require the same explicit confirmations as the visual
-workflow. Voice must never bypass an existing product gate.
+Realtime model function calls are proposals. The current handler exposes exactly one
+bounded setup-interview function, validates its exact JSON shape and rejects every other
+name. Destructive, biometric, paid, publishing, planning and script-approval actions
+require the same explicit confirmations as the visual workflow. Voice must never bypass
+an existing product gate.
 
 ## Acceptance
 

@@ -152,6 +152,7 @@ struct RealtimeInterviewToolCall: Equatable {
         guard payload["name"] as? String == RealtimeSessionConfiguration.interviewToolName,
               let callID = payload["callID"] as? String,
               !callID.isEmpty,
+              callID.utf8.count <= 512,
               let arguments = payload["arguments"] as? String,
               arguments.utf8.count <= 8_192,
               let data = arguments.data(using: .utf8),
