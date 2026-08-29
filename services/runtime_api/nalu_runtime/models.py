@@ -54,6 +54,20 @@ class ConsentScope(StrEnum):
     UNRESTRICTED = "unrestricted"
 
 
+class CreativeFormat(StrEnum):
+    SHORT_DRAMA_SERIES = "short_drama_series"
+    ANIMATION_SERIES = "animation_series"
+    COMMERCIAL_CAMPAIGN = "commercial_campaign"
+
+
+class FeedbackCategory(StrEnum):
+    USABILITY = "usability"
+    BUG = "bug"
+    FEATURE_REQUEST = "feature_request"
+    CORRECTION = "correction"
+    PREFERENCE = "preference"
+
+
 class ProjectCreate(BaseModel):
     title: str = Field(min_length=1, max_length=160)
     description: str = ""
@@ -63,6 +77,10 @@ class ProjectCreate(BaseModel):
     planned_episode_count: int = Field(default=1, ge=1, le=500)
     target_episode_seconds: int = Field(default=150, ge=15, le=3600)
     project_bible: dict[str, Any] = Field(default_factory=dict)
+    creative_format: CreativeFormat = CreativeFormat.SHORT_DRAMA_SERIES
+    production_pipeline: str = Field(
+        default="qingshan-short-drama", min_length=1, max_length=120
+    )
 
 
 class Project(ProjectCreate):
@@ -86,8 +104,9 @@ class ProjectExport(BaseModel):
         "nalu.project-export/v2",
         "nalu.project-export/v3",
         "nalu.project-export/v4",
+        "nalu.project-export/v5",
     ] = (
-        "nalu.project-export/v4"
+        "nalu.project-export/v5"
     )
     exported_at: str
     payload: dict[str, Any]
@@ -220,6 +239,7 @@ class EpisodeEvent(BaseModel):
 
 
 class ProjectPlanCreate(BaseModel):
+    project_id: str | None = None
     project: ProjectCreate
     season_title: str = Field(default="第一季", min_length=1, max_length=160)
     season_number: int = Field(default=1, ge=1)
@@ -230,6 +250,23 @@ class ProjectPlan(BaseModel):
     project: Project
     season: Season
     episodes: list[Episode]
+
+
+class FeedbackCreate(BaseModel):
+    project_id: str | None = None
+    category: FeedbackCategory
+    message: str = Field(min_length=1, max_length=4000)
+    source: Literal["voice", "text"] = "voice"
+    screen: str = Field(default="interview", max_length=80)
+    share_authorized: bool = False
+    guardian_approval: bool = False
+
+
+class FeedbackItem(FeedbackCreate):
+    id: str
+    status: Literal["local_only", "ready_for_review"]
+    redaction_applied: bool
+    created_at: str
 
 
 class ScriptRevisionCreate(BaseModel):

@@ -79,6 +79,10 @@ class ProductionService:
 
         season = self.repository.get_season(episode.season_id)
         project = self.repository.get_project(season.project_id)
+        if project.production_pipeline != "qingshan-short-drama":
+            raise ConflictError(
+                "this project has no approved production adapter; choose a supported pipeline"
+            )
         script = self.repository.get_script(episode.id, episode.approved_script_revision)
         assets = self.repository.list_assets(project.id, episode.id)
         continuity = self.repository.latest_continuity(season.id, episode.episode_number)

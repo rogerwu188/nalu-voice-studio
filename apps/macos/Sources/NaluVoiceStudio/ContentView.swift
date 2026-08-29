@@ -29,8 +29,14 @@ struct ContentView: View {
     @State private var isPresentingProviderCredentials = false
     @State private var seedanceSecretDraft = ""
     @State private var minimaxSecretDraft = ""
+    @State private var openAIRealtimeSecretDraft = ""
     @State private var seedanceIsConfigured = false
     @State private var minimaxIsConfigured = false
+    @State private var openAIRealtimeIsConfigured = false
+    @State private var isPresentingFeedback = false
+    @State private var feedbackCategory = "usability"
+    @State private var feedbackShareAuthorized = false
+    @State private var feedbackGuardianApproved = false
     private let keychain = KeychainSecretStore()
 
     var body: some View {
@@ -38,6 +44,7 @@ struct ContentView: View {
             sidebar.frame(minWidth: 260, idealWidth: 290, maxWidth: 340)
             interview
         }
+        .dynamicTypeSize(preferredDynamicTypeSize)
         .task {
             do {
                 try await RuntimeSupervisor.shared.start()
@@ -93,6 +100,9 @@ struct ContentView: View {
         .sheet(isPresented: $isPresentingProviderCredentials) {
             providerCredentialsSheet
         }
+        .sheet(isPresented: $isPresentingFeedback) {
+            feedbackSheet
+        }
         .alert("删除素材前的依赖检查", isPresented: $isPresentingAssetDependencies) {
             Button("取消", role: .cancel) { assetDependencyReport = nil }
             if assetDependencyReport?.canDelete == true,
@@ -121,7 +131,7 @@ struct ContentView: View {
                 } label: {
                     VStack(alignment: .leading, spacing: 5) {
                         Text(project.title).font(.headline)
-                        Text("计划 \(project.plannedEpisodeCount) 集")
+                        Text(projectSummary(project))
                             .foregroundStyle(.secondary)
                         if project.archivedAt != nil {
                             Label("已归档", systemImage: "archivebox")
@@ -156,6 +166,21 @@ struct ContentView: View {
             }
             .controlSize(.large)
             .padding(.horizontal, 18)
+            Button("告诉 Nalu 哪里不好用", systemImage: "bubble.left.and.exclamationmark.bubble.right") {
+                isPresentingFeedback = true
+            }
+            .controlSize(.large)
+            .padding(.horizontal, 18)
+            HStack {
+                Button("字大一点", systemImage: "textformat.size.larger") {
+                    model.makeTextLarger()
+                }
+                Button("恢复字号", systemImage: "arrow.counterclockwise") {
+                    model.resetComfortPreferences()
+                }
+            }
+            .controlSize(.large)
+            .padding(.horizontal, 18)
             if let project = selectedProject {
                 Button(
                     project.archivedAt == nil ? "归档这个项目" : "移回项目列表",
@@ -186,13 +211,33 @@ struct ContentView: View {
             HStack {
                 VStack(alignment: .leading) {
                     Text("和 Nalu 讲故事").font(.title.bold())
-                    Text(model.runtimeStatus).foregroundStyle(.secondary)
+                    RuntimeStatusBadge(status: model.runtimeStatus)
                 }
                 Spacer()
+                Button("添加照片 / 视频", systemImage: "photo.badge.plus") {
+                    assetKind = "character_image"
+                    isAssetEditorExpanded = true
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .disabled(selectedProject == nil)
                 Button("再说一遍", action: repeatQuestion).controlSize(.large)
             }
             .padding(24)
             Divider()
+            if selectedProject != nil {
+                DisclosureGroup(
+                    "上传人物照片、家庭视频、声音或参考资料",
+                    isExpanded: $isAssetEditorExpanded
+                ) {
+                    assetEditor.padding(.top, 10)
+                }
+                .font(.headline)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 12)
+                .background(Color.blue.opacity(0.06))
+                Divider()
+            }
             if !model.episodes.isEmpty {
                 ScrollView(.horizontal) {
                     HStack(spacing: 10) {
@@ -226,27 +271,42 @@ struct ContentView: View {
                 planningEditor
                 Divider()
             }
-            ScrollView {
-                LazyVStack(spacing: 18) {
-                    ForEach(model.messages) { message in
-                        bubble(message)
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(spacing: 18) {
+                        ForEach(model.messages) { message in
+                            bubble(message)
+                        }
+                        if !model.transcript.isEmpty {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Label("正在把您的话记下来", systemImage: "quote.bubble.fill")
+                                    .font(.headline)
+                                    .foregroundStyle(.blue)
+                                Text(model.transcript).font(.title3)
+                                if model.transcriptConfidence > 0 {
+                                    Text(model.transcriptConfidence < 0.2 ? "我可能没听清" : "我听清了")
+                                        .font(.caption)
+                                        .foregroundStyle(
+                                            model.transcriptConfidence < 0.2 ? .orange : .secondary
+                                        )
+                                }
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(18)
+                            .background(Color.blue.opacity(0.10), in: RoundedRectangle(cornerRadius: 16))
+                        }
+                        Color.clear.frame(height: 1).id("conversation-bottom")
+                    }
+                    .padding(28)
+                }
+                .onChange(of: model.messages.count) {
+                    withAnimation { proxy.scrollTo("conversation-bottom", anchor: .bottom) }
+                }
+                .onChange(of: model.transcript) {
+                    withAnimation(.easeOut(duration: 0.18)) {
+                        proxy.scrollTo("conversation-bottom", anchor: .bottom)
                     }
                 }
-                .padding(28)
-            }
-            if !model.transcript.isEmpty {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(model.transcript).font(.title3)
-                    if model.transcriptConfidence > 0 {
-                        Text(model.transcriptConfidence < 0.2 ? "我可能没听清" : "我听清了")
-                            .font(.caption)
-                            .foregroundStyle(model.transcriptConfidence < 0.2 ? .orange : .secondary)
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding()
-                .background(Color.blue.opacity(0.08))
-                .padding(.horizontal, 24)
             }
             if let planningVoiceLabel = model.planningVoiceLabel {
                 Label("当前语音任务：\(planningVoiceLabel)", systemImage: "waveform.badge.mic")
@@ -256,6 +316,7 @@ struct ContentView: View {
                     .padding(.horizontal, 24)
                     .padding(.top, 12)
             }
+            VoiceActivityStatus(isListening: model.isListening)
             Button(action: toggleMicrophone) {
                 Label(
                     model.isListening ? "说完了" : "按一下，然后开始说",
@@ -313,11 +374,6 @@ struct ContentView: View {
                             && !model.guardianConfirmedForPlan)
                 )
             }
-            DisclosureGroup("人物、声音和参考素材", isExpanded: $isAssetEditorExpanded) {
-                assetEditor
-                    .padding(.top, 10)
-            }
-            .font(.headline)
             if let episode = selectedEpisode {
                 Divider()
                 Text("第 \(episode.episodeNumber) 集 · \(episode.title)")
@@ -584,6 +640,12 @@ struct ContentView: View {
                 draft: $minimaxSecretDraft,
                 configured: minimaxIsConfigured
             )
+            Divider()
+            credentialEditor(
+                credential: .openAIRealtime,
+                draft: $openAIRealtimeSecretDraft,
+                configured: openAIRealtimeIsConfigured
+            )
             Text("保存密钥不会触发付费调用。模型适配器和付费事务还需要独立授权。")
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -595,6 +657,89 @@ struct ContentView: View {
         }
         .padding(28)
         .frame(minWidth: 600)
+    }
+
+    private var feedbackSheet: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Label("告诉 Nalu，怎样才能更好用", systemImage: "ear.badge.waveform")
+                .font(.title2.bold())
+            Text("可以说哪里看不清、哪里不会用、哪里出错，或者希望增加什么。")
+                .font(.title3)
+            Picker("意见类型", selection: $feedbackCategory) {
+                Text("不好用").tag("usability")
+                Text("出错了").tag("bug")
+                Text("想加功能").tag("feature_request")
+                Text("需要改正").tag("correction")
+                Text("我的习惯").tag("preference")
+            }
+            .pickerStyle(.segmented)
+
+            TextEditor(
+                text: Binding(
+                    get: { model.feedbackDraftText },
+                    set: {
+                        model.feedbackDraftText = $0
+                        model.feedbackWasDictated = false
+                    }
+                )
+            )
+            .font(.title3)
+            .frame(minHeight: 130)
+            .padding(8)
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(.secondary.opacity(0.4)))
+
+            Button {
+                Task {
+                    if model.isListening {
+                        await model.toggleListening()
+                    } else {
+                        await model.beginFeedbackDictation()
+                    }
+                }
+            } label: {
+                Label(
+                    model.isListening ? "说完了，保存这句话" : "按一下，用语音告诉 Nalu",
+                    systemImage: model.isListening ? "stop.circle.fill" : "mic.circle.fill"
+                )
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(model.isListening ? .red : .blue)
+            .controlSize(.large)
+
+            Toggle("允许把脱敏后的文字加入待审核改进队列", isOn: $feedbackShareAuthorized)
+            Text("默认只保存在本机；不会上传照片、视频、声音、密钥，也不会未经审核自动修改程序。")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+            if selectedProject?.audienceMode == "child", feedbackShareAuthorized {
+                Toggle("监护人同意提交这条改进意见", isOn: $feedbackGuardianApproved)
+            }
+            HStack {
+                Button("取消", role: .cancel) { isPresentingFeedback = false }
+                Spacer()
+                Button("保存意见") {
+                    Task {
+                        if await model.saveFeedback(
+                            category: feedbackCategory,
+                            shareAuthorized: feedbackShareAuthorized,
+                            guardianApproval: feedbackGuardianApproved
+                        ) {
+                            isPresentingFeedback = false
+                            feedbackShareAuthorized = false
+                            feedbackGuardianApproved = false
+                        }
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(
+                    model.feedbackDraftText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                        || (selectedProject?.audienceMode == "child"
+                            && feedbackShareAuthorized && !feedbackGuardianApproved)
+                )
+            }
+        }
+        .padding(28)
+        .frame(minWidth: 680, minHeight: 560)
     }
 
     private func credentialEditor(
@@ -668,6 +813,15 @@ struct ContentView: View {
 
     private var selectedProject: NaluProject? {
         model.projects.first { $0.id == model.selectedProjectID }
+    }
+
+    private var preferredDynamicTypeSize: DynamicTypeSize {
+        switch model.comfortPreferences.textLevel {
+        case 0: .large
+        case 1: .xLarge
+        case 2: .xxLarge
+        default: .xxxLarge
+        }
     }
 
     private var selectedSeason: NaluSeason? { model.seasons.first }
@@ -888,6 +1042,7 @@ struct ContentView: View {
         refreshCredentialStatus()
         seedanceSecretDraft = ""
         minimaxSecretDraft = ""
+        openAIRealtimeSecretDraft = ""
         isPresentingProviderCredentials = true
     }
 
@@ -895,6 +1050,7 @@ struct ContentView: View {
         do {
             seedanceIsConfigured = try keychain.contains(.seedance)
             minimaxIsConfigured = try keychain.contains(.minimax)
+            openAIRealtimeIsConfigured = try keychain.contains(.openAIRealtime)
         } catch {
             model.errorMessage = error.localizedDescription
         }
@@ -905,6 +1061,7 @@ struct ContentView: View {
             try keychain.set(secret, for: credential)
             if credential == .seedance { seedanceSecretDraft = "" }
             if credential == .minimax { minimaxSecretDraft = "" }
+            if credential == .openAIRealtime { openAIRealtimeSecretDraft = "" }
             refreshCredentialStatus()
         } catch {
             model.errorMessage = error.localizedDescription
@@ -995,7 +1152,18 @@ struct ContentView: View {
     }
 
     private func beginProject() {
-        model.beginProject()
+        Task { await model.beginProject() }
+    }
+
+    private func projectSummary(_ project: NaluProject) -> String {
+        switch project.creativeFormat {
+        case "animation_series":
+            return "动画系列 · 计划 \(project.plannedEpisodeCount) 集"
+        case "commercial_campaign":
+            return "广告项目 · 计划 \(project.plannedEpisodeCount) 条成片"
+        default:
+            return "短剧系列 · 计划 \(project.plannedEpisodeCount) 集"
+        }
     }
 
     private func repeatQuestion() {

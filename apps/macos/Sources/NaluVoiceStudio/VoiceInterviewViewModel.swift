@@ -33,6 +33,11 @@ final class VoiceInterviewViewModel {
     var viewedScriptRevision: Int?
     var guardianConfirmedForScript = false
     var assets: [NaluAsset] = []
+    var draftProjectID: String?
+    var feedbackDraftText = ""
+    var isCapturingFeedback = false
+    var feedbackWasDictated = false
+    var comfortPreferences = VoiceInterviewViewModel.loadComfortPreferences()
     var planningVoiceLabel: String? { planningVoiceFlow.mode?.prompt }
 
     private let runtime = RuntimeClient()
@@ -90,6 +95,19 @@ final class VoiceInterviewViewModel {
         messages.append(InterviewMessage(speaker: .user, text: spoken))
         transcript = ""
         transcriptConfidence = 0
+        if applyComfortCommand(spoken) { return }
+        if isCapturingFeedback {
+            feedbackDraftText = spoken
+            feedbackWasDictated = true
+            isCapturingFeedback = false
+            messages.append(
+                .init(
+                    speaker: .nalu,
+                    text: "谢谢，我已经把这条意见放进本机反馈草稿。保存前您还可以修改。"
+                )
+            )
+            return
+        }
         if planningVoiceFlow.mode != nil {
             let guardianConfirmed = planningVoiceFlow.mode == .scriptApproval
                 ? guardianConfirmedForScript : guardianConfirmedForPlan
@@ -101,11 +119,16 @@ final class VoiceInterviewViewModel {
                 )
             )
         } else {
-            handle(interviewFlow.consume(spoken))
+            let action = interviewFlow.consume(spoken)
+            handle(action)
+            if interviewFlow.step == .episodeCount,
+               !interviewFlow.draft.title.isEmpty {
+                Task { await renameDraftProjectDuringInterview() }
+            }
         }
     }
 
-    func beginProject() {
+    func beginProject() async {
         planningVoiceFlow = PlanningVoiceFlow()
         messages = [
             InterviewMessage(
@@ -113,6 +136,72 @@ final class VoiceInterviewViewModel {
                 text: interviewFlow.begin()
             )
         ]
+        if let draftProjectID,
+           projects.contains(where: { $0.id == draftProjectID }) {
+            await selectProject(draftProjectID)
+            return
+        }
+        do {
+            var draft = ProjectDraft()
+            draft.title = "未命名故事"
+            draft.description = "语音采访进行中"
+            draft.projectBible["draft_state"] = "voice_interview"
+            let project = try await runtime.createProject(draft)
+            draftProjectID = project.id
+            projects = try await runtime.listProjects(includeArchived: includeArchivedProjects)
+            await selectProject(project.id)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func beginFeedbackDictation() async {
+        isCapturingFeedback = true
+        feedbackWasDictated = false
+        messages.append(
+            .init(
+                speaker: .nalu,
+                text: "请告诉我哪里不好用、哪里出错，或者您希望增加什么。我会先记在本机。"
+            )
+        )
+        if !isListening { await toggleListening() }
+    }
+
+    func saveFeedback(
+        category: String, shareAuthorized: Bool, guardianApproval: Bool
+    ) async -> Bool {
+        let cleaned = feedbackDraftText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleaned.isEmpty else {
+            errorMessage = "请先说出或写下您的意见。"
+            return false
+        }
+        do {
+            let saved = try await runtime.createFeedback(
+                FeedbackDraft(
+                    projectID: selectedProjectID,
+                    category: category,
+                    message: cleaned,
+                    source: feedbackWasDictated ? "voice" : "text",
+                    screen: "interview",
+                    shareAuthorized: shareAuthorized,
+                    guardianApproval: guardianApproval
+                )
+            )
+            feedbackDraftText = ""
+            feedbackWasDictated = false
+            messages.append(
+                .init(
+                    speaker: .nalu,
+                    text: saved.status == "ready_for_review"
+                        ? "意见已脱敏并进入待审核改进队列。任何程序改动仍需测试和审核。"
+                        : "意见只保存在这台 Mac 上，不会自动上传。"
+                )
+            )
+            return true
+        } catch {
+            errorMessage = error.localizedDescription
+            return false
+        }
     }
 
     func selectProject(_ projectID: String) async {
@@ -344,7 +433,7 @@ final class VoiceInterviewViewModel {
     }
 
     func speakCurrentScriptSummary() {
-        speechPlayback.speak(scriptSummary)
+        speechPlayback.speak(scriptSummary, rate: comfortPreferences.speechRate)
     }
 
     func reloadProjects() async {
@@ -576,8 +665,13 @@ final class VoiceInterviewViewModel {
     private func createInterviewedProject(_ draft: ProjectDraft) async {
         do {
             let plan = try await runtime.createProjectPlan(
-                ProjectPlanDraft(project: draft, seasonTitle: "第一季")
+                ProjectPlanDraft(
+                    project: draft,
+                    seasonTitle: "第一季",
+                    projectID: draftProjectID
+                )
             )
+            draftProjectID = nil
             projects = try await runtime.listProjects(includeArchived: includeArchivedProjects)
             await selectProject(plan.project.id)
             interviewFlow.creationSucceeded()
@@ -593,10 +687,55 @@ final class VoiceInterviewViewModel {
         }
     }
 
+    private func renameDraftProjectDuringInterview() async {
+        guard let draftProjectID else { return }
+        do {
+            _ = try await runtime.renameProject(
+                id: draftProjectID, title: interviewFlow.draft.title
+            )
+            projects = try await runtime.listProjects(includeArchived: includeArchivedProjects)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
     func repeatCurrentQuestion() {
-        messages.append(
-            .init(speaker: .nalu, text: planningVoiceFlow.mode?.prompt ?? interviewFlow.prompt)
-        )
+        let prompt = planningVoiceFlow.mode?.prompt ?? interviewFlow.prompt
+        messages.append(.init(speaker: .nalu, text: prompt))
+        speechPlayback.speak(prompt, rate: comfortPreferences.speechRate)
+    }
+
+    func makeTextLarger() {
+        _ = applyComfortCommand("字大一点")
+    }
+
+    func resetComfortPreferences() {
+        comfortPreferences = ComfortPreferences()
+        persistComfortPreferences()
+        messages.append(.init(speaker: .nalu, text: "文字大小和朗读速度已经恢复默认。"))
+    }
+
+    private func applyComfortCommand(_ spoken: String) -> Bool {
+        guard let response = comfortPreferences.consume(spoken) else { return false }
+        persistComfortPreferences()
+        messages.append(.init(speaker: .nalu, text: response))
+        speechPlayback.speak(response, rate: comfortPreferences.speechRate)
+        return true
+    }
+
+    private func persistComfortPreferences() {
+        guard let data = try? JSONEncoder().encode(comfortPreferences) else { return }
+        UserDefaults.standard.set(data, forKey: "nalu.comfort-preferences.v1")
+    }
+
+    private static func loadComfortPreferences() -> ComfortPreferences {
+        guard let data = UserDefaults.standard.data(forKey: "nalu.comfort-preferences.v1"),
+              let preferences = try? JSONDecoder().decode(
+                ComfortPreferences.self, from: data
+              ) else {
+            return ComfortPreferences()
+        }
+        return preferences
     }
 
     private var selectedProject: NaluProject? {

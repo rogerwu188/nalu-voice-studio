@@ -4,6 +4,7 @@ import Security
 enum ProviderCredential: String, CaseIterable, Identifiable {
     case seedance = "seedance-api-key"
     case minimax = "minimax-api-key"
+    case openAIRealtime = "openai-realtime-api-key"
 
     var id: String { rawValue }
 
@@ -11,6 +12,7 @@ enum ProviderCredential: String, CaseIterable, Identifiable {
         switch self {
         case .seedance: "Seedance / SD2 Pro"
         case .minimax: "MiniMax H3"
+        case .openAIRealtime: "OpenAI Realtime 语音（仅保存，尚未启用）"
         }
     }
 }

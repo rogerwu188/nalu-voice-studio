@@ -7,8 +7,10 @@ final class InterviewFlowTests: XCTestCase {
         XCTAssertTrue(flow.begin().contains("长辈"))
         XCTAssertEqual(flow.step, .audience)
 
-        assertResponse(flow.consume("家里老人使用"), contains: "故事")
+        assertResponse(flow.consume("家里老人使用"), contains: "广告片")
         XCTAssertEqual(flow.draft.audienceMode, "older_adult")
+
+        assertResponse(flow.consume("连续短剧"), contains: "故事")
 
         assertResponse(flow.consume("我想讲年轻时离开故乡的经历"), contains: "名字")
         XCTAssertEqual(flow.draft.description, "我想讲年轻时离开故乡的经历")
@@ -27,6 +29,7 @@ final class InterviewFlowTests: XCTestCase {
         var flow = InterviewFlow()
         _ = flow.begin()
         _ = flow.consume("我自己使用")
+        _ = flow.consume("短剧")
         _ = flow.consume("第一版故事")
 
         assertResponse(flow.consume("暂停"), contains: "已经暂停")
@@ -69,11 +72,23 @@ final class InterviewFlowTests: XCTestCase {
 
         assertResponse(flow.consume("我还没想好"), contains: "不能继续")
         XCTAssertEqual(flow.step, .guardianConsent)
-        assertResponse(flow.consume("我同意并确认"), contains: "故事")
+        assertResponse(flow.consume("我同意并确认"), contains: "动画")
+        XCTAssertEqual(flow.step, .creativeFormat)
+        assertResponse(flow.consume("动画片"), contains: "动画")
         XCTAssertEqual(flow.step, .premise)
         XCTAssertEqual(flow.draft.audienceMode, "child")
+        XCTAssertEqual(flow.draft.creativeFormat, "animation_series")
         XCTAssertEqual(flow.draft.projectBible["guardian_name"], "妈妈李女士")
         XCTAssertEqual(flow.draft.projectBible["guardian_setup_approved"], "true")
+    }
+
+    func testCommercialIntentCreatesAnUnassignedFailClosedRoute() {
+        var flow = InterviewFlow()
+        _ = flow.begin()
+        _ = flow.consume("我自己使用")
+        assertResponse(flow.consume("我要给护肤品做广告片"), contains: "广告创作简报")
+        XCTAssertEqual(flow.draft.creativeFormat, "commercial_campaign")
+        XCTAssertEqual(flow.draft.productionPipeline, "unassigned")
     }
 
     private func assertResponse(

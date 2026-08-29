@@ -4,13 +4,13 @@ import AVFoundation
 final class SpeechPlayback {
     private let synthesizer = AVSpeechSynthesizer()
 
-    func speak(_ text: String) {
+    func speak(_ text: String, rate: Float = 0.42) {
         let cleaned = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleaned.isEmpty else { return }
         synthesizer.stopSpeaking(at: .immediate)
         let utterance = AVSpeechUtterance(string: cleaned)
         utterance.voice = AVSpeechSynthesisVoice(language: "zh-CN")
-        utterance.rate = 0.42
+        utterance.rate = min(max(rate, 0.30), 0.54)
         synthesizer.speak(utterance)
     }
 

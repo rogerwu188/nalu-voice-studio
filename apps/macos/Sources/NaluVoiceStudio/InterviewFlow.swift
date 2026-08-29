@@ -1,7 +1,8 @@
 import Foundation
 
 enum InterviewStep: Equatable {
-    case idle, audience, guardianName, guardianConsent, premise, title, episodeCount, creating
+    case idle, audience, guardianName, guardianConsent, creativeFormat, premise, title
+    case episodeCount, creating
 }
 
 enum InterviewFlowAction {
@@ -65,8 +66,8 @@ struct InterviewFlow {
             } else {
                 draft.audienceMode = "general"
             }
-            step = .premise
-            return .respond("明白了。请告诉我，这个故事主要讲什么？")
+            step = .creativeFormat
+            return .respond("明白了。您想做连续短剧、动画片，还是广告片？")
         case .guardianName:
             draft.projectBible["guardian_name"] = spoken
             step = .guardianConsent
@@ -77,15 +78,36 @@ struct InterviewFlow {
                 return .respond("没有监护人明确同意，我不能继续儿童项目。您可以说“我同意”，或者返回上一步。")
             }
             draft.projectBible["guardian_setup_approved"] = "true"
+            step = .creativeFormat
+            return .respond("谢谢您的确认。小朋友想做连续动画、短剧，还是一条广告片？")
+        case .creativeFormat:
+            if spoken.contains("广告") || spoken.contains("宣传片") {
+                draft.creativeFormat = "commercial_campaign"
+                draft.productionPipeline = "unassigned"
+                draft.plannedEpisodeCount = 1
+                step = .premise
+                return .respond("好的，我们先建立广告创作简报。请告诉我产品、观众和最想表达的重点。")
+            }
+            if spoken.contains("动画") || spoken.contains("卡通") {
+                draft.creativeFormat = "animation_series"
+                draft.productionPipeline = "qingshan-short-drama"
+                step = .premise
+                return .respond("好的，我们来做动画系列。请告诉我主要角色和故事想法。")
+            }
+            draft.creativeFormat = "short_drama_series"
+            draft.productionPipeline = "qingshan-short-drama"
             step = .premise
-            return .respond("谢谢您的确认。现在请告诉我，这个故事主要讲什么？")
+            return .respond("好的，我们来做连续短剧。请告诉我，这个故事主要讲什么？")
         case .premise:
             draft.description = spoken
             step = .title
-            return .respond("很好。您想给这个系列取什么名字？")
+            return .respond("很好。您想给这个项目取什么名字？")
         case .title:
             draft.title = spoken
             step = .episodeCount
+            if draft.creativeFormat == "commercial_campaign" {
+                return .respond("这次先做几条成片版本？例如可以说“一条主片和两条短版，共三条”。")
+            }
             return .respond("这个系列先计划做多少集？您可以说，例如“十集”。")
         case .episodeCount:
             draft.plannedEpisodeCount = Self.episodeCount(from: spoken)
@@ -111,9 +133,13 @@ struct InterviewFlow {
         case .audience: "是您自己使用、家里长辈使用，还是小朋友和监护人一起使用？"
         case .guardianName: "请监护人告诉我您的称呼。"
         case .guardianConsent: "请监护人明确说是否同意陪同孩子创作。"
+        case .creativeFormat: "您想做连续短剧、动画片，还是广告片？"
         case .premise: "请告诉我，这个故事主要讲什么？"
-        case .title: "您想给这个系列取什么名字？"
-        case .episodeCount: "这个系列先计划做多少集？"
+        case .title: "您想给这个项目取什么名字？"
+        case .episodeCount:
+            draft.creativeFormat == "commercial_campaign"
+                ? "这次先做几条成片版本？"
+                : "这个系列先计划做多少集？"
         case .creating: "项目正在建立，请稍等一下。"
         }
     }

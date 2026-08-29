@@ -15,7 +15,7 @@ against the current main branch.
 
 ## Global completion rule
 
-The project is complete only when SOP-00 through SOP-12 are all `PASS` on the
+The project is complete only when SOP-00 through SOP-13 are all `PASS` on the
 same release candidate. `WAITING_AUTHORIZATION` is not complete. A green CI run
 is necessary but not sufficient.
 
@@ -80,6 +80,8 @@ Acceptance:
 - Visible transcript and confidence/failure recovery.
 - Older-adult usability: large targets, plain language and keyboard-free path.
 - Child mode: guardian setup and age-appropriate prompts.
+- Optional cloud Realtime speech-to-speech mode with interruption and an explicit
+  fallback to the local push-to-talk path.
 
 QA:
 
@@ -117,6 +119,8 @@ QA:
 
 - A 10-episode project survives application restart and export/import.
 - Concurrent episode planning has no numbering or state collision.
+- Voice intent distinguishes short drama, animation and commercial projects without
+  silently routing an unsupported format to a paid production adapter.
 
 Current evidence:
 
@@ -243,6 +247,8 @@ Acceptance:
 - SD2 Pro and MiniMax-H3 compile through separate adapters.
 - Preflight invokes required Qingshan gates and stores machine-readable evidence.
 - Durable transaction submitter is the only paid POST path.
+- A versioned adapter registry routes creative formats by declared capabilities and
+  fails closed when no production line matches.
 
 QA:
 
@@ -353,10 +359,46 @@ Acceptance scenarios:
 3. A 10-episode project preserves identity, voice and narrative state across episodes.
 4. One episode fails generation, survives restart, resumes safely and passes QA.
 5. Approved final media exports and publishes without duplicate paid calls.
+6. Animation intent selects a capability-checked route; commercial intent with no
+   approved adapter remains a useful project but cannot start production.
+7. A spoken usability report is redacted, kept local by default and cannot change or
+   release application code without the controlled review pipeline.
 
 Completion evidence:
 
 - All scenarios run from a clean signed installation.
 - Costs, task IDs, receipts, QA reports and published IDs reconcile.
 - No P0/P1 defects remain open.
-- SOP-00 through SOP-11 are revalidated on the same release commit.
+- SOP-00 through SOP-11 and SOP-13 are revalidated on the same release commit.
+
+## SOP-13 · Controlled product evolution — IN_PROGRESS
+
+Acceptance:
+
+- Users can report usability problems, bugs, corrections, preferences and missing
+  features by voice or text without leaving the app.
+- Local-only is the default; sharing requires explicit authorization and child
+  feedback requires guardian approval.
+- Raw voice, media, project content, credentials and unrestricted logs are never
+  automatic feedback attachments.
+- Safe comfort preferences are explicit, reversible and local.
+- Product changes follow report → redaction → triage → tested change → human review
+  → signed/notarized staged update → rollback.
+- The application never claims a report is fixed until the signed installed release
+  can be linked to its reviewed change.
+
+QA:
+
+- Redaction, local-only, guardian-negative and deletion/export tests.
+- Prompt-injection and malicious-diagnostic fixtures cannot execute development or
+  release operations.
+- One report completes the governed pipeline through a signed test update and one
+  deliberately bad update is rolled back.
+
+Current evidence:
+
+- Local SQLite feedback queue, voice/text native entry, explicit share flag, child
+  guardian gate and deterministic redaction are implemented with Runtime tests.
+- `docs/CONTROLLED_EVOLUTION.md` defines the trust boundary and release state machine.
+- Still required before `PASS`: preference controls, authorized issue export, agent
+  triage integration, signed staged updater and end-to-end improvement/rollback QA.

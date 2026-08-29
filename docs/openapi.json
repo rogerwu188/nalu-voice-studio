@@ -483,6 +483,15 @@
         "title": "ContinuitySnapshotCreate",
         "type": "object"
       },
+      "CreativeFormat": {
+        "enum": [
+          "short_drama_series",
+          "animation_series",
+          "commercial_campaign"
+        ],
+        "title": "CreativeFormat",
+        "type": "string"
+      },
       "Episode": {
         "properties": {
           "approved_script_revision": {
@@ -831,6 +840,151 @@
         "title": "EpisodeTransitionRequest",
         "type": "object"
       },
+      "FeedbackCategory": {
+        "enum": [
+          "usability",
+          "bug",
+          "feature_request",
+          "correction",
+          "preference"
+        ],
+        "title": "FeedbackCategory",
+        "type": "string"
+      },
+      "FeedbackCreate": {
+        "properties": {
+          "category": {
+            "$ref": "#/components/schemas/FeedbackCategory"
+          },
+          "guardian_approval": {
+            "default": false,
+            "title": "Guardian Approval",
+            "type": "boolean"
+          },
+          "message": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Message",
+            "type": "string"
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Id"
+          },
+          "screen": {
+            "default": "interview",
+            "maxLength": 80,
+            "title": "Screen",
+            "type": "string"
+          },
+          "share_authorized": {
+            "default": false,
+            "title": "Share Authorized",
+            "type": "boolean"
+          },
+          "source": {
+            "default": "voice",
+            "enum": [
+              "voice",
+              "text"
+            ],
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "category",
+          "message"
+        ],
+        "title": "FeedbackCreate",
+        "type": "object"
+      },
+      "FeedbackItem": {
+        "properties": {
+          "category": {
+            "$ref": "#/components/schemas/FeedbackCategory"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "guardian_approval": {
+            "default": false,
+            "title": "Guardian Approval",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "message": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Message",
+            "type": "string"
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Id"
+          },
+          "redaction_applied": {
+            "title": "Redaction Applied",
+            "type": "boolean"
+          },
+          "screen": {
+            "default": "interview",
+            "maxLength": 80,
+            "title": "Screen",
+            "type": "string"
+          },
+          "share_authorized": {
+            "default": false,
+            "title": "Share Authorized",
+            "type": "boolean"
+          },
+          "source": {
+            "default": "voice",
+            "enum": [
+              "voice",
+              "text"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "local_only",
+              "ready_for_review"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "category",
+          "message",
+          "id",
+          "status",
+          "redaction_applied",
+          "created_at"
+        ],
+        "title": "FeedbackItem",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -995,6 +1149,10 @@
             "title": "Created At",
             "type": "string"
           },
+          "creative_format": {
+            "$ref": "#/components/schemas/CreativeFormat",
+            "default": "short_drama_series"
+          },
           "description": {
             "default": "",
             "title": "Description",
@@ -1010,6 +1168,13 @@
             "minimum": 1.0,
             "title": "Planned Episode Count",
             "type": "integer"
+          },
+          "production_pipeline": {
+            "default": "qingshan-short-drama",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Production Pipeline",
+            "type": "string"
           },
           "project_bible": {
             "additionalProperties": true,
@@ -1071,6 +1236,10 @@
             "$ref": "#/components/schemas/AudienceMode",
             "default": "general"
           },
+          "creative_format": {
+            "$ref": "#/components/schemas/CreativeFormat",
+            "default": "short_drama_series"
+          },
           "description": {
             "default": "",
             "title": "Description",
@@ -1082,6 +1251,13 @@
             "minimum": 1.0,
             "title": "Planned Episode Count",
             "type": "integer"
+          },
+          "production_pipeline": {
+            "default": "qingshan-short-drama",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Production Pipeline",
+            "type": "string"
           },
           "project_bible": {
             "additionalProperties": true,
@@ -1225,12 +1401,13 @@
             "type": "string"
           },
           "schema_version": {
-            "default": "nalu.project-export/v4",
+            "default": "nalu.project-export/v5",
             "enum": [
               "nalu.project-export/v1",
               "nalu.project-export/v2",
               "nalu.project-export/v3",
-              "nalu.project-export/v4"
+              "nalu.project-export/v4",
+              "nalu.project-export/v5"
             ],
             "title": "Schema Version",
             "type": "string"
@@ -1280,6 +1457,17 @@
           },
           "project": {
             "$ref": "#/components/schemas/ProjectCreate"
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Id"
           },
           "season_number": {
             "default": 1,
@@ -2599,6 +2787,92 @@
           }
         },
         "summary": "Transition Episode"
+      }
+    },
+    "/v1/feedback": {
+      "get": {
+        "operationId": "list_feedback_v1_feedback_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/FeedbackItem"
+                  },
+                  "title": "Response List Feedback V1 Feedback Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Feedback"
+      },
+      "post": {
+        "operationId": "create_feedback_v1_feedback_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedbackCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackItem"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Feedback"
       }
     },
     "/v1/production-runs/{run_id}": {

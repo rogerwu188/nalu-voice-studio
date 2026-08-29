@@ -253,6 +253,37 @@ MIGRATIONS = (
           ON assets(project_id, season_id, episode_id, created_at);
         """,
     ),
+    (
+        8,
+        "creative_format_and_pipeline_route",
+        """
+        ALTER TABLE projects ADD COLUMN creative_format TEXT NOT NULL
+          DEFAULT 'short_drama_series';
+        ALTER TABLE projects ADD COLUMN production_pipeline TEXT NOT NULL
+          DEFAULT 'qingshan-short-drama';
+        """,
+    ),
+    (
+        9,
+        "privacy_safe_feedback_queue",
+        """
+        CREATE TABLE IF NOT EXISTS feedback_items (
+          id TEXT PRIMARY KEY,
+          project_id TEXT REFERENCES projects(id) ON DELETE CASCADE,
+          category TEXT NOT NULL,
+          message TEXT NOT NULL,
+          source TEXT NOT NULL,
+          screen TEXT NOT NULL,
+          share_authorized INTEGER NOT NULL,
+          guardian_approval INTEGER NOT NULL,
+          status TEXT NOT NULL,
+          redaction_applied INTEGER NOT NULL,
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS feedback_project_created_idx
+          ON feedback_items(project_id, created_at);
+        """,
+    ),
 )
 
 
@@ -304,6 +335,26 @@ class Database:
                             (version, name),
                         )
                         continue
+                if version == 8:
+                    project_columns = {
+                        row["name"]
+                        for row in connection.execute("PRAGMA table_info(projects)")
+                    }
+                    if "creative_format" not in project_columns:
+                        connection.execute(
+                            """ALTER TABLE projects ADD COLUMN creative_format TEXT NOT NULL
+                               DEFAULT 'short_drama_series'"""
+                        )
+                    if "production_pipeline" not in project_columns:
+                        connection.execute(
+                            """ALTER TABLE projects ADD COLUMN production_pipeline TEXT NOT NULL
+                               DEFAULT 'qingshan-short-drama'"""
+                        )
+                    connection.execute(
+                        "INSERT INTO schema_migrations VALUES (?, ?, datetime('now'))",
+                        (version, name),
+                    )
+                    continue
                 connection.executescript(sql)
                 connection.execute(
                     "INSERT INTO schema_migrations VALUES (?, ?, datetime('now'))",

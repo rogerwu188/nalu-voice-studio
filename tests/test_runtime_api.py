@@ -67,6 +67,116 @@ def test_project_season_episode_hierarchy(tmp_path: Path) -> None:
     assert approvals[0]["spoken_confirmation"] == "我确认这个剧本"
 
 
+def test_creative_format_routes_projects_without_faking_an_adapter(tmp_path: Path) -> None:
+    api = client(tmp_path)
+    animation = api.post(
+        "/v1/projects",
+        json={
+            "title": "小海豚历险记",
+            "creative_format": "animation_series",
+            "production_pipeline": "qingshan-short-drama",
+        },
+    )
+    assert animation.status_code == 201
+    assert animation.json()["creative_format"] == "animation_series"
+
+    commercial = api.post(
+        "/v1/projects",
+        json={
+            "title": "护肤品广告",
+            "creative_format": "commercial_campaign",
+            "production_pipeline": "unassigned",
+        },
+    )
+    assert commercial.status_code == 201
+    assert commercial.json()["production_pipeline"] == "unassigned"
+    commercial_id = commercial.json()["id"]
+    season = api.post(
+        f"/v1/projects/{commercial_id}/seasons",
+        json={"title": "广告活动", "season_number": 1},
+    ).json()
+    episode = api.post(
+        f"/v1/seasons/{season['id']}/episodes",
+        json={"title": "30秒主片", "episode_number": 1},
+    ).json()
+    script = api.post(
+        f"/v1/episodes/{episode['id']}/scripts",
+        json={"content": "广告脚本", "summary_for_voice_review": "主片摘要"},
+    ).json()
+    assert api.post(
+        f"/v1/episodes/{episode['id']}/scripts/{script['revision']}/approve",
+        json={"approved_by": "user"},
+    ).status_code == 200
+    blocked = api.post(
+        f"/v1/episodes/{episode['id']}/production-runs",
+        json={"dry_run": True},
+        headers={"Idempotency-Key": "no-adapter"},
+    )
+    assert blocked.status_code == 409
+    assert "no approved production adapter" in blocked.text
+
+
+def test_feedback_is_local_redacted_and_child_sharing_fails_closed(tmp_path: Path) -> None:
+    api = client(tmp_path)
+    project = api.post(
+        "/v1/projects",
+        json={"title": "儿童动画", "audience_mode": "child"},
+    ).json()
+    local = api.post(
+        "/v1/feedback",
+        json={
+            "project_id": project["id"],
+            "category": "usability",
+            "message": "按钮看不清，我的邮箱是 child@example.com，密钥 sk-secret123456789",
+            "source": "voice",
+        },
+    )
+    assert local.status_code == 201
+    assert local.json()["status"] == "local_only"
+    assert local.json()["redaction_applied"] is True
+    assert "child@example.com" not in local.json()["message"]
+    assert "sk-secret" not in local.json()["message"]
+
+    blocked = api.post(
+        "/v1/feedback",
+        json={
+            "project_id": project["id"],
+            "category": "feature_request",
+            "message": "我希望字再大一点",
+            "share_authorized": True,
+        },
+    )
+    assert blocked.status_code == 409
+    shared = api.post(
+        "/v1/feedback",
+        json={
+            "project_id": project["id"],
+            "category": "feature_request",
+            "message": "我希望字再大一点",
+            "share_authorized": True,
+            "guardian_approval": True,
+        },
+    )
+    assert shared.status_code == 201
+    assert shared.json()["status"] == "ready_for_review"
+    listed = api.get("/v1/feedback", params={"project_id": project["id"]}).json()
+    assert [item["id"] for item in listed] == [local.json()["id"], shared.json()["id"]]
+
+    backup = api.get(f"/v1/projects/{project['id']}/export").json()
+    assert len(backup["payload"]["feedback_items"]) == 2
+    deleted = api.request(
+        "DELETE",
+        f"/v1/projects/{project['id']}",
+        json={
+            "confirmation_title": "儿童动画",
+            "requested_by": "local-user",
+            "delete_production_snapshots": False,
+        },
+    )
+    assert deleted.status_code == 200
+    assert api.get("/v1/feedback").json() == []
+
+
 def test_script_history_stale_approval_and_revocation(tmp_path: Path) -> None:
     api = client(tmp_path)
     project = api.post("/v1/projects", json={"title": "剧本版本"}).json()
@@ -151,6 +261,53 @@ def test_atomic_multi_episode_project_plan(tmp_path: Path) -> None:
     assert rejected.status_code == 409
     projects = api.get("/v1/projects").json()
     assert [project["title"] for project in projects] == ["十集自传"]
+
+
+def test_draft_project_is_finalized_in_place_with_existing_assets(tmp_path: Path) -> None:
+    api = client(tmp_path)
+    draft = api.post(
+        "/v1/projects",
+        json={"title": "未命名故事", "description": "语音采访进行中"},
+    ).json()
+    imported = api.post(
+        f"/v1/projects/{draft['id']}/asset-imports",
+        params={
+            "filename": "memory.jpg",
+            "kind": "scene_reference",
+            "name": "老照片",
+        },
+        content=b"memory",
+        headers={"Content-Type": "image/jpeg"},
+    )
+    assert imported.status_code == 201
+
+    finalized = api.post(
+        "/v1/project-plans",
+        json={
+            "project_id": draft["id"],
+            "project": {
+                "title": "外婆的夏天",
+                "description": "外婆讲年轻时的故事",
+                "audience_mode": "older_adult",
+                "planned_episode_count": 3,
+            },
+        },
+    )
+    assert finalized.status_code == 201
+    assert finalized.json()["project"]["id"] == draft["id"]
+    assert finalized.json()["project"]["title"] == "外婆的夏天"
+    assert len(finalized.json()["episodes"]) == 3
+    assets = api.get(f"/v1/projects/{draft['id']}/assets").json()
+    assert [asset["name"] for asset in assets] == ["老照片"]
+
+    repeated = api.post(
+        "/v1/project-plans",
+        json={
+            "project_id": draft["id"],
+            "project": {"title": "重复", "planned_episode_count": 1},
+        },
+    )
+    assert repeated.status_code == 409
 
 
 def test_season_plan_revisions_approval_and_episode_immutability(tmp_path: Path) -> None:
@@ -329,6 +486,9 @@ def test_project_rename_archive_export_and_restore(tmp_path: Path) -> None:
     legacy["payload"].pop("season_plan_revisions")
     legacy["payload"].pop("season_plan_approval_records")
     legacy["payload"].pop("asset_consent_records")
+    legacy["payload"].pop("feedback_items")
+    legacy["payload"]["projects"][0].pop("creative_format")
+    legacy["payload"]["projects"][0].pop("production_pipeline")
     canonical = json.dumps(legacy["payload"], ensure_ascii=False, sort_keys=True)
     legacy["payload_sha256"] = hashlib.sha256(canonical.encode()).hexdigest()
     restored_legacy = client(tmp_path / "legacy").post("/v1/project-imports", json=legacy)
@@ -417,7 +577,7 @@ def test_database_migration_preserves_existing_database(tmp_path: Path) -> None:
         connection.execute("INSERT INTO legacy_marker VALUES ('preserve-me')")
 
     api = create_app(database_path, tmp_path / "data")
-    assert api.state.repository.db.schema_version() == 7
+    assert api.state.repository.db.schema_version() == 9
     with sqlite3.connect(database_path) as connection:
         marker = connection.execute("SELECT value FROM legacy_marker").fetchone()[0]
         approval_table = connection.execute(
@@ -469,7 +629,7 @@ def test_populated_v1_database_upgrades_without_project_loss(tmp_path: Path) -> 
         connection.execute("DELETE FROM schema_migrations WHERE version >= 2")
 
     after = TestClient(create_app(database_path, data_root))
-    assert after.app.state.repository.db.schema_version() == 7
+    assert after.app.state.repository.db.schema_version() == 9
     assert after.get(f"/v1/projects/{project['id']}").json()["title"] == "我的一生"
     assert after.get(f"/v1/episodes/{episode['id']}").json()[
         "approved_script_revision"
@@ -659,6 +819,9 @@ def test_project_season_and_episode_asset_scope_inheritance(tmp_path: Path) -> N
     backup = api.get(f"/v1/projects/{project['id']}/export").json()
     legacy_v3 = deepcopy(backup)
     legacy_v3["schema_version"] = "nalu.project-export/v3"
+    legacy_v3["payload"].pop("feedback_items")
+    legacy_v3["payload"]["projects"][0].pop("creative_format")
+    legacy_v3["payload"]["projects"][0].pop("production_pipeline")
     for asset in legacy_v3["payload"]["assets"]:
         asset.pop("season_id")
     canonical = json.dumps(legacy_v3["payload"], ensure_ascii=False, sort_keys=True)
@@ -721,7 +884,7 @@ def test_complete_privacy_export_and_confirmed_project_deletion(tmp_path: Path) 
         assert {"project-export.json", "privacy-manifest.json", media_name} <= names
         assert archive.read(media_name) == b"private-photo-bytes"
         project_backup = json.loads(archive.read("project-export.json"))
-        assert project_backup["schema_version"] == "nalu.project-export/v4"
+        assert project_backup["schema_version"] == "nalu.project-export/v5"
         assert project_backup["payload"]["asset_consent_records"][0][
             "action_type"
         ] == "granted"

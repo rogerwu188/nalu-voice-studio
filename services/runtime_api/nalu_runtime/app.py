@@ -29,6 +29,8 @@ from .models import (
     EpisodePlanUpdate,
     EpisodeProductionProgress,
     EpisodeTransitionRequest,
+    FeedbackCreate,
+    FeedbackItem,
     ProductionRun,
     ProductionRunCreate,
     Project,
@@ -111,6 +113,14 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
     @app.get("/v1/projects", response_model=list[Project])
     def list_projects(include_archived: bool = False) -> list[Project]:
         return repository.list_projects(include_archived)
+
+    @app.post("/v1/feedback", response_model=FeedbackItem, status_code=201)
+    def create_feedback(request: FeedbackCreate) -> FeedbackItem:
+        return repository.create_feedback(request)
+
+    @app.get("/v1/feedback", response_model=list[FeedbackItem])
+    def list_feedback(project_id: str | None = None) -> list[FeedbackItem]:
+        return repository.list_feedback(project_id)
 
     @app.get("/v1/projects/{project_id}", response_model=Project)
     def get_project(project_id: str) -> Project:

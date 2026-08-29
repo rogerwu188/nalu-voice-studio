@@ -155,6 +155,10 @@ actor RuntimeClient {
         try await post("v1/projects", body: draft)
     }
 
+    func createFeedback(_ draft: FeedbackDraft) async throws -> FeedbackItem {
+        try await post("v1/feedback", body: draft)
+    }
+
     func createProjectPlan(_ draft: ProjectPlanDraft) async throws -> ProjectPlan {
         try await post("v1/project-plans", body: draft)
     }

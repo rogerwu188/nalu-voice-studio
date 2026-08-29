@@ -1,15 +1,23 @@
 # Nalu Voice Studio · Nalu 语音短剧工坊
 
-> 前台是一位耐心的语音采访者，后台是一套专业的多集短剧制片厂。
+> 前台是一位耐心的语音创作采访者，后台是可更换的专业媒体生产线。
 
 Nalu Voice Studio is an open-source, voice-first macOS studio for ordinary
 creators, older adults, and children. A user speaks naturally to create a
-project, plan a season, approve episode scripts, provide authorized character
-media, and send each approved episode through a professional production line.
+project, choose short drama, animation, or commercial intent, approve scripts,
+provide authorized media, and route each approved deliverable through a compatible
+professional production line.
 
 This repository begins by productizing the Qingshan production line behind a
 stable local Runtime API. The macOS client consumes that API instead of calling
 history-specific scripts directly.
+
+The voice entrance, consent system, local project model, feedback loop, and pipeline
+router are not coupled to Qingshan. Commercial projects currently fail closed at
+production until an approved advertising adapter is installed. See
+[creative pipeline routing](docs/CREATIVE_PIPELINE_ROUTING.md),
+[Realtime voice architecture](docs/REALTIME_VOICE_ARCHITECTURE.md), and
+[controlled product evolution](docs/CONTROLLED_EVOLUTION.md).
 
 ## Product hierarchy
 
@@ -82,6 +90,7 @@ backup boundaries and deletion behavior.
 ## Initial API surface
 
 - `POST /v1/projects`
+- `POST /v1/feedback` / `GET /v1/feedback`
 - `POST /v1/project-plans` (atomic Project → Season → Episode bootstrap)
 - `PATCH /v1/projects/{project_id}`
 - `POST /v1/projects/{project_id}/archive`

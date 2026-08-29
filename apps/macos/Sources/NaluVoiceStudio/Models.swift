@@ -54,6 +54,8 @@ struct ProjectDraft: Codable, Sendable {
     var plannedEpisodeCount = 6
     var targetEpisodeSeconds = 150
     var projectBible: [String: String] = [:]
+    var creativeFormat = "short_drama_series"
+    var productionPipeline = "qingshan-short-drama"
 
     enum CodingKeys: String, CodingKey {
         case title, description
@@ -61,6 +63,8 @@ struct ProjectDraft: Codable, Sendable {
         case plannedEpisodeCount = "planned_episode_count"
         case targetEpisodeSeconds = "target_episode_seconds"
         case projectBible = "project_bible"
+        case creativeFormat = "creative_format"
+        case productionPipeline = "production_pipeline"
     }
 }
 
@@ -71,12 +75,16 @@ struct NaluProject: Codable, Identifiable, Sendable {
     let audienceMode: String
     let plannedEpisodeCount: Int
     let archivedAt: String?
+    let creativeFormat: String
+    let productionPipeline: String
 
     enum CodingKeys: String, CodingKey {
         case id, title, description
         case audienceMode = "audience_mode"
         case plannedEpisodeCount = "planned_episode_count"
         case archivedAt = "archived_at"
+        case creativeFormat = "creative_format"
+        case productionPipeline = "production_pipeline"
     }
 }
 
@@ -405,12 +413,55 @@ struct ProjectDeletionResult: Codable, Sendable {
     }
 }
 
+struct FeedbackDraft: Codable, Sendable {
+    let projectID: String?
+    let category: String
+    let message: String
+    let source: String
+    let screen: String
+    let shareAuthorized: Bool
+    let guardianApproval: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case category, message, source, screen
+        case projectID = "project_id"
+        case shareAuthorized = "share_authorized"
+        case guardianApproval = "guardian_approval"
+    }
+}
+
+struct FeedbackItem: Codable, Identifiable, Sendable {
+    let id: String
+    let projectID: String?
+    let category: String
+    let message: String
+    let source: String
+    let status: String
+    let redactionApplied: Bool
+    let createdAt: String
+
+    enum CodingKeys: String, CodingKey {
+        case id, category, message, source, status
+        case projectID = "project_id"
+        case redactionApplied = "redaction_applied"
+        case createdAt = "created_at"
+    }
+}
+
 struct ProjectPlanDraft: Codable, Sendable {
+    let projectID: String?
     let project: ProjectDraft
     let seasonTitle: String
 
+    init(project: ProjectDraft, seasonTitle: String, projectID: String? = nil) {
+        self.projectID = projectID
+        self.project = project
+        self.seasonTitle = seasonTitle
+    }
+
     enum CodingKeys: String, CodingKey {
         case project
+        case projectID = "project_id"
         case seasonTitle = "season_title"
     }
 }

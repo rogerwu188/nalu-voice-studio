@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
@@ -24,6 +25,8 @@ from .models import (
     EpisodePlanUpdate,
     EpisodeStatus,
     EpisodeTransitionRequest,
+    FeedbackCreate,
+    FeedbackItem,
     ProductionRun,
     Project,
     ProjectArchiveRequest,
@@ -113,8 +116,8 @@ class Repository:
                 """INSERT INTO projects (
                    id, title, description, audience_mode, visual_style, aspect_ratio,
                    planned_episode_count, target_episode_seconds, project_bible_json,
-                   created_at, updated_at
-                   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                   creative_format, production_pipeline, created_at, updated_at
+                   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     project_id,
                     request.title,
@@ -125,6 +128,8 @@ class Repository:
                     request.planned_episode_count,
                     request.target_episode_seconds,
                     encode(request.project_bible),
+                    request.creative_format,
+                    request.production_pipeline,
                     now,
                     now,
                 ),
@@ -186,10 +191,11 @@ class Repository:
     def create_project_plan(
         self, request: ProjectPlanCreate, idempotency_key: str | None = None
     ) -> ProjectPlan:
-        """Create a project, its first season and episode slots atomically."""
+        """Create or finalize a draft project with its first season atomically."""
         canonical_request = request.model_dump_json(exclude_none=True)
         request_sha = hashlib.sha256(canonical_request.encode()).hexdigest()
-        project_id, season_id, now = new_id("prj"), new_id("sea"), utc_now()
+        project_id = request.project_id or new_id("prj")
+        season_id, now = new_id("sea"), utc_now()
         episode_count = request.project.planned_episode_count
         titles = request.episode_titles or [f"第{number}集" for number in range(1, episode_count + 1)]
         if len(titles) != episode_count or any(not title.strip() for title in titles):
@@ -207,26 +213,64 @@ class Repository:
                     if existing["request_sha256"] != request_sha:
                         raise ConflictError("idempotency key was already used for another request")
                     return ProjectPlan.model_validate_json(existing["response_json"])
-            connection.execute(
-                """INSERT INTO projects (
-                   id, title, description, audience_mode, visual_style, aspect_ratio,
-                   planned_episode_count, target_episode_seconds, project_bible_json,
-                   created_at, updated_at
-                   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (
-                    project_id,
-                    request.project.title,
-                    request.project.description,
-                    request.project.audience_mode,
-                    request.project.visual_style,
-                    request.project.aspect_ratio,
-                    episode_count,
-                    request.project.target_episode_seconds,
-                    encode(request.project.project_bible),
-                    now,
-                    now,
-                ),
-            )
+            created_at = now
+            if request.project_id:
+                existing_project = connection.execute(
+                    "SELECT created_at FROM projects WHERE id = ?", (project_id,)
+                ).fetchone()
+                if existing_project is None:
+                    raise ConflictError("draft project does not exist")
+                existing_season = connection.execute(
+                    "SELECT id FROM seasons WHERE project_id = ? LIMIT 1", (project_id,)
+                ).fetchone()
+                if existing_season is not None:
+                    raise ConflictError("draft project has already been finalized")
+                created_at = existing_project["created_at"]
+                connection.execute(
+                    """UPDATE projects SET
+                       title = ?, description = ?, audience_mode = ?, visual_style = ?,
+                       aspect_ratio = ?, planned_episode_count = ?,
+                       target_episode_seconds = ?, project_bible_json = ?,
+                       creative_format = ?, production_pipeline = ?, updated_at = ?
+                       WHERE id = ?""",
+                    (
+                        request.project.title,
+                        request.project.description,
+                        request.project.audience_mode,
+                        request.project.visual_style,
+                        request.project.aspect_ratio,
+                        episode_count,
+                        request.project.target_episode_seconds,
+                        encode(request.project.project_bible),
+                        request.project.creative_format,
+                        request.project.production_pipeline,
+                        now,
+                        project_id,
+                    ),
+                )
+            else:
+                connection.execute(
+                    """INSERT INTO projects (
+                       id, title, description, audience_mode, visual_style, aspect_ratio,
+                       planned_episode_count, target_episode_seconds, project_bible_json,
+                       creative_format, production_pipeline, created_at, updated_at
+                       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (
+                        project_id,
+                        request.project.title,
+                        request.project.description,
+                        request.project.audience_mode,
+                        request.project.visual_style,
+                        request.project.aspect_ratio,
+                        episode_count,
+                        request.project.target_episode_seconds,
+                        encode(request.project.project_bible),
+                        request.project.creative_format,
+                        request.project.production_pipeline,
+                        now,
+                        now,
+                    ),
+                )
             connection.execute(
                 "INSERT INTO seasons VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                 (
@@ -264,7 +308,7 @@ class Repository:
                 project=Project(
                     id=project_id,
                     **request.project.model_dump(),
-                    created_at=now,
+                    created_at=created_at,
                     updated_at=now,
                 ),
                 season=Season(
@@ -390,6 +434,10 @@ class Repository:
                 "SELECT * FROM approval_records WHERE project_id = ?",
                 (project_id,),
             ),
+            "feedback_items": (
+                "SELECT * FROM feedback_items WHERE project_id = ?",
+                (project_id,),
+            ),
         }
         payload: dict[str, list[dict[str, Any]]] = {}
         with self.db.connect() as connection:
@@ -411,6 +459,7 @@ class Repository:
                 "id", "title", "description", "audience_mode", "visual_style",
                 "aspect_ratio", "planned_episode_count", "target_episode_seconds",
                 "project_bible_json", "created_at", "updated_at", "archived_at",
+                "creative_format", "production_pipeline",
             ),
             "seasons": (
                 "id", "project_id", "title", "season_number", "planned_episode_count",
@@ -448,6 +497,11 @@ class Repository:
                 "id", "action_type", "project_id", "episode_id", "script_revision",
                 "approved_by", "spoken_confirmation", "guardian_approval", "created_at",
             ),
+            "feedback_items": (
+                "id", "project_id", "category", "message", "source", "screen",
+                "share_authorized", "guardian_approval", "status",
+                "redaction_applied", "created_at",
+            ),
         }
         if backup.schema_version in {
             "nalu.project-export/v1",
@@ -457,6 +511,18 @@ class Repository:
             allowed_columns["assets"] = tuple(
                 column for column in allowed_columns["assets"] if column != "season_id"
             )
+        if backup.schema_version in {
+            "nalu.project-export/v1",
+            "nalu.project-export/v2",
+            "nalu.project-export/v3",
+            "nalu.project-export/v4",
+        }:
+            allowed_columns["projects"] = tuple(
+                column
+                for column in allowed_columns["projects"]
+                if column not in {"creative_format", "production_pipeline"}
+            )
+            allowed_columns.pop("feedback_items")
         if backup.schema_version == "nalu.project-export/v1":
             allowed_columns.pop("season_plan_revisions")
             allowed_columns.pop("season_plan_approval_records")
@@ -524,6 +590,11 @@ class Repository:
             for row in backup.payload["approval_records"]
         ):
             raise ConflictError("project export contains approval from another project")
+        if any(
+            row.get("project_id") != project_id
+            for row in backup.payload.get("feedback_items", [])
+        ):
+            raise ConflictError("project export contains feedback from another project")
         try:
             with self.db.connect() as connection:
                 connection.execute("BEGIN IMMEDIATE")
@@ -542,6 +613,78 @@ class Repository:
         except Exception as exc:
             raise ConflictError("project restore conflicts with existing data") from exc
         return self.get_project(str(project_id))
+
+    @staticmethod
+    def _redact_feedback_message(message: str) -> tuple[str, bool]:
+        cleaned = message.strip()
+        patterns = (
+            (r"\bsk-[A-Za-z0-9_-]{10,}\b", "[已隐藏密钥]"),
+            (r"\b[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}\b", "[已隐藏邮箱]"),
+            (r"(?<!\d)1[3-9]\d{9}(?!\d)", "[已隐藏手机号]"),
+            (r"(?:file://)?/Users/[^/\s]+", "/Users/[已隐藏用户]"),
+        )
+        redacted = cleaned
+        for pattern, replacement in patterns:
+            redacted = re.sub(pattern, replacement, redacted)
+        return redacted, redacted != cleaned
+
+    def create_feedback(self, request: FeedbackCreate) -> FeedbackItem:
+        if request.project_id:
+            project = self.get_project(request.project_id)
+            if (
+                project.audience_mode == "child"
+                and request.share_authorized
+                and not request.guardian_approval
+            ):
+                raise ConflictError(
+                    "guardian approval is required before sharing child feedback"
+                )
+        message, redaction_applied = self._redact_feedback_message(request.message)
+        feedback_id, now = new_id("fbk"), utc_now()
+        status = "ready_for_review" if request.share_authorized else "local_only"
+        with self.db.connect() as connection:
+            connection.execute(
+                """INSERT INTO feedback_items VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    feedback_id,
+                    request.project_id,
+                    request.category,
+                    message,
+                    request.source,
+                    request.screen,
+                    int(request.share_authorized),
+                    int(request.guardian_approval),
+                    status,
+                    int(redaction_applied),
+                    now,
+                ),
+            )
+        return self.get_feedback(feedback_id)
+
+    def get_feedback(self, feedback_id: str) -> FeedbackItem:
+        with self.db.connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM feedback_items WHERE id = ?", (feedback_id,)
+            ).fetchone()
+        if row is None:
+            raise NotFoundError("feedback item not found")
+        data = dict(row)
+        data["share_authorized"] = bool(data["share_authorized"])
+        data["guardian_approval"] = bool(data["guardian_approval"])
+        data["redaction_applied"] = bool(data["redaction_applied"])
+        return FeedbackItem.model_validate(data)
+
+    def list_feedback(self, project_id: str | None = None) -> list[FeedbackItem]:
+        query = "SELECT id FROM feedback_items"
+        params: tuple[str, ...] = ()
+        if project_id:
+            self.get_project(project_id)
+            query += " WHERE project_id = ?"
+            params = (project_id,)
+        query += " ORDER BY created_at, id"
+        with self.db.connect() as connection:
+            ids = [row["id"] for row in connection.execute(query, params)]
+        return [self.get_feedback(feedback_id) for feedback_id in ids]
 
     def project_deletion_preview(self, project_id: str) -> ProjectDeletionPreview:
         project = self.get_project(project_id)
