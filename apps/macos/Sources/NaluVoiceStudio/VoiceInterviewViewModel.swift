@@ -360,33 +360,35 @@ final class VoiceInterviewViewModel {
         }
     }
 
-    func beginSeasonPlanDictation() async {
-        await beginPlanningVoice(.seasonPlan)
+    func beginSeasonPlanDictation(startLocalCapture: Bool = true) async {
+        await beginPlanningVoice(.seasonPlan, startLocalCapture: startLocalCapture)
     }
 
-    func beginEpisodePlanDictation() async {
+    func beginEpisodePlanDictation(startLocalCapture: Bool = true) async {
         guard selectedEpisodeID != nil else { return }
-        await beginPlanningVoice(.episodePlan)
+        await beginPlanningVoice(.episodePlan, startLocalCapture: startLocalCapture)
     }
 
-    func beginSeasonPlanVoiceApproval() async {
-        await beginPlanningVoice(.seasonApproval)
+    func beginSeasonPlanVoiceApproval(startLocalCapture: Bool = true) async {
+        await beginPlanningVoice(.seasonApproval, startLocalCapture: startLocalCapture)
     }
 
-    func beginScriptDictation() async {
+    func beginScriptDictation(startLocalCapture: Bool = true) async {
         guard selectedEpisodeID != nil else { return }
-        await beginPlanningVoice(.scriptDraft)
+        await beginPlanningVoice(.scriptDraft, startLocalCapture: startLocalCapture)
     }
 
-    func beginScriptVoiceApproval() async {
+    func beginScriptVoiceApproval(startLocalCapture: Bool = true) async {
         guard !scriptRevisions.isEmpty else { return }
-        await beginPlanningVoice(.scriptApproval)
+        await beginPlanningVoice(.scriptApproval, startLocalCapture: startLocalCapture)
     }
 
-    private func beginPlanningVoice(_ mode: PlanningVoiceMode) async {
+    private func beginPlanningVoice(
+        _ mode: PlanningVoiceMode, startLocalCapture: Bool
+    ) async {
         let prompt = planningVoiceFlow.begin(mode)
         messages.append(.init(speaker: .nalu, text: prompt))
-        if !isListening { await toggleListening() }
+        if startLocalCapture, !isListening { await toggleListening() }
     }
 
     func saveScriptRevision(sourceTranscript: String = "") async {
@@ -918,14 +920,9 @@ final class VoiceInterviewViewModel {
         messages.append(.init(speaker: speaker, text: cleaned))
     }
 
-    func recordRealtimeInterviewAnswer(_ answer: String) -> RealtimeInterviewToolResult {
-        guard planningVoiceFlow.mode == nil else {
-            return RealtimeInterviewToolResult(
-                accepted: false,
-                message: "分集规划和剧本批准需要回到可见界面核对，未自动保存。",
-                nextPrompt: planningVoiceFlow.mode?.prompt ?? "",
-                requiresVisibleConfirmation: true
-            )
+    func recordRealtimeFlowAnswer(_ answer: String) -> RealtimeInterviewToolResult {
+        if planningVoiceFlow.mode != nil {
+            return recordRealtimePlanningAnswer(answer)
         }
         let action = interviewFlow.consume(answer)
         switch action {
@@ -948,6 +945,76 @@ final class VoiceInterviewViewModel {
                 accepted: true,
                 message: message,
                 nextPrompt: "项目建立后，请继续逐集完善故事。",
+                requiresVisibleConfirmation: false
+            )
+        }
+    }
+
+    private func recordRealtimePlanningAnswer(_ answer: String) -> RealtimeInterviewToolResult {
+        let guardianConfirmed = planningVoiceFlow.mode == .scriptApproval
+            ? guardianConfirmedForScript : guardianConfirmedForPlan
+        let action = planningVoiceFlow.consume(
+            answer,
+            guardianRequired: selectedProject?.audienceMode == "child",
+            guardianConfirmed: guardianConfirmed
+        )
+        switch action {
+        case .updateSeason(let summary, let transcript):
+            seasonPlanSummary = summary
+            Task { await saveSeasonPlan(sourceTranscript: transcript) }
+            return .init(
+                accepted: true,
+                message: "新的季纲版本正在保存，旧版本不会被覆盖。",
+                nextPrompt: "您还想修改哪一集？",
+                requiresVisibleConfirmation: false
+            )
+        case .updateEpisode(let summary, let transcript):
+            episodeOutlineSummary = summary
+            if episodeLogline.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                episodeLogline = summary
+            }
+            Task { await saveSelectedEpisodePlan(sourceTranscript: transcript) }
+            return .init(
+                accepted: true,
+                message: "本集的新规划版本正在保存。",
+                nextPrompt: "您还想补充这一集的什么内容？",
+                requiresVisibleConfirmation: false
+            )
+        case .updateScript(let content, let transcript):
+            scriptContent = content
+            scriptSummary = String(content.prefix(120))
+            Task { await saveScriptRevision(sourceTranscript: transcript) }
+            return .init(
+                accepted: true,
+                message: "新的剧本版本正在保存，旧版本仍然保留。",
+                nextPrompt: "您还想修改这版剧本的哪里？",
+                requiresVisibleConfirmation: false
+            )
+        case .approveSeason(let confirmation):
+            Task {
+                await approveSeasonPlan(
+                    confirmation: confirmation, reviewChannel: "voice_realtime"
+                )
+            }
+            return .init(
+                accepted: true,
+                message: "已收到明确确认，正在提交当前分集计划批准；最终以界面状态为准。",
+                nextPrompt: "接下来要继续修改哪一集？",
+                requiresVisibleConfirmation: false
+            )
+        case .approveScript(let confirmation):
+            Task { await approveCurrentScript(confirmation: confirmation) }
+            return .init(
+                accepted: true,
+                message: "已收到明确确认，正在提交当前剧本批准；最终以界面状态为准。",
+                nextPrompt: "要继续查看下一集，还是先修改当前剧本？",
+                requiresVisibleConfirmation: false
+            )
+        case .respond(let message):
+            return .init(
+                accepted: true,
+                message: message,
+                nextPrompt: planningVoiceFlow.mode?.prompt ?? "",
                 requiresVisibleConfirmation: false
             )
         }

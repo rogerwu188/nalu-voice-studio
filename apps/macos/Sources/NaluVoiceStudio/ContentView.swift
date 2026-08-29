@@ -450,7 +450,14 @@ struct ContentView: View {
                 Button("保存季纲") { Task { await model.saveSeasonPlan() } }
                     .buttonStyle(.borderedProminent)
                 Button("用语音讲季纲", systemImage: "mic") {
-                    Task { await model.beginSeasonPlanDictation() }
+                    Task {
+                        await model.beginSeasonPlanDictation(
+                            startLocalCapture: !realtimeVoice.state.isActive
+                        )
+                        if realtimeVoice.state.isActive {
+                            realtimeVoice.speakPrompt(model.currentInterviewPrompt)
+                        }
+                    }
                 }
                 if selectedProject?.audienceMode == "child" {
                     Toggle("监护人已在场确认", isOn: guardianPlanBinding)
@@ -464,7 +471,14 @@ struct ContentView: View {
                             && !model.guardianConfirmedForPlan)
                 )
                 Button("用语音确认", systemImage: "waveform") {
-                    Task { await model.beginSeasonPlanVoiceApproval() }
+                    Task {
+                        await model.beginSeasonPlanVoiceApproval(
+                            startLocalCapture: !realtimeVoice.state.isActive
+                        )
+                        if realtimeVoice.state.isActive {
+                            realtimeVoice.speakPrompt(model.currentInterviewPrompt)
+                        }
+                    }
                 }
                 .disabled(
                     !seasonPlanCanApprove
@@ -497,8 +511,15 @@ struct ContentView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .disabled(!episodePlanIsEditable)
-                    Button("用语音讲本集", systemImage: "mic") {
-                        Task { await model.beginEpisodePlanDictation() }
+                Button("用语音讲本集", systemImage: "mic") {
+                        Task {
+                            await model.beginEpisodePlanDictation(
+                                startLocalCapture: !realtimeVoice.state.isActive
+                            )
+                            if realtimeVoice.state.isActive {
+                                realtimeVoice.speakPrompt(model.currentInterviewPrompt)
+                            }
+                        }
                     }
                     .disabled(!episodePlanIsEditable)
                     if !episodePlanIsEditable {
@@ -552,7 +573,14 @@ struct ContentView: View {
                 .buttonStyle(.borderedProminent)
                 .disabled(!scriptCanCreateRevision)
                 Button("用语音讲剧本", systemImage: "mic") {
-                    Task { await model.beginScriptDictation() }
+                    Task {
+                        await model.beginScriptDictation(
+                            startLocalCapture: !realtimeVoice.state.isActive
+                        )
+                        if realtimeVoice.state.isActive {
+                            realtimeVoice.speakPrompt(model.currentInterviewPrompt)
+                        }
+                    }
                 }
                 .disabled(!scriptCanCreateRevision)
                 Button("朗读摘要", systemImage: "speaker.wave.2") {
@@ -569,7 +597,14 @@ struct ContentView: View {
                 }
                 .disabled(!scriptCanApprove)
                 Button("用语音批准", systemImage: "waveform") {
-                    Task { await model.beginScriptVoiceApproval() }
+                    Task {
+                        await model.beginScriptVoiceApproval(
+                            startLocalCapture: !realtimeVoice.state.isActive
+                        )
+                        if realtimeVoice.state.isActive {
+                            realtimeVoice.speakPrompt(model.currentInterviewPrompt)
+                        }
+                    }
                 }
                 .disabled(!scriptCanApprove)
                 if scriptHasApproval {
@@ -1404,7 +1439,7 @@ struct ContentView: View {
             model.receiveRealtimeTranscript(text, from: InterviewMessage.Speaker.nalu)
         }
         realtimeVoice.onInterviewAnswer = { answer in
-            model.recordRealtimeInterviewAnswer(answer)
+            model.recordRealtimeFlowAnswer(answer)
         }
         let projectName = selectedProject?.title ?? "尚未命名的故事"
         let currentPrompt = model.currentInterviewPrompt
@@ -1415,11 +1450,13 @@ struct ContentView: View {
         后续不要再回到旧问题，也不要凭记忆跳过本地采访步骤。
         用户不必服从固定流程。用户提出问题、质疑、闲聊或纠正时，必须先直接回答当下内容，
         不要答非所问；回答清楚后，再用一句自然的话回到尚未完成的问题。
-        只有用户直接回答当前问题，或明确说暂停、继续、重复问题、返回上一步时，才调用
-        record_interview_answer；调用后等本地结果返回，再简短复述结果并询问 nextPrompt。
+        只有用户直接回答当前问题、回答界面刚刚明确开启的季纲/本集/剧本/批准任务，或明确说
+        暂停、继续、重复问题、返回上一步时，才调用 record_interview_answer；调用后等本地结果
+        返回，再简短复述结果并询问 nextPrompt。
         用户只是提问、抱怨、闲聊或纠正你的回答时不要调用工具。
         一次只问一个问题，句子简短，语速舒缓。允许用户停顿和随时插话。
-        不得声称已经保存、批准、付费生成、删除或发布任何内容；这些操作必须回到可见界面确认。
+        只有本地工具结果 accepted=true 才能说已经开始保存或批准。不得声称已经付费生成、删除、
+        使用生物特征素材或发布任何内容；这些操作必须回到可见界面另行确认。
         """
         Task {
             await realtimeVoice.start(

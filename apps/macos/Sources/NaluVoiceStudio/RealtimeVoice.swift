@@ -71,10 +71,11 @@ struct RealtimeSessionConfiguration {
             "type": "function",
             "name": interviewToolName,
             "description": """
-            Record a direct answer to Nalu's current unfinished interview question, or apply an
-            explicit pause, resume, repeat-question, or go-back command in the local project flow.
-            Do not call this for questions, complaints, unrelated corrections, small talk,
-            approval, deletion, paid generation, or publishing requests.
+            Record a direct answer to Nalu's current unfinished interview or reversible planning
+            task, or apply an explicit pause, resume, repeat-question, or go-back command.
+            A season or script approval may be recorded only when the visible app has armed that
+            exact approval task. Do not call this for questions, complaints, unrelated corrections,
+            small talk, deletion, paid generation, biometric consent, or publishing requests.
             """,
             "parameters": [
                 "type": "object",
@@ -242,6 +243,8 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
     private var completedToolCallIDs: Set<String> = []
     private var lastInstructions: String?
     private var sessionClock: Task<Void, Never>?
+    private var dataChannelReady = false
+    private var pendingSpokenPrompt: String?
 
     func attach(_ webView: WKWebView) {
         guard self.webView !== webView else { return }
@@ -266,6 +269,7 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
         sessionLimitMinutes = RealtimeSessionLimit.normalized(limitMinutes)
         lastInstructions = instructions
         completedToolCallIDs.removeAll()
+        dataChannelReady = false
         retryAllowed = false
         state = .connecting
         do {
@@ -283,6 +287,27 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
         await start(instructions: lastInstructions, limitMinutes: sessionLimitMinutes)
     }
 
+    func speakPrompt(_ prompt: String) {
+        guard state.isActive else { return }
+        guard dataChannelReady else {
+            pendingSpokenPrompt = prompt
+            return
+        }
+        sendSpokenPrompt(prompt)
+    }
+
+    private func sendSpokenPrompt(_ prompt: String) {
+        guard let promptJSON = RealtimeJavaScriptBridge.stringLiteral(prompt) else { return }
+        webView?.evaluateJavaScript("window.naluRealtime.speakPrompt(\(promptJSON))") {
+            _, error in
+            if let error {
+                Task { @MainActor in
+                    self.failSession(reason: error.localizedDescription, allowRetry: true)
+                }
+            }
+        }
+    }
+
     func stop() {
         webView?.evaluateJavaScript("window.naluRealtime.stop()")
         pendingToken = nil
@@ -290,6 +315,8 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
         sessionElapsedSeconds = 0
         stopSessionClock()
         completedToolCallIDs.removeAll()
+        dataChannelReady = false
+        pendingSpokenPrompt = nil
         lastInstructions = nil
         retryAllowed = false
         state = .off
@@ -322,11 +349,16 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
         if kind == "status", let value = payload["value"] as? String {
             switch value {
             case "connected", "listening":
+                dataChannelReady = true
                 if sessionStartedAt == nil {
                     sessionStartedAt = Date()
                     startSessionClock()
                 }
                 state = .listening
+                if let pendingSpokenPrompt {
+                    self.pendingSpokenPrompt = nil
+                    sendSpokenPrompt(pendingSpokenPrompt)
+                }
             case "thinking": state = .thinking
             case "speaking": state = .speaking
             case "reconnecting": state = .reconnecting
@@ -374,6 +406,7 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
         webView?.evaluateJavaScript("window.naluRealtime.stop(false)")
         pendingToken = nil
         stopSessionClock()
+        dataChannelReady = false
         retryAllowed = allowRetry
         state = .unavailable(reason)
     }
@@ -524,7 +557,21 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
         }));
         dc.send(JSON.stringify({type: "response.create"}));
       }
-      return {start, stop, completeToolCall};
+      function speakPrompt(prompt) {
+        if (!dc || dc.readyState !== "open") {
+          post("error", "自然语音尚未准备好，请稍后再试");
+          return;
+        }
+        post("status", "thinking");
+        dc.send(JSON.stringify({
+          type: "response.create",
+          response: {
+            instructions: "请用简短、舒缓的中文原样询问用户这个问题，不要补充别的问题：" + prompt,
+            tool_choice: "none"
+          }
+        }));
+      }
+      return {start, stop, completeToolCall, speakPrompt};
     })();
     </script></body></html>
     """#
