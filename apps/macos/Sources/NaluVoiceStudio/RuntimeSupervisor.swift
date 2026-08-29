@@ -57,7 +57,9 @@ final class RuntimeSupervisor {
         try process.run()
         self.process = process
 
-        for _ in 0..<80 {
+        // The bundled one-file Runtime may need several seconds to unpack on a
+        // cold Mac. Keep polling quickly, but allow enough room for first launch.
+        for _ in 0..<300 {
             if await runtimeIsHealthy() {
                 isReady = true
                 return
