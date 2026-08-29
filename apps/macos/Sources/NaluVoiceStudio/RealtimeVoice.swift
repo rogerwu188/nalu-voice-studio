@@ -467,6 +467,7 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
     <!doctype html><html><body><script>
     window.naluRealtime = (() => {
       let pc = null, dc = null, stream = null, audio = null, disconnectTimer = null;
+      let responseActive = false;
       const post = (kind, value) => window.webkit.messageHandlers.naluRealtime.postMessage({kind, value});
       async function start(token) {
         try {
@@ -503,7 +504,10 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
             const value = JSON.parse(event.data);
             if (value.type === "input_audio_buffer.speech_started") post("status", "listening");
             if (value.type === "input_audio_buffer.speech_stopped") post("status", "thinking");
-            if (value.type === "response.created") post("status", "thinking");
+            if (value.type === "response.created") {
+              responseActive = true;
+              post("status", "thinking");
+            }
             if (value.type === "response.output_audio.delta") post("status", "speaking");
             if (value.type === "conversation.item.input_audio_transcription.completed") {
               post("user", value.transcript || "");
@@ -513,6 +517,7 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
               post("status", "listening");
             }
             if (value.type === "response.done") {
+              responseActive = false;
               const calls = value.response?.output?.filter(item => item.type === "function_call") || [];
               calls.forEach(call => window.webkit.messageHandlers.naluRealtime.postMessage({
                 kind: "tool", name: call.name || "", callID: call.call_id || "",
@@ -544,6 +549,7 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
         if (stream) stream.getTracks().forEach(track => track.stop());
         if (audio) audio.remove();
         pc = dc = stream = audio = null;
+        responseActive = false;
         if (notify) post("status", "off");
       }
       function completeToolCall(callID, output) {
@@ -562,14 +568,24 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
           post("error", "自然语音尚未准备好，请稍后再试");
           return;
         }
-        post("status", "thinking");
-        dc.send(JSON.stringify({
-          type: "response.create",
-          response: {
-            instructions: "请用简短、舒缓的中文原样询问用户这个问题，不要补充别的问题：" + prompt,
-            tool_choice: "none"
-          }
-        }));
+        const createPromptResponse = () => {
+          if (!dc || dc.readyState !== "open") return;
+          post("status", "thinking");
+          dc.send(JSON.stringify({
+            type: "response.create",
+            response: {
+              instructions: "请用简短、舒缓的中文原样询问用户这个问题，不要补充别的问题：" + prompt,
+              tool_choice: "none"
+            }
+          }));
+        };
+        if (responseActive) {
+          dc.send(JSON.stringify({type: "response.cancel"}));
+          responseActive = false;
+          setTimeout(createPromptResponse, 100);
+        } else {
+          createPromptResponse();
+        }
       }
       return {start, stop, completeToolCall, speakPrompt};
     })();
