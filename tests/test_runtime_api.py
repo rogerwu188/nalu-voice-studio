@@ -162,7 +162,7 @@ def test_database_migration_preserves_existing_database(tmp_path: Path) -> None:
         connection.execute("INSERT INTO legacy_marker VALUES ('preserve-me')")
 
     api = create_app(database_path, tmp_path / "data")
-    assert api.state.repository.db.schema_version() == 2
+    assert api.state.repository.db.schema_version() == 3
     with sqlite3.connect(database_path) as connection:
         marker = connection.execute("SELECT value FROM legacy_marker").fetchone()[0]
         approval_table = connection.execute(
@@ -222,6 +222,37 @@ def test_dry_run_writes_immutable_package(tmp_path: Path) -> None:
     assert (workspace / "workspace-manifest.json").exists()
     assert (workspace / "source" / "E01_APPROVED_SCRIPT.md").exists()
     assert (workspace / "workflow" / "work_queue.json").exists()
+
+
+def test_production_run_idempotency_and_paid_key_requirement(tmp_path: Path) -> None:
+    api = client(tmp_path)
+    _, _, episode = create_approved_episode(api)
+    path = f"/v1/episodes/{episode['id']}/production-runs"
+    headers = {"Idempotency-Key": "episode-1-production-v1"}
+    first = api.post(path, json={"dry_run": True}, headers=headers)
+    replay = api.post(path, json={"dry_run": True}, headers=headers)
+    assert first.status_code == replay.status_code == 201
+    assert first.json()["id"] == replay.json()["id"]
+
+    changed = api.post(
+        path,
+        json={"dry_run": True, "requested_model": "MiniMax-H3"},
+        headers=headers,
+    )
+    assert changed.status_code == 409
+
+    other_api = client(tmp_path / "paid")
+    _, _, paid_episode = create_approved_episode(other_api)
+    paid = other_api.post(
+        f"/v1/episodes/{paid_episode['id']}/production-runs",
+        json={
+            "dry_run": False,
+            "paid_generation_approved": True,
+            "approved_by": "owner",
+        },
+    )
+    assert paid.status_code == 409
+    assert "Idempotency-Key" in paid.json()["detail"]
 
 
 def test_prohibited_model_is_rejected(tmp_path: Path) -> None:

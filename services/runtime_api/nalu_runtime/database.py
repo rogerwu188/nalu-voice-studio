@@ -166,6 +166,23 @@ MIGRATIONS = (
         );
         """,
     ),
+    (
+        3,
+        "idempotent_operations",
+        """
+        CREATE TABLE idempotent_operations (
+          scope TEXT NOT NULL,
+          idempotency_key TEXT NOT NULL,
+          request_sha256 TEXT NOT NULL,
+          resource_id TEXT NOT NULL,
+          status TEXT NOT NULL,
+          error TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY(scope, idempotency_key)
+        );
+        """,
+    ),
 )
 
 

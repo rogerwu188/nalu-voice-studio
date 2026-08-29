@@ -62,5 +62,7 @@ and never call imported E40/E41-specific commands directly.
 - Face and voice assets require explicit consent metadata.
 - Child-owned biometric assets require guardian approval.
 - Paid calls and publishing are separate approval scopes.
+- Paid production requires a persisted, payload-bound idempotency key before any
+  external transaction may be opened.
 - The default adapter is dry-run and produces no paid POST.
 - Secrets are never stored in project JSON or source control.

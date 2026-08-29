@@ -169,8 +169,12 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
         response_model=ProductionRun,
         status_code=201,
     )
-    def start_production(episode_id: str, request: ProductionRunCreate) -> ProductionRun:
-        return production.start_run(episode_id, request)
+    def start_production(
+        episode_id: str,
+        request: ProductionRunCreate,
+        idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    ) -> ProductionRun:
+        return production.start_run(episode_id, request, idempotency_key)
 
     @app.get("/v1/production-runs/{run_id}", response_model=ProductionRun)
     def get_run(run_id: str) -> ProductionRun:

@@ -31,12 +31,17 @@ class ProductionService:
         policy_path = self.repository_root / "configs" / "model-policy.json"
         return json.loads(policy_path.read_text(encoding="utf-8"))
 
-    def start_run(self, episode_id: str, request: ProductionRunCreate) -> ProductionRun:
+    def start_run(
+        self,
+        episode_id: str,
+        request: ProductionRunCreate,
+        idempotency_key: str | None = None,
+    ) -> ProductionRun:
         episode = self.repository.get_episode(episode_id)
         if episode.approved_script_revision is None:
             raise ConflictError("an approved episode script is required before production")
-        if episode.status != EpisodeStatus.SCRIPT_APPROVED:
-            raise ConflictError(f"episode in {episode.status} cannot start a new production run")
+        if not request.dry_run and not idempotency_key:
+            raise ConflictError("paid production requires an Idempotency-Key header")
 
         season = self.repository.get_season(episode.season_id)
         project = self.repository.get_project(season.project_id)
@@ -63,6 +68,36 @@ class ProductionService:
                     + ", ".join(missing_guardian)
                 )
 
+        run_id = new_id("run")
+        operation_scope = f"production-run:{episode_id}"
+        if idempotency_key:
+            request_payload = json.dumps(
+                {"episode_id": episode_id, "request": request.model_dump(mode="json")},
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+            request_sha = hashlib.sha256(request_payload.encode()).hexdigest()
+            run_id, claim_status = self.repository.claim_operation(
+                operation_scope, idempotency_key, request_sha, run_id
+            )
+            if claim_status == "completed":
+                return self.repository.get_run(run_id)
+            if claim_status == "pending":
+                raise ConflictError("the idempotent production request is still in progress")
+            if claim_status == "failed":
+                raise ConflictError("the prior production request failed; inspect its evidence")
+
+        if episode.status != EpisodeStatus.SCRIPT_APPROVED:
+            if idempotency_key:
+                self.repository.finish_operation(
+                    operation_scope,
+                    idempotency_key,
+                    "failed",
+                    f"episode in {episode.status} cannot start a new production run",
+                )
+            raise ConflictError(f"episode in {episode.status} cannot start a new production run")
+
         package = ProductionPackage(
             project=project.model_dump(mode="json"),
             season=season.model_dump(mode="json"),
@@ -85,7 +120,7 @@ class ProductionService:
         encoded = json.dumps(canonical, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
         package.package_sha256 = hashlib.sha256(encoded.encode()).hexdigest()
 
-        run_id, now = new_id("run"), utc_now()
+        now = utc_now()
         run_dir = self.data_root / "runs" / run_id
         run_dir.mkdir(parents=True, exist_ok=False)
         package_path = run_dir / "production-package.json"
@@ -97,6 +132,10 @@ class ProductionService:
             workspace = self.adapter.materialize_workspace(package_path)
             self.adapter.preflight(package_path, workspace)
         except QingshanAdapterError as exc:
+            if idempotency_key:
+                self.repository.finish_operation(
+                    operation_scope, idempotency_key, "failed", str(exc)
+                )
             raise ConflictError(f"Qingshan preflight failed: {exc}") from exc
 
         # Paid execution remains deliberately disabled until the imported durable
@@ -131,6 +170,8 @@ class ProductionService:
                 reason=f"production run {run.id} passed preflight",
             ),
         )
+        if idempotency_key:
+            self.repository.finish_operation(operation_scope, idempotency_key, "completed")
         return run
 
     def cancel_run(self, run_id: str, request: RunActionRequest) -> ProductionRun:

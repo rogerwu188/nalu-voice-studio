@@ -107,6 +107,58 @@ class Repository:
             )
         return self.get_project(project_id)
 
+    def claim_operation(
+        self,
+        scope: str,
+        idempotency_key: str,
+        request_sha256: str,
+        resource_id: str,
+    ) -> tuple[str, str]:
+        """Atomically reserve a retryable mutation or return its prior resource."""
+        now = utc_now()
+        with self.db.connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            existing = connection.execute(
+                """SELECT request_sha256, resource_id, status FROM idempotent_operations
+                   WHERE scope = ? AND idempotency_key = ?""",
+                (scope, idempotency_key),
+            ).fetchone()
+            if existing:
+                if existing["request_sha256"] != request_sha256:
+                    raise ConflictError("idempotency key was already used for another request")
+                return existing["resource_id"], existing["status"]
+            connection.execute(
+                "INSERT INTO idempotent_operations VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    scope,
+                    idempotency_key,
+                    request_sha256,
+                    resource_id,
+                    "pending",
+                    None,
+                    now,
+                    now,
+                ),
+            )
+        return resource_id, "claimed"
+
+    def finish_operation(
+        self,
+        scope: str,
+        idempotency_key: str,
+        status: str,
+        error: str | None = None,
+    ) -> None:
+        if status not in {"completed", "failed"}:
+            raise ValueError("operation status must be completed or failed")
+        with self.db.connect() as connection:
+            connection.execute(
+                """UPDATE idempotent_operations
+                   SET status = ?, error = ?, updated_at = ?
+                   WHERE scope = ? AND idempotency_key = ?""",
+                (status, error, utc_now(), scope, idempotency_key),
+            )
+
     def create_project_plan(
         self, request: ProjectPlanCreate, idempotency_key: str | None = None
     ) -> ProjectPlan:

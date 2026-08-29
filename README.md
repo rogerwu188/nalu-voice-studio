@@ -81,6 +81,10 @@ The default runtime is safe and local:
 - `POST /v1/production-runs/{run_id}/cancel`
 - `POST /v1/production-runs/{run_id}/resume`
 
+Retryable project-plan and production-run mutations accept `Idempotency-Key`.
+Paid production requires that header, and a key is cryptographically bound to
+its original request so it cannot be reused with changed model or budget data.
+
 Project completion is governed by [the product SOP](docs/PRODUCT_SOP.md). A
 module, milestone, or green CI run is not treated as completion of the product.
 The committed [OpenAPI contract](docs/openapi.json) must be regenerated with
