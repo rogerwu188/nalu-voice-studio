@@ -18,7 +18,7 @@ final class SpeechRecorder {
         return speech && microphone
     }
 
-    func start(onText: @escaping @MainActor (String) -> Void) throws {
+    func start(onText: @escaping @MainActor (String, Float) -> Void) throws {
         stop()
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true
@@ -31,8 +31,12 @@ final class SpeechRecorder {
         }
 
         task = recognizer?.recognitionTask(with: request) { result, _ in
-            guard let text = result?.bestTranscription.formattedString else { return }
-            Task { @MainActor in onText(text) }
+            guard let transcription = result?.bestTranscription else { return }
+            let confidences = transcription.segments.map(\.confidence).filter { $0 > 0 }
+            let confidence = confidences.isEmpty
+                ? 0
+                : confidences.reduce(0, +) / Float(confidences.count)
+            Task { @MainActor in onText(transcription.formattedString, confidence) }
         }
         audioEngine.prepare()
         try audioEngine.start()

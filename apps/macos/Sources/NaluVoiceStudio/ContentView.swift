@@ -82,12 +82,18 @@ struct ContentView: View {
                 .padding(28)
             }
             if !model.transcript.isEmpty {
-                Text(model.transcript)
-                    .font(.title3)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding()
-                    .background(Color.blue.opacity(0.08))
-                    .padding(.horizontal, 24)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(model.transcript).font(.title3)
+                    if model.transcriptConfidence > 0 {
+                        Text(model.transcriptConfidence < 0.2 ? "我可能没听清" : "我听清了")
+                            .font(.caption)
+                            .foregroundStyle(model.transcriptConfidence < 0.2 ? .orange : .secondary)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding()
+                .background(Color.blue.opacity(0.08))
+                .padding(.horizontal, 24)
             }
             Button(action: toggleMicrophone) {
                 Label(
@@ -141,9 +147,7 @@ struct ContentView: View {
     }
 
     private func repeatQuestion() {
-        model.messages.append(
-            InterviewMessage(speaker: .nalu, text: "没关系，我们慢慢来。您想讲什么故事？")
-        )
+        model.repeatCurrentQuestion()
     }
 
     private func toggleMicrophone() {

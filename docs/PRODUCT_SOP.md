@@ -89,8 +89,10 @@ Current evidence:
 
 - Native push-to-talk, visible transcript, large controls, repeat action and a
   one-question-at-a-time project setup state machine.
-- Still required before `PASS`: correction/back/pause semantics, confidence recovery,
-  guardian interview, VoiceOver audit and clean-account voice-only QA.
+- Spoken pause/resume, repeat, back/correct commands and visible low-confidence
+  recovery are implemented in the native interview flow.
+- Still required before `PASS`: automated interview-state tests, guardian interview,
+  VoiceOver audit and clean-account voice-only QA.
 
 ## SOP-03 · Multi-project, season and episode planning — IN_PROGRESS
 
