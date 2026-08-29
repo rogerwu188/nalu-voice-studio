@@ -998,6 +998,495 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
+      "MemoryCard": {
+        "properties": {
+          "allowed_use": {
+            "default": "reference_only",
+            "enum": [
+              "reference_only",
+              "story_development",
+              "visual_generation"
+            ],
+            "title": "Allowed Use",
+            "type": "string"
+          },
+          "approximate_date": {
+            "default": "",
+            "maxLength": 160,
+            "title": "Approximate Date",
+            "type": "string"
+          },
+          "asset_id": {
+            "title": "Asset Id",
+            "type": "string"
+          },
+          "confirmation_status": {
+            "enum": [
+              "draft",
+              "confirmed"
+            ],
+            "title": "Confirmation Status",
+            "type": "string"
+          },
+          "confirmed_by": {
+            "default": "",
+            "title": "Confirmed By",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "current_revision": {
+            "title": "Current Revision",
+            "type": "integer"
+          },
+          "description": {
+            "default": "",
+            "maxLength": 10000,
+            "title": "Description",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "ocr_text": {
+            "default": "",
+            "maxLength": 30000,
+            "title": "Ocr Text",
+            "type": "string"
+          },
+          "people": {
+            "items": {
+              "$ref": "#/components/schemas/MemoryPerson"
+            },
+            "maxItems": 50,
+            "title": "People",
+            "type": "array"
+          },
+          "place": {
+            "default": "",
+            "maxLength": 300,
+            "title": "Place",
+            "type": "string"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "spoken_context": {
+            "default": "",
+            "maxLength": 30000,
+            "title": "Spoken Context",
+            "type": "string"
+          },
+          "story_relevance": {
+            "default": "",
+            "maxLength": 5000,
+            "title": "Story Relevance",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "asset_id",
+          "title",
+          "id",
+          "project_id",
+          "current_revision",
+          "confirmation_status",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "MemoryCard",
+        "type": "object"
+      },
+      "MemoryCardConfirmation": {
+        "properties": {
+          "confirmed_by": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Confirmed By",
+            "type": "string"
+          },
+          "review_channel": {
+            "enum": [
+              "voice",
+              "visual",
+              "voice_and_visual"
+            ],
+            "title": "Review Channel",
+            "type": "string"
+          },
+          "reviewed_revision": {
+            "minimum": 1.0,
+            "title": "Reviewed Revision",
+            "type": "integer"
+          },
+          "spoken_confirmation": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Spoken Confirmation",
+            "type": "string"
+          }
+        },
+        "required": [
+          "confirmed_by",
+          "reviewed_revision",
+          "review_channel",
+          "spoken_confirmation"
+        ],
+        "title": "MemoryCardConfirmation",
+        "type": "object"
+      },
+      "MemoryCardConfirmationRecord": {
+        "properties": {
+          "confirmed_by": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Confirmed By",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "memory_id": {
+            "title": "Memory Id",
+            "type": "string"
+          },
+          "review_channel": {
+            "enum": [
+              "voice",
+              "visual",
+              "voice_and_visual"
+            ],
+            "title": "Review Channel",
+            "type": "string"
+          },
+          "reviewed_revision": {
+            "minimum": 1.0,
+            "title": "Reviewed Revision",
+            "type": "integer"
+          },
+          "spoken_confirmation": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Spoken Confirmation",
+            "type": "string"
+          }
+        },
+        "required": [
+          "confirmed_by",
+          "reviewed_revision",
+          "review_channel",
+          "spoken_confirmation",
+          "id",
+          "memory_id",
+          "created_at"
+        ],
+        "title": "MemoryCardConfirmationRecord",
+        "type": "object"
+      },
+      "MemoryCardCreate": {
+        "properties": {
+          "allowed_use": {
+            "default": "reference_only",
+            "enum": [
+              "reference_only",
+              "story_development",
+              "visual_generation"
+            ],
+            "title": "Allowed Use",
+            "type": "string"
+          },
+          "approximate_date": {
+            "default": "",
+            "maxLength": 160,
+            "title": "Approximate Date",
+            "type": "string"
+          },
+          "asset_id": {
+            "title": "Asset Id",
+            "type": "string"
+          },
+          "description": {
+            "default": "",
+            "maxLength": 10000,
+            "title": "Description",
+            "type": "string"
+          },
+          "ocr_text": {
+            "default": "",
+            "maxLength": 30000,
+            "title": "Ocr Text",
+            "type": "string"
+          },
+          "people": {
+            "items": {
+              "$ref": "#/components/schemas/MemoryPerson"
+            },
+            "maxItems": 50,
+            "title": "People",
+            "type": "array"
+          },
+          "place": {
+            "default": "",
+            "maxLength": 300,
+            "title": "Place",
+            "type": "string"
+          },
+          "spoken_context": {
+            "default": "",
+            "maxLength": 30000,
+            "title": "Spoken Context",
+            "type": "string"
+          },
+          "story_relevance": {
+            "default": "",
+            "maxLength": 5000,
+            "title": "Story Relevance",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "asset_id",
+          "title"
+        ],
+        "title": "MemoryCardCreate",
+        "type": "object"
+      },
+      "MemoryCardRevision": {
+        "properties": {
+          "change_summary": {
+            "title": "Change Summary",
+            "type": "string"
+          },
+          "content": {
+            "additionalProperties": true,
+            "title": "Content",
+            "type": "object"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "memory_id": {
+            "title": "Memory Id",
+            "type": "string"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "source_channel": {
+            "enum": [
+              "voice",
+              "visual",
+              "system"
+            ],
+            "title": "Source Channel",
+            "type": "string"
+          }
+        },
+        "required": [
+          "memory_id",
+          "revision",
+          "content",
+          "source_channel",
+          "change_summary",
+          "created_at"
+        ],
+        "title": "MemoryCardRevision",
+        "type": "object"
+      },
+      "MemoryCardUpdate": {
+        "properties": {
+          "allowed_use": {
+            "anyOf": [
+              {
+                "enum": [
+                  "reference_only",
+                  "story_development",
+                  "visual_generation"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allowed Use"
+          },
+          "approximate_date": {
+            "anyOf": [
+              {
+                "maxLength": 160,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approximate Date"
+          },
+          "change_summary": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Change Summary",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 10000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "ocr_text": {
+            "anyOf": [
+              {
+                "maxLength": 30000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ocr Text"
+          },
+          "people": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/MemoryPerson"
+                },
+                "maxItems": 50,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "People"
+          },
+          "place": {
+            "anyOf": [
+              {
+                "maxLength": 300,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Place"
+          },
+          "source_channel": {
+            "enum": [
+              "voice",
+              "visual"
+            ],
+            "title": "Source Channel",
+            "type": "string"
+          },
+          "spoken_context": {
+            "anyOf": [
+              {
+                "maxLength": 30000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Spoken Context"
+          },
+          "story_relevance": {
+            "anyOf": [
+              {
+                "maxLength": 5000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Story Relevance"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 160,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "required": [
+          "source_channel",
+          "change_summary"
+        ],
+        "title": "MemoryCardUpdate",
+        "type": "object"
+      },
+      "MemoryPerson": {
+        "properties": {
+          "name": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "note": {
+            "default": "",
+            "maxLength": 1000,
+            "title": "Note",
+            "type": "string"
+          },
+          "relationship": {
+            "default": "",
+            "maxLength": 160,
+            "title": "Relationship",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "MemoryPerson",
+        "type": "object"
+      },
       "ProductionRun": {
         "properties": {
           "created_at": {
@@ -1401,13 +1890,14 @@
             "type": "string"
           },
           "schema_version": {
-            "default": "nalu.project-export/v5",
+            "default": "nalu.project-export/v6",
             "enum": [
               "nalu.project-export/v1",
               "nalu.project-export/v2",
               "nalu.project-export/v3",
               "nalu.project-export/v4",
-              "nalu.project-export/v5"
+              "nalu.project-export/v5",
+              "nalu.project-export/v6"
             ],
             "title": "Schema Version",
             "type": "string"
@@ -2875,6 +3365,190 @@
         "summary": "Create Feedback"
       }
     },
+    "/v1/memory-cards/{memory_id}": {
+      "patch": {
+        "operationId": "update_memory_card_v1_memory_cards__memory_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "memory_id",
+            "required": true,
+            "schema": {
+              "title": "Memory Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MemoryCardUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemoryCard"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Memory Card"
+      }
+    },
+    "/v1/memory-cards/{memory_id}/confirm": {
+      "post": {
+        "operationId": "confirm_memory_card_v1_memory_cards__memory_id__confirm_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "memory_id",
+            "required": true,
+            "schema": {
+              "title": "Memory Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MemoryCardConfirmation"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemoryCard"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Confirm Memory Card"
+      }
+    },
+    "/v1/memory-cards/{memory_id}/confirmations": {
+      "get": {
+        "operationId": "list_memory_card_confirmations_v1_memory_cards__memory_id__confirmations_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "memory_id",
+            "required": true,
+            "schema": {
+              "title": "Memory Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MemoryCardConfirmationRecord"
+                  },
+                  "title": "Response List Memory Card Confirmations V1 Memory Cards  Memory Id  Confirmations Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Memory Card Confirmations"
+      }
+    },
+    "/v1/memory-cards/{memory_id}/revisions": {
+      "get": {
+        "operationId": "list_memory_card_revisions_v1_memory_cards__memory_id__revisions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "memory_id",
+            "required": true,
+            "schema": {
+              "title": "Memory Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MemoryCardRevision"
+                  },
+                  "title": "Response List Memory Card Revisions V1 Memory Cards  Memory Id  Revisions Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Memory Card Revisions"
+      }
+    },
     "/v1/production-runs/{run_id}": {
       "get": {
         "operationId": "get_run_v1_production_runs__run_id__get",
@@ -3793,6 +4467,106 @@
           }
         },
         "summary": "Export Project"
+      }
+    },
+    "/v1/projects/{project_id}/memory-cards": {
+      "get": {
+        "operationId": "list_memory_cards_v1_projects__project_id__memory_cards_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "confirmed_only",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Confirmed Only",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MemoryCard"
+                  },
+                  "title": "Response List Memory Cards V1 Projects  Project Id  Memory Cards Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Memory Cards"
+      },
+      "post": {
+        "operationId": "create_memory_card_v1_projects__project_id__memory_cards_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MemoryCardCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemoryCard"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Memory Card"
       }
     },
     "/v1/projects/{project_id}/privacy-export": {

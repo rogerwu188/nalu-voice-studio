@@ -284,6 +284,54 @@ MIGRATIONS = (
           ON feedback_items(project_id, created_at);
         """,
     ),
+    (
+        10,
+        "project_memory_cards",
+        """
+        CREATE TABLE IF NOT EXISTS memory_cards (
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+          asset_id TEXT NOT NULL UNIQUE REFERENCES assets(id) ON DELETE CASCADE,
+          title TEXT NOT NULL,
+          description TEXT NOT NULL,
+          ocr_text TEXT NOT NULL,
+          spoken_context TEXT NOT NULL,
+          approximate_date TEXT NOT NULL,
+          place TEXT NOT NULL,
+          people_json TEXT NOT NULL,
+          story_relevance TEXT NOT NULL,
+          allowed_use TEXT NOT NULL,
+          current_revision INTEGER NOT NULL,
+          confirmation_status TEXT NOT NULL,
+          confirmed_by TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS memory_cards_project_status_idx
+          ON memory_cards(project_id, confirmation_status, created_at);
+        CREATE TABLE IF NOT EXISTS memory_card_revisions (
+          memory_id TEXT NOT NULL REFERENCES memory_cards(id) ON DELETE CASCADE,
+          revision INTEGER NOT NULL,
+          content_json TEXT NOT NULL,
+          source_channel TEXT NOT NULL,
+          change_summary TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          PRIMARY KEY(memory_id, revision)
+        );
+        CREATE TABLE IF NOT EXISTS memory_card_confirmation_records (
+          id TEXT PRIMARY KEY,
+          memory_id TEXT NOT NULL REFERENCES memory_cards(id) ON DELETE CASCADE,
+          reviewed_revision INTEGER NOT NULL,
+          confirmed_by TEXT NOT NULL,
+          spoken_confirmation TEXT NOT NULL,
+          review_channel TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          UNIQUE(memory_id, reviewed_revision),
+          FOREIGN KEY(memory_id, reviewed_revision)
+            REFERENCES memory_card_revisions(memory_id, revision)
+        );
+        """,
+    ),
 )
 
 

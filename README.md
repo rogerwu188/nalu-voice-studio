@@ -17,7 +17,9 @@ router are not coupled to Qingshan. Commercial projects currently fail closed at
 production until an approved advertising adapter is installed. See
 [creative pipeline routing](docs/CREATIVE_PIPELINE_ROUTING.md),
 [Realtime voice architecture](docs/REALTIME_VOICE_ARCHITECTURE.md), and
-[controlled product evolution](docs/CONTROLLED_EVOLUTION.md).
+[controlled product evolution](docs/CONTROLLED_EVOLUTION.md). Photos and scanned
+handwriting become traceable, user-confirmed knowledge through the
+[family memory library](docs/FAMILY_MEMORY_LIBRARY.md).
 
 ## Product hierarchy
 
@@ -91,6 +93,9 @@ backup boundaries and deletion behavior.
 
 - `POST /v1/projects`
 - `POST /v1/feedback` / `GET /v1/feedback`
+- `POST /v1/projects/{project_id}/memory-cards`
+- `PATCH /v1/memory-cards/{memory_id}`
+- `POST /v1/memory-cards/{memory_id}/confirm`
 - `POST /v1/project-plans` (atomic Project → Season → Episode bootstrap)
 - `PATCH /v1/projects/{project_id}`
 - `POST /v1/projects/{project_id}/archive`

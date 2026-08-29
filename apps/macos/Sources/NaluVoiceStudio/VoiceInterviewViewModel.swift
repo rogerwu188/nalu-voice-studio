@@ -33,6 +33,10 @@ final class VoiceInterviewViewModel {
     var viewedScriptRevision: Int?
     var guardianConfirmedForScript = false
     var assets: [NaluAsset] = []
+    var memoryCards: [MemoryCard] = []
+    var reviewedMemoryCardIDs: Set<String> = []
+    var memoryCorrectionCardID: String?
+    var memoryConfirmationCardID: String?
     var draftProjectID: String?
     var feedbackDraftText = ""
     var isCapturingFeedback = false
@@ -96,6 +100,22 @@ final class VoiceInterviewViewModel {
         transcript = ""
         transcriptConfidence = 0
         if applyComfortCommand(spoken) { return }
+        if let memoryConfirmationCardID {
+            self.memoryConfirmationCardID = nil
+            guard spoken.contains("确认") && spoken.contains("归档") else {
+                let response = "我没有听到明确的“确认归档”，所以没有归档。您可以重新朗读后再确认。"
+                messages.append(.init(speaker: .nalu, text: response))
+                speechPlayback.speak(response, rate: comfortPreferences.speechRate)
+                return
+            }
+            Task { await confirmMemoryCard(memoryConfirmationCardID) }
+            return
+        }
+        if let memoryCorrectionCardID {
+            self.memoryCorrectionCardID = nil
+            handleMemoryCorrection(spoken, memoryID: memoryCorrectionCardID)
+            return
+        }
         if isCapturingFeedback {
             feedbackDraftText = spoken
             feedbackWasDictated = true
@@ -208,6 +228,7 @@ final class VoiceInterviewViewModel {
         selectedProjectID = projectID
         do {
             assets = try await runtime.listAssets(projectID: projectID)
+            memoryCards = try await runtime.listMemoryCards(projectID: projectID)
             seasons = try await runtime.listSeasons(projectID: projectID)
             if let season = seasons.first {
                 episodes = try await runtime.listEpisodes(seasonID: season.id)
@@ -455,6 +476,7 @@ final class VoiceInterviewViewModel {
                 scriptSummary = ""
                 viewedScriptRevision = nil
                 assets = []
+                memoryCards = []
             }
         } catch {
             errorMessage = error.localizedDescription
@@ -514,11 +536,18 @@ final class VoiceInterviewViewModel {
         scope: String,
         consentGranted: Bool,
         guardianApproved: Bool,
-        consentStatement: String
+        consentStatement: String,
+        memoryDescription: String,
+        memoryDate: String,
+        memoryPlace: String,
+        memoryRelationship: String,
+        memoryStoryRelevance: String,
+        memoryAllowedUse: String,
+        recognizedText: String
     ) async {
         guard let projectID = selectedProjectID else { return }
         do {
-            _ = try await runtime.importAsset(
+            let asset = try await runtime.importAsset(
                 projectID: projectID,
                 data: data,
                 filename: filename,
@@ -532,11 +561,187 @@ final class VoiceInterviewViewModel {
                 guardianApproved: guardianApproved,
                 consentStatement: consentStatement
             )
+            let people = subjectName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                ? []
+                : [
+                    MemoryPersonDraft(
+                        name: subjectName,
+                        relationship: memoryRelationship,
+                        note: "用户在导入素材时提供"
+                    )
+                ]
+            _ = try await runtime.createMemoryCard(
+                projectID: projectID,
+                draft: MemoryCardDraft(
+                    assetID: asset.id,
+                    title: name,
+                    description: memoryDescription,
+                    ocrText: recognizedText,
+                    spokenContext: memoryDescription,
+                    approximateDate: memoryDate,
+                    place: memoryPlace,
+                    people: people,
+                    storyRelevance: memoryStoryRelevance,
+                    allowedUse: memoryAllowedUse
+                )
+            )
             assets = try await runtime.listAssets(projectID: projectID)
-            messages.append(.init(speaker: .nalu, text: "素材已复制到 Nalu 的本地项目目录。"))
+            memoryCards = try await runtime.listMemoryCards(projectID: projectID)
+            messages.append(
+                .init(
+                    speaker: .nalu,
+                    text: "素材已复制到本机，并建立了一张待确认的记忆卡。请先听我复述，再确认归档。"
+                )
+            )
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    func speakMemoryCard(_ memoryID: String) {
+        guard let card = memoryCards.first(where: { $0.id == memoryID }) else { return }
+        let summary = memoryCardReadback(card)
+        messages.append(.init(speaker: .nalu, text: summary))
+        speechPlayback.speak(summary, rate: comfortPreferences.speechRate)
+        reviewedMemoryCardIDs.insert(memoryID)
+    }
+
+    func beginMemoryCorrection(_ memoryID: String) async {
+        memoryCorrectionCardID = memoryID
+        memoryConfirmationCardID = nil
+        let response = "请说要修改哪一项，例如：地点不是西湖，是灵隐寺；或者年份改成一九八零年。"
+        messages.append(.init(speaker: .nalu, text: response))
+        speechPlayback.speak(response, rate: comfortPreferences.speechRate)
+        if !isListening { await toggleListening() }
+    }
+
+    func beginMemoryVoiceConfirmation(_ memoryID: String) async {
+        guard reviewedMemoryCardIDs.contains(memoryID) else {
+            speakMemoryCard(memoryID)
+            return
+        }
+        memoryConfirmationCardID = memoryID
+        memoryCorrectionCardID = nil
+        let response = "内容正确时，请明确说：我确认这张记忆卡并归档。"
+        messages.append(.init(speaker: .nalu, text: response))
+        speechPlayback.speak(response, rate: comfortPreferences.speechRate)
+        if !isListening { await toggleListening() }
+    }
+
+    func confirmMemoryCard(_ memoryID: String) async {
+        guard let projectID = selectedProjectID else { return }
+        guard reviewedMemoryCardIDs.contains(memoryID) else {
+            let response = "请先按朗读，听完当前内容，再确认归档。"
+            messages.append(.init(speaker: .nalu, text: response))
+            speechPlayback.speak(response, rate: comfortPreferences.speechRate)
+            return
+        }
+        guard let card = memoryCards.first(where: { $0.id == memoryID }) else { return }
+        do {
+            _ = try await runtime.confirmMemoryCard(id: memoryID, revision: card.currentRevision)
+            memoryCards = try await runtime.listMemoryCards(projectID: projectID)
+            reviewedMemoryCardIDs.remove(memoryID)
+            let response = "这张记忆卡已经由您确认归档，可以作为剧本事实来源。"
+            messages.append(.init(speaker: .nalu, text: response))
+            speechPlayback.speak(response, rate: comfortPreferences.speechRate)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func updateMemoryCard(
+        id: String,
+        title: String,
+        description: String,
+        approximateDate: String,
+        place: String,
+        storyRelevance: String,
+        allowedUse: String,
+        sourceChannel: String = "visual",
+        changeSummary: String = "用户在本机修改记忆卡"
+    ) async -> Bool {
+        guard let projectID = selectedProjectID else { return false }
+        do {
+            _ = try await runtime.updateMemoryCard(
+                id: id,
+                draft: MemoryCardUpdateDraft(
+                    title: title,
+                    description: description,
+                    approximateDate: approximateDate,
+                    place: place,
+                    storyRelevance: storyRelevance,
+                    allowedUse: allowedUse,
+                    sourceChannel: sourceChannel,
+                    changeSummary: changeSummary
+                )
+            )
+            memoryCards = try await runtime.listMemoryCards(projectID: projectID)
+            reviewedMemoryCardIDs.remove(id)
+            let response = "修改已保存为新版本。请重新听我朗读，再确认归档。"
+            messages.append(.init(speaker: .nalu, text: response))
+            speechPlayback.speak(response, rate: comfortPreferences.speechRate)
+            return true
+        } catch {
+            errorMessage = error.localizedDescription
+            return false
+        }
+    }
+
+    private func handleMemoryCorrection(_ spoken: String, memoryID: String) {
+        guard let card = memoryCards.first(where: { $0.id == memoryID }),
+              let correction = MemoryCorrectionParser.parse(spoken) else {
+            let response = "我还不能确定要改哪一项，所以没有修改。请说“地点改成……”或“年份改成……”。"
+            messages.append(.init(speaker: .nalu, text: response))
+            speechPlayback.speak(response, rate: comfortPreferences.speechRate)
+            return
+        }
+        var title = card.title
+        var description = card.description
+        var date = card.approximateDate
+        var place = card.place
+        var relevance = card.storyRelevance
+        switch correction.field {
+        case .title: title = correction.value
+        case .description: description = correction.value
+        case .approximateDate: date = correction.value
+        case .place: place = correction.value
+        case .storyRelevance: relevance = correction.value
+        }
+        Task {
+            _ = await updateMemoryCard(
+                id: memoryID,
+                title: title,
+                description: description,
+                approximateDate: date,
+                place: place,
+                storyRelevance: relevance,
+                allowedUse: card.allowedUse,
+                sourceChannel: "voice",
+                changeSummary: spoken
+            )
+        }
+    }
+
+    private func memoryCardReadback(_ card: MemoryCard) -> String {
+        var details = ["这张记忆卡的标题是：\(card.title)。"]
+        if !card.approximateDate.isEmpty {
+            details.append("时间是：\(card.approximateDate)。")
+        }
+        if !card.place.isEmpty { details.append("地点是：\(card.place)。") }
+        if !card.people.isEmpty {
+            let people = card.people.map {
+                $0.relationship.isEmpty ? $0.name : "\($0.name)，关系是\($0.relationship)"
+            }.joined(separator: "；")
+            details.append("相关人物有：\(people)。")
+        }
+        if !card.description.isEmpty { details.append("您的说明是：\(card.description)。") }
+        if !card.ocrText.isEmpty { details.append("手写或图片文字识别为：\(card.ocrText)。") }
+        details.append(
+            card.confirmationStatus == "confirmed"
+                ? "这张卡已经确认归档。"
+                : "这张卡还没有归档。内容正确时，请按确认归档；不正确时先修改。"
+        )
+        return details.joined(separator: " ")
     }
 
     func revokeAssetConsent(_ assetID: String) async {

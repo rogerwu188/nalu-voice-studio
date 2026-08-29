@@ -177,6 +177,101 @@ def test_feedback_is_local_redacted_and_child_sharing_fails_closed(tmp_path: Pat
     assert api.get("/v1/feedback").json() == []
 
 
+def test_memory_card_requires_explicit_confirmation_and_keeps_evidence(tmp_path: Path) -> None:
+    api = client(tmp_path)
+    project = api.post(
+        "/v1/projects",
+        json={"title": "家庭记忆", "audience_mode": "older_adult"},
+    ).json()
+    asset = api.post(
+        f"/v1/projects/{project['id']}/asset-imports",
+        params={
+            "filename": "notebook.jpg",
+            "kind": "source_document",
+            "name": "手写回忆第一页",
+        },
+        content=b"image bytes",
+        headers={"Content-Type": "image/jpeg"},
+    ).json()
+    created = api.post(
+        f"/v1/projects/{project['id']}/memory-cards",
+        json={
+            "asset_id": asset["id"],
+            "title": "在杭州的全家福",
+            "description": "我和妻子带着女儿第一次去杭州。",
+            "ocr_text": "一九八零年春天",
+            "spoken_context": "照片里左边是我的妻子，前面是女儿。",
+            "approximate_date": "1980年春天",
+            "place": "杭州西湖",
+            "people": [
+                {"name": "妻子", "relationship": "配偶"},
+                {"name": "女儿", "relationship": "女儿"},
+            ],
+            "story_relevance": "可以作为第二集家庭旅行的素材。",
+            "allowed_use": "story_development",
+        },
+    )
+    assert created.status_code == 201
+    assert created.json()["confirmation_status"] == "draft"
+    assert created.json()["asset_id"] == asset["id"]
+    assert api.get(
+        f"/v1/projects/{project['id']}/memory-cards",
+        params={"confirmed_only": True},
+    ).json() == []
+
+    corrected = api.patch(
+        f"/v1/memory-cards/{created.json()['id']}",
+        json={
+            "place": "杭州灵隐寺",
+            "source_channel": "voice",
+            "change_summary": "用户说地点不是西湖，是灵隐寺",
+        },
+    )
+    assert corrected.status_code == 200
+    assert corrected.json()["current_revision"] == 2
+    assert corrected.json()["confirmation_status"] == "draft"
+    revisions = api.get(
+        f"/v1/memory-cards/{created.json()['id']}/revisions"
+    ).json()
+    assert [revision["revision"] for revision in revisions] == [1, 2]
+    assert revisions[1]["source_channel"] == "voice"
+    assert revisions[1]["content"]["place"] == "杭州灵隐寺"
+
+    confirmed = api.post(
+        f"/v1/memory-cards/{created.json()['id']}/confirm",
+        json={
+            "confirmed_by": "本人",
+            "reviewed_revision": 2,
+            "review_channel": "voice_and_visual",
+            "spoken_confirmation": "我确认这张记忆卡并归档",
+        },
+    )
+    assert confirmed.status_code == 200
+    assert confirmed.json()["confirmation_status"] == "confirmed"
+    authoritative = api.get(
+        f"/v1/projects/{project['id']}/memory-cards",
+        params={"confirmed_only": True},
+    ).json()
+    assert authoritative[0]["place"] == "杭州灵隐寺"
+    assert authoritative[0]["people"][0]["relationship"] == "配偶"
+    confirmations = api.get(
+        f"/v1/memory-cards/{created.json()['id']}/confirmations"
+    ).json()
+    assert confirmations[0]["reviewed_revision"] == 2
+    assert confirmations[0]["spoken_confirmation"] == "我确认这张记忆卡并归档"
+
+    backup = api.get(f"/v1/projects/{project['id']}/export").json()
+    assert backup["schema_version"] == "nalu.project-export/v6"
+    assert backup["payload"]["memory_cards"][0]["asset_id"] == asset["id"]
+
+    other = api.post("/v1/projects", json={"title": "另一个项目"}).json()
+    cross_project = api.post(
+        f"/v1/projects/{other['id']}/memory-cards",
+        json={"asset_id": asset["id"], "title": "错误关联"},
+    )
+    assert cross_project.status_code == 409
+
+
 def test_script_history_stale_approval_and_revocation(tmp_path: Path) -> None:
     api = client(tmp_path)
     project = api.post("/v1/projects", json={"title": "剧本版本"}).json()
@@ -487,6 +582,9 @@ def test_project_rename_archive_export_and_restore(tmp_path: Path) -> None:
     legacy["payload"].pop("season_plan_approval_records")
     legacy["payload"].pop("asset_consent_records")
     legacy["payload"].pop("feedback_items")
+    legacy["payload"].pop("memory_cards")
+    legacy["payload"].pop("memory_card_revisions")
+    legacy["payload"].pop("memory_card_confirmation_records")
     legacy["payload"]["projects"][0].pop("creative_format")
     legacy["payload"]["projects"][0].pop("production_pipeline")
     canonical = json.dumps(legacy["payload"], ensure_ascii=False, sort_keys=True)
@@ -577,7 +675,7 @@ def test_database_migration_preserves_existing_database(tmp_path: Path) -> None:
         connection.execute("INSERT INTO legacy_marker VALUES ('preserve-me')")
 
     api = create_app(database_path, tmp_path / "data")
-    assert api.state.repository.db.schema_version() == 9
+    assert api.state.repository.db.schema_version() == 10
     with sqlite3.connect(database_path) as connection:
         marker = connection.execute("SELECT value FROM legacy_marker").fetchone()[0]
         approval_table = connection.execute(
@@ -629,7 +727,7 @@ def test_populated_v1_database_upgrades_without_project_loss(tmp_path: Path) -> 
         connection.execute("DELETE FROM schema_migrations WHERE version >= 2")
 
     after = TestClient(create_app(database_path, data_root))
-    assert after.app.state.repository.db.schema_version() == 9
+    assert after.app.state.repository.db.schema_version() == 10
     assert after.get(f"/v1/projects/{project['id']}").json()["title"] == "我的一生"
     assert after.get(f"/v1/episodes/{episode['id']}").json()[
         "approved_script_revision"
@@ -820,6 +918,9 @@ def test_project_season_and_episode_asset_scope_inheritance(tmp_path: Path) -> N
     legacy_v3 = deepcopy(backup)
     legacy_v3["schema_version"] = "nalu.project-export/v3"
     legacy_v3["payload"].pop("feedback_items")
+    legacy_v3["payload"].pop("memory_cards")
+    legacy_v3["payload"].pop("memory_card_revisions")
+    legacy_v3["payload"].pop("memory_card_confirmation_records")
     legacy_v3["payload"]["projects"][0].pop("creative_format")
     legacy_v3["payload"]["projects"][0].pop("production_pipeline")
     for asset in legacy_v3["payload"]["assets"]:
@@ -884,7 +985,7 @@ def test_complete_privacy_export_and_confirmed_project_deletion(tmp_path: Path) 
         assert {"project-export.json", "privacy-manifest.json", media_name} <= names
         assert archive.read(media_name) == b"private-photo-bytes"
         project_backup = json.loads(archive.read("project-export.json"))
-        assert project_backup["schema_version"] == "nalu.project-export/v5"
+        assert project_backup["schema_version"] == "nalu.project-export/v6"
         assert project_backup["payload"]["asset_consent_records"][0][
             "action_type"
         ] == "granted"

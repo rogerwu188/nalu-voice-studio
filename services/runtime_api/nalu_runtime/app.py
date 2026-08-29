@@ -31,6 +31,12 @@ from .models import (
     EpisodeTransitionRequest,
     FeedbackCreate,
     FeedbackItem,
+    MemoryCard,
+    MemoryCardConfirmation,
+    MemoryCardConfirmationRecord,
+    MemoryCardCreate,
+    MemoryCardRevision,
+    MemoryCardUpdate,
     ProductionRun,
     ProductionRunCreate,
     Project,
@@ -121,6 +127,50 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
     @app.get("/v1/feedback", response_model=list[FeedbackItem])
     def list_feedback(project_id: str | None = None) -> list[FeedbackItem]:
         return repository.list_feedback(project_id)
+
+    @app.post(
+        "/v1/projects/{project_id}/memory-cards",
+        response_model=MemoryCard,
+        status_code=201,
+    )
+    def create_memory_card(project_id: str, request: MemoryCardCreate) -> MemoryCard:
+        return repository.create_memory_card(project_id, request)
+
+    @app.get(
+        "/v1/projects/{project_id}/memory-cards", response_model=list[MemoryCard]
+    )
+    def list_memory_cards(
+        project_id: str, confirmed_only: bool = False
+    ) -> list[MemoryCard]:
+        return repository.list_memory_cards(project_id, confirmed_only)
+
+    @app.patch("/v1/memory-cards/{memory_id}", response_model=MemoryCard)
+    def update_memory_card(memory_id: str, request: MemoryCardUpdate) -> MemoryCard:
+        return repository.update_memory_card(memory_id, request)
+
+    @app.get(
+        "/v1/memory-cards/{memory_id}/revisions",
+        response_model=list[MemoryCardRevision],
+    )
+    def list_memory_card_revisions(memory_id: str) -> list[MemoryCardRevision]:
+        return repository.list_memory_card_revisions(memory_id)
+
+    @app.post(
+        "/v1/memory-cards/{memory_id}/confirm", response_model=MemoryCard
+    )
+    def confirm_memory_card(
+        memory_id: str, request: MemoryCardConfirmation
+    ) -> MemoryCard:
+        return repository.confirm_memory_card(memory_id, request)
+
+    @app.get(
+        "/v1/memory-cards/{memory_id}/confirmations",
+        response_model=list[MemoryCardConfirmationRecord],
+    )
+    def list_memory_card_confirmations(
+        memory_id: str,
+    ) -> list[MemoryCardConfirmationRecord]:
+        return repository.list_memory_card_confirmations(memory_id)
 
     @app.get("/v1/projects/{project_id}", response_model=Project)
     def get_project(project_id: str) -> Project:

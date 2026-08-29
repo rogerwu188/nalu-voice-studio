@@ -27,6 +27,12 @@ from .models import (
     EpisodeTransitionRequest,
     FeedbackCreate,
     FeedbackItem,
+    MemoryCard,
+    MemoryCardConfirmation,
+    MemoryCardConfirmationRecord,
+    MemoryCardCreate,
+    MemoryCardRevision,
+    MemoryCardUpdate,
     ProductionRun,
     Project,
     ProjectArchiveRequest,
@@ -438,6 +444,20 @@ class Repository:
                 "SELECT * FROM feedback_items WHERE project_id = ?",
                 (project_id,),
             ),
+            "memory_cards": (
+                "SELECT * FROM memory_cards WHERE project_id = ?",
+                (project_id,),
+            ),
+            "memory_card_revisions": (
+                """SELECT r.* FROM memory_card_revisions r
+                   JOIN memory_cards m ON m.id = r.memory_id WHERE m.project_id = ?""",
+                (project_id,),
+            ),
+            "memory_card_confirmation_records": (
+                """SELECT c.* FROM memory_card_confirmation_records c
+                   JOIN memory_cards m ON m.id = c.memory_id WHERE m.project_id = ?""",
+                (project_id,),
+            ),
         }
         payload: dict[str, list[dict[str, Any]]] = {}
         with self.db.connect() as connection:
@@ -502,6 +522,20 @@ class Repository:
                 "share_authorized", "guardian_approval", "status",
                 "redaction_applied", "created_at",
             ),
+            "memory_cards": (
+                "id", "project_id", "asset_id", "title", "description", "ocr_text",
+                "spoken_context", "approximate_date", "place", "people_json",
+                "story_relevance", "allowed_use", "current_revision",
+                "confirmation_status", "confirmed_by", "created_at", "updated_at",
+            ),
+            "memory_card_revisions": (
+                "memory_id", "revision", "content_json", "source_channel",
+                "change_summary", "created_at",
+            ),
+            "memory_card_confirmation_records": (
+                "id", "memory_id", "reviewed_revision", "confirmed_by",
+                "spoken_confirmation", "review_channel", "created_at",
+            ),
         }
         if backup.schema_version in {
             "nalu.project-export/v1",
@@ -523,6 +557,16 @@ class Repository:
                 if column not in {"creative_format", "production_pipeline"}
             )
             allowed_columns.pop("feedback_items")
+        if backup.schema_version in {
+            "nalu.project-export/v1",
+            "nalu.project-export/v2",
+            "nalu.project-export/v3",
+            "nalu.project-export/v4",
+            "nalu.project-export/v5",
+        }:
+            allowed_columns.pop("memory_cards")
+            allowed_columns.pop("memory_card_revisions")
+            allowed_columns.pop("memory_card_confirmation_records")
         if backup.schema_version == "nalu.project-export/v1":
             allowed_columns.pop("season_plan_revisions")
             allowed_columns.pop("season_plan_approval_records")
@@ -595,6 +639,22 @@ class Repository:
             for row in backup.payload.get("feedback_items", [])
         ):
             raise ConflictError("project export contains feedback from another project")
+        if any(
+            row.get("project_id") != project_id or row.get("asset_id") not in asset_ids
+            for row in backup.payload.get("memory_cards", [])
+        ):
+            raise ConflictError("project export contains memory from another project")
+        memory_ids = {row.get("id") for row in backup.payload.get("memory_cards", [])}
+        if any(
+            row.get("memory_id") not in memory_ids
+            for row in backup.payload.get("memory_card_revisions", [])
+        ):
+            raise ConflictError("project export contains a memory revision from another project")
+        if any(
+            row.get("memory_id") not in memory_ids
+            for row in backup.payload.get("memory_card_confirmation_records", [])
+        ):
+            raise ConflictError("project export contains a memory confirmation from another project")
         try:
             with self.db.connect() as connection:
                 connection.execute("BEGIN IMMEDIATE")
@@ -685,6 +745,216 @@ class Repository:
         with self.db.connect() as connection:
             ids = [row["id"] for row in connection.execute(query, params)]
         return [self.get_feedback(feedback_id) for feedback_id in ids]
+
+    def create_memory_card(
+        self, project_id: str, request: MemoryCardCreate
+    ) -> MemoryCard:
+        project = self.get_project(project_id)
+        asset = self.get_asset(request.asset_id)
+        if asset.project_id != project_id:
+            raise ConflictError("memory evidence belongs to another project")
+        if request.allowed_use == "visual_generation":
+            if asset.kind in {"character_image", "voice_reference"} and not asset.consent_granted:
+                raise ConflictError("visual generation requires active biometric consent")
+            if project.audience_mode == "child" and asset.kind in {
+                "character_image", "voice_reference"
+            } and not asset.guardian_approved:
+                raise ConflictError("child visual generation requires guardian approval")
+        memory_id, now = new_id("mem"), utc_now()
+        try:
+            with self.db.connect() as connection:
+                connection.execute(
+                    """INSERT INTO memory_cards VALUES (
+                       ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                    )""",
+                    (
+                        memory_id,
+                        project_id,
+                        request.asset_id,
+                        request.title,
+                        request.description,
+                        request.ocr_text,
+                        request.spoken_context,
+                        request.approximate_date,
+                        request.place,
+                        encode([person.model_dump(mode="json") for person in request.people]),
+                        request.story_relevance,
+                        request.allowed_use,
+                        1,
+                        "draft",
+                        "",
+                        now,
+                        now,
+                    ),
+                )
+                content = request.model_dump(mode="json")
+                connection.execute(
+                    "INSERT INTO memory_card_revisions VALUES (?, ?, ?, ?, ?, ?)",
+                    (
+                        memory_id,
+                        1,
+                        encode(content),
+                        "system",
+                        "素材导入后建立记忆卡草稿",
+                        now,
+                    ),
+                )
+        except Exception as exc:
+            raise ConflictError("this asset already has a memory card") from exc
+        return self.get_memory_card(memory_id)
+
+    def get_memory_card(self, memory_id: str) -> MemoryCard:
+        with self.db.connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM memory_cards WHERE id = ?", (memory_id,)
+            ).fetchone()
+        if row is None:
+            raise NotFoundError("memory card not found")
+        data = dict(row)
+        data["people"] = decode(data.pop("people_json"))
+        return MemoryCard.model_validate(data)
+
+    def list_memory_cards(
+        self, project_id: str, confirmed_only: bool = False
+    ) -> list[MemoryCard]:
+        self.get_project(project_id)
+        query = "SELECT id FROM memory_cards WHERE project_id = ?"
+        params: tuple[str, ...] = (project_id,)
+        if confirmed_only:
+            query += " AND confirmation_status = 'confirmed'"
+        query += " ORDER BY created_at, id"
+        with self.db.connect() as connection:
+            ids = [row["id"] for row in connection.execute(query, params)]
+        return [self.get_memory_card(memory_id) for memory_id in ids]
+
+    def update_memory_card(
+        self, memory_id: str, request: MemoryCardUpdate
+    ) -> MemoryCard:
+        current = self.get_memory_card(memory_id)
+        if request.allowed_use == "visual_generation":
+            project = self.get_project(current.project_id)
+            asset = self.get_asset(current.asset_id)
+            if asset.kind in {"character_image", "voice_reference"} and not asset.consent_granted:
+                raise ConflictError("visual generation requires active biometric consent")
+            if project.audience_mode == "child" and asset.kind in {
+                "character_image", "voice_reference"
+            } and not asset.guardian_approved:
+                raise ConflictError("child visual generation requires guardian approval")
+        updates = request.model_dump(
+            exclude={"source_channel", "change_summary"}, exclude_none=True
+        )
+        content = current.model_dump(
+            mode="json",
+            include={
+                "asset_id", "title", "description", "ocr_text", "spoken_context",
+                "approximate_date", "place", "people", "story_relevance", "allowed_use",
+            },
+        )
+        content.update(updates)
+        next_revision = current.current_revision + 1
+        now = utc_now()
+        people = content["people"]
+        with self.db.connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            connection.execute(
+                """UPDATE memory_cards SET title = ?, description = ?, ocr_text = ?,
+                   spoken_context = ?, approximate_date = ?, place = ?, people_json = ?,
+                   story_relevance = ?, allowed_use = ?, current_revision = ?,
+                   confirmation_status = 'draft', confirmed_by = '', updated_at = ?
+                   WHERE id = ? AND current_revision = ?""",
+                (
+                    content["title"],
+                    content["description"],
+                    content["ocr_text"],
+                    content["spoken_context"],
+                    content["approximate_date"],
+                    content["place"],
+                    encode(people),
+                    content["story_relevance"],
+                    content["allowed_use"],
+                    next_revision,
+                    now,
+                    memory_id,
+                    current.current_revision,
+                ),
+            )
+            if connection.total_changes != 1:
+                raise ConflictError("memory card changed before this update")
+            connection.execute(
+                "INSERT INTO memory_card_revisions VALUES (?, ?, ?, ?, ?, ?)",
+                (
+                    memory_id,
+                    next_revision,
+                    encode(content),
+                    request.source_channel,
+                    request.change_summary,
+                    now,
+                ),
+            )
+        return self.get_memory_card(memory_id)
+
+    def list_memory_card_revisions(self, memory_id: str) -> list[MemoryCardRevision]:
+        self.get_memory_card(memory_id)
+        with self.db.connect() as connection:
+            rows = connection.execute(
+                """SELECT * FROM memory_card_revisions
+                   WHERE memory_id = ? ORDER BY revision""",
+                (memory_id,),
+            ).fetchall()
+        return [
+            MemoryCardRevision.model_validate(
+                {**dict(row), "content": decode(row["content_json"])}
+            )
+            for row in rows
+        ]
+
+    def confirm_memory_card(
+        self, memory_id: str, request: MemoryCardConfirmation
+    ) -> MemoryCard:
+        card = self.get_memory_card(memory_id)
+        if request.reviewed_revision != card.current_revision:
+            raise ConflictError("memory card changed after it was reviewed")
+        record_id, now = new_id("mcr"), utc_now()
+        with self.db.connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            existing = connection.execute(
+                """SELECT id FROM memory_card_confirmation_records
+                   WHERE memory_id = ? AND reviewed_revision = ?""",
+                (memory_id, request.reviewed_revision),
+            ).fetchone()
+            if existing is not None:
+                return card
+            connection.execute(
+                """UPDATE memory_cards SET confirmation_status = 'confirmed',
+                   confirmed_by = ?, updated_at = ? WHERE id = ?""",
+                (request.confirmed_by, now, memory_id),
+            )
+            connection.execute(
+                """INSERT INTO memory_card_confirmation_records
+                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    record_id,
+                    memory_id,
+                    request.reviewed_revision,
+                    request.confirmed_by,
+                    request.spoken_confirmation,
+                    request.review_channel,
+                    now,
+                ),
+            )
+        return self.get_memory_card(memory_id)
+
+    def list_memory_card_confirmations(
+        self, memory_id: str
+    ) -> list[MemoryCardConfirmationRecord]:
+        self.get_memory_card(memory_id)
+        with self.db.connect() as connection:
+            rows = connection.execute(
+                """SELECT * FROM memory_card_confirmation_records
+                   WHERE memory_id = ? ORDER BY created_at, id""",
+                (memory_id,),
+            ).fetchall()
+        return [MemoryCardConfirmationRecord.model_validate(dict(row)) for row in rows]
 
     def project_deletion_preview(self, project_id: str) -> ProjectDeletionPreview:
         project = self.get_project(project_id)

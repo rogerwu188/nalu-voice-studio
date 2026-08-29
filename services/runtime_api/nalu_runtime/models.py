@@ -105,8 +105,9 @@ class ProjectExport(BaseModel):
         "nalu.project-export/v3",
         "nalu.project-export/v4",
         "nalu.project-export/v5",
+        "nalu.project-export/v6",
     ] = (
-        "nalu.project-export/v5"
+        "nalu.project-export/v6"
     )
     exported_at: str
     payload: dict[str, Any]
@@ -266,6 +267,92 @@ class FeedbackItem(FeedbackCreate):
     id: str
     status: Literal["local_only", "ready_for_review"]
     redaction_applied: bool
+    created_at: str
+
+
+class MemoryPerson(BaseModel):
+    name: str = Field(min_length=1, max_length=160)
+    relationship: str = Field(default="", max_length=160)
+    note: str = Field(default="", max_length=1000)
+
+
+class MemoryCardCreate(BaseModel):
+    asset_id: str
+    title: str = Field(min_length=1, max_length=160)
+    description: str = Field(default="", max_length=10000)
+    ocr_text: str = Field(default="", max_length=30000)
+    spoken_context: str = Field(default="", max_length=30000)
+    approximate_date: str = Field(default="", max_length=160)
+    place: str = Field(default="", max_length=300)
+    people: list[MemoryPerson] = Field(default_factory=list, max_length=50)
+    story_relevance: str = Field(default="", max_length=5000)
+    allowed_use: Literal[
+        "reference_only", "story_development", "visual_generation"
+    ] = "reference_only"
+
+
+class MemoryCard(MemoryCardCreate):
+    id: str
+    project_id: str
+    current_revision: int
+    confirmation_status: Literal["draft", "confirmed"]
+    confirmed_by: str = ""
+    created_at: str
+    updated_at: str
+
+
+class MemoryCardConfirmation(BaseModel):
+    confirmed_by: str = Field(min_length=1, max_length=160)
+    reviewed_revision: int = Field(ge=1)
+    review_channel: Literal["voice", "visual", "voice_and_visual"]
+    spoken_confirmation: str = Field(min_length=1, max_length=1000)
+
+
+class MemoryCardConfirmationRecord(MemoryCardConfirmation):
+    id: str
+    memory_id: str
+    created_at: str
+
+
+class MemoryCardUpdate(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=160)
+    description: str | None = Field(default=None, max_length=10000)
+    ocr_text: str | None = Field(default=None, max_length=30000)
+    spoken_context: str | None = Field(default=None, max_length=30000)
+    approximate_date: str | None = Field(default=None, max_length=160)
+    place: str | None = Field(default=None, max_length=300)
+    people: list[MemoryPerson] | None = Field(default=None, max_length=50)
+    story_relevance: str | None = Field(default=None, max_length=5000)
+    allowed_use: Literal[
+        "reference_only", "story_development", "visual_generation"
+    ] | None = None
+    source_channel: Literal["voice", "visual"]
+    change_summary: str = Field(min_length=1, max_length=1000)
+
+    @model_validator(mode="after")
+    def require_memory_change(self) -> MemoryCardUpdate:
+        values = (
+            self.title,
+            self.description,
+            self.ocr_text,
+            self.spoken_context,
+            self.approximate_date,
+            self.place,
+            self.people,
+            self.story_relevance,
+            self.allowed_use,
+        )
+        if all(value is None for value in values):
+            raise ValueError("memory card update requires a changed field")
+        return self
+
+
+class MemoryCardRevision(BaseModel):
+    memory_id: str
+    revision: int
+    content: dict[str, Any]
+    source_channel: Literal["voice", "visual", "system"]
+    change_summary: str
     created_at: str
 
 

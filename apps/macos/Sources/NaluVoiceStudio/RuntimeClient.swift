@@ -159,6 +159,30 @@ actor RuntimeClient {
         try await post("v1/feedback", body: draft)
     }
 
+    func createMemoryCard(projectID: String, draft: MemoryCardDraft) async throws -> MemoryCard {
+        try await post("v1/projects/\(projectID)/memory-cards", body: draft)
+    }
+
+    func listMemoryCards(projectID: String) async throws -> [MemoryCard] {
+        try await get("v1/projects/\(projectID)/memory-cards")
+    }
+
+    func updateMemoryCard(id: String, draft: MemoryCardUpdateDraft) async throws -> MemoryCard {
+        try await send("v1/memory-cards/\(id)", method: "PATCH", body: draft)
+    }
+
+    func confirmMemoryCard(id: String, revision: Int) async throws -> MemoryCard {
+        try await post(
+            "v1/memory-cards/\(id)/confirm",
+            body: MemoryCardConfirmationDraft(
+                confirmedBy: "本人",
+                reviewedRevision: revision,
+                reviewChannel: "voice_and_visual",
+                spokenConfirmation: "我确认这张记忆卡并归档"
+            )
+        )
+    }
+
     func createProjectPlan(_ draft: ProjectPlanDraft) async throws -> ProjectPlan {
         try await post("v1/project-plans", body: draft)
     }

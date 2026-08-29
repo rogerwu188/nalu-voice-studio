@@ -82,6 +82,8 @@ Acceptance:
 - Child mode: guardian setup and age-appropriate prompts.
 - Optional cloud Realtime speech-to-speech mode with interruption and an explicit
   fallback to the local push-to-talk path.
+- Memory cards support visible and spoken readback, correction, repeat and explicit
+  revision-bound archive confirmation.
 
 QA:
 
@@ -189,6 +191,8 @@ Acceptance:
 - Guardian authorization for child biometric data.
 - Local encryption strategy and Keychain-managed secrets.
 - Deleting an asset identifies every dependent, immutable production snapshot.
+- Photos and scanned handwriting create local, provenance-linked memory cards; OCR
+  drafts cannot become narrative authority without explicit confirmation.
 
 QA:
 
@@ -225,6 +229,8 @@ Current evidence:
 Acceptance:
 
 - Project libraries for characters, scenes, props, voices and styles.
+- A local family-memory graph links people, relationships, places, dates, events and
+  source evidence; only confirmed revisions are narrative authority.
 - Immutable resolved-asset snapshot per production run.
 - Episode end-state captures wardrobe, location, injuries, prop ownership,
   relationships, revealed facts, time/weather and unresolved hooks.

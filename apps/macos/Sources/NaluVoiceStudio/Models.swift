@@ -448,6 +448,99 @@ struct FeedbackItem: Codable, Identifiable, Sendable {
     }
 }
 
+struct MemoryPersonDraft: Codable, Sendable {
+    let name: String
+    let relationship: String
+    let note: String
+}
+
+struct MemoryCardDraft: Codable, Sendable {
+    let assetID: String
+    let title: String
+    let description: String
+    let ocrText: String
+    let spokenContext: String
+    let approximateDate: String
+    let place: String
+    let people: [MemoryPersonDraft]
+    let storyRelevance: String
+    let allowedUse: String
+
+    enum CodingKeys: String, CodingKey {
+        case title, description, place, people
+        case assetID = "asset_id"
+        case ocrText = "ocr_text"
+        case spokenContext = "spoken_context"
+        case approximateDate = "approximate_date"
+        case storyRelevance = "story_relevance"
+        case allowedUse = "allowed_use"
+    }
+}
+
+struct MemoryCard: Codable, Identifiable, Sendable {
+    let id: String
+    let projectID: String
+    let assetID: String
+    let title: String
+    let description: String
+    let ocrText: String
+    let spokenContext: String
+    let approximateDate: String
+    let place: String
+    let people: [MemoryPersonDraft]
+    let storyRelevance: String
+    let allowedUse: String
+    let currentRevision: Int
+    let confirmationStatus: String
+
+    enum CodingKeys: String, CodingKey {
+        case id, title, description, place, people
+        case projectID = "project_id"
+        case assetID = "asset_id"
+        case ocrText = "ocr_text"
+        case spokenContext = "spoken_context"
+        case approximateDate = "approximate_date"
+        case storyRelevance = "story_relevance"
+        case allowedUse = "allowed_use"
+        case currentRevision = "current_revision"
+        case confirmationStatus = "confirmation_status"
+    }
+}
+
+struct MemoryCardConfirmationDraft: Codable, Sendable {
+    let confirmedBy: String
+    let reviewedRevision: Int
+    let reviewChannel: String
+    let spokenConfirmation: String
+
+    enum CodingKeys: String, CodingKey {
+        case confirmedBy = "confirmed_by"
+        case reviewedRevision = "reviewed_revision"
+        case reviewChannel = "review_channel"
+        case spokenConfirmation = "spoken_confirmation"
+    }
+}
+
+struct MemoryCardUpdateDraft: Codable, Sendable {
+    let title: String
+    let description: String
+    let approximateDate: String
+    let place: String
+    let storyRelevance: String
+    let allowedUse: String
+    let sourceChannel: String
+    let changeSummary: String
+
+    enum CodingKeys: String, CodingKey {
+        case title, description, place
+        case approximateDate = "approximate_date"
+        case storyRelevance = "story_relevance"
+        case allowedUse = "allowed_use"
+        case sourceChannel = "source_channel"
+        case changeSummary = "change_summary"
+    }
+}
+
 struct ProjectPlanDraft: Codable, Sendable {
     let projectID: String?
     let project: ProjectDraft

@@ -153,7 +153,9 @@ class AssetService:
             AssetKind.SCENE_REFERENCE: ("image/", "video/"),
             AssetKind.PROP_REFERENCE: ("image/", "video/"),
             AssetKind.STYLE_REFERENCE: ("image/", "video/"),
-            AssetKind.SOURCE_DOCUMENT: ("text/", "application/pdf", "application/json"),
+            AssetKind.SOURCE_DOCUMENT: (
+                "text/", "image/", "application/pdf", "application/json",
+            ),
         }
         if not any(content_type.lower().startswith(prefix) for prefix in allowed_prefixes[kind]):
             raise ConflictError(f"content type {content_type!r} is not allowed for {kind}")

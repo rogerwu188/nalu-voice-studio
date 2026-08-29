@@ -18,6 +18,12 @@ struct ContentView: View {
     @State private var assetGuardianApproved = false
     @State private var assetConsentStatement = ""
     @State private var assetScope = "project"
+    @State private var assetMemoryDescription = ""
+    @State private var assetMemoryDate = ""
+    @State private var assetMemoryPlace = ""
+    @State private var assetMemoryRelationship = ""
+    @State private var assetMemoryStoryRelevance = ""
+    @State private var assetMemoryAllowedUse = "reference_only"
     @State private var isExportingPrivacy = false
     @State private var privacyDocument: PrivacyExportDocument?
     @State private var deletionPreview: ProjectDeletionPreview?
@@ -37,6 +43,14 @@ struct ContentView: View {
     @State private var feedbackCategory = "usability"
     @State private var feedbackShareAuthorized = false
     @State private var feedbackGuardianApproved = false
+    @State private var isPresentingMemoryEditor = false
+    @State private var editingMemoryID: String?
+    @State private var editingMemoryTitle = ""
+    @State private var editingMemoryDescription = ""
+    @State private var editingMemoryDate = ""
+    @State private var editingMemoryPlace = ""
+    @State private var editingMemoryStoryRelevance = ""
+    @State private var editingMemoryAllowedUse = "reference_only"
     private let keychain = KeychainSecretStore()
 
     var body: some View {
@@ -102,6 +116,9 @@ struct ContentView: View {
         }
         .sheet(isPresented: $isPresentingFeedback) {
             feedbackSheet
+        }
+        .sheet(isPresented: $isPresentingMemoryEditor) {
+            memoryEditorSheet
         }
         .alert("删除素材前的依赖检查", isPresented: $isPresentingAssetDependencies) {
             Button("取消", role: .cancel) { assetDependencyReport = nil }
@@ -520,6 +537,31 @@ struct ContentView: View {
                 Text("当前这一集").tag("episode")
             }
             .pickerStyle(.segmented)
+            GroupBox("给照片或手稿建立记忆卡") {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Nalu 会在本机识别图片文字。以下内容保存为草稿，朗读确认后才归档。")
+                        .foregroundStyle(.secondary)
+                    TextField("这是什么、发生了什么", text: $assetMemoryDescription)
+                        .textFieldStyle(.roundedBorder)
+                    HStack {
+                        TextField("大约什么时候，例如 1980 年春天", text: $assetMemoryDate)
+                            .textFieldStyle(.roundedBorder)
+                        TextField("在哪里", text: $assetMemoryPlace)
+                            .textFieldStyle(.roundedBorder)
+                    }
+                    TextField("这个人和您是什么关系", text: $assetMemoryRelationship)
+                        .textFieldStyle(.roundedBorder)
+                    TextField("这份资料对故事有什么意义", text: $assetMemoryStoryRelevance)
+                        .textFieldStyle(.roundedBorder)
+                    Picker("允许怎样使用", selection: $assetMemoryAllowedUse) {
+                        Text("只供理解和核对").tag("reference_only")
+                        Text("可用于编写剧本").tag("story_development")
+                        Text("可用于生成画面").tag("visual_generation")
+                    }
+                    .pickerStyle(.segmented)
+                }
+                .padding(.top, 4)
+            }
             HStack {
                 Button("选择并复制文件", systemImage: "plus.rectangle.on.folder") {
                     isImportingAsset = true
@@ -558,15 +600,61 @@ struct ContentView: View {
                                 .font(.caption)
                                 .foregroundStyle(asset.consentGranted ? .green : .red)
                             }
-                        }
-                        Spacer()
-                        if assetIsBiometricKind(asset.kind) && asset.consentGranted {
-                            Button("撤销授权", role: .destructive) {
-                                Task { await model.revokeAssetConsent(asset.id) }
+                            if let card = model.memoryCards.first(where: { $0.assetID == asset.id }) {
+                                Label(
+                                    card.confirmationStatus == "confirmed"
+                                        ? "记忆卡已确认归档" : "记忆卡等待朗读确认",
+                                    systemImage: card.confirmationStatus == "confirmed"
+                                        ? "checkmark.seal.fill" : "ear.badge.waveform"
+                                )
+                                .font(.caption)
+                                .foregroundStyle(
+                                    card.confirmationStatus == "confirmed" ? .green : .orange
+                                )
+                                Text(memoryCardSummary(card))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(2)
                             }
                         }
-                        Button("检查删除", systemImage: "trash") {
-                            inspectAssetDependencies(asset.id)
+                        Spacer()
+                        VStack(alignment: .trailing, spacing: 8) {
+                            if let card = model.memoryCards.first(where: { $0.assetID == asset.id }) {
+                                HStack {
+                                    Button("朗读", systemImage: "speaker.wave.2.fill") {
+                                        model.speakMemoryCard(card.id)
+                                    }
+                                    Button("修改", systemImage: "pencil") {
+                                        presentMemoryEditor(card)
+                                    }
+                                }
+                                HStack {
+                                    Button("语音修改", systemImage: "waveform.badge.mic") {
+                                        Task { await model.beginMemoryCorrection(card.id) }
+                                    }
+                                    if card.confirmationStatus != "confirmed" {
+                                        Button("语音确认", systemImage: "checkmark.seal") {
+                                            Task { await model.beginMemoryVoiceConfirmation(card.id) }
+                                        }
+                                    }
+                                }
+                                if card.confirmationStatus != "confirmed" {
+                                Button("确认归档", systemImage: "checkmark.seal") {
+                                    Task { await model.confirmMemoryCard(card.id) }
+                                }
+                                .buttonStyle(.borderedProminent)
+                                }
+                            }
+                            HStack {
+                                if assetIsBiometricKind(asset.kind) && asset.consentGranted {
+                                    Button("撤销授权", role: .destructive) {
+                                        Task { await model.revokeAssetConsent(asset.id) }
+                                    }
+                                }
+                                Button("检查删除", systemImage: "trash") {
+                                    inspectAssetDependencies(asset.id)
+                                }
+                            }
                         }
                     }
                     .padding(.vertical, 4)
@@ -740,6 +828,50 @@ struct ContentView: View {
         }
         .padding(28)
         .frame(minWidth: 680, minHeight: 560)
+    }
+
+    private var memoryEditorSheet: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Label("修改记忆卡", systemImage: "photo.badge.checkmark")
+                .font(.title2.bold())
+            Text("保存修改会建立新版本，并撤销原来的确认。请重新朗读核对后再归档。")
+                .foregroundStyle(.secondary)
+            TextField("记忆卡标题", text: $editingMemoryTitle)
+                .textFieldStyle(.roundedBorder)
+            TextEditor(text: $editingMemoryDescription)
+                .font(.title3)
+                .frame(minHeight: 100)
+                .padding(8)
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(.secondary.opacity(0.4)))
+            HStack {
+                TextField("大约什么时候", text: $editingMemoryDate)
+                    .textFieldStyle(.roundedBorder)
+                TextField("在哪里", text: $editingMemoryPlace)
+                    .textFieldStyle(.roundedBorder)
+            }
+            TextField("对故事有什么意义", text: $editingMemoryStoryRelevance)
+                .textFieldStyle(.roundedBorder)
+            Picker("允许怎样使用", selection: $editingMemoryAllowedUse) {
+                Text("只供理解和核对").tag("reference_only")
+                Text("可用于编写剧本").tag("story_development")
+                Text("可用于生成画面").tag("visual_generation")
+            }
+            .pickerStyle(.segmented)
+            HStack {
+                Button("取消", role: .cancel) { isPresentingMemoryEditor = false }
+                Spacer()
+                Button("保存为新版本") {
+                    saveMemoryEdits()
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(
+                    editingMemoryID == nil
+                        || editingMemoryTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                )
+            }
+        }
+        .padding(28)
+        .frame(minWidth: 650, minHeight: 520)
     }
 
     private func credentialEditor(
@@ -1038,6 +1170,35 @@ struct ContentView: View {
         }
     }
 
+    private func presentMemoryEditor(_ card: MemoryCard) {
+        editingMemoryID = card.id
+        editingMemoryTitle = card.title
+        editingMemoryDescription = card.description
+        editingMemoryDate = card.approximateDate
+        editingMemoryPlace = card.place
+        editingMemoryStoryRelevance = card.storyRelevance
+        editingMemoryAllowedUse = card.allowedUse
+        isPresentingMemoryEditor = true
+    }
+
+    private func saveMemoryEdits() {
+        guard let editingMemoryID else { return }
+        Task {
+            if await model.updateMemoryCard(
+                id: editingMemoryID,
+                title: editingMemoryTitle,
+                description: editingMemoryDescription,
+                approximateDate: editingMemoryDate,
+                place: editingMemoryPlace,
+                storyRelevance: editingMemoryStoryRelevance,
+                allowedUse: editingMemoryAllowedUse
+            ) {
+                isPresentingMemoryEditor = false
+                self.editingMemoryID = nil
+            }
+        }
+    }
+
     private func presentProviderCredentials() {
         refreshCredentialStatus()
         seedanceSecretDraft = ""
@@ -1104,7 +1265,16 @@ struct ContentView: View {
             let importedGuardianApproval = assetGuardianApproved
             let importedConsentStatement = assetConsentStatement
             let importedScope = assetScope
+            let memoryDescription = assetMemoryDescription
+            let memoryDate = assetMemoryDate
+            let memoryPlace = assetMemoryPlace
+            let memoryRelationship = assetMemoryRelationship
+            let memoryStoryRelevance = assetMemoryStoryRelevance
+            let memoryAllowedUse = assetMemoryAllowedUse
             Task {
+                let recognizedText = contentType.hasPrefix("image/")
+                    ? await LocalTextRecognizer.recognize(in: data)
+                    : ""
                 await model.importAsset(
                     data: data,
                     filename: url.lastPathComponent,
@@ -1115,7 +1285,14 @@ struct ContentView: View {
                     scope: importedScope,
                     consentGranted: importedConsent,
                     guardianApproved: importedGuardianApproval,
-                    consentStatement: importedConsentStatement
+                    consentStatement: importedConsentStatement,
+                    memoryDescription: memoryDescription,
+                    memoryDate: memoryDate,
+                    memoryPlace: memoryPlace,
+                    memoryRelationship: memoryRelationship,
+                    memoryStoryRelevance: memoryStoryRelevance,
+                    memoryAllowedUse: memoryAllowedUse,
+                    recognizedText: recognizedText
                 )
             }
         } catch {
@@ -1149,6 +1326,12 @@ struct ContentView: View {
         case "style_reference": "paintpalette"
         default: "doc.text"
         }
+    }
+
+    private func memoryCardSummary(_ card: MemoryCard) -> String {
+        [card.approximateDate, card.place, card.description]
+            .filter { !$0.isEmpty }
+            .joined(separator: " · ")
     }
 
     private func beginProject() {
