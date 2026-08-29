@@ -3,7 +3,7 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class AudienceMode(StrEnum):
@@ -450,10 +450,97 @@ class AssetDependencyReport(BaseModel):
     explanation: str
 
 
+class CharacterContinuityState(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    location: str | None = None
+    wardrobe: list[str] | None = None
+    injuries: list[str] | None = None
+    held_props: list[str] | None = None
+    relationships: dict[str, str] | None = None
+    revealed_facts: list[str] | None = None
+
+
+class PropContinuityState(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    owner: str | None = None
+    location: str | None = None
+    condition: str | None = None
+
+
+class ContinuityState(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    characters: dict[str, CharacterContinuityState] = Field(default_factory=dict)
+    props: dict[str, PropContinuityState] = Field(default_factory=dict)
+    scene_location: str | None = None
+    story_time: str | None = None
+    weather: str | None = None
+
+
+class ContinuityOverride(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: Literal["nalu.continuity-override/v1"]
+    conflict_paths: list[str] = Field(min_length=1, max_length=100)
+    reason: str = Field(min_length=1, max_length=4000)
+    reviewed_by: str = Field(min_length=1, max_length=160)
+    spoken_confirmation: str = Field(min_length=1, max_length=1000)
+
+    @model_validator(mode="after")
+    def require_explicit_review(self) -> ContinuityOverride:
+        cleaned_paths = [path.strip() for path in self.conflict_paths]
+        if any(not path for path in cleaned_paths) or len(set(cleaned_paths)) != len(
+            cleaned_paths
+        ):
+            raise ValueError("continuity override paths must be non-empty and unique")
+        confirmation = self.spoken_confirmation
+        if not any(word in confirmation for word in ("我确认", "我同意")):
+            raise ValueError("continuity override requires explicit confirmation language")
+        self.conflict_paths = cleaned_paths
+        return self
+
+
+class ContinuityConflict(BaseModel):
+    path: str
+    inherited_value: Any
+    proposed_value: Any
+    explanation: str = ""
+    overridden: bool = False
+
+
+class ContinuityPreflightRequest(BaseModel):
+    opening_state: ContinuityState = Field(default_factory=ContinuityState)
+    transition_explanations: dict[str, str] = Field(default_factory=dict)
+    override: ContinuityOverride | None = None
+
+
+class ContinuityPreflightResult(BaseModel):
+    inherited_snapshot_id: str | None = None
+    can_proceed: bool
+    conflicts: list[ContinuityConflict] = Field(default_factory=list)
+    explanation: str
+
+
 class ContinuitySnapshotCreate(BaseModel):
     source_episode_id: str | None = None
-    state: dict[str, Any] = Field(default_factory=dict)
+    state: ContinuityState = Field(default_factory=ContinuityState)
     unresolved_hooks: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def require_end_state_content(self) -> ContinuitySnapshotCreate:
+        state = self.state
+        has_state = bool(
+            state.characters
+            or state.props
+            or state.scene_location
+            or state.story_time
+            or state.weather
+        )
+        if not has_state and not self.unresolved_hooks:
+            raise ValueError("continuity snapshot requires end-state content or a hook")
+        return self
 
 
 class ContinuitySnapshot(ContinuitySnapshotCreate):
@@ -536,5 +623,6 @@ class ProductionPackage(BaseModel):
     approved_script: dict[str, Any]
     inherited_assets: list[dict[str, Any]]
     continuity: dict[str, Any] | None
+    continuity_preflight: dict[str, Any] | None = None
     production_policy: dict[str, Any]
     package_sha256: str = ""

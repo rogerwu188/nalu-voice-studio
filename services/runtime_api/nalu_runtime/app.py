@@ -8,6 +8,7 @@ from fastapi import Body, FastAPI, Header, HTTPException, Query, Response
 from fastapi.responses import FileResponse, JSONResponse
 
 from .asset_service import AssetService
+from .continuity import audit_continuity
 from .database import Database
 from .engine import ProductionService
 from .models import (
@@ -21,6 +22,8 @@ from .models import (
     AssetDependencyReport,
     AssetKind,
     ConsentScope,
+    ContinuityPreflightRequest,
+    ContinuityPreflightResult,
     ContinuitySnapshot,
     ContinuitySnapshotCreate,
     Episode,
@@ -428,6 +431,20 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
         episode_id: str, request: ContinuitySnapshotCreate
     ) -> ContinuitySnapshot:
         return repository.create_continuity_snapshot(episode_id, request)
+
+    @app.post(
+        "/v1/episodes/{episode_id}/continuity-preflight",
+        response_model=ContinuityPreflightResult,
+    )
+    def continuity_preflight(
+        episode_id: str, request: ContinuityPreflightRequest
+    ) -> ContinuityPreflightResult:
+        episode = repository.get_episode(episode_id)
+        season = repository.get_season(episode.season_id)
+        inherited = repository.latest_continuity(
+            season.id, episode.episode_number
+        )
+        return audit_continuity(inherited, request)
 
     @app.post(
         "/v1/episodes/{episode_id}/production-runs",

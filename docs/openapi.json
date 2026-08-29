@@ -399,6 +399,94 @@
         "title": "AudienceMode",
         "type": "string"
       },
+      "CharacterContinuityState": {
+        "additionalProperties": false,
+        "properties": {
+          "held_props": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Held Props"
+          },
+          "injuries": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Injuries"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          },
+          "relationships": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Relationships"
+          },
+          "revealed_facts": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revealed Facts"
+          },
+          "wardrobe": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wardrobe"
+          }
+        },
+        "title": "CharacterContinuityState",
+        "type": "object"
+      },
       "ConsentScope": {
         "enum": [
           "project_only",
@@ -407,6 +495,145 @@
         ],
         "title": "ConsentScope",
         "type": "string"
+      },
+      "ContinuityConflict": {
+        "properties": {
+          "explanation": {
+            "default": "",
+            "title": "Explanation",
+            "type": "string"
+          },
+          "inherited_value": {
+            "title": "Inherited Value"
+          },
+          "overridden": {
+            "default": false,
+            "title": "Overridden",
+            "type": "boolean"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "proposed_value": {
+            "title": "Proposed Value"
+          }
+        },
+        "required": [
+          "path",
+          "inherited_value",
+          "proposed_value"
+        ],
+        "title": "ContinuityConflict",
+        "type": "object"
+      },
+      "ContinuityOverride": {
+        "additionalProperties": false,
+        "properties": {
+          "conflict_paths": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Conflict Paths",
+            "type": "array"
+          },
+          "reason": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "reviewed_by": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Reviewed By",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "nalu.continuity-override/v1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "spoken_confirmation": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Spoken Confirmation",
+            "type": "string"
+          }
+        },
+        "required": [
+          "schema_version",
+          "conflict_paths",
+          "reason",
+          "reviewed_by",
+          "spoken_confirmation"
+        ],
+        "title": "ContinuityOverride",
+        "type": "object"
+      },
+      "ContinuityPreflightRequest": {
+        "properties": {
+          "opening_state": {
+            "$ref": "#/components/schemas/ContinuityState"
+          },
+          "override": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContinuityOverride"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "transition_explanations": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Transition Explanations",
+            "type": "object"
+          }
+        },
+        "title": "ContinuityPreflightRequest",
+        "type": "object"
+      },
+      "ContinuityPreflightResult": {
+        "properties": {
+          "can_proceed": {
+            "title": "Can Proceed",
+            "type": "boolean"
+          },
+          "conflicts": {
+            "items": {
+              "$ref": "#/components/schemas/ContinuityConflict"
+            },
+            "title": "Conflicts",
+            "type": "array"
+          },
+          "explanation": {
+            "title": "Explanation",
+            "type": "string"
+          },
+          "inherited_snapshot_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inherited Snapshot Id"
+          }
+        },
+        "required": [
+          "can_proceed",
+          "explanation"
+        ],
+        "title": "ContinuityPreflightResult",
+        "type": "object"
       },
       "ContinuitySnapshot": {
         "properties": {
@@ -434,9 +661,7 @@
             "title": "Source Episode Id"
           },
           "state": {
-            "additionalProperties": true,
-            "title": "State",
-            "type": "object"
+            "$ref": "#/components/schemas/ContinuityState"
           },
           "unresolved_hooks": {
             "items": {
@@ -468,9 +693,7 @@
             "title": "Source Episode Id"
           },
           "state": {
-            "additionalProperties": true,
-            "title": "State",
-            "type": "object"
+            "$ref": "#/components/schemas/ContinuityState"
           },
           "unresolved_hooks": {
             "items": {
@@ -481,6 +704,60 @@
           }
         },
         "title": "ContinuitySnapshotCreate",
+        "type": "object"
+      },
+      "ContinuityState": {
+        "additionalProperties": false,
+        "properties": {
+          "characters": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/CharacterContinuityState"
+            },
+            "title": "Characters",
+            "type": "object"
+          },
+          "props": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/PropContinuityState"
+            },
+            "title": "Props",
+            "type": "object"
+          },
+          "scene_location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scene Location"
+          },
+          "story_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Story Time"
+          },
+          "weather": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weather"
+          }
+        },
+        "title": "ContinuityState",
         "type": "object"
       },
       "CreativeFormat": {
@@ -1994,6 +2271,46 @@
         "title": "ProjectRename",
         "type": "object"
       },
+      "PropContinuityState": {
+        "additionalProperties": false,
+        "properties": {
+          "condition": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Condition"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          },
+          "owner": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner"
+          }
+        },
+        "title": "PropContinuityState",
+        "type": "object"
+      },
       "RunActionRequest": {
         "properties": {
           "reason": {
@@ -2783,6 +3100,55 @@
           }
         },
         "summary": "Update Episode Plan"
+      }
+    },
+    "/v1/episodes/{episode_id}/continuity-preflight": {
+      "post": {
+        "operationId": "continuity_preflight_v1_episodes__episode_id__continuity_preflight_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "episode_id",
+            "required": true,
+            "schema": {
+              "title": "Episode Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContinuityPreflightRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContinuityPreflightResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Continuity Preflight"
       }
     },
     "/v1/episodes/{episode_id}/continuity-snapshots": {

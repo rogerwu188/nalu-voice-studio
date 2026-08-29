@@ -4,8 +4,10 @@ import hashlib
 import json
 from pathlib import Path
 
+from .continuity import audit_continuity
 from .models import (
     AudienceMode,
+    ContinuityPreflightRequest,
     EpisodeProductionProgress,
     EpisodeStatus,
     EpisodeTransitionRequest,
@@ -88,6 +90,34 @@ class ProductionService:
         continuity = self.repository.latest_continuity(season.id, episode.episode_number)
         policy = self._model_policy()
 
+        continuity_preflight = None
+        if continuity is not None:
+            metadata = script.narrative_metadata
+            if "opening_continuity" not in metadata:
+                raise ConflictError(
+                    "an opening_continuity declaration is required when an earlier "
+                    "episode has an end-state snapshot"
+                )
+            try:
+                preflight_request = ContinuityPreflightRequest.model_validate(
+                    {
+                        "opening_state": metadata["opening_continuity"],
+                        "transition_explanations": metadata.get(
+                            "continuity_transition_explanations", {}
+                        ),
+                        "override": metadata.get("continuity_override"),
+                    }
+                )
+            except ValueError as exc:
+                raise ConflictError(f"invalid continuity metadata: {exc}") from exc
+            continuity_preflight = audit_continuity(continuity, preflight_request)
+            if not continuity_preflight.can_proceed:
+                paths = ", ".join(
+                    conflict.path for conflict in continuity_preflight.conflicts
+                    if not conflict.explanation and not conflict.overridden
+                )
+                raise ConflictError("unexplained continuity conflicts: " + paths)
+
         if request.requested_model not in policy["allowed_video_models"]:
             raise ConflictError(
                 f"model {request.requested_model!r} is not allowed by policy {policy['policy_version']}"
@@ -159,6 +189,10 @@ class ProductionService:
                 for asset in assets
             ],
             continuity=continuity.model_dump(mode="json") if continuity else None,
+            continuity_preflight=(
+                continuity_preflight.model_dump(mode="json")
+                if continuity_preflight else None
+            ),
             production_policy={
                 "model_policy": policy,
                 "requested_model": request.requested_model,

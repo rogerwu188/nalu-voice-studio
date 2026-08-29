@@ -1724,7 +1724,13 @@ class Repository:
     def create_continuity_snapshot(
         self, episode_id: str, request: ContinuitySnapshotCreate
     ) -> ContinuitySnapshot:
-        self.get_episode(episode_id)
+        episode = self.get_episode(episode_id)
+        if request.source_episode_id:
+            source = self.get_episode(request.source_episode_id)
+            if source.season_id != episode.season_id:
+                raise ConflictError("continuity source episode must belong to the same season")
+            if source.episode_number > episode.episode_number:
+                raise ConflictError("continuity source cannot be a future episode")
         snapshot_id, now = new_id("con"), utc_now()
         with self.db.connect() as connection:
             connection.execute(
@@ -1733,7 +1739,7 @@ class Repository:
                     snapshot_id,
                     episode_id,
                     request.source_episode_id,
-                    encode(request.state),
+                    encode(request.state.model_dump(mode="json", exclude_none=True)),
                     encode(request.unresolved_hooks),
                     now,
                 ),
