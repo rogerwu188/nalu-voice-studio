@@ -17,6 +17,8 @@ from .models import (
     ProductionRun,
     Project,
     ProjectCreate,
+    RunEvent,
+    RunStatus,
     ScriptRevision,
     ScriptRevisionCreate,
     Season,
@@ -341,6 +343,18 @@ class Repository:
                 ),
             )
 
+    def update_run_status(
+        self, run_id: str, status: RunStatus, error: str | None = None
+    ) -> ProductionRun:
+        self.get_run(run_id)
+        now = utc_now()
+        with self.db.connect() as connection:
+            connection.execute(
+                "UPDATE production_runs SET status = ?, error = ?, updated_at = ? WHERE id = ?",
+                (status, error, now, run_id),
+            )
+        return self.get_run(run_id)
+
     def get_run(self, run_id: str) -> ProductionRun:
         with self.db.connect() as connection:
             row = connection.execute("SELECT * FROM production_runs WHERE id = ?", (run_id,)).fetchone()
@@ -349,3 +363,57 @@ class Repository:
         data = dict(row)
         data["dry_run"] = bool(data["dry_run"])
         return ProductionRun.model_validate(data)
+
+    def append_run_event(
+        self,
+        run_id: str,
+        event_type: str,
+        *,
+        from_status: RunStatus | None = None,
+        to_status: RunStatus | None = None,
+        message: str = "",
+        payload: dict[str, Any] | None = None,
+    ) -> RunEvent:
+        self.get_run(run_id)
+        event_id, now = new_id("evt"), utc_now()
+        with self.db.connect() as connection:
+            row = connection.execute(
+                "SELECT COALESCE(MAX(sequence), 0) + 1 AS sequence FROM run_events WHERE run_id = ?",
+                (run_id,),
+            ).fetchone()
+            sequence = int(row["sequence"])
+            connection.execute(
+                """INSERT INTO run_events VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    event_id,
+                    run_id,
+                    sequence,
+                    event_type,
+                    from_status,
+                    to_status,
+                    message,
+                    encode(payload or {}),
+                    now,
+                ),
+            )
+        return self.get_run_event(event_id)
+
+    def get_run_event(self, event_id: str) -> RunEvent:
+        with self.db.connect() as connection:
+            row = connection.execute("SELECT * FROM run_events WHERE id = ?", (event_id,)).fetchone()
+        if row is None:
+            raise NotFoundError("run event not found")
+        data = dict(row)
+        data["payload"] = decode(data.pop("payload_json"))
+        return RunEvent.model_validate(data)
+
+    def list_run_events(self, run_id: str) -> list[RunEvent]:
+        self.get_run(run_id)
+        with self.db.connect() as connection:
+            ids = [
+                row["id"]
+                for row in connection.execute(
+                    "SELECT id FROM run_events WHERE run_id = ? ORDER BY sequence", (run_id,)
+                )
+            ]
+        return [self.get_run_event(event_id) for event_id in ids]

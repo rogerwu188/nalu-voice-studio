@@ -97,6 +97,19 @@ CREATE TABLE IF NOT EXISTS production_runs (
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS run_events (
+  id TEXT PRIMARY KEY,
+  run_id TEXT NOT NULL REFERENCES production_runs(id) ON DELETE CASCADE,
+  sequence INTEGER NOT NULL,
+  event_type TEXT NOT NULL,
+  from_status TEXT,
+  to_status TEXT,
+  message TEXT NOT NULL,
+  payload_json TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  UNIQUE(run_id, sequence)
+);
 """
 
 

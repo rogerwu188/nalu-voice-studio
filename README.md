@@ -75,6 +75,12 @@ The default runtime is safe and local:
 - `POST /v1/episodes/{episode_id}/continuity-snapshots`
 - `POST /v1/episodes/{episode_id}/production-runs`
 - `GET /v1/production-runs/{run_id}`
+- `GET /v1/production-runs/{run_id}/events`
+- `POST /v1/production-runs/{run_id}/cancel`
+- `POST /v1/production-runs/{run_id}/resume`
+
+Project completion is governed by [the product SOP](docs/PRODUCT_SOP.md). A
+module, milestone, or green CI run is not treated as completion of the product.
 
 ## Upstream
 

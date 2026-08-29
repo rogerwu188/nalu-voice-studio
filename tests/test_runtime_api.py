@@ -99,6 +99,10 @@ def test_dry_run_writes_immutable_package(tmp_path: Path) -> None:
     assert package.exists()
     assert "package_sha256" in package.read_text(encoding="utf-8")
     assert package.with_name("qingshan-preflight-report.json").exists()
+    workspace = package.with_name("qingshan-workspace")
+    assert (workspace / "workspace-manifest.json").exists()
+    assert (workspace / "source" / "E01_APPROVED_SCRIPT.md").exists()
+    assert (workspace / "workflow" / "work_queue.json").exists()
 
 
 def test_prohibited_model_is_rejected(tmp_path: Path) -> None:
@@ -109,3 +113,32 @@ def test_prohibited_model_is_rejected(tmp_path: Path) -> None:
         json={"dry_run": True, "requested_model": "seedance-2.0-fast"},
     )
     assert response.status_code == 409
+
+
+def test_run_events_cancel_and_resume(tmp_path: Path) -> None:
+    api = client(tmp_path)
+    _, _, episode = create_approved_episode(api)
+    run = api.post(
+        f"/v1/episodes/{episode['id']}/production-runs",
+        json={"dry_run": True, "requested_model": "MiniMax-H3"},
+    ).json()
+
+    events = api.get(f"/v1/production-runs/{run['id']}/events").json()
+    assert [event["event_type"] for event in events] == ["run_created"]
+
+    cancelled = api.post(
+        f"/v1/production-runs/{run['id']}/cancel",
+        json={"requested_by": "user", "reason": "先暂停，稍后继续"},
+    )
+    assert cancelled.status_code == 200
+    assert cancelled.json()["status"] == "cancelled"
+
+    resumed = api.post(
+        f"/v1/production-runs/{run['id']}/resume",
+        json={"requested_by": "user", "reason": "继续制作"},
+    )
+    assert resumed.status_code == 200
+    assert resumed.json()["status"] == "preflight"
+
+    events = api.get(f"/v1/production-runs/{run['id']}/events").json()
+    assert [event["sequence"] for event in events] == [1, 2, 3]

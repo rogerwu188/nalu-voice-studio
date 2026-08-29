@@ -19,6 +19,7 @@ Qingshan Runtime API
                 │ immutable package
                 ▼
 Qingshan adapter
+        ├── clean workspace materializer
         ├── preflight and continuity gates
         ├── durable paid submitter
         ├── generation and assembly
@@ -44,6 +45,13 @@ asset edits do not mutate an in-flight or completed episode.
 At episode completion, the production line writes an end-state snapshot for the
 next episode: character location and wardrobe, injuries, prop ownership,
 relationship changes, revealed facts, time/weather, and unresolved hooks.
+
+## Workspace materialization
+
+Every run produces a clean `qingshan-workspace/` containing the approved script,
+work queue, task record, project asset indexes, inherited continuity, production
+policy, and a SHA-256 workspace manifest. Product paths use stable episode IDs
+and never call imported E40/E41-specific commands directly.
 
 ## Safety
 

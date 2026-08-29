@@ -20,6 +20,9 @@ from .models import (
     ProductionRunCreate,
     Project,
     ProjectCreate,
+    RunActionRequest,
+    RunEvent,
+    RunResumeRequest,
     ScriptRevision,
     ScriptRevisionCreate,
     Season,
@@ -139,6 +142,18 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
     @app.get("/v1/production-runs/{run_id}", response_model=ProductionRun)
     def get_run(run_id: str) -> ProductionRun:
         return repository.get_run(run_id)
+
+    @app.get("/v1/production-runs/{run_id}/events", response_model=list[RunEvent])
+    def get_run_events(run_id: str) -> list[RunEvent]:
+        return production.events(run_id)
+
+    @app.post("/v1/production-runs/{run_id}/cancel", response_model=ProductionRun)
+    def cancel_run(run_id: str, request: RunActionRequest) -> ProductionRun:
+        return production.cancel_run(run_id, request)
+
+    @app.post("/v1/production-runs/{run_id}/resume", response_model=ProductionRun)
+    def resume_run(run_id: str, request: RunResumeRequest) -> ProductionRun:
+        return production.resume_run(run_id, request)
 
     return app
 

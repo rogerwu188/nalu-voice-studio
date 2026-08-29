@@ -188,6 +188,27 @@ class ProductionRun(BaseModel):
     updated_at: str
 
 
+class RunEvent(BaseModel):
+    id: str
+    run_id: str
+    sequence: int
+    event_type: str
+    from_status: RunStatus | None = None
+    to_status: RunStatus | None = None
+    message: str = ""
+    payload: dict[str, Any] = Field(default_factory=dict)
+    created_at: str
+
+
+class RunActionRequest(BaseModel):
+    requested_by: str = Field(min_length=1)
+    reason: str = Field(min_length=1)
+
+
+class RunResumeRequest(RunActionRequest):
+    resume_from_preflight: bool = True
+
+
 class ProductionPackage(BaseModel):
     schema_version: str = "nalu.production-package/v1"
     project: dict[str, Any]

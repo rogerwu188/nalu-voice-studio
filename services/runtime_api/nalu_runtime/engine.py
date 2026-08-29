@@ -9,6 +9,9 @@ from .models import (
     ProductionPackage,
     ProductionRun,
     ProductionRunCreate,
+    RunActionRequest,
+    RunEvent,
+    RunResumeRequest,
     RunStatus,
 )
 from .qingshan_adapter import QingshanAdapter, QingshanAdapterError
@@ -87,7 +90,8 @@ class ProductionService:
         )
 
         try:
-            self.adapter.preflight(package_path)
+            workspace = self.adapter.materialize_workspace(package_path)
+            self.adapter.preflight(package_path, workspace)
         except QingshanAdapterError as exc:
             raise ConflictError(f"Qingshan preflight failed: {exc}") from exc
 
@@ -108,4 +112,50 @@ class ProductionService:
             updated_at=now,
         )
         self.repository.save_run(run)
+        self.repository.append_run_event(
+            run.id,
+            "run_created",
+            to_status=run.status,
+            message="Immutable production package created and Qingshan preflight passed.",
+            payload={"package_path": run.package_path, "dry_run": run.dry_run},
+        )
         return run
+
+    def cancel_run(self, run_id: str, request: RunActionRequest) -> ProductionRun:
+        run = self.repository.get_run(run_id)
+        if run.status in {RunStatus.COMPLETED, RunStatus.CANCELLED}:
+            raise ConflictError(f"run in {run.status} cannot be cancelled")
+        updated = self.repository.update_run_status(run_id, RunStatus.CANCELLED)
+        self.repository.append_run_event(
+            run_id,
+            "run_cancelled",
+            from_status=run.status,
+            to_status=RunStatus.CANCELLED,
+            message=request.reason,
+            payload={"requested_by": request.requested_by},
+        )
+        return updated
+
+    def resume_run(self, run_id: str, request: RunResumeRequest) -> ProductionRun:
+        run = self.repository.get_run(run_id)
+        if run.status not in {RunStatus.FAILED, RunStatus.CANCELLED}:
+            raise ConflictError("only failed or cancelled runs may be resumed")
+        target = RunStatus.PREFLIGHT if request.resume_from_preflight else RunStatus.QUEUED
+        if target == RunStatus.QUEUED and not run.dry_run:
+            raise ConflictError("paid runs must resume through preflight")
+        package_path = Path(run.package_path)
+        workspace = self.adapter.materialize_workspace(package_path)
+        self.adapter.preflight(package_path, workspace)
+        updated = self.repository.update_run_status(run_id, target, error=None)
+        self.repository.append_run_event(
+            run_id,
+            "run_resumed",
+            from_status=run.status,
+            to_status=target,
+            message=request.reason,
+            payload={"requested_by": request.requested_by},
+        )
+        return updated
+
+    def events(self, run_id: str) -> list[RunEvent]:
+        return self.repository.list_run_events(run_id)
