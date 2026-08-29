@@ -41,6 +41,7 @@ swiftc -parse-as-library \
   -framework AppKit \
   -framework AVFoundation \
   -framework Speech \
+  -framework WebKit \
   -o "$binary_path"
 
 if [[ -d "$bundle" && "$bundle" == "$output_root/"* ]]; then

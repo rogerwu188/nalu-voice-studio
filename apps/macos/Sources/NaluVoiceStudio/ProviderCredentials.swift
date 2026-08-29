@@ -12,7 +12,7 @@ enum ProviderCredential: String, CaseIterable, Identifiable {
         switch self {
         case .seedance: "Seedance / SD2 Pro"
         case .minimax: "MiniMax H3"
-        case .openAIRealtime: "OpenAI Realtime 语音（仅保存，尚未启用）"
+        case .openAIRealtime: "OpenAI Realtime 自然语音"
         }
     }
 }
@@ -51,6 +51,11 @@ struct KeychainSecretStore {
         guard status == errSecSuccess || status == errSecItemNotFound else {
             throw KeychainSecretError.operationFailed(status)
         }
+    }
+
+    func secret(for credential: ProviderCredential) throws -> String? {
+        guard let data = try read(credential) else { return nil }
+        return String(data: data, encoding: .utf8)
     }
 
     private func read(_ credential: ProviderCredential) throws -> Data? {

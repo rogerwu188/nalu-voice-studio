@@ -1,6 +1,6 @@
 # Realtime voice architecture
 
-Status: proposed architecture; production WebRTC implementation and human QA are incomplete.
+Status: WebRTC implementation in progress; credential-free CI and human QA are incomplete.
 
 Nalu supports two explicit conversation modes. Neither mode replaces the other.
 
@@ -38,14 +38,30 @@ The standard OpenAI API key remains in macOS Keychain. It must never enter SQLit
 project exports, logs, crash reports, environment variables, WebRTC events, or the
 assistant conversation.
 
-The native client must not send the long-lived key directly to the Realtime peer.
-Before Mode B can ship, the bundled Runtime must have authenticated local IPC. The
-native app passes the key to the trusted loopback broker only for session creation;
-the broker calls `/v1/realtime/calls` and returns the SDP answer. It erases the
-request buffer after use and does not persist it. A random per-launch bearer token,
-file mode `0600`, origin checks, bounded request size, and endpoint allowlisting
-protect that local broker. Realtime remains disabled until this boundary passes a
-local-adversary review.
+The native Swift session broker reads the user-supplied standard key from Keychain and
+uses it only over TLS to request an ephemeral client secret from
+`/v1/realtime/client_secrets`. The embedded WebRTC view receives only that short-lived
+secret and uses it to post its SDP offer to `/v1/realtime/calls`; the long-lived key is
+never injected into JavaScript, SDP, the data channel, SQLite, environment variables,
+exports or logs. The WebKit data store is non-persistent. Realtime remains fail-closed
+until the key exists and the user has accepted the per-session cloud-audio/cost notice.
+
+## Implemented native path
+
+- A visible “自然语音对话” control opens a per-session consent sheet.
+- Child projects require an additional in-person guardian confirmation.
+- `gpt-realtime-2.1`, `marin`, semantic VAD with low eagerness, automatic response
+  creation and interruption are encoded in a unit-tested session configuration.
+- The WebRTC data channel maps listening, thinking, speaking, error and transcript
+  events into the same visible conversation UI.
+- The original local push-to-talk control remains available and is disabled only while
+  a live Realtime session is active.
+- The Realtime prompt requires Nalu to answer an interruption first, then return to the
+  unfinished interview prompt. It cannot claim that a protected local action occurred.
+
+Still required: a credential-authorized paid connectivity test, usage/cost accounting,
+session expiry/reconnect behavior, tool-call integration with the structured interview,
+packet inspection and the full human accessibility matrix below.
 
 ## Consent, children, and cost
 
@@ -74,4 +90,3 @@ workflow. Voice must never bypass an existing product gate.
 - No standard API key observed in process arguments, environment, logs, SQLite,
   exports, or packet payloads after the session handshake.
 - Accessibility Inspector and VoiceOver evidence from a signed release candidate.
-

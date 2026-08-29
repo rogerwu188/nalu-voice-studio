@@ -91,6 +91,30 @@ final class InterviewFlowTests: XCTestCase {
         XCTAssertEqual(flow.draft.productionPipeline, "unassigned")
     }
 
+    func testConversationInterruptionIsAnsweredWithoutAdvancingOrPollutingDraft() {
+        var flow = InterviewFlow()
+        _ = flow.begin()
+        _ = flow.consume("我自己使用")
+        XCTAssertEqual(flow.step, .creativeFormat)
+
+        assertResponse(
+            flow.consume("哈喽，你在干什么？你为什么不和我交互？"),
+            contains: "先回答"
+        )
+        XCTAssertEqual(flow.step, .creativeFormat)
+        XCTAssertEqual(flow.draft.creativeFormat, "short_drama_series")
+
+        assertResponse(
+            flow.consume("我在问你问题，希望你先跟我交流沟通"),
+            contains: "您不必顺着固定流程"
+        )
+        XCTAssertEqual(flow.step, .creativeFormat)
+
+        assertResponse(flow.consume("动画片"), contains: "主要角色")
+        XCTAssertEqual(flow.step, .premise)
+        XCTAssertEqual(flow.draft.creativeFormat, "animation_series")
+    }
+
     private func assertResponse(
         _ action: InterviewFlowAction,
         contains expected: String,

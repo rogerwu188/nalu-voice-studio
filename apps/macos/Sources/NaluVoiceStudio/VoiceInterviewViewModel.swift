@@ -828,8 +828,10 @@ final class VoiceInterviewViewModel {
         switch action {
         case .respond(let message):
             messages.append(.init(speaker: .nalu, text: message))
+            speechPlayback.speak(message, rate: comfortPreferences.speechRate)
         case .create(let draft, let message):
             messages.append(.init(speaker: .nalu, text: message))
+            speechPlayback.speak(message, rate: comfortPreferences.speechRate)
             Task { await createInterviewedProject(draft) }
         }
     }
@@ -908,6 +910,16 @@ final class VoiceInterviewViewModel {
         let prompt = planningVoiceFlow.mode?.prompt ?? interviewFlow.prompt
         messages.append(.init(speaker: .nalu, text: prompt))
         speechPlayback.speak(prompt, rate: comfortPreferences.speechRate)
+    }
+
+    func receiveRealtimeTranscript(_ text: String, from speaker: Speaker) {
+        let cleaned = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleaned.isEmpty else { return }
+        messages.append(.init(speaker: speaker, text: cleaned))
+    }
+
+    var currentInterviewPrompt: String {
+        planningVoiceFlow.mode?.prompt ?? interviewFlow.prompt
     }
 
     func makeTextLarger() {

@@ -48,6 +48,11 @@ struct InterviewFlow {
         if isPaused {
             return .respond("采访还在暂停中。准备好后请说“继续”。")
         }
+        if let interruption = InterviewInterruptionRouter.response(
+            for: spoken, resumePrompt: prompt
+        ) {
+            return .respond(interruption)
+        }
 
         history.append(Snapshot(step: step, draft: draft))
         switch step {

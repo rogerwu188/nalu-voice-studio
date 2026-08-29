@@ -9,7 +9,7 @@ struct ContentView: View {
     @State private var isExportingProject = false
     @State private var exportDocument: ProjectBackupDocument?
     @State private var isScriptEditorExpanded = false
-    @State private var isAssetEditorExpanded = false
+    @State private var isPresentingAssetEditor = false
     @State private var isImportingAsset = false
     @State private var assetKind = "character_image"
     @State private var assetName = ""
@@ -51,6 +51,11 @@ struct ContentView: View {
     @State private var editingMemoryPlace = ""
     @State private var editingMemoryStoryRelevance = ""
     @State private var editingMemoryAllowedUse = "reference_only"
+    @State private var realtimeVoice = RealtimeVoiceCoordinator()
+    @State private var isPresentingRealtimeConsent = false
+    @State private var realtimeCloudConsent = false
+    @State private var realtimeGuardianConsent = false
+    @State private var realtimeCredentialIsConfigured = false
     private let keychain = KeychainSecretStore()
 
     var body: some View {
@@ -119,6 +124,12 @@ struct ContentView: View {
         }
         .sheet(isPresented: $isPresentingMemoryEditor) {
             memoryEditorSheet
+        }
+        .sheet(isPresented: $isPresentingAssetEditor) {
+            assetEditorSheet
+        }
+        .sheet(isPresented: $isPresentingRealtimeConsent) {
+            realtimeConsentSheet
         }
         .alert("删除素材前的依赖检查", isPresented: $isPresentingAssetDependencies) {
             Button("取消", role: .cancel) { assetDependencyReport = nil }
@@ -231,28 +242,70 @@ struct ContentView: View {
                     RuntimeStatusBadge(status: model.runtimeStatus)
                 }
                 Spacer()
-                Button("添加照片 / 视频", systemImage: "photo.badge.plus") {
+                Button("添加照片 / 手稿 / 视频", systemImage: "photo.badge.plus") {
                     assetKind = "character_image"
-                    isAssetEditorExpanded = true
+                    isPresentingAssetEditor = true
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
                 .disabled(selectedProject == nil)
+                Button(
+                    realtimeVoice.state.isActive ? "结束自然语音" : "自然语音对话",
+                    systemImage: realtimeVoice.state.isActive
+                        ? "phone.down.fill" : "waveform.and.mic"
+                ) {
+                    if realtimeVoice.state.isActive {
+                        realtimeVoice.stop()
+                    } else {
+                        presentRealtimeConsent()
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(realtimeVoice.state.isActive ? .red : .purple)
+                .controlSize(.large)
                 Button("再说一遍", action: repeatQuestion).controlSize(.large)
             }
             .padding(24)
             Divider()
+            RealtimeWebRTCContainer(coordinator: realtimeVoice)
+                .frame(width: 1, height: 1)
+                .opacity(0.01)
+                .accessibilityHidden(true)
+            if realtimeVoice.state != .off {
+                Label(realtimeVoice.state.label, systemImage: realtimeVoice.state.systemImage)
+                    .font(.headline)
+                    .foregroundStyle(realtimeVoice.state.isActive ? .purple : .orange)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 10)
+                    .background(Color.purple.opacity(0.07))
+                Divider()
+            }
             if selectedProject != nil {
-                DisclosureGroup(
-                    "上传人物照片、家庭视频、声音或参考资料",
-                    isExpanded: $isAssetEditorExpanded
-                ) {
-                    assetEditor.padding(.top, 10)
+                Button {
+                    isPresentingAssetEditor = true
+                } label: {
+                    HStack(spacing: 14) {
+                        Image(systemName: "photo.stack.fill")
+                            .font(.title2)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("添加一张照片、手稿或家庭视频")
+                                .font(.headline)
+                            Text("Nalu 会陪您说明人物、时间和地点，再朗读给您确认归档")
+                                .font(.body)
+                                .opacity(0.9)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right.circle.fill")
+                            .font(.title2)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 8)
                 }
-                .font(.headline)
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
                 .padding(.horizontal, 24)
                 .padding(.vertical, 12)
-                .background(Color.blue.opacity(0.06))
                 Divider()
             }
             if !model.episodes.isEmpty {
@@ -345,6 +398,7 @@ struct ContentView: View {
             .buttonStyle(.borderedProminent)
             .tint(model.isListening ? .red : .blue)
             .padding(24)
+            .disabled(realtimeVoice.state.isActive)
         }
         .alert("Nalu 需要您的帮助", isPresented: errorBinding) {
             Button("知道了", role: .cancel) { model.errorMessage = nil }
@@ -668,6 +722,87 @@ struct ContentView: View {
             assetConsentStatement = ""
             assetSubjectName = ""
         }
+    }
+
+    private var assetEditorSheet: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 14) {
+                Image(systemName: "photo.stack.fill")
+                    .font(.title)
+                    .foregroundStyle(.blue)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("添加家庭资料")
+                        .font(.title2.bold())
+                    Text("先说明资料，再选择文件。保存后 Nalu 会朗读给您确认。")
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button("完成", systemImage: "xmark.circle.fill") {
+                    isPresentingAssetEditor = false
+                }
+                .controlSize(.large)
+            }
+            .padding(24)
+            Divider()
+            ScrollView {
+                assetEditor
+                    .padding(24)
+            }
+        }
+        .frame(minWidth: 760, minHeight: 640)
+    }
+
+    private var realtimeConsentSheet: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Label("开启自然语音对话", systemImage: "waveform.and.mic")
+                .font(.title2.bold())
+                .foregroundStyle(.purple)
+            Text("开启后可以像打电话一样交谈：您可以停顿、插话、问问题，Nalu 会先回答，再回到创作流程。")
+                .font(.title3)
+            GroupBox("开启前请您知道") {
+                VStack(alignment: .leading, spacing: 10) {
+                    Label("麦克风声音会发送给 OpenAI Realtime 处理", systemImage: "icloud.and.arrow.up")
+                    Label("这会使用您的 OpenAI API 额度并可能产生费用", systemImage: "creditcard")
+                    Label("音频不写入项目 SQLite、备份或反馈记录", systemImage: "externaldrive.badge.checkmark")
+                    Label("随时点“结束自然语音”即可断开，并回到本机按键模式", systemImage: "phone.down")
+                }
+                .padding(.top, 5)
+            }
+            Toggle("我知道声音会离开这台 Mac，并同意开启这次云端语音会话", isOn: $realtimeCloudConsent)
+                .font(.headline)
+            if selectedProject?.audienceMode == "child" {
+                Toggle("监护人正在现场，并同意孩子开启这次云端语音会话", isOn: $realtimeGuardianConsent)
+                    .font(.headline)
+            }
+            if !realtimeCredentialIsConfigured {
+                Label("尚未设置 OpenAI Realtime 密钥", systemImage: "key.slash")
+                    .foregroundStyle(.orange)
+                Button("先设置模型密钥", systemImage: "key.fill") {
+                    isPresentingRealtimeConsent = false
+                    presentProviderCredentials()
+                }
+                .controlSize(.large)
+            }
+            HStack {
+                Button("取消", role: .cancel) {
+                    isPresentingRealtimeConsent = false
+                }
+                Spacer()
+                Button("同意并开始自然语音", systemImage: "waveform.and.mic") {
+                    beginRealtimeVoice()
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .disabled(
+                    !realtimeCredentialIsConfigured
+                        || !realtimeCloudConsent
+                        || (selectedProject?.audienceMode == "child" && !realtimeGuardianConsent)
+                )
+            }
+        }
+        .padding(28)
+        .frame(minWidth: 650)
+        .interactiveDismissDisabled(realtimeCloudConsent)
     }
 
     private var projectDeletionSheet: some View {
@@ -1207,11 +1342,50 @@ struct ContentView: View {
         isPresentingProviderCredentials = true
     }
 
+    private func presentRealtimeConsent() {
+        do {
+            realtimeCredentialIsConfigured = try keychain.contains(.openAIRealtime)
+        } catch {
+            realtimeCredentialIsConfigured = false
+            model.errorMessage = error.localizedDescription
+        }
+        realtimeCloudConsent = false
+        realtimeGuardianConsent = false
+        isPresentingRealtimeConsent = true
+    }
+
+    private func beginRealtimeVoice() {
+        guard realtimeCloudConsent,
+              realtimeCredentialIsConfigured,
+              selectedProject?.audienceMode != "child" || realtimeGuardianConsent else {
+            return
+        }
+        isPresentingRealtimeConsent = false
+        realtimeVoice.onUserTranscript = { text in
+            model.receiveRealtimeTranscript(text, from: .user)
+        }
+        realtimeVoice.onAssistantTranscript = { text in
+            model.receiveRealtimeTranscript(text, from: .nalu)
+        }
+        let projectName = selectedProject?.title ?? "尚未命名的故事"
+        let currentPrompt = model.currentInterviewPrompt
+        let instructions = """
+        你是 Nalu，一位耐心、简洁、适合老年人和儿童的中文语音采访者。
+        当前项目叫“\(projectName)”。当前尚未完成的问题是：“\(currentPrompt)”
+        用户不必服从固定流程。用户提出问题、质疑、闲聊或纠正时，必须先直接回答当下内容，
+        不要答非所问；回答清楚后，再用一句自然的话回到尚未完成的问题。
+        一次只问一个问题，句子简短，语速舒缓。允许用户停顿和随时插话。
+        不得声称已经保存、批准、付费生成、删除或发布任何内容；这些操作必须回到可见界面确认。
+        """
+        Task { await realtimeVoice.start(instructions: instructions) }
+    }
+
     private func refreshCredentialStatus() {
         do {
             seedanceIsConfigured = try keychain.contains(.seedance)
             minimaxIsConfigured = try keychain.contains(.minimax)
             openAIRealtimeIsConfigured = try keychain.contains(.openAIRealtime)
+            realtimeCredentialIsConfigured = openAIRealtimeIsConfigured
         } catch {
             model.errorMessage = error.localizedDescription
         }
