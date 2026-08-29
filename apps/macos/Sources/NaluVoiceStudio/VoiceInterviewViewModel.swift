@@ -912,7 +912,7 @@ final class VoiceInterviewViewModel {
         speechPlayback.speak(prompt, rate: comfortPreferences.speechRate)
     }
 
-    func receiveRealtimeTranscript(_ text: String, from speaker: Speaker) {
+    func receiveRealtimeTranscript(_ text: String, from speaker: InterviewMessage.Speaker) {
         let cleaned = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleaned.isEmpty else { return }
         messages.append(.init(speaker: speaker, text: cleaned))

@@ -1362,10 +1362,10 @@ struct ContentView: View {
         }
         isPresentingRealtimeConsent = false
         realtimeVoice.onUserTranscript = { text in
-            model.receiveRealtimeTranscript(text, from: .user)
+            model.receiveRealtimeTranscript(text, from: InterviewMessage.Speaker.user)
         }
         realtimeVoice.onAssistantTranscript = { text in
-            model.receiveRealtimeTranscript(text, from: .nalu)
+            model.receiveRealtimeTranscript(text, from: InterviewMessage.Speaker.nalu)
         }
         let projectName = selectedProject?.title ?? "尚未命名的故事"
         let currentPrompt = model.currentInterviewPrompt
