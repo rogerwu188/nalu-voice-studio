@@ -37,7 +37,7 @@ Evidence:
 - Revalidated on commit `60f4626`: GitHub CI run `33272141000`, runtime and
   macOS jobs passed.
 
-## SOP-01 · Versioned product domain and Runtime API — IN_PROGRESS
+## SOP-01 · Versioned product domain and Runtime API — PASS
 
 Acceptance:
 
@@ -65,8 +65,10 @@ Current evidence:
   idempotency; paid production now rejects requests without an idempotency key.
 - GitHub CI run `33272141000`: 12 Runtime tests, real loopback HTTP smoke,
   OpenAPI freshness/compatibility and full macOS build passed.
-- Still required before `PASS`: expanded restart boundaries and a populated
-  release-candidate upgrade/rollback migration rehearsal.
+- Commit `6e5ecb7`: restart-safe production replay and populated v1 → v3
+  migration rehearsal preserve projects, approved scripts and approval records.
+- GitHub CI run `33272328616` on commit `9594e33`: 13 Runtime tests, real HTTP
+  smoke, compatibility gates and full macOS build passed.
 
 ## SOP-02 · Voice interview and accessible conversation — IN_PROGRESS
 
