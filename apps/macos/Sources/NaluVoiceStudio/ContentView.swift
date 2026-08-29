@@ -127,7 +127,7 @@ struct ContentView: View {
                     HStack(spacing: 10) {
                         ForEach(model.episodes) { episode in
                             Button("第 \(episode.episodeNumber) 集") {
-                                model.selectedEpisodeID = episode.id
+                                model.selectEpisode(episode.id)
                             }
                             .buttonStyle(.borderedProminent)
                             .tint(episode.id == model.selectedEpisodeID ? .blue : .gray)
@@ -138,6 +138,10 @@ struct ContentView: View {
                     .padding(.horizontal, 24)
                     .padding(.vertical, 12)
                 }
+                Divider()
+            }
+            if !model.seasons.isEmpty {
+                planningEditor
                 Divider()
             }
             ScrollView {
@@ -181,6 +185,60 @@ struct ContentView: View {
         }
     }
 
+    private var planningEditor: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Label("本季与分集规划", systemImage: "list.bullet.rectangle.portrait")
+                    .font(.headline)
+                Spacer()
+                Text(seasonPlanStatus)
+                    .foregroundStyle(seasonPlanIsCurrent ? .green : .orange)
+            }
+            TextField("用一两句话说明这一季从哪里开始、在哪里结束", text: seasonPlanBinding)
+                .textFieldStyle(.roundedBorder)
+                .font(.title3)
+            HStack {
+                Button("保存季纲") { Task { await model.saveSeasonPlan() } }
+                    .buttonStyle(.borderedProminent)
+                if selectedProject?.audienceMode == "child" {
+                    Toggle("监护人已在场确认", isOn: guardianPlanBinding)
+                }
+                Button("我已看过并确认") {
+                    Task { await model.approveSeasonPlanVisually() }
+                }
+                .disabled(
+                    !seasonPlanCanApprove
+                        || (selectedProject?.audienceMode == "child"
+                            && !model.guardianConfirmedForPlan)
+                )
+            }
+            if let episode = selectedEpisode {
+                Divider()
+                Text("第 \(episode.episodeNumber) 集 · \(episode.title)")
+                    .font(.headline)
+                TextField("这一集发生什么", text: episodeLoglineBinding)
+                    .textFieldStyle(.roundedBorder)
+                TextField("起因、转折和结尾", text: episodeOutlineBinding, axis: .vertical)
+                    .textFieldStyle(.roundedBorder)
+                    .lineLimit(2...4)
+                HStack {
+                    Button("保存本集规划") {
+                        Task { await model.saveSelectedEpisodePlan() }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(!episodePlanIsEditable)
+                    if !episodePlanIsEditable {
+                        Label("本集已批准或进入制作，规划已锁定", systemImage: "lock.fill")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+        .padding(.horizontal, 24)
+        .padding(.vertical, 14)
+        .background(Color.secondary.opacity(0.04))
+    }
+
     private func bubble(_ message: InterviewMessage) -> some View {
         HStack(alignment: .top, spacing: 12) {
             if message.speaker == .user { Spacer(minLength: 80) }
@@ -221,6 +279,55 @@ struct ContentView: View {
 
     private var selectedProject: NaluProject? {
         model.projects.first { $0.id == model.selectedProjectID }
+    }
+
+    private var selectedSeason: NaluSeason? { model.seasons.first }
+
+    private var selectedEpisode: NaluEpisode? {
+        model.episodes.first { $0.id == model.selectedEpisodeID }
+    }
+
+    private var seasonPlanIsCurrent: Bool {
+        guard let season = selectedSeason else { return false }
+        return season.planRevision == season.approvedPlanRevision
+    }
+
+    private var seasonPlanCanApprove: Bool {
+        guard let season = selectedSeason else { return false }
+        return season.planRevision > 0 && !seasonPlanIsCurrent
+    }
+
+    private var seasonPlanStatus: String {
+        guard let season = selectedSeason else { return "" }
+        if seasonPlanIsCurrent { return "第 \(season.planRevision) 版已确认" }
+        return "第 \(season.planRevision) 版等待确认"
+    }
+
+    private var episodePlanIsEditable: Bool {
+        guard let status = selectedEpisode?.status else { return false }
+        return ["planned", "script_draft", "script_review"].contains(status)
+    }
+
+    private var seasonPlanBinding: Binding<String> {
+        Binding(get: { model.seasonPlanSummary }, set: { model.seasonPlanSummary = $0 })
+    }
+
+    private var episodeLoglineBinding: Binding<String> {
+        Binding(get: { model.episodeLogline }, set: { model.episodeLogline = $0 })
+    }
+
+    private var episodeOutlineBinding: Binding<String> {
+        Binding(
+            get: { model.episodeOutlineSummary },
+            set: { model.episodeOutlineSummary = $0 }
+        )
+    }
+
+    private var guardianPlanBinding: Binding<Bool> {
+        Binding(
+            get: { model.guardianConfirmedForPlan },
+            set: { model.guardianConfirmedForPlan = $0 }
+        )
     }
 
     private var exportFilename: String {

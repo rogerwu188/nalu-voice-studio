@@ -75,12 +75,55 @@ actor RuntimeClient {
         try await post("v1/projects/\(projectID)/seasons", body: draft)
     }
 
+    func updateSeasonPlan(
+        seasonID: String, summary: String, sourceTranscript: String = ""
+    ) async throws -> NaluSeason {
+        try await send(
+            "v1/seasons/\(seasonID)",
+            method: "PATCH",
+            body: SeasonPlanUpdateDraft(
+                seasonArc: ["summary": .string(summary)],
+                sourceTranscript: sourceTranscript
+            )
+        )
+    }
+
+    func approveSeasonPlan(
+        seasonID: String, confirmation: String, reviewChannel: String,
+        guardianApproval: Bool
+    ) async throws -> SeasonPlanApproval {
+        try await post(
+            "v1/seasons/\(seasonID)/plan-approvals",
+            body: SeasonPlanApprovalDraft(
+                approvedBy: "local-user",
+                spokenConfirmation: confirmation,
+                reviewChannel: reviewChannel,
+                guardianApproval: guardianApproval
+            )
+        )
+    }
+
     func listEpisodes(seasonID: String) async throws -> [NaluEpisode] {
         try await get("v1/seasons/\(seasonID)/episodes")
     }
 
     func createEpisode(seasonID: String, draft: EpisodeDraft) async throws -> NaluEpisode {
         try await post("v1/seasons/\(seasonID)/episodes", body: draft)
+    }
+
+    func updateEpisodePlan(
+        episodeID: String, logline: String, outlineSummary: String,
+        sourceTranscript: String = ""
+    ) async throws -> NaluEpisode {
+        try await send(
+            "v1/episodes/\(episodeID)",
+            method: "PATCH",
+            body: EpisodePlanUpdateDraft(
+                logline: logline,
+                outline: ["summary": .string(outlineSummary)],
+                sourceTranscript: sourceTranscript
+            )
+        )
     }
 
     private func get<Response: Decodable>(_ path: String) async throws -> Response {

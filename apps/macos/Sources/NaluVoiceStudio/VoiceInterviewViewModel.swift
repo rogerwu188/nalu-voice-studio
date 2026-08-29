@@ -22,6 +22,10 @@ final class VoiceInterviewViewModel {
     var runtimeStatus = "正在连接本地制片厂…"
     var errorMessage: String?
     var includeArchivedProjects = false
+    var seasonPlanSummary = ""
+    var episodeLogline = ""
+    var episodeOutlineSummary = ""
+    var guardianConfirmedForPlan = false
 
     private let runtime = RuntimeClient()
     private let speech = SpeechRecorder()
@@ -94,10 +98,72 @@ final class VoiceInterviewViewModel {
             seasons = try await runtime.listSeasons(projectID: projectID)
             if let season = seasons.first {
                 episodes = try await runtime.listEpisodes(seasonID: season.id)
-                selectedEpisodeID = episodes.first?.id
+                seasonPlanSummary = season.seasonArc["summary"]?.displayText ?? ""
+                if let first = episodes.first {
+                    selectEpisode(first.id)
+                } else {
+                    selectedEpisodeID = nil
+                    episodeLogline = ""
+                    episodeOutlineSummary = ""
+                }
             } else {
                 episodes = []
                 selectedEpisodeID = nil
+                seasonPlanSummary = ""
+                episodeLogline = ""
+                episodeOutlineSummary = ""
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func selectEpisode(_ episodeID: String) {
+        selectedEpisodeID = episodeID
+        guard let episode = episodes.first(where: { $0.id == episodeID }) else { return }
+        episodeLogline = episode.logline
+        episodeOutlineSummary = episode.outline["summary"]?.displayText ?? ""
+    }
+
+    func saveSeasonPlan() async {
+        guard let season = seasons.first else { return }
+        do {
+            _ = try await runtime.updateSeasonPlan(
+                seasonID: season.id, summary: seasonPlanSummary
+            )
+            if let projectID = selectedProjectID { await selectProject(projectID) }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func approveSeasonPlanVisually() async {
+        guard let season = seasons.first else { return }
+        do {
+            _ = try await runtime.approveSeasonPlan(
+                seasonID: season.id,
+                confirmation: "我已查看并确认当前分集计划",
+                reviewChannel: "visual",
+                guardianApproval: guardianConfirmedForPlan
+            )
+            if let projectID = selectedProjectID { await selectProject(projectID) }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func saveSelectedEpisodePlan() async {
+        guard let selectedEpisodeID else { return }
+        do {
+            _ = try await runtime.updateEpisodePlan(
+                episodeID: selectedEpisodeID,
+                logline: episodeLogline,
+                outlineSummary: episodeOutlineSummary
+            )
+            if let projectID = selectedProjectID {
+                let episodeID = selectedEpisodeID
+                await selectProject(projectID)
+                if episodes.contains(where: { $0.id == episodeID }) { selectEpisode(episodeID) }
             }
         } catch {
             errorMessage = error.localizedDescription

@@ -1,5 +1,52 @@
 import Foundation
 
+enum JSONValue: Codable, Hashable, Sendable {
+    case string(String)
+    case number(Double)
+    case bool(Bool)
+    case object([String: JSONValue])
+    case array([JSONValue])
+    case null
+
+    init(from decoder: Decoder) throws {
+        let value = try decoder.singleValueContainer()
+        if value.decodeNil() { self = .null }
+        else if let decoded = try? value.decode(Bool.self) { self = .bool(decoded) }
+        else if let decoded = try? value.decode(Double.self) { self = .number(decoded) }
+        else if let decoded = try? value.decode(String.self) { self = .string(decoded) }
+        else if let decoded = try? value.decode([String: JSONValue].self) {
+            self = .object(decoded)
+        } else if let decoded = try? value.decode([JSONValue].self) {
+            self = .array(decoded)
+        } else {
+            throw DecodingError.dataCorruptedError(
+                in: value, debugDescription: "Unsupported JSON value"
+            )
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var value = encoder.singleValueContainer()
+        switch self {
+        case .string(let item): try value.encode(item)
+        case .number(let item): try value.encode(item)
+        case .bool(let item): try value.encode(item)
+        case .object(let item): try value.encode(item)
+        case .array(let item): try value.encode(item)
+        case .null: try value.encodeNil()
+        }
+    }
+
+    var displayText: String {
+        switch self {
+        case .string(let item): item
+        case .number(let item): item.formatted()
+        case .bool(let item): item ? "是" : "否"
+        case .object, .array, .null: ""
+        }
+    }
+}
+
 struct ProjectDraft: Codable, Sendable {
     var title = ""
     var description = ""
@@ -71,12 +118,54 @@ struct NaluSeason: Codable, Identifiable, Sendable {
     let title: String
     let seasonNumber: Int
     let plannedEpisodeCount: Int
+    let seasonArc: [String: JSONValue]
+    let planRevision: Int
+    let approvedPlanRevision: Int?
 
     enum CodingKeys: String, CodingKey {
         case id, title
         case projectID = "project_id"
         case seasonNumber = "season_number"
         case plannedEpisodeCount = "planned_episode_count"
+        case seasonArc = "season_arc"
+        case planRevision = "plan_revision"
+        case approvedPlanRevision = "approved_plan_revision"
+    }
+}
+
+struct SeasonPlanUpdateDraft: Codable, Sendable {
+    let seasonArc: [String: JSONValue]
+    let sourceTranscript: String
+
+    enum CodingKeys: String, CodingKey {
+        case seasonArc = "season_arc"
+        case sourceTranscript = "source_transcript"
+    }
+}
+
+struct SeasonPlanApprovalDraft: Codable, Sendable {
+    let approvedBy: String
+    let spokenConfirmation: String
+    let reviewChannel: String
+    let guardianApproval: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case approvedBy = "approved_by"
+        case spokenConfirmation = "spoken_confirmation"
+        case reviewChannel = "review_channel"
+        case guardianApproval = "guardian_approval"
+    }
+}
+
+struct SeasonPlanApproval: Codable, Sendable {
+    let id: String
+    let seasonID: String
+    let planRevision: Int
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case seasonID = "season_id"
+        case planRevision = "plan_revision"
     }
 }
 
@@ -97,11 +186,26 @@ struct NaluEpisode: Codable, Identifiable, Sendable {
     let id: String
     let title: String
     let episodeNumber: Int
+    let logline: String
+    let outline: [String: JSONValue]
+    let targetSeconds: Int
     let status: String
 
     enum CodingKeys: String, CodingKey {
-        case id, title, status
+        case id, title, logline, outline, status
         case episodeNumber = "episode_number"
+        case targetSeconds = "target_seconds"
+    }
+}
+
+struct EpisodePlanUpdateDraft: Codable, Sendable {
+    let logline: String
+    let outline: [String: JSONValue]
+    let sourceTranscript: String
+
+    enum CodingKeys: String, CodingKey {
+        case logline, outline
+        case sourceTranscript = "source_transcript"
     }
 }
 
