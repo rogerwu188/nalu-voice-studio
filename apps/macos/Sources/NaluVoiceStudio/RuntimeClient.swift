@@ -29,6 +29,10 @@ actor RuntimeClient {
         try await post("v1/projects", body: draft)
     }
 
+    func createProjectPlan(_ draft: ProjectPlanDraft) async throws -> ProjectPlan {
+        try await post("v1/project-plans", body: draft)
+    }
+
     func listSeasons(projectID: String) async throws -> [NaluSeason] {
         try await get("v1/projects/\(projectID)/seasons")
     }

@@ -93,6 +93,22 @@ struct NaluEpisode: Codable, Identifiable, Sendable {
     }
 }
 
+struct ProjectPlanDraft: Codable, Sendable {
+    let project: ProjectDraft
+    let seasonTitle: String
+
+    enum CodingKeys: String, CodingKey {
+        case project
+        case seasonTitle = "season_title"
+    }
+}
+
+struct ProjectPlan: Codable, Sendable {
+    let project: NaluProject
+    let season: NaluSeason
+    let episodes: [NaluEpisode]
+}
+
 struct InterviewMessage: Identifiable, Sendable {
     enum Speaker: Sendable, Equatable { case nalu, user }
     let id = UUID()

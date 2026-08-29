@@ -67,10 +67,12 @@ The default runtime is safe and local:
 ## Initial API surface
 
 - `POST /v1/projects`
+- `POST /v1/project-plans` (atomic Project → Season → Episode bootstrap)
 - `POST /v1/projects/{project_id}/seasons`
 - `POST /v1/seasons/{season_id}/episodes`
 - `POST /v1/episodes/{episode_id}/scripts`
 - `POST /v1/episodes/{episode_id}/scripts/{revision}/approve`
+- `GET /v1/episodes/{episode_id}/script-approvals`
 - `POST /v1/projects/{project_id}/assets`
 - `POST /v1/episodes/{episode_id}/continuity-snapshots`
 - `POST /v1/episodes/{episode_id}/production-runs`

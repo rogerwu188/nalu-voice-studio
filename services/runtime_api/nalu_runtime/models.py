@@ -102,6 +102,19 @@ class Episode(EpisodeCreate):
     updated_at: str
 
 
+class ProjectPlanCreate(BaseModel):
+    project: ProjectCreate
+    season_title: str = Field(default="第一季", min_length=1, max_length=160)
+    season_number: int = Field(default=1, ge=1)
+    episode_titles: list[str] = Field(default_factory=list, max_length=500)
+
+
+class ProjectPlan(BaseModel):
+    project: Project
+    season: Season
+    episodes: list[Episode]
+
+
 class ScriptRevisionCreate(BaseModel):
     content: str = Field(min_length=1)
     summary_for_voice_review: str = Field(min_length=1)

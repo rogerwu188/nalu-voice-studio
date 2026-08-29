@@ -708,6 +708,63 @@
         "title": "ProjectCreate",
         "type": "object"
       },
+      "ProjectPlan": {
+        "properties": {
+          "episodes": {
+            "items": {
+              "$ref": "#/components/schemas/Episode"
+            },
+            "title": "Episodes",
+            "type": "array"
+          },
+          "project": {
+            "$ref": "#/components/schemas/Project"
+          },
+          "season": {
+            "$ref": "#/components/schemas/Season"
+          }
+        },
+        "required": [
+          "project",
+          "season",
+          "episodes"
+        ],
+        "title": "ProjectPlan",
+        "type": "object"
+      },
+      "ProjectPlanCreate": {
+        "properties": {
+          "episode_titles": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 500,
+            "title": "Episode Titles",
+            "type": "array"
+          },
+          "project": {
+            "$ref": "#/components/schemas/ProjectCreate"
+          },
+          "season_number": {
+            "default": 1,
+            "minimum": 1.0,
+            "title": "Season Number",
+            "type": "integer"
+          },
+          "season_title": {
+            "default": "第一季",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Season Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project"
+        ],
+        "title": "ProjectPlanCreate",
+        "type": "object"
+      },
       "RunActionRequest": {
         "properties": {
           "reason": {
@@ -1539,6 +1596,44 @@
           }
         },
         "summary": "Resume Run"
+      }
+    },
+    "/v1/project-plans": {
+      "post": {
+        "operationId": "create_project_plan_v1_project_plans_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectPlanCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectPlan"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Project Plan"
       }
     },
     "/v1/projects": {

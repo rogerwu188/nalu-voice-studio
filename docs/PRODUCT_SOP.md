@@ -100,8 +100,8 @@ QA:
 
 Current evidence:
 
-- Voice answers create a persisted Project → first Season → numbered Episode plan;
-  existing projects and episode selectors reload from the Runtime API.
+- Voice answers atomically create a persisted Project → first Season → numbered
+  Episode plan; existing projects and episode selectors reload from the Runtime API.
 - Still required before `PASS`: rename/archive/export/restore, editable season arcs,
   plan approval, restart/import QA and immutable-future-edit tests.
 

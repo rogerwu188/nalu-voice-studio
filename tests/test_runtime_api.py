@@ -60,6 +60,36 @@ def test_project_season_episode_hierarchy(tmp_path: Path) -> None:
     assert approvals[0]["spoken_confirmation"] == "我确认这个剧本"
 
 
+def test_atomic_multi_episode_project_plan(tmp_path: Path) -> None:
+    api = client(tmp_path)
+    response = api.post(
+        "/v1/project-plans",
+        json={
+            "project": {
+                "title": "十集自传",
+                "audience_mode": "older_adult",
+                "planned_episode_count": 10,
+            },
+            "season_title": "人生第一季",
+        },
+    )
+    assert response.status_code == 201
+    plan = response.json()
+    assert plan["season"]["project_id"] == plan["project"]["id"]
+    assert [row["episode_number"] for row in plan["episodes"]] == list(range(1, 11))
+
+    rejected = api.post(
+        "/v1/project-plans",
+        json={
+            "project": {"title": "不完整计划", "planned_episode_count": 3},
+            "episode_titles": ["只有一集"],
+        },
+    )
+    assert rejected.status_code == 409
+    projects = api.get("/v1/projects").json()
+    assert [project["title"] for project in projects] == ["十集自传"]
+
+
 def test_database_migration_preserves_existing_database(tmp_path: Path) -> None:
     database_path = tmp_path / "legacy.sqlite3"
     with sqlite3.connect(database_path) as connection:

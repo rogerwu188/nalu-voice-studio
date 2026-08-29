@@ -19,6 +19,8 @@ from .models import (
     ProductionRun,
     Project,
     ProjectCreate,
+    ProjectPlan,
+    ProjectPlanCreate,
     RunEvent,
     RunStatus,
     ScriptRevision,
@@ -76,6 +78,70 @@ class Repository:
                 ),
             )
         return self.get_project(project_id)
+
+    def create_project_plan(self, request: ProjectPlanCreate) -> ProjectPlan:
+        """Create a project, its first season and episode slots atomically."""
+        project_id, season_id, now = new_id("prj"), new_id("sea"), utc_now()
+        episode_count = request.project.planned_episode_count
+        titles = request.episode_titles or [f"第{number}集" for number in range(1, episode_count + 1)]
+        if len(titles) != episode_count or any(not title.strip() for title in titles):
+            raise ConflictError("episode titles must match planned episode count")
+        episode_ids: list[str] = []
+        with self.db.connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            connection.execute(
+                "INSERT INTO projects VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    project_id,
+                    request.project.title,
+                    request.project.description,
+                    request.project.audience_mode,
+                    request.project.visual_style,
+                    request.project.aspect_ratio,
+                    episode_count,
+                    request.project.target_episode_seconds,
+                    encode(request.project.project_bible),
+                    now,
+                    now,
+                ),
+            )
+            connection.execute(
+                "INSERT INTO seasons VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    season_id,
+                    project_id,
+                    request.season_title,
+                    request.season_number,
+                    episode_count,
+                    encode({}),
+                    now,
+                    now,
+                ),
+            )
+            for number, title in enumerate(titles, start=1):
+                episode_id = new_id("ep")
+                episode_ids.append(episode_id)
+                connection.execute(
+                    "INSERT INTO episodes VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (
+                        episode_id,
+                        season_id,
+                        title.strip(),
+                        number,
+                        "等待和用户一起完善",
+                        encode({}),
+                        request.project.target_episode_seconds,
+                        EpisodeStatus.PLANNED,
+                        None,
+                        now,
+                        now,
+                    ),
+                )
+        return ProjectPlan(
+            project=self.get_project(project_id),
+            season=self.get_season(season_id),
+            episodes=[self.get_episode(episode_id) for episode_id in episode_ids],
+        )
 
     def get_project(self, project_id: str) -> Project:
         with self.db.connect() as connection:

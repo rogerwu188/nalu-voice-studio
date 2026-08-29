@@ -116,33 +116,16 @@ final class VoiceInterviewViewModel {
 
     private func createInterviewedProject() async {
         do {
-            let project = try await runtime.createProject(projectDraft)
-            let season = try await runtime.createSeason(
-                projectID: project.id,
-                draft: SeasonDraft(
-                    title: "第一季",
-                    seasonNumber: 1,
-                    plannedEpisodeCount: projectDraft.plannedEpisodeCount
-                )
+            let plan = try await runtime.createProjectPlan(
+                ProjectPlanDraft(project: projectDraft, seasonTitle: "第一季")
             )
-            for number in 1...projectDraft.plannedEpisodeCount {
-                _ = try await runtime.createEpisode(
-                    seasonID: season.id,
-                    draft: EpisodeDraft(
-                        title: "第\(number)集",
-                        episodeNumber: number,
-                        logline: "等待和用户一起完善",
-                        targetSeconds: projectDraft.targetEpisodeSeconds
-                    )
-                )
-            }
             projects = try await runtime.listProjects()
-            await selectProject(project.id)
+            await selectProject(plan.project.id)
             interviewStep = .idle
             messages.append(
                 .init(
                     speaker: .nalu,
-                    text: "项目“\(project.title)”已经建立，共 \(projectDraft.plannedEpisodeCount) 集。接下来我们逐集完善故事。"
+                    text: "项目“\(plan.project.title)”已经建立，共 \(plan.episodes.count) 集。接下来我们逐集完善故事。"
                 )
             )
         } catch {
