@@ -25,3 +25,7 @@ Versioning and the Keep a Changelog structure.
 - Independent per-episode production stage, percentage and recovery presentation.
 - Latest-only script approval, complete revision history and audited approval revocation.
 - Native typed/voice script revision workbench with Mandarin summary playback.
+- Managed local photo, audio, document and reference-video import with path and MIME checks.
+- Audited biometric consent and revocation, child guardian enforcement and immutable run dependencies.
+- Complete privacy ZIP export and transactional, verified project deletion Runtime contracts.
+- Native consent-aware asset picker, project/episode scoping and privacy-bundle export.

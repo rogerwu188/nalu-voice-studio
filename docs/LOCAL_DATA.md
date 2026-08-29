@@ -13,6 +13,11 @@ Generated packages and Runtime working files are stored beside it under:
 ~/Library/Application Support/Nalu Voice Studio/data/
 ```
 
+Files selected in the native asset picker are copied into managed directories
+under `data/assets/<project-id>/<asset-id>/`. Nalu validates the file name,
+content type, size and resolved destination before recording it. The original
+file may subsequently move without breaking the managed project copy.
+
 The bundled Runtime listens only on `127.0.0.1`. Nalu has no database sync,
 telemetry upload or automatic cloud backup path. The SQLite file must never be
 placed in the application bundle, source repository or a shared temporary
@@ -35,9 +40,30 @@ continuity snapshots, including versioned season-plan approvals. Import verifies
 the format version and digest, rejects unknown tables, columns and cross-project
 references, and restores the project atomically into a clean local database.
 
-Exported asset records currently preserve local file references; they do not
-embed or copy the media. A portable media bundle and complete privacy export are
-still tracked by SOP-05 and must not be represented as complete.
+The ordinary JSON project backup preserves asset records and managed local file
+references, but intentionally does not embed media. Use the native **Privacy
+Bundle** export when the subject needs a complete portable disclosure: its ZIP
+contains the versioned project export, managed media and consent receipts, and
+excludes SQLite files and secrets.
+
+Face and voice imports require the subject name, an affirmative consent choice
+and a written consent statement. Child projects additionally require guardian
+approval. Revocation is retained as an audit receipt, marks the asset unusable,
+and makes subsequent production fail closed. A production run stores an
+immutable asset-dependency snapshot; Nalu refuses to delete any asset referenced
+by such a snapshot.
+
+Complete project deletion requires the user to type the exact project title. If
+production snapshots exist, the request must also explicitly authorize deleting
+them. Deletion stages project media and run directories, removes owned database
+records transactionally, rolls files back if the transaction fails, and verifies
+that the project, media and runs are absent before reporting success. The Runtime
+contract and automated negative QA exist; a native deletion confirmation screen
+is still tracked by SOP-05.
+
+Nalu has not yet completed its at-rest encryption and Keychain integration
+acceptance criteria. Provider secrets must not be added to SQLite while that work
+remains open.
 
 ## Development overrides
 

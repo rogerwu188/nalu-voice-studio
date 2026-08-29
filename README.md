@@ -86,6 +86,9 @@ backup boundaries and deletion behavior.
 - `PATCH /v1/projects/{project_id}`
 - `POST /v1/projects/{project_id}/archive`
 - `GET /v1/projects/{project_id}/export`
+- `GET /v1/projects/{project_id}/privacy-export`
+- `GET /v1/projects/{project_id}/deletion-preview`
+- `DELETE /v1/projects/{project_id}`
 - `POST /v1/project-imports`
 - `POST /v1/projects/{project_id}/seasons`
 - `PATCH /v1/seasons/{season_id}`
@@ -97,6 +100,12 @@ backup boundaries and deletion behavior.
 - `POST /v1/episodes/{episode_id}/scripts/{revision}/approve`
 - `GET /v1/episodes/{episode_id}/script-approvals`
 - `POST /v1/projects/{project_id}/assets`
+- `POST /v1/projects/{project_id}/asset-imports`
+- `GET /v1/projects/{project_id}/assets`
+- `GET /v1/assets/{asset_id}/consent-records`
+- `POST /v1/assets/{asset_id}/consent-revocations`
+- `GET /v1/assets/{asset_id}/dependencies`
+- `DELETE /v1/assets/{asset_id}`
 - `POST /v1/episodes/{episode_id}/continuity-snapshots`
 - `POST /v1/episodes/{episode_id}/production-runs`
 - `GET /v1/production-runs/{run_id}`

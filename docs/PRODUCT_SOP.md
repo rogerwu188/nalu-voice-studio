@@ -198,10 +198,23 @@ Current evidence:
   loopback-only and has no database sync or telemetry-upload path.
 - `docs/LOCAL_DATA.md` defines the local database, working-data, Keychain and
   provider boundary. Project exports exclude secrets, validate format/digest/schema
-  and cross-project references, and clearly disclose that media files are not yet embedded.
-- Still required before `PASS`: sandboxed media import/copy, consent revocation and
-  dependency reporting, Keychain integration, local encryption decision, complete
-  privacy export/deletion and their negative QA suites.
+  and cross-project references.
+- Commit `1466be5`, GitHub CI run `33276434097`: schema migration v6, managed
+  local byte import, file-name/path/MIME/size enforcement, consent receipts and
+  revocation, immutable production dependencies, full privacy ZIP, and
+  title-confirmed transactional project deletion passed 21 Runtime tests, real
+  HTTP smoke, OpenAPI compatibility and full macOS build. Negative fixtures cover
+  unauthorized biometrics, child consent, traversal, external local paths,
+  dependency-protected deletion, secrets/SQLite exclusion and verified absence.
+- Commit `ea647f8`, GitHub CI run `33276621169`: the native app imports supported
+  local media through the security-scoped picker, requires explicit face/voice
+  authorization and child guardian confirmation, scopes to the project or selected
+  episode, shows/revokes consent, exports the privacy ZIP, and passed Swift tests,
+  full application build and bundled-Runtime smoke.
+- Still required before `PASS`: season-specific asset scope, native dependency and
+  complete-project-deletion review UI, Keychain integration, local at-rest
+  encryption decision/implementation, and human privacy/deletion QA on the same
+  release candidate.
 
 ## SOP-06 · Cross-episode inheritance and continuity — TODO
 
