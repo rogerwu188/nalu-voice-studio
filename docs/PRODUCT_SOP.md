@@ -59,8 +59,10 @@ Current evidence:
 - Commit `1f2b8d5`: persisted lifecycle transitions, schema migration v2,
   concurrency-bound project-plan idempotency, restart recovery test and executable
   backward-compatibility check for the committed OpenAPI contract.
-- Still required before `PASS`: idempotency for production and other retryable
-  mutations, expanded restart boundaries and release-candidate migration rehearsal.
+- Commit `e71c91e`: schema migration v3 and payload-bound production-run
+  idempotency; paid production now rejects requests without an idempotency key.
+- Still required before `PASS`: expanded restart boundaries and a populated
+  release-candidate upgrade/rollback migration rehearsal.
 
 ## SOP-02 · Voice interview and accessible conversation — IN_PROGRESS
 
