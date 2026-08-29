@@ -1,5 +1,8 @@
+import hashlib
+import json
 import sqlite3
 from concurrent.futures import ThreadPoolExecutor
+from copy import deepcopy
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -90,6 +93,51 @@ def test_atomic_multi_episode_project_plan(tmp_path: Path) -> None:
     assert [project["title"] for project in projects] == ["十集自传"]
 
 
+def test_project_rename_archive_export_and_restore(tmp_path: Path) -> None:
+    source = client(tmp_path / "source")
+    plan = source.post(
+        "/v1/project-plans",
+        json={"project": {"title": "十集人生", "planned_episode_count": 10}},
+    ).json()
+    project_id = plan["project"]["id"]
+    renamed = source.patch(
+        f"/v1/projects/{project_id}", json={"title": "十集人生故事"}
+    )
+    assert renamed.status_code == 200
+    assert renamed.json()["title"] == "十集人生故事"
+
+    archived = source.post(f"/v1/projects/{project_id}/archive", json={"archived": True})
+    assert archived.json()["archived_at"] is not None
+    assert source.get("/v1/projects").json() == []
+    assert source.get("/v1/projects?include_archived=true").json()[0]["id"] == project_id
+
+    backup = source.get(f"/v1/projects/{project_id}/export").json()
+    target_database = tmp_path / "target" / "nalu.sqlite3"
+    target_data = tmp_path / "target" / "data"
+    target = TestClient(create_app(target_database, target_data))
+    restored = target.post("/v1/project-imports", json=backup)
+    assert restored.status_code == 201
+    assert restored.json()["id"] == project_id
+    seasons = target.get(f"/v1/projects/{project_id}/seasons").json()
+    episodes = target.get(f"/v1/seasons/{seasons[0]['id']}/episodes").json()
+    assert [episode["episode_number"] for episode in episodes] == list(range(1, 11))
+
+    restarted = TestClient(create_app(target_database, target_data))
+    assert restarted.get(f"/v1/projects/{project_id}").json()["title"] == "十集人生故事"
+
+    tampered = deepcopy(backup)
+    tampered["payload"]["projects"][0]["title"] = "被篡改"
+    rejected = client(tmp_path / "tampered").post("/v1/project-imports", json=tampered)
+    assert rejected.status_code == 409
+
+    foreign = deepcopy(backup)
+    foreign["payload"]["seasons"][0]["project_id"] = "prj_foreign"
+    canonical = json.dumps(foreign["payload"], ensure_ascii=False, sort_keys=True)
+    foreign["payload_sha256"] = hashlib.sha256(canonical.encode()).hexdigest()
+    rejected = client(tmp_path / "foreign").post("/v1/project-imports", json=foreign)
+    assert rejected.status_code == 409
+
+
 def test_project_plan_idempotency_is_concurrent_and_payload_bound(tmp_path: Path) -> None:
     api = client(tmp_path)
     payload = {
@@ -172,7 +220,7 @@ def test_database_migration_preserves_existing_database(tmp_path: Path) -> None:
         connection.execute("INSERT INTO legacy_marker VALUES ('preserve-me')")
 
     api = create_app(database_path, tmp_path / "data")
-    assert api.state.repository.db.schema_version() == 3
+    assert api.state.repository.db.schema_version() == 4
     with sqlite3.connect(database_path) as connection:
         marker = connection.execute("SELECT value FROM legacy_marker").fetchone()[0]
         approval_table = connection.execute(
@@ -195,7 +243,7 @@ def test_populated_v1_database_upgrades_without_project_loss(tmp_path: Path) -> 
         connection.execute("DELETE FROM schema_migrations WHERE version >= 2")
 
     after = TestClient(create_app(database_path, data_root))
-    assert after.app.state.repository.db.schema_version() == 3
+    assert after.app.state.repository.db.schema_version() == 4
     assert after.get(f"/v1/projects/{project['id']}").json()["title"] == "我的一生"
     assert after.get(f"/v1/episodes/{episode['id']}").json()[
         "approved_script_revision"

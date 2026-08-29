@@ -183,6 +183,13 @@ MIGRATIONS = (
         );
         """,
     ),
+    (
+        4,
+        "project_archival",
+        """
+        ALTER TABLE projects ADD COLUMN archived_at TEXT;
+        """,
+    ),
 )
 
 
@@ -208,6 +215,20 @@ class Database:
             for version, name, sql in MIGRATIONS:
                 if version in applied:
                     continue
+                # A process can be interrupted after SQLite commits an ALTER TABLE
+                # but before Nalu records the migration. Reconcile that state rather
+                # than failing every subsequent launch with a duplicate-column error.
+                if version == 4:
+                    project_columns = {
+                        row["name"]
+                        for row in connection.execute("PRAGMA table_info(projects)")
+                    }
+                    if "archived_at" in project_columns:
+                        connection.execute(
+                            "INSERT INTO schema_migrations VALUES (?, ?, datetime('now'))",
+                            (version, name),
+                        )
+                        continue
                 connection.executescript(sql)
                 connection.execute(
                     "INSERT INTO schema_migrations VALUES (?, ?, datetime('now'))",

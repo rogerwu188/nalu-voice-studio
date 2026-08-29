@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -67,8 +67,24 @@ class ProjectCreate(BaseModel):
 
 class Project(ProjectCreate):
     id: str
+    archived_at: str | None = None
     created_at: str
     updated_at: str
+
+
+class ProjectRename(BaseModel):
+    title: str = Field(min_length=1, max_length=160)
+
+
+class ProjectArchiveRequest(BaseModel):
+    archived: bool = True
+
+
+class ProjectExport(BaseModel):
+    schema_version: Literal["nalu.project-export/v1"] = "nalu.project-export/v1"
+    exported_at: str
+    payload: dict[str, Any]
+    payload_sha256: str
 
 
 class SeasonCreate(BaseModel):

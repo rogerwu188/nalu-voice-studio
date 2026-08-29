@@ -39,6 +39,11 @@ silently alter an approved narrative authority.
 SQLite changes are applied as numbered migrations and surfaced by the health
 endpoint. Script confirmations are retained as separate approval audit records,
 including approver identity, spoken confirmation and guardian authorization.
+In the packaged application the single database is local at
+`~/Library/Application Support/Nalu Voice Studio/nalu.sqlite3`; it is not an
+upstream Qingshan database and is never synchronized automatically. The Runtime
+creates bounded, immutable production packages from approved records instead of
+giving the production line direct database access.
 
 ## Multi-episode inheritance
 

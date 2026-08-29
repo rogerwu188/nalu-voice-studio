@@ -64,16 +64,29 @@ end-user runtime dependency.
 
 The default runtime is safe and local:
 
-- SQLite and run packages are stored under `./data/`.
+- The macOS app stores its only project database at
+  `~/Library/Application Support/Nalu Voice Studio/nalu.sqlite3` and run
+  packages in the adjacent `data/` directory.
+- The source-development command stores data under `./data/` unless its local
+  path is explicitly overridden.
 - The server binds to `127.0.0.1`.
 - Production starts in `dry_run` mode.
 - Paid generation requires an explicit approval record and a configured
   Qingshan durable transaction submitter.
 
+Nalu does not synchronize or upload the SQLite database. Only material selected
+for an explicitly approved production run may leave the Mac through a configured
+model provider. See [local data and privacy](docs/LOCAL_DATA.md) for paths,
+backup boundaries and deletion behavior.
+
 ## Initial API surface
 
 - `POST /v1/projects`
 - `POST /v1/project-plans` (atomic Project → Season → Episode bootstrap)
+- `PATCH /v1/projects/{project_id}`
+- `POST /v1/projects/{project_id}/archive`
+- `GET /v1/projects/{project_id}/export`
+- `POST /v1/project-imports`
 - `POST /v1/projects/{project_id}/seasons`
 - `POST /v1/seasons/{season_id}/episodes`
 - `POST /v1/episodes/{episode_id}/scripts`

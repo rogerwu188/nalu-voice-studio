@@ -22,9 +22,12 @@ from .models import (
     ProductionRun,
     ProductionRunCreate,
     Project,
+    ProjectArchiveRequest,
     ProjectCreate,
+    ProjectExport,
     ProjectPlan,
     ProjectPlanCreate,
+    ProjectRename,
     RunActionRequest,
     RunEvent,
     RunResumeRequest,
@@ -86,12 +89,28 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
         return repository.create_project_plan(request, idempotency_key)
 
     @app.get("/v1/projects", response_model=list[Project])
-    def list_projects() -> list[Project]:
-        return repository.list_projects()
+    def list_projects(include_archived: bool = False) -> list[Project]:
+        return repository.list_projects(include_archived)
 
     @app.get("/v1/projects/{project_id}", response_model=Project)
     def get_project(project_id: str) -> Project:
         return repository.get_project(project_id)
+
+    @app.patch("/v1/projects/{project_id}", response_model=Project)
+    def rename_project(project_id: str, request: ProjectRename) -> Project:
+        return repository.rename_project(project_id, request)
+
+    @app.post("/v1/projects/{project_id}/archive", response_model=Project)
+    def archive_project(project_id: str, request: ProjectArchiveRequest) -> Project:
+        return repository.archive_project(project_id, request)
+
+    @app.get("/v1/projects/{project_id}/export", response_model=ProjectExport)
+    def export_project(project_id: str) -> ProjectExport:
+        return repository.export_project(project_id)
+
+    @app.post("/v1/project-imports", response_model=Project, status_code=201)
+    def restore_project(backup: ProjectExport) -> Project:
+        return repository.restore_project(backup)
 
     @app.post("/v1/projects/{project_id}/seasons", response_model=Season, status_code=201)
     def create_season(project_id: str, request: SeasonCreate) -> Season:

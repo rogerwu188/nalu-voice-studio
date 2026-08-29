@@ -21,9 +21,12 @@ from .models import (
     EpisodeTransitionRequest,
     ProductionRun,
     Project,
+    ProjectArchiveRequest,
     ProjectCreate,
+    ProjectExport,
     ProjectPlan,
     ProjectPlanCreate,
+    ProjectRename,
     RunEvent,
     RunStatus,
     ScriptRevision,
@@ -90,7 +93,11 @@ class Repository:
         project_id, now = new_id("prj"), utc_now()
         with self.db.connect() as connection:
             connection.execute(
-                """INSERT INTO projects VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                """INSERT INTO projects (
+                   id, title, description, audience_mode, visual_style, aspect_ratio,
+                   planned_episode_count, target_episode_seconds, project_bible_json,
+                   created_at, updated_at
+                   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     project_id,
                     request.title,
@@ -184,7 +191,11 @@ class Repository:
                         raise ConflictError("idempotency key was already used for another request")
                     return ProjectPlan.model_validate_json(existing["response_json"])
             connection.execute(
-                "INSERT INTO projects VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                """INSERT INTO projects (
+                   id, title, description, audience_mode, visual_style, aspect_ratio,
+                   planned_episode_count, target_episode_seconds, project_bible_json,
+                   created_at, updated_at
+                   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     project_id,
                     request.project.title,
@@ -288,10 +299,168 @@ class Repository:
         data["project_bible"] = decode(data.pop("project_bible_json"))
         return Project.model_validate(data)
 
-    def list_projects(self) -> list[Project]:
+    def rename_project(self, project_id: str, request: ProjectRename) -> Project:
+        self.get_project(project_id)
         with self.db.connect() as connection:
-            ids = [row["id"] for row in connection.execute("SELECT id FROM projects ORDER BY created_at")]
+            connection.execute(
+                "UPDATE projects SET title = ?, updated_at = ? WHERE id = ?",
+                (request.title, utc_now(), project_id),
+            )
+        return self.get_project(project_id)
+
+    def archive_project(
+        self, project_id: str, request: ProjectArchiveRequest
+    ) -> Project:
+        self.get_project(project_id)
+        now = utc_now()
+        with self.db.connect() as connection:
+            connection.execute(
+                "UPDATE projects SET archived_at = ?, updated_at = ? WHERE id = ?",
+                (now if request.archived else None, now, project_id),
+            )
+        return self.get_project(project_id)
+
+    def list_projects(self, include_archived: bool = False) -> list[Project]:
+        with self.db.connect() as connection:
+            query = "SELECT id FROM projects"
+            if not include_archived:
+                query += " WHERE archived_at IS NULL"
+            query += " ORDER BY created_at"
+            ids = [row["id"] for row in connection.execute(query)]
         return [self.get_project(project_id) for project_id in ids]
+
+    def export_project(self, project_id: str) -> ProjectExport:
+        self.get_project(project_id)
+        queries = {
+            "projects": ("SELECT * FROM projects WHERE id = ?", (project_id,)),
+            "seasons": ("SELECT * FROM seasons WHERE project_id = ?", (project_id,)),
+            "episodes": (
+                """SELECT e.* FROM episodes e JOIN seasons s ON s.id = e.season_id
+                   WHERE s.project_id = ?""",
+                (project_id,),
+            ),
+            "script_revisions": (
+                """SELECT r.* FROM script_revisions r
+                   JOIN episodes e ON e.id = r.episode_id
+                   JOIN seasons s ON s.id = e.season_id WHERE s.project_id = ?""",
+                (project_id,),
+            ),
+            "assets": ("SELECT * FROM assets WHERE project_id = ?", (project_id,)),
+            "continuity_snapshots": (
+                """SELECT c.* FROM continuity_snapshots c
+                   JOIN episodes e ON e.id = c.episode_id
+                   JOIN seasons s ON s.id = e.season_id WHERE s.project_id = ?""",
+                (project_id,),
+            ),
+            "approval_records": (
+                "SELECT * FROM approval_records WHERE project_id = ?",
+                (project_id,),
+            ),
+        }
+        payload: dict[str, list[dict[str, Any]]] = {}
+        with self.db.connect() as connection:
+            for table, (sql, params) in queries.items():
+                payload[table] = [dict(row) for row in connection.execute(sql, params)]
+        canonical = encode(payload)
+        return ProjectExport(
+            exported_at=utc_now(),
+            payload=payload,
+            payload_sha256=hashlib.sha256(canonical.encode()).hexdigest(),
+        )
+
+    def restore_project(self, backup: ProjectExport) -> Project:
+        canonical = encode(backup.payload)
+        if hashlib.sha256(canonical.encode()).hexdigest() != backup.payload_sha256:
+            raise ConflictError("project export digest mismatch")
+        allowed_columns = {
+            "projects": (
+                "id", "title", "description", "audience_mode", "visual_style",
+                "aspect_ratio", "planned_episode_count", "target_episode_seconds",
+                "project_bible_json", "created_at", "updated_at", "archived_at",
+            ),
+            "seasons": (
+                "id", "project_id", "title", "season_number", "planned_episode_count",
+                "season_arc_json", "created_at", "updated_at",
+            ),
+            "episodes": (
+                "id", "season_id", "title", "episode_number", "logline", "outline_json",
+                "target_seconds", "status", "approved_script_revision", "created_at", "updated_at",
+            ),
+            "script_revisions": (
+                "episode_id", "revision", "content", "summary_for_voice_review",
+                "source_transcript", "narrative_metadata_json", "approved_at", "created_at",
+            ),
+            "assets": (
+                "id", "project_id", "episode_id", "kind", "name", "local_uri",
+                "subject_name", "metadata_json", "consent_granted", "consent_scope",
+                "guardian_approved", "created_at",
+            ),
+            "continuity_snapshots": (
+                "id", "episode_id", "source_episode_id", "state_json",
+                "unresolved_hooks_json", "created_at",
+            ),
+            "approval_records": (
+                "id", "action_type", "project_id", "episode_id", "script_revision",
+                "approved_by", "spoken_confirmation", "guardian_approval", "created_at",
+            ),
+        }
+        if set(backup.payload) != set(allowed_columns):
+            raise ConflictError("project export contains an unsupported table set")
+        project_rows = backup.payload["projects"]
+        if len(project_rows) != 1:
+            raise ConflictError("project export must contain exactly one project")
+        project_id = project_rows[0].get("id")
+        season_ids = {row.get("id") for row in backup.payload["seasons"]}
+        episode_ids = {row.get("id") for row in backup.payload["episodes"]}
+        if not isinstance(project_id, str) or not project_id:
+            raise ConflictError("project export has an invalid project ID")
+        if any(row.get("project_id") != project_id for row in backup.payload["seasons"]):
+            raise ConflictError("project export contains a season from another project")
+        if any(row.get("season_id") not in season_ids for row in backup.payload["episodes"]):
+            raise ConflictError("project export contains an episode from another project")
+        if any(
+            row.get("episode_id") not in episode_ids
+            for row in backup.payload["script_revisions"]
+        ):
+            raise ConflictError("project export contains a script from another project")
+        if any(
+            row.get("project_id") != project_id
+            or (row.get("episode_id") is not None and row.get("episode_id") not in episode_ids)
+            for row in backup.payload["assets"]
+        ):
+            raise ConflictError("project export contains an asset from another project")
+        if any(
+            row.get("episode_id") not in episode_ids
+            or (
+                row.get("source_episode_id") is not None
+                and row.get("source_episode_id") not in episode_ids
+            )
+            for row in backup.payload["continuity_snapshots"]
+        ):
+            raise ConflictError("project export contains continuity from another project")
+        if any(
+            row.get("project_id") != project_id or row.get("episode_id") not in episode_ids
+            for row in backup.payload["approval_records"]
+        ):
+            raise ConflictError("project export contains approval from another project")
+        try:
+            with self.db.connect() as connection:
+                connection.execute("BEGIN IMMEDIATE")
+                for table, columns in allowed_columns.items():
+                    placeholders = ", ".join("?" for _ in columns)
+                    column_sql = ", ".join(columns)
+                    for row in backup.payload[table]:
+                        if set(row) != set(columns):
+                            raise ConflictError(f"invalid columns in project export table {table}")
+                        connection.execute(
+                            f"INSERT INTO {table} ({column_sql}) VALUES ({placeholders})",
+                            tuple(row[column] for column in columns),
+                        )
+        except ConflictError:
+            raise
+        except Exception as exc:
+            raise ConflictError("project restore conflicts with existing data") from exc
+        return self.get_project(str(project_id))
 
     def create_season(self, project_id: str, request: SeasonCreate) -> Season:
         self.get_project(project_id)
