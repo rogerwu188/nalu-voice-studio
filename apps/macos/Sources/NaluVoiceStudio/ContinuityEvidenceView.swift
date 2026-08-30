@@ -34,7 +34,9 @@ struct ContinuityEvidenceView: View {
                     : "可能是未解悬念，请重点核对"
             )
             .font(.caption)
-            .foregroundStyle(item.confidence == "high" ? .secondary : .orange)
+            .foregroundStyle(
+                item.confidence == "high" ? Color.secondary : Color.orange
+            )
         }
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
