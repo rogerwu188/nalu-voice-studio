@@ -69,6 +69,10 @@ Current evidence:
   migration rehearsal preserve projects, approved scripts and approval records.
 - GitHub CI run `33272328616` on commit `9594e33`: 13 Runtime tests, real HTTP
   smoke, compatibility gates and full macOS build passed.
+- Commit `3772426`, GitHub CI run `33326138549`: schema migration v14 preserves
+  existing data and adds digest-bound feedback-review bundles; project export v9 restores
+  them while retaining v1-v8 import compatibility. All 69 Runtime tests, OpenAPI
+  freshness/backward compatibility, real HTTP smoke and the complete macOS build passed.
 
 ## SOP-02 · Voice interview and accessible conversation — IN_PROGRESS
 
@@ -678,6 +682,17 @@ Current evidence:
   healthy/warning/critical fixtures, OpenAPI compatibility, real HTTP smoke, Swift
   formatting/presentation tests, full app build, bundled-Runtime smoke, ZIP and artifact
   upload passed.
+- Commits `b0d48e9` and `3772426`, GitHub CI run `33326138549`: source builds now
+  select an available Python 3.11+ interpreter, validate the real Swift package toolchain
+  before the expensive bundle step, inject release/build versions, verify nested code and
+  bundled resources, write a ZIP SHA-256 and upload both files. A separate manually
+  dispatched workflow imports Developer ID and App Store Connect API-key material only
+  from repository secrets, signs nested executables from the inside out with hardened
+  runtime, submits to Apple, staples the result, validates Gatekeeper and writes
+  commit-bound provenance. The same commit passed Swift tests, complete app construction,
+  signature-structure validation, bundled-Runtime launch and artifact upload; GitHub
+  reports the `Nalu-Voice-Studio-macOS` artifact archive as 23,732,205 bytes. This CI
+  run is intentionally ad-hoc signed and is not notarization evidence.
 - Still required before `PASS`: Developer ID signing, hardened runtime, notarized
   universal release, update channel and clean-Mac upgrade/rollback QA with populated
   multi-episode data.
@@ -734,6 +749,15 @@ Current evidence:
 - Commit `a0aad4e`, GitHub CI run `33278236616`: the feedback queue, native voice/text
   entry and local reversible comfort preferences passed Runtime and Swift tests, full
   macOS build and bundled-Runtime smoke.
+- Commit `3772426`, GitHub CI run `33326138549`: authorized, redacted feedback can now
+  produce one immutable local review bundle containing expected/actual behavior,
+  reproduction steps and only allowlisted Runtime/schema/screen diagnostics. It contains
+  no attachments, records `network_call_performed: false`, treats malicious command text
+  only as inert data, rejects local-only feedback, requires explicit confirmation, is
+  idempotent for an exact request and fails closed on changed or tampered content. Schema
+  migration v14, privacy/project export v9, v1-v8 restore compatibility, project deletion,
+  OpenAPI and real HTTP smoke passed with all 69 Runtime tests and complete macOS CI.
+  Preparing this bundle deliberately does not claim external export or remediation.
 - `docs/CONTROLLED_EVOLUTION.md` defines the trust boundary and release state machine.
-- Still required before `PASS`: preference controls, authorized issue export, agent
+- Still required before `PASS`: administrator-authorized external issue export, agent
   triage integration, signed staged updater and end-to-end improvement/rollback QA.
