@@ -81,3 +81,7 @@ exist:
 The workflow uploads the zip, checksum and a commit-bound provenance record. It does not
 publish a GitHub Release, update users or send an application to a distribution platform.
 Those remain separately authorized operations.
+
+The workflow validates once, builds identical release inputs on Apple Silicon and Intel,
+merges and verifies both executable slices, and only then applies Developer ID signing and
+Apple notarization to the universal bundle. Its provenance lists both architectures.
