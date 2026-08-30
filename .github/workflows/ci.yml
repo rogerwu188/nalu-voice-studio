@@ -26,6 +26,7 @@ jobs:
       - run: python -m pip install -e '.[dev]'
       - run: ruff check services tests scripts
       - run: python scripts/export-openapi.py --check
+      - run: python scripts/audit_product_sop.py --json
       - run: python scripts/check_qingshan_upstream.py
       - name: Test pinned Qingshan contract change
         working-directory: vendor/qingshan

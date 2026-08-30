@@ -1,4 +1,4 @@
-.PHONY: install dev test lint macos macos-check macos-verify
+.PHONY: install dev test lint sop-audit macos macos-check macos-verify
 
 install:
 	python3 -m pip install -e '.[dev]'
@@ -11,6 +11,9 @@ test:
 
 lint:
 	ruff check services tests
+
+sop-audit:
+	python3 scripts/audit_product_sop.py
 
 macos:
 	scripts/build-macos-app.sh
