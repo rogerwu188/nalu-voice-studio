@@ -4,6 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 from nalu_runtime.app import create_app
 from nalu_runtime.models import ProductionRun, RemoteTaskState, RunStatus
+from nalu_runtime.remote_submitter import DurableRemoteTaskSubmitter
 from nalu_runtime.repository import ConflictError, utc_now
 
 
@@ -54,7 +55,7 @@ def _save_run(
 def test_remote_binding_rejects_dry_run_and_changed_submission(tmp_path: Path) -> None:
     api = _client(tmp_path)
     project, season, episode = _episode(api)
-    repository = api.app.state.repository
+    submitter = api.app.state.remote_task_submitter
     run = _save_run(
         api,
         project,
@@ -64,7 +65,7 @@ def test_remote_binding_rejects_dry_run_and_changed_submission(tmp_path: Path) -
         dry_run=True,
     )
     with pytest.raises(ConflictError, match="dry runs cannot prepare"):
-        repository.prepare_remote_task_binding(
+        submitter.prepare(
             run.id,
             task_key="E01-U01",
             provider="giggle",
@@ -82,7 +83,7 @@ def test_remote_binding_rejects_dry_run_and_changed_submission(tmp_path: Path) -
         dry_run=False,
     )
     with pytest.raises(ConflictError, match="model does not match"):
-        repository.prepare_remote_task_binding(
+        submitter.prepare(
             paid.id,
             task_key="E01-WRONG-MODEL",
             provider="giggle",
@@ -90,7 +91,7 @@ def test_remote_binding_rejects_dry_run_and_changed_submission(tmp_path: Path) -
             submission_fingerprint="a" * 64,
             request_sha256="b" * 64,
         )
-    first = repository.prepare_remote_task_binding(
+    first = submitter.prepare(
         paid.id,
         task_key="E01-U01",
         provider="giggle",
@@ -98,7 +99,7 @@ def test_remote_binding_rejects_dry_run_and_changed_submission(tmp_path: Path) -
         submission_fingerprint="a" * 64,
         request_sha256="b" * 64,
     )
-    replay = repository.prepare_remote_task_binding(
+    replay = submitter.prepare(
         paid.id,
         task_key="E01-U01",
         provider="giggle",
@@ -113,12 +114,44 @@ def test_remote_binding_rejects_dry_run_and_changed_submission(tmp_path: Path) -
     assert progress["stage"] == "provider_submission_prepared"
     assert progress["progress_percent"] == 42
     with pytest.raises(ConflictError, match="different submission inputs"):
-        repository.prepare_remote_task_binding(
+        submitter.prepare(
             paid.id,
             task_key="E01-U01",
             provider="giggle",
             model="MiniMax-H3",
             submission_fingerprint="c" * 64,
+            request_sha256="b" * 64,
+        )
+
+
+def test_only_one_submitter_can_mutate_remote_task_records(tmp_path: Path) -> None:
+    api = _client(tmp_path)
+    repository = api.app.state.repository
+    submitter = api.app.state.remote_task_submitter
+
+    assert api.app.state.production.remote_task_submitter is submitter
+    assert not hasattr(repository, "prepare_remote_task_binding")
+    assert not hasattr(repository, "transition_remote_task_binding")
+    with pytest.raises(RuntimeError, match="already bound"):
+        DurableRemoteTaskSubmitter(repository)
+
+    project, season, episode = _episode(api)
+    run = _save_run(
+        api,
+        project,
+        season,
+        episode,
+        run_id="run_authority_fixture",
+        dry_run=False,
+    )
+    with pytest.raises(PermissionError, match="bound durable submitter"):
+        repository._prepare_remote_task_binding(
+            object(),
+            run.id,
+            task_key="E01-U01",
+            provider="giggle",
+            model="MiniMax-H3",
+            submission_fingerprint="a" * 64,
             request_sha256="b" * 64,
         )
 
@@ -130,6 +163,7 @@ def test_remote_response_commit_is_crash_safe_and_survives_restart(
     api = _client(tmp_path)
     project, season, episode = _episode(api)
     repository = api.app.state.repository
+    submitter = api.app.state.remote_task_submitter
     run = _save_run(
         api,
         project,
@@ -138,7 +172,7 @@ def test_remote_response_commit_is_crash_safe_and_survives_restart(
         run_id="run_crash_binding_fixture",
         dry_run=False,
     )
-    binding = repository.prepare_remote_task_binding(
+    binding = submitter.prepare(
         run.id,
         task_key="E01-U01",
         provider="giggle",
@@ -153,7 +187,7 @@ def test_remote_response_commit_is_crash_safe_and_survives_restart(
 
     monkeypatch.setattr(repository, "_record_remote_task_event", crash_before_commit)
     with pytest.raises(RuntimeError, match="simulated crash"):
-        repository.transition_remote_task_binding(
+        submitter.record_response(
             binding.id,
             target_state=RemoteTaskState.SUBMITTED,
             provider_task_id="giggle-task-001",
@@ -169,7 +203,7 @@ def test_remote_response_commit_is_crash_safe_and_survives_restart(
     ]
 
     monkeypatch.setattr(repository, "_record_remote_task_event", original_record_event)
-    submitted = repository.transition_remote_task_binding(
+    submitted = submitter.record_response(
         binding.id,
         target_state=RemoteTaskState.SUBMITTED,
         provider_task_id="giggle-task-001",
@@ -182,7 +216,7 @@ def test_remote_response_commit_is_crash_safe_and_survives_restart(
     restarted = _client(tmp_path)
     recovered = restarted.app.state.repository.get_remote_task_binding(binding.id)
     assert recovered == submitted
-    replay = restarted.app.state.repository.transition_remote_task_binding(
+    replay = restarted.app.state.remote_task_submitter.record_response(
         binding.id,
         target_state=RemoteTaskState.SUBMITTED,
         provider_task_id="giggle-task-001",
@@ -202,7 +236,7 @@ def test_remote_response_commit_is_crash_safe_and_survives_restart(
     ]
 
     with pytest.raises(ConflictError, match="provider task identity"):
-        restarted.app.state.repository.transition_remote_task_binding(
+        restarted.app.state.remote_task_submitter.record_response(
             binding.id,
             target_state=RemoteTaskState.COMPLETED,
             provider_task_id="different-provider-task",
@@ -213,7 +247,7 @@ def test_remote_response_commit_is_crash_safe_and_survives_restart(
             actual_charged_credits=80,
         )
 
-    completed = restarted.app.state.repository.transition_remote_task_binding(
+    completed = restarted.app.state.remote_task_submitter.record_response(
         binding.id,
         target_state=RemoteTaskState.COMPLETED,
         provider_task_id="giggle-task-001",
@@ -238,6 +272,7 @@ def test_remote_binding_classifies_ambiguous_and_duplicate_provider_ids(
     api = _client(tmp_path)
     project, season, episode = _episode(api)
     repository = api.app.state.repository
+    submitter = api.app.state.remote_task_submitter
     run = _save_run(
         api,
         project,
@@ -246,7 +281,7 @@ def test_remote_binding_classifies_ambiguous_and_duplicate_provider_ids(
         run_id="run_classification_fixture",
         dry_run=False,
     )
-    first = repository.prepare_remote_task_binding(
+    first = submitter.prepare(
         run.id,
         task_key="E01-U01",
         provider="giggle",
@@ -254,7 +289,7 @@ def test_remote_binding_classifies_ambiguous_and_duplicate_provider_ids(
         submission_fingerprint="5" * 64,
         request_sha256="6" * 64,
     )
-    ambiguous = repository.transition_remote_task_binding(
+    ambiguous = submitter.record_response(
         first.id,
         target_state=RemoteTaskState.AMBIGUOUS_CHARGE,
         response_sha256="7" * 64,
@@ -270,7 +305,7 @@ def test_remote_binding_classifies_ambiguous_and_duplicate_provider_ids(
     assert ambiguous_progress["can_cancel"] is False
     assert "绝不会自动重复提交" in ambiguous_progress["explanation"]
 
-    reconciled = repository.transition_remote_task_binding(
+    reconciled = submitter.record_response(
         first.id,
         target_state=RemoteTaskState.ZERO_CHARGE_FAILED,
         response_sha256="8" * 64,
@@ -285,7 +320,7 @@ def test_remote_binding_classifies_ambiguous_and_duplicate_provider_ids(
     assert zero_charge_progress["stage"] == "safe_retry_review"
     assert "零扣费" in zero_charge_progress["explanation"]
 
-    submitted = repository.prepare_remote_task_binding(
+    submitted = submitter.prepare(
         run.id,
         task_key="E01-U02",
         provider="giggle",
@@ -293,14 +328,14 @@ def test_remote_binding_classifies_ambiguous_and_duplicate_provider_ids(
         submission_fingerprint="9" * 64,
         request_sha256="a" * 64,
     )
-    repository.transition_remote_task_binding(
+    submitter.record_response(
         submitted.id,
         target_state=RemoteTaskState.SUBMITTED,
         provider_task_id="giggle-task-shared",
         response_sha256="b" * 64,
         charge_classification="TASK_ID_BOUND_CHARGE_PENDING",
     )
-    duplicate = repository.prepare_remote_task_binding(
+    duplicate = submitter.prepare(
         run.id,
         task_key="E01-U03",
         provider="giggle",
@@ -309,7 +344,7 @@ def test_remote_binding_classifies_ambiguous_and_duplicate_provider_ids(
         request_sha256="d" * 64,
     )
     with pytest.raises(ConflictError, match="provider task ID is already bound"):
-        repository.transition_remote_task_binding(
+        submitter.record_response(
             duplicate.id,
             target_state=RemoteTaskState.SUBMITTED,
             provider_task_id="giggle-task-shared",

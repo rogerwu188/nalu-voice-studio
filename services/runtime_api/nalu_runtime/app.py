@@ -92,6 +92,7 @@ from .models import (
     StorageDiagnostics,
 )
 from .privacy_service import ProjectPrivacyService
+from .remote_submitter import DurableRemoteTaskSubmitter
 from .repository import ConflictError, NotFoundError, Repository
 from .storage_diagnostics import inspect_storage
 
@@ -107,7 +108,10 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
     database = Database(database_path)
     database.initialize()
     repository = Repository(database)
-    production = ProductionService(repository, data_root, repository_root)
+    remote_task_submitter = DurableRemoteTaskSubmitter(repository)
+    production = ProductionService(
+        repository, data_root, repository_root, remote_task_submitter
+    )
     asset_service = AssetService(repository, data_root)
     privacy_service = ProjectPrivacyService(repository, asset_service, data_root)
 
@@ -118,6 +122,7 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
     )
     app.state.repository = repository
     app.state.production = production
+    app.state.remote_task_submitter = remote_task_submitter
 
     @app.exception_handler(NotFoundError)
     async def not_found_handler(_request, exc: NotFoundError):

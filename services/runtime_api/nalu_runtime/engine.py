@@ -39,6 +39,7 @@ from .models import (
 )
 from .publication_adapters import publication_adapter
 from .qingshan_adapter import QingshanAdapter, QingshanAdapterError
+from .remote_submitter import DurableRemoteTaskSubmitter
 from .repository import ConflictError, Repository, new_id, utc_now
 from .secure_files import harden_tree, secure_directory, secure_file
 
@@ -153,8 +154,15 @@ QA_REPAIR_CATALOG = {
 
 
 class ProductionService:
-    def __init__(self, repository: Repository, data_root: Path, repository_root: Path):
+    def __init__(
+        self,
+        repository: Repository,
+        data_root: Path,
+        repository_root: Path,
+        remote_task_submitter: DurableRemoteTaskSubmitter,
+    ):
         self.repository = repository
+        self.remote_task_submitter = remote_task_submitter
         self.data_root = data_root.resolve()
         secure_directory(self.data_root)
         self.repository_root = repository_root
@@ -1058,6 +1066,7 @@ class ProductionService:
                 "approved_by": request.approved_by,
                 "estimated_budget_credits": request.estimated_budget_credits,
                 "paid_submitter_required": True,
+                "paid_submitter_authority": self.remote_task_submitter.authority_name,
                 "release_fail_closed": True,
             },
         )

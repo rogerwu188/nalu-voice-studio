@@ -137,6 +137,21 @@ EDITABLE_EPISODE_PLAN_STATUSES = {
 class Repository:
     def __init__(self, database: Database):
         self.db = database
+        self.__remote_task_write_authority: object | None = None
+
+    def _bind_remote_task_submitter(self) -> object:
+        """Bind exactly one in-process authority for paid remote-task writes."""
+        if self.__remote_task_write_authority is not None:
+            raise RuntimeError("the durable remote task submitter is already bound")
+        self.__remote_task_write_authority = object()
+        return self.__remote_task_write_authority
+
+    def _require_remote_task_write_authority(self, authority: object) -> None:
+        if (
+            self.__remote_task_write_authority is None
+            or authority is not self.__remote_task_write_authority
+        ):
+            raise PermissionError("remote task writes require the bound durable submitter")
 
     def create_project(self, request: ProjectCreate) -> Project:
         project_id, now = new_id("prj"), utc_now()
@@ -3185,8 +3200,9 @@ class Repository:
             ),
         )
 
-    def prepare_remote_task_binding(
+    def _prepare_remote_task_binding(
         self,
+        authority: object,
         run_id: str,
         *,
         task_key: str,
@@ -3195,6 +3211,7 @@ class Repository:
         submission_fingerprint: str,
         request_sha256: str,
     ) -> RemoteTaskBinding:
+        self._require_remote_task_write_authority(authority)
         run = self.get_run(run_id)
         if run.dry_run:
             raise ConflictError("dry runs cannot prepare remote paid task bindings")
@@ -3274,8 +3291,9 @@ class Repository:
             )
         return self.get_remote_task_binding(binding_id)
 
-    def transition_remote_task_binding(
+    def _transition_remote_task_binding(
         self,
+        authority: object,
         binding_id: str,
         *,
         target_state: RemoteTaskState,
@@ -3286,6 +3304,7 @@ class Repository:
         charge_classification: str,
         actual_charged_credits: int | None = None,
     ) -> RemoteTaskBinding:
+        self._require_remote_task_write_authority(authority)
         if re.fullmatch(r"[a-f0-9]{64}", response_sha256) is None:
             raise ConflictError("provider response SHA must be a SHA-256 digest")
         if actual_charged_credits is not None and actual_charged_credits < 0:
