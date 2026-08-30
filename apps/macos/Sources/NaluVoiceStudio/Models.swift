@@ -48,15 +48,15 @@ enum JSONValue: Codable, Hashable, Sendable {
 
     var readableText: String {
         switch self {
-        case .string(let item): item
-        case .number(let item): item.formatted()
-        case .bool(let item): item ? "是" : "否"
+        case .string(let item): return item
+        case .number(let item): return item.formatted()
+        case .bool(let item): return item ? "是" : "否"
         case .object(let item):
             return item.keys.sorted().compactMap { key in
                 item[key].map { "\(key)：\($0.readableText)" }
             }.joined(separator: "；")
-        case .array(let item): item.map(\.readableText).joined(separator: "、")
-        case .null: "未填写"
+        case .array(let item): return item.map(\.readableText).joined(separator: "、")
+        case .null: return "未填写"
         }
     }
 }
