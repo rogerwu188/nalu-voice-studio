@@ -49,6 +49,9 @@ struct ProductionProgressStatusView: View {
     let progress: EpisodeProductionProgress
     let lastRefreshedAt: Date?
     let refreshWarning: String?
+    let actionInProgress: Bool
+    let onCancel: (() -> Void)?
+    let onResume: (() -> Void)?
 
     private var presentation: ProductionProgressPresentation {
         ProductionProgressPresentation(progress: progress)
@@ -103,6 +106,25 @@ struct ProductionProgressStatusView: View {
                         .foregroundStyle(.primary)
                     Label(presentation.nextStep, systemImage: "arrow.turn.down.right")
                         .foregroundStyle(.secondary)
+                    if progress.canCancel || progress.canResume {
+                        HStack(spacing: 12) {
+                            if progress.canCancel, let onCancel {
+                                Button("安全暂停", systemImage: "pause.circle", action: onCancel)
+                                    .buttonStyle(.bordered)
+                            }
+                            if progress.canResume, let onResume {
+                                Button("从安全检查继续", systemImage: "play.circle", action: onResume)
+                                    .buttonStyle(.borderedProminent)
+                            }
+                            if actionInProgress {
+                                ProgressView()
+                                    .controlSize(.small)
+                                    .accessibilityLabel("正在保存制作状态")
+                            }
+                        }
+                        .controlSize(.large)
+                        .disabled(actionInProgress)
+                    }
                     if let refreshWarning {
                         Label(refreshWarning, systemImage: "wifi.exclamationmark")
                             .foregroundStyle(.orange)

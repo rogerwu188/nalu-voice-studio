@@ -30,6 +30,7 @@ final class VoiceInterviewViewModel {
     var episodeProgressByID: [String: EpisodeProductionProgress] = [:]
     var productionProgressLastRefreshedAt: Date?
     var productionProgressRefreshWarning: String?
+    var productionRunActionInProgress: String?
     var selectedEpisodeID: String?
     var messages: [InterviewMessage] = [
         InterviewMessage(
@@ -490,6 +491,46 @@ final class VoiceInterviewViewModel {
         } catch {
             guard seasons.contains(where: { $0.id == seasonID }) else { return }
             productionProgressRefreshWarning = "状态暂时没有更新，Nalu 会继续自动重试。"
+        }
+    }
+
+    func cancelProductionRun(runID: String) async {
+        guard productionRunActionInProgress == nil else { return }
+        productionRunActionInProgress = runID
+        defer { productionRunActionInProgress = nil }
+        do {
+            _ = try await runtime.cancelProductionRun(runID: runID)
+            if let seasonID = seasons.first?.id {
+                await refreshProductionProgress(seasonID: seasonID)
+            }
+            messages.append(
+                .init(
+                    speaker: .nalu,
+                    text: "已经安全暂停。本集进度和制作记录都保存在这台 Mac 上，稍后可以继续。"
+                )
+            )
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func resumeProductionRun(runID: String) async {
+        guard productionRunActionInProgress == nil else { return }
+        productionRunActionInProgress = runID
+        defer { productionRunActionInProgress = nil }
+        do {
+            _ = try await runtime.resumeProductionRun(runID: runID)
+            if let seasonID = seasons.first?.id {
+                await refreshProductionProgress(seasonID: seasonID)
+            }
+            messages.append(
+                .init(
+                    speaker: .nalu,
+                    text: "已经从安全检查开始恢复。任何可能产生费用的提交仍然要等您再次确认。"
+                )
+            )
+        } catch {
+            errorMessage = error.localizedDescription
         }
     }
 

@@ -67,6 +67,7 @@ struct ContentView: View {
     @State private var realtimeGuardianConsent = false
     @State private var realtimeCredentialIsConfigured = false
     @State private var realtimeSessionLimitMinutes = 10
+    @State private var runPendingCancelID: String?
     private let keychain = KeychainSecretStore()
 
     var body: some View {
@@ -163,6 +164,23 @@ struct ContentView: View {
             }
         } message: {
             Text(assetDependencyMessage)
+        }
+        .confirmationDialog(
+            "暂停这一集的制作？",
+            isPresented: Binding(
+                get: { runPendingCancelID != nil },
+                set: { if !$0 { runPendingCancelID = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("安全暂停", role: .destructive) {
+                guard let runID = runPendingCancelID else { return }
+                runPendingCancelID = nil
+                Task { await model.cancelProductionRun(runID: runID) }
+            }
+            Button("继续制作", role: .cancel) { runPendingCancelID = nil }
+        } message: {
+            Text("进度和已有结果都会保留。计费状态不明确时，Nalu 不会提供暂停按钮。")
         }
     }
 
@@ -340,7 +358,14 @@ struct ContentView: View {
                 ProductionProgressStatusView(
                     progress: progress,
                     lastRefreshedAt: model.productionProgressLastRefreshedAt,
-                    refreshWarning: model.productionProgressRefreshWarning
+                    refreshWarning: model.productionProgressRefreshWarning,
+                    actionInProgress: model.productionRunActionInProgress == progress.runID,
+                    onCancel: progress.runID.map { runID in
+                        { runPendingCancelID = runID }
+                    },
+                    onResume: progress.runID.map { runID in
+                        { Task { await model.resumeProductionRun(runID: runID) } }
+                    }
                 )
                 .padding(.horizontal, 24)
                 .padding(.vertical, 12)

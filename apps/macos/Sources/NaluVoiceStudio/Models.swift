@@ -251,6 +251,56 @@ struct EpisodeProductionProgress: Codable, Identifiable, Sendable {
     }
 }
 
+struct ProductionRun: Codable, Identifiable, Sendable {
+    let id: String
+    let projectID: String
+    let seasonID: String
+    let episodeID: String
+    let status: String
+    let dryRun: Bool
+    let requestedModel: String
+    let estimatedBudgetCredits: Int?
+    let packagePath: String
+    let error: String?
+    let createdAt: String
+    let updatedAt: String
+
+    enum CodingKeys: String, CodingKey {
+        case id, status, error
+        case projectID = "project_id"
+        case seasonID = "season_id"
+        case episodeID = "episode_id"
+        case dryRun = "dry_run"
+        case requestedModel = "requested_model"
+        case estimatedBudgetCredits = "estimated_budget_credits"
+        case packagePath = "package_path"
+        case createdAt = "created_at"
+        case updatedAt = "updated_at"
+    }
+}
+
+struct ProductionRunActionDraft: Codable, Sendable {
+    let requestedBy: String
+    let reason: String
+
+    enum CodingKeys: String, CodingKey {
+        case reason
+        case requestedBy = "requested_by"
+    }
+}
+
+struct ProductionRunResumeDraft: Codable, Sendable {
+    let requestedBy: String
+    let reason: String
+    let resumeFromPreflight: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case reason
+        case requestedBy = "requested_by"
+        case resumeFromPreflight = "resume_from_preflight"
+    }
+}
+
 struct EpisodePlanUpdateDraft: Codable, Sendable {
     let logline: String
     let outline: [String: JSONValue]

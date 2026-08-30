@@ -261,6 +261,27 @@ actor RuntimeClient {
         try await get("v1/seasons/\(seasonID)/production-progress")
     }
 
+    func cancelProductionRun(runID: String) async throws -> ProductionRun {
+        try await post(
+            "v1/production-runs/\(runID)/cancel",
+            body: ProductionRunActionDraft(
+                requestedBy: "local-user",
+                reason: "用户在 Nalu macOS 应用中要求暂停"
+            )
+        )
+    }
+
+    func resumeProductionRun(runID: String) async throws -> ProductionRun {
+        try await post(
+            "v1/production-runs/\(runID)/resume",
+            body: ProductionRunResumeDraft(
+                requestedBy: "local-user",
+                reason: "用户在 Nalu macOS 应用中要求继续",
+                resumeFromPreflight: true
+            )
+        )
+    }
+
     func createEpisode(seasonID: String, draft: EpisodeDraft) async throws -> NaluEpisode {
         try await post("v1/seasons/\(seasonID)/episodes", body: draft)
     }

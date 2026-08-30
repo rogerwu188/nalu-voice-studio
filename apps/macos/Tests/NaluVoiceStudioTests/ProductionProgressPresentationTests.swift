@@ -43,6 +43,20 @@ final class ProductionProgressPresentationTests: XCTestCase {
         XCTAssertTrue(presentation.nextStep.contains("恢复"))
     }
 
+    func testWaitingForApprovalDoesNotPretendToBeWorking() {
+        let presentation = ProductionProgressPresentation(
+            progress: progress(
+                runStatus: "waiting_for_approval",
+                stage: "approval",
+                canCancel: true
+            )
+        )
+
+        XCTAssertEqual(presentation.attention, .needsConfirmation)
+        XCTAssertFalse(presentation.moves)
+        XCTAssertTrue(presentation.reassurance.contains("等您确认"))
+    }
+
     private func progress(
         runStatus: String?,
         stage: String,
