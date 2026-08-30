@@ -389,10 +389,21 @@ Current evidence:
   stale/duplicate review, child guardian protection, edited readback, cancellation and
   ambiguous speech. All 47 Runtime tests, Swift tests, full app build, bundled-Runtime
   smoke, ZIP and downloadable artifact passed.
+- Commit `ea74935`, GitHub CI run `33293652398`: every unresolved hook from the exact
+  inherited snapshot now requires a versioned `carry_forward`, `resolved` or `abandoned`
+  decision; resolved and abandoned hooks require an explanation and the complete set
+  requires explicit confirmation. Missing, stale, incomplete, duplicate or ambiguous
+  review fails closed, and child projects require guardian presence. The same contract
+  runs in the preview endpoint, before production and when confirming the ending:
+  carried hooks must remain, while resolved or abandoned hooks must be absent. The
+  approved script and immutable production package retain the reviewed dispositions.
+  The native macOS client can ask one hook at a time by voice, request the closure reason,
+  read the complete arrangement back and require a separate explicit confirmation; edits
+  invalidate that confirmation. All 51 Runtime tests, Swift voice/model tests, full app
+  build, bundled-Runtime smoke, ZIP and downloadable artifact passed.
 - Still required before `PASS`: broader semantic extraction from unstructured legacy
-  scripts, unresolved-hook closure rules, completed-episode immutability after library
-  edits at the final rendered-output layer, and human/accessibility QA of the native
-  workflow on the same release candidate.
+  scripts, completed-episode immutability after library edits at the final rendered-output
+  layer, and human/accessibility QA of the native workflow on the same release candidate.
 
 ## SOP-07 · Productized Qingshan execution adapter — IN_PROGRESS
 
