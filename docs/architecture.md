@@ -56,9 +56,9 @@ Assets belong to a project and may be scoped to a season or episode. Starting a
 production run snapshots the resolved assets and latest continuity state. Later
 asset edits do not mutate an in-flight or completed episode.
 
-The current Runtime and native client implement managed project and episode
-scope; season-specific scope remains an explicit SOP-05 gap. Imported bytes are
-copied under the Runtime data root after path, MIME and size checks. Face and
+The current Runtime and native client implement managed project, season and episode
+scope. Imported bytes are copied under the Runtime data root after path, MIME and
+size checks. Face and
 voice consent actions are separate audit records. Revocation blocks new
 production, while immutable run dependency snapshots prevent deletion from
 silently rewriting production history.
@@ -66,10 +66,19 @@ silently rewriting production history.
 The native continuity review has two deliberately separate forms. The opening
 form starts from the latest earlier-episode snapshot and the ending form creates
 a new immutable handoff snapshot. Both use typed character, prop, scene, time and
-weather fields; the ending form also records unresolved hooks. Automatic
-end-state extraction from the completed episode remains an SOP-06 gap, so the
-current client requires a user-reviewed handoff instead of treating generated
-text as authority.
+weather fields; the ending form also records unresolved hooks. For an approved
+script, the Runtime can prepare a non-authoritative ending proposal from locked
+`ending_continuity` metadata or explicit `【结尾地点】`, `【结尾时间】`,
+`【结尾天气】` and `【未解悬念】` markers. It deliberately does not infer facts from
+unstructured prose. The proposal hash binds its script revision and extracted
+content. The native client reads every typed field aloud; confirmation stays locked
+until the speech synthesizer reports that the complete readback finished. Cancellation,
+another utterance or any edit invalidates the review state and requires another
+readback plus a change summary. The complex manual form stays behind an advanced
+disclosure until a proposal exists. Only a separate explicit visual or spoken
+confirmation creates the immutable handoff snapshot and an approval audit record.
+Child projects require guardian presence. Export/restore preserves both the snapshot
+and its script-bound confirmation record.
 
 Before a later episode script can be saved for production, its opening state is
 audited against the inherited snapshot. Missing or changed wardrobe, location,
@@ -99,8 +108,10 @@ Confirmed entities may declare plain-language aliases. Resolution normalizes a
 spoken mention and searches only confirmed revisions. Confirmation fails if a
 name or alias collides with another confirmed entity of the same kind; unknown
 mentions return not-found instead of inventing a match. This is the first
-fail-closed entity-resolution gate. Relationship/date/event contradiction
-reasoning across memory cards remains an explicit SOP-06 gap.
+fail-closed entity-resolution gate. The memory graph also rejects incompatible
+storyteller relationships and specifically named event dates or places while retaining
+both source-card revisions. Broader semantic entity linking and uncertain-fact
+reconciliation remain explicit SOP-06 work.
 
 At production-package creation, the Runtime resolves only confirmed library
 revisions. That resolved set is hashed into the package and emitted into the

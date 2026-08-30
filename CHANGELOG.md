@@ -17,6 +17,9 @@ Versioning and the Keep a Changelog structure.
   styles, including a one-question-at-a-time voice draft and explicit spoken confirmation.
 - A fail-closed family-memory contradiction gate with source-linked relationship,
   event-date and event-place explanations in both text and spoken native UI.
+- Script-revision-bound ending-continuity extraction with completion-aware full-field
+  spoken review, edit/cancellation invalidation, explicit voice/visual confirmation,
+  an older-adult-safe advanced manual form and immutable handoff audit.
 - Project → Season → Episode domain hierarchy.
 - Versioned script revisions and spoken approval endpoint.
 - Consent-aware project asset registry.

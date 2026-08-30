@@ -81,6 +81,36 @@ final class PlanningVoiceFlowTests: XCTestCase {
         )
     }
 
+    func testContinuityConfirmationIsExplicitAndGuardianProtected() {
+        var flow = PlanningVoiceFlow()
+        XCTAssertTrue(flow.begin(.continuityConfirmation).contains("结尾交接卡"))
+        assertResponse(
+            flow.consume("应该没问题", guardianRequired: false, guardianConfirmed: false),
+            contains: "明确说"
+        )
+        XCTAssertEqual(flow.mode, .continuityConfirmation)
+        XCTAssertEqual(
+            flow.consume(
+                "我确认这个结尾交接卡",
+                guardianRequired: false,
+                guardianConfirmed: false
+            ),
+            .confirmContinuity(confirmation: "我确认这个结尾交接卡")
+        )
+        XCTAssertNil(flow.mode)
+
+        _ = flow.begin(.continuityConfirmation)
+        assertResponse(
+            flow.consume(
+                "我确认这个结尾交接卡",
+                guardianRequired: true,
+                guardianConfirmed: false
+            ),
+            contains: "监护人未确认"
+        )
+        XCTAssertNil(flow.mode)
+    }
+
     private func assertResponse(
         _ action: PlanningVoiceAction,
         contains expected: String,

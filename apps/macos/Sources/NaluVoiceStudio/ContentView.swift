@@ -797,17 +797,107 @@ struct ContentView: View {
             }
             GroupBox("二、保存本集结尾交接卡") {
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("记录这一集最后一刻的人物、道具、时间和悬念，下一集会自动继承。")
+                    Text("让 Nalu 先从已确认剧本整理，您只需要听一遍、改错并确认。没有确认前，下一集不会继承。")
                         .foregroundStyle(.secondary)
-                    continuityForm(.ending)
-                    HStack {
-                        Button("朗读本集结尾", systemImage: "speaker.wave.2") {
+                    Button("从定稿剧本整理结尾", systemImage: "wand.and.stars") {
+                        Task { await model.prepareEndingContinuityFromApprovedScript() }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(selectedEpisode?.status != "script_approved")
+                    .accessibilityHint("从当前已确认的剧本整理人物、道具、时间和未解悬念，不会自动确认")
+                    if selectedEpisode?.status != "script_approved" {
+                        Label("请先确认本集剧本，Nalu 才能整理结尾。", systemImage: "lock.fill")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    if let proposal = model.continuityExtractionProposal {
+                        let proposalWasReviewed = model.reviewedContinuityExtractionHash
+                            == proposal.proposalSHA256
+                        Label(
+                            model.isReadingEndingContinuity
+                                ? "正在逐项朗读，请听完"
+                                : proposalWasReviewed
+                                    ? "朗读完成，内容可以确认"
+                                    : "已从第 \(proposal.scriptRevision) 版定稿整理 \(proposal.extractedPaths.count) 项，等待您朗读核对",
+                            systemImage: proposalWasReviewed
+                                ? "checkmark.seal.fill" : "waveform"
+                        )
+                        .font(.headline)
+                        .foregroundStyle(
+                            proposalWasReviewed ? .green : .orange
+                        )
+                        .accessibilityLabel(
+                            model.isReadingEndingContinuity
+                                ? "正在逐项朗读，请听完"
+                                : proposalWasReviewed
+                                    ? "朗读完成，内容可以确认"
+                                    : "已整理结尾，等待朗读核对"
+                        )
+                        continuityForm(.ending)
+                        if model.continuityExtractionWasEdited {
+                            TextField(
+                                "简单说明改了什么，例如：天气不是大雪，是小雪",
+                                text: $model.continuityExtractionChangeSummary,
+                                axis: .vertical
+                            )
+                            .textFieldStyle(.roundedBorder)
+                        }
+                        Button(
+                            model.isReadingEndingContinuity ? "正在朗读…" : "朗读本集结尾",
+                            systemImage: model.isReadingEndingContinuity
+                                ? "waveform" : "speaker.wave.2"
+                        ) {
                             model.speakEndingContinuity()
                         }
-                        Button("保存不可变交接卡", systemImage: "tray.and.arrow.down.fill") {
-                            Task { await model.saveEndingContinuity() }
+                        .buttonStyle(.bordered)
+                        .disabled(model.isReadingEndingContinuity)
+                        HStack {
+                            Button("确认并保存交接卡", systemImage: "checkmark.seal.fill") {
+                                Task { await model.confirmExtractedEndingContinuity() }
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .disabled(!model.canConfirmContinuityExtraction)
+                            .accessibilityHint("只保存刚刚朗读核对过的当前结尾状态")
+                            Button("用语音确认", systemImage: "waveform.badge.mic") {
+                                Task {
+                                    await model.beginContinuityVoiceConfirmation(
+                                        startLocalCapture: !realtimeVoice.state.isActive
+                                    )
+                                    if realtimeVoice.state.isActive {
+                                        realtimeVoice.speakPrompt(model.currentInterviewPrompt)
+                                    }
+                                }
+                            }
+                            .disabled(!model.canConfirmContinuityExtraction)
+                            .accessibilityHint("听到提示后说：我确认这个结尾交接卡")
                         }
-                        .buttonStyle(.borderedProminent)
+                        if !proposalWasReviewed {
+                            Text(
+                                model.isReadingEndingContinuity
+                                    ? "朗读结束后，确认按钮会自动亮起。"
+                                    : "请先按“朗读本集结尾”。修改任何内容后，需要重新朗读。"
+                            )
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                        }
+                    } else {
+                        DisclosureGroup("高级：没有定稿剧本时手动填写") {
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("通常不需要填写这些内容。只有无法先确认剧本时，才使用这个入口。")
+                                    .foregroundStyle(.secondary)
+                                continuityForm(.ending)
+                                HStack {
+                                    Button("朗读本集结尾", systemImage: "speaker.wave.2") {
+                                        model.speakEndingContinuity()
+                                    }
+                                    Button("手动保存交接卡", systemImage: "tray.and.arrow.down.fill") {
+                                        Task { await model.saveEndingContinuity() }
+                                    }
+                                    .buttonStyle(.bordered)
+                                }
+                            }
+                            .padding(.top, 8)
+                        }
                     }
                     if !model.continuitySnapshots.isEmpty {
                         Label(
@@ -1763,7 +1853,9 @@ struct ContentView: View {
     ) {
         switch kind {
         case .opening: change(&model.openingContinuityDraft)
-        case .ending: change(&model.endingContinuityDraft)
+        case .ending:
+            change(&model.endingContinuityDraft)
+            model.invalidateEndingContinuityReadback()
         }
     }
 

@@ -49,6 +49,10 @@ final class VoiceInterviewViewModel {
     var continuitySnapshots: [ContinuitySnapshot] = []
     var openingContinuityDraft = ContinuityFormDraft()
     var endingContinuityDraft = ContinuityFormDraft()
+    var continuityExtractionProposal: ContinuityExtractionProposal?
+    var reviewedContinuityExtractionHash: String?
+    var isReadingEndingContinuity = false
+    var continuityExtractionChangeSummary = ""
     var continuityPreflightResult: ContinuityPreflightResult?
     var continuityTransitionExplanation = ""
     var continuityOverrideReason = ""
@@ -75,6 +79,22 @@ final class VoiceInterviewViewModel {
     var feedbackWasDictated = false
     var comfortPreferences = VoiceInterviewViewModel.loadComfortPreferences()
     var planningVoiceLabel: String? { planningVoiceFlow.mode?.prompt }
+
+    var continuityExtractionWasEdited: Bool {
+        guard let proposal = continuityExtractionProposal else { return false }
+        return endingContinuityDraft.state != proposal.state
+            || endingContinuityDraft.hooks != proposal.unresolvedHooks
+    }
+
+    var canConfirmContinuityExtraction: Bool {
+        guard let proposal = continuityExtractionProposal else { return false }
+        return reviewedContinuityExtractionHash == proposal.proposalSHA256
+            && endingContinuityDraft.hasContent
+            && (!continuityExtractionWasEdited
+                || !continuityExtractionChangeSummary.trimmingCharacters(
+                    in: .whitespacesAndNewlines
+                ).isEmpty)
+    }
 
     private let runtime = RuntimeClient()
     private let speech = SpeechRecorder()
@@ -122,7 +142,7 @@ final class VoiceInterviewViewModel {
         let spoken = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !spoken.isEmpty else { return }
         if transcriptConfidence > 0 && transcriptConfidence < 0.2 {
-            messages.append(
+            self.messages.append(
                 .init(speaker: .nalu, text: "刚才这句话我没有听清楚。请慢一点，再说一次。")
             )
             transcript = ""
@@ -175,6 +195,7 @@ final class VoiceInterviewViewModel {
         }
         if planningVoiceFlow.mode != nil {
             let guardianConfirmed = planningVoiceFlow.mode == .scriptApproval
+                || planningVoiceFlow.mode == .continuityConfirmation
                 ? guardianConfirmedForScript : guardianConfirmedForPlan
             handle(
                 planningVoiceFlow.consume(
@@ -456,6 +477,10 @@ final class VoiceInterviewViewModel {
             inheritedContinuity = inheritedResult.snapshot
             endingContinuityDraft = snapshots.last.map(ContinuityFormDraft.init(snapshot:))
                 ?? ContinuityFormDraft()
+            continuityExtractionProposal = nil
+            reviewedContinuityExtractionHash = nil
+            isReadingEndingContinuity = false
+            continuityExtractionChangeSummary = ""
             openingContinuityDraft = inheritedResult.snapshot.map(
                 ContinuityFormDraft.init(snapshot:)
             ) ?? ContinuityFormDraft()
@@ -586,6 +611,16 @@ final class VoiceInterviewViewModel {
         await beginPlanningVoice(.scriptApproval, startLocalCapture: startLocalCapture)
     }
 
+    func beginContinuityVoiceConfirmation(startLocalCapture: Bool = true) async {
+        guard canConfirmContinuityExtraction else {
+            errorMessage = "请先朗读核对；如果修改过内容，请填写修改说明并重新朗读。"
+            return
+        }
+        await beginPlanningVoice(
+            .continuityConfirmation, startLocalCapture: startLocalCapture
+        )
+    }
+
     private func beginPlanningVoice(
         _ mode: PlanningVoiceMode, startLocalCapture: Bool
     ) async {
@@ -624,6 +659,12 @@ final class VoiceInterviewViewModel {
                 ])
             }
         }
+        if endingContinuityDraft.hasContent {
+            narrativeMetadata["ending_continuity"] = endingContinuityDraft.state.jsonValue
+            narrativeMetadata["ending_unresolved_hooks"] = .array(
+                endingContinuityDraft.hooks.map(JSONValue.string)
+            )
+        }
         do {
             _ = try await runtime.createScript(
                 episodeID: episodeID,
@@ -660,6 +701,70 @@ final class VoiceInterviewViewModel {
             messages.append(
                 .init(speaker: .nalu, text: "本集结尾交接卡已经保存。后续修改会建立新快照，不会改写旧记录。")
             )
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func prepareEndingContinuityFromApprovedScript() async {
+        guard let episodeID = selectedEpisodeID else { return }
+        do {
+            let proposal = try await runtime.continuityExtractionProposal(
+                episodeID: episodeID
+            )
+            guard selectedEpisodeID == episodeID else { return }
+            continuityExtractionProposal = proposal
+            endingContinuityDraft = ContinuityFormDraft(
+                state: proposal.state,
+                unresolvedHooks: proposal.unresolvedHooks
+            )
+            reviewedContinuityExtractionHash = nil
+            isReadingEndingContinuity = false
+            continuityExtractionChangeSummary = ""
+            let response = "我已经从第 \(proposal.scriptRevision) 版定稿剧本整理好结尾草稿。请先按朗读核对；没有听完或内容有变化时，我不会替您确认。"
+            messages.append(.init(speaker: .nalu, text: response))
+            speechPlayback.speak(response, rate: comfortPreferences.speechRate)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func confirmExtractedEndingContinuity(
+        confirmation: String = "我确认这份本集结尾交接卡",
+        reviewChannel: String = "voice_and_visual"
+    ) async {
+        guard let episodeID = selectedEpisodeID,
+              let proposal = continuityExtractionProposal else { return }
+        guard reviewedContinuityExtractionHash == proposal.proposalSHA256 else {
+            errorMessage = "请先朗读并核对这份结尾草稿；修改后需要重新朗读。"
+            return
+        }
+        let changeSummary = continuityExtractionChangeSummary.trimmingCharacters(
+            in: .whitespacesAndNewlines
+        )
+        guard !continuityExtractionWasEdited || !changeSummary.isEmpty else {
+            errorMessage = "修改了整理结果时，请简单说明改了什么。"
+            return
+        }
+        do {
+            _ = try await runtime.confirmContinuityExtraction(
+                episodeID: episodeID,
+                draft: ContinuityExtractionConfirmationDraft(
+                    reviewedScriptRevision: proposal.scriptRevision,
+                    proposalSHA256: proposal.proposalSHA256,
+                    reviewedState: endingContinuityDraft.state,
+                    unresolvedHooks: endingContinuityDraft.hooks,
+                    confirmedBy: "local-user",
+                    spokenConfirmation: confirmation,
+                    reviewChannel: reviewChannel,
+                    guardianApproval: guardianConfirmedForScript,
+                    changeSummary: changeSummary
+                )
+            )
+            await loadContinuity(episodeID: episodeID)
+            let response = "您核对过的本集结尾已经保存为不可变交接卡，下一集只会继承这份确认结果。"
+            messages.append(.init(speaker: .nalu, text: response))
+            speechPlayback.speak(response, rate: comfortPreferences.speechRate)
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -726,10 +831,49 @@ final class VoiceInterviewViewModel {
     }
 
     func speakEndingContinuity() {
+        let summary = continuitySpeechSummary(endingContinuityDraft, prefix: "本集结尾")
+        guard let proposal = continuityExtractionProposal else {
+            speechPlayback.speak(summary, rate: comfortPreferences.speechRate)
+            return
+        }
+        reviewedContinuityExtractionHash = nil
+        isReadingEndingContinuity = true
+        let reviewedDraft = endingContinuityDraft
         speechPlayback.speak(
-            continuitySpeechSummary(endingContinuityDraft, prefix: "本集结尾"),
+            summary,
             rate: comfortPreferences.speechRate
+        ) { [weak self] completed in
+            guard let self else { return }
+            self.completeEndingContinuityReadback(
+                proposalSHA256: proposal.proposalSHA256,
+                reviewedDraft: reviewedDraft,
+                completed: completed
+            )
+        }
+    }
+
+    func completeEndingContinuityReadback(
+        proposalSHA256: String,
+        reviewedDraft: ContinuityFormDraft,
+        completed: Bool
+    ) {
+        isReadingEndingContinuity = false
+        guard completed,
+              continuityExtractionProposal?.proposalSHA256 == proposalSHA256,
+              endingContinuityDraft == reviewedDraft else { return }
+        reviewedContinuityExtractionHash = proposalSHA256
+        messages.append(
+            .init(
+                speaker: .nalu,
+                text: "朗读完成。如果内容正确，请确认并保存交接卡；发现错误可以修改，改后我会重新朗读。"
+            )
         )
+    }
+
+    func invalidateEndingContinuityReadback() {
+        reviewedContinuityExtractionHash = nil
+        isReadingEndingContinuity = false
+        speechPlayback.stop()
     }
 
     private func continuitySpeechSummary(
@@ -744,12 +888,20 @@ final class VoiceInterviewViewModel {
             if !character.location.isEmpty { detail += "在 \(character.location)" }
             if !character.wardrobe.isEmpty { detail += "，穿着 \(character.wardrobe)" }
             if !character.injuries.isEmpty { detail += "，伤势是 \(character.injuries)" }
+            if !character.heldProps.isEmpty { detail += "，拿着 \(character.heldProps)" }
+            if !character.relationships.isEmpty {
+                detail += "，人物关系是 \(character.relationships)"
+            }
+            if !character.revealedFacts.isEmpty {
+                detail += "，已经知道 \(character.revealedFacts)"
+            }
             parts.append(detail)
         }
         for prop in draft.props where !prop.name.isEmpty {
             var detail = "道具 \(prop.name)"
             if !prop.owner.isEmpty { detail += "属于 \(prop.owner)" }
             if !prop.location.isEmpty { detail += "，在 \(prop.location)" }
+            if !prop.condition.isEmpty { detail += "，状态是 \(prop.condition)" }
             parts.append(detail)
         }
         if !draft.unresolvedHooks.isEmpty { parts.append("未解悬念：\(draft.unresolvedHooks)") }
@@ -1322,6 +1474,13 @@ final class VoiceInterviewViewModel {
         case .approveScript(let confirmation):
             messages.append(.init(speaker: .nalu, text: "我听到了明确确认，正在记录剧本批准。"))
             Task { await approveCurrentScript(confirmation: confirmation) }
+        case .confirmContinuity(let confirmation):
+            messages.append(.init(speaker: .nalu, text: "我听到了明确确认，正在保存结尾交接卡。"))
+            Task {
+                await confirmExtractedEndingContinuity(
+                    confirmation: confirmation, reviewChannel: "voice"
+                )
+            }
         case .respond(let message):
             messages.append(.init(speaker: .nalu, text: message))
         }
@@ -1408,6 +1567,7 @@ final class VoiceInterviewViewModel {
 
     private func recordRealtimePlanningAnswer(_ answer: String) -> RealtimeInterviewToolResult {
         let guardianConfirmed = planningVoiceFlow.mode == .scriptApproval
+            || planningVoiceFlow.mode == .continuityConfirmation
             ? guardianConfirmedForScript : guardianConfirmedForPlan
         let action = planningVoiceFlow.consume(
             answer,
@@ -1464,6 +1624,18 @@ final class VoiceInterviewViewModel {
                 accepted: true,
                 message: "已收到明确确认，正在提交当前剧本批准；最终以界面状态为准。",
                 nextPrompt: "要继续查看下一集，还是先修改当前剧本？",
+                requiresVisibleConfirmation: false
+            )
+        case .confirmContinuity(let confirmation):
+            Task {
+                await confirmExtractedEndingContinuity(
+                    confirmation: confirmation, reviewChannel: "voice_and_visual"
+                )
+            }
+            return .init(
+                accepted: true,
+                message: "已收到明确确认，正在保存结尾交接卡；最终以界面状态为准。",
+                nextPrompt: "要继续下一集，还是再查看本集结尾？",
                 requiresVisibleConfirmation: false
             )
         case .respond(let message):

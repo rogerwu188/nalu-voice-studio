@@ -17,8 +17,12 @@ from .models import (
     AssetConsentRevocationCreate,
     AssetCreate,
     AssetDependencyReport,
+    ContinuityExtractionConfirmation,
+    ContinuityExtractionConfirmationResult,
+    ContinuityExtractionProposal,
     ContinuitySnapshot,
     ContinuitySnapshotCreate,
+    ContinuityState,
     DocumentaryEvidenceItem,
     DocumentaryReadinessReport,
     Episode,
@@ -453,6 +457,12 @@ class Repository:
                 "SELECT * FROM approval_records WHERE project_id = ?",
                 (project_id,),
             ),
+            "continuity_extraction_confirmation_records": (
+                """SELECT c.* FROM continuity_extraction_confirmation_records c
+                   JOIN episodes e ON e.id = c.episode_id
+                   JOIN seasons s ON s.id = e.season_id WHERE s.project_id = ?""",
+                (project_id,),
+            ),
             "feedback_items": (
                 "SELECT * FROM feedback_items WHERE project_id = ?",
                 (project_id,),
@@ -614,6 +624,21 @@ class Repository:
                 "guardian_approval",
                 "created_at",
             ),
+            "continuity_extraction_confirmation_records": (
+                "approval_id",
+                "snapshot_id",
+                "episode_id",
+                "reviewed_script_revision",
+                "proposal_sha256",
+                "reviewed_state_json",
+                "unresolved_hooks_json",
+                "confirmed_by",
+                "spoken_confirmation",
+                "review_channel",
+                "guardian_approval",
+                "change_summary",
+                "created_at",
+            ),
             "feedback_items": (
                 "id",
                 "project_id",
@@ -736,6 +761,16 @@ class Repository:
             allowed_columns.pop("library_entities")
             allowed_columns.pop("library_entity_revisions")
             allowed_columns.pop("library_entity_confirmation_records")
+        if backup.schema_version in {
+            "nalu.project-export/v1",
+            "nalu.project-export/v2",
+            "nalu.project-export/v3",
+            "nalu.project-export/v4",
+            "nalu.project-export/v5",
+            "nalu.project-export/v6",
+            "nalu.project-export/v7",
+        }:
+            allowed_columns.pop("continuity_extraction_confirmation_records")
         if backup.schema_version == "nalu.project-export/v1":
             allowed_columns.pop("season_plan_revisions")
             allowed_columns.pop("season_plan_approval_records")
@@ -802,6 +837,26 @@ class Repository:
             for row in backup.payload["approval_records"]
         ):
             raise ConflictError("project export contains approval from another project")
+        snapshot_ids = {row.get("id") for row in backup.payload["continuity_snapshots"]}
+        approval_ids = {row.get("id") for row in backup.payload["approval_records"]}
+        script_revision_keys = {
+            (row.get("episode_id"), row.get("revision"))
+            for row in backup.payload["script_revisions"]
+        }
+        if any(
+            row.get("episode_id") not in episode_ids
+            or row.get("snapshot_id") not in snapshot_ids
+            or row.get("approval_id") not in approval_ids
+            or (
+                row.get("episode_id"), row.get("reviewed_script_revision")
+            ) not in script_revision_keys
+            for row in backup.payload.get(
+                "continuity_extraction_confirmation_records", []
+            )
+        ):
+            raise ConflictError(
+                "project export contains a continuity confirmation from another project"
+            )
         if any(
             row.get("project_id") != project_id for row in backup.payload.get("feedback_items", [])
         ):
@@ -2185,6 +2240,246 @@ class Repository:
             raise ConflictError(report.explanation)
         with self.db.connect() as connection:
             connection.execute("DELETE FROM assets WHERE id = ?", (asset_id,))
+
+    @staticmethod
+    def _continuity_marker(content: str, label: str) -> str:
+        match = re.search(
+            rf"【{re.escape(label)}】\s*[：:]?\s*([^\r\n]+)",
+            content,
+        )
+        return match.group(1).strip() if match else ""
+
+    @staticmethod
+    def _continuity_extracted_paths(
+        state: ContinuityState, unresolved_hooks: list[str]
+    ) -> list[str]:
+        paths: list[str] = []
+        paths.extend(f"characters.{name}" for name in sorted(state.characters))
+        paths.extend(f"props.{name}" for name in sorted(state.props))
+        for field in ("scene_location", "story_time", "weather"):
+            if getattr(state, field):
+                paths.append(field)
+        if unresolved_hooks:
+            paths.append("unresolved_hooks")
+        return paths
+
+    @staticmethod
+    def _continuity_proposal_summary(
+        state: ContinuityState, unresolved_hooks: list[str]
+    ) -> str:
+        parts = ["我从当前定稿剧本整理了本集结尾，请您核对"]
+        if state.scene_location:
+            parts.append(f"地点是 {state.scene_location}")
+        if state.story_time:
+            parts.append(f"时间是 {state.story_time}")
+        if state.weather:
+            parts.append(f"天气是 {state.weather}")
+        for name, character in sorted(state.characters.items()):
+            details = [name]
+            if character.location:
+                details.append(f"在 {character.location}")
+            if character.wardrobe:
+                details.append("穿着" + "、".join(character.wardrobe))
+            if character.injuries:
+                details.append("伤势是" + "、".join(character.injuries))
+            if character.held_props:
+                details.append("拿着" + "、".join(character.held_props))
+            if character.relationships:
+                relationships = "、".join(
+                    f"和{person}的关系是{relationship}"
+                    for person, relationship in sorted(character.relationships.items())
+                )
+                details.append(relationships)
+            if character.revealed_facts:
+                details.append("已经知道" + "、".join(character.revealed_facts))
+            parts.append("，".join(details))
+        for name, prop in sorted(state.props.items()):
+            details = [f"道具 {name}"]
+            if prop.owner:
+                details.append(f"属于 {prop.owner}")
+            if prop.location:
+                details.append(f"在 {prop.location}")
+            if prop.condition:
+                details.append(f"状态是 {prop.condition}")
+            parts.append("，".join(details))
+        if unresolved_hooks:
+            parts.append("还没有解决的是" + "、".join(unresolved_hooks))
+        parts.append("这只是待确认草稿，不会自动成为下一集事实")
+        return "。".join(parts) + "。"
+
+    def continuity_extraction_proposal(
+        self, episode_id: str
+    ) -> ContinuityExtractionProposal:
+        episode = self.get_episode(episode_id)
+        revision = episode.approved_script_revision
+        if episode.status != EpisodeStatus.SCRIPT_APPROVED or revision is None:
+            raise ConflictError("continuity extraction requires the current approved script")
+        script = self.get_script(episode_id, revision)
+        if script.approved_at is None:
+            raise ConflictError("continuity extraction requires the current approved script")
+        metadata_state = script.narrative_metadata.get("ending_continuity")
+        metadata_hooks = script.narrative_metadata.get("ending_unresolved_hooks", [])
+        source = "approved_script_metadata"
+        if metadata_state is not None:
+            if not isinstance(metadata_state, dict) or not isinstance(metadata_hooks, list):
+                raise ConflictError("approved script ending continuity metadata is invalid")
+            try:
+                candidate = ContinuitySnapshotCreate.model_validate(
+                    {"state": metadata_state, "unresolved_hooks": metadata_hooks}
+                )
+            except Exception as exc:
+                raise ConflictError(
+                    "approved script ending continuity metadata is invalid"
+                ) from exc
+        else:
+            source = "approved_script_markers"
+            scene_location = self._continuity_marker(script.content, "结尾地点")
+            story_time = self._continuity_marker(script.content, "结尾时间")
+            weather = self._continuity_marker(script.content, "结尾天气")
+            hooks_text = self._continuity_marker(script.content, "未解悬念")
+            hooks = [
+                item.strip()
+                for item in re.split(r"[、,，;；]", hooks_text)
+                if item.strip()
+            ]
+            try:
+                candidate = ContinuitySnapshotCreate(
+                    state=ContinuityState(
+                        scene_location=scene_location or None,
+                        story_time=story_time or None,
+                        weather=weather or None,
+                    ),
+                    unresolved_hooks=hooks,
+                )
+            except Exception as exc:
+                raise ConflictError(
+                    "approved script has no extractable ending continuity; add an ending "
+                    "state or explicit ending markers, then approve a new revision"
+                ) from exc
+        state = candidate.state
+        hooks = candidate.unresolved_hooks
+        extracted_paths = self._continuity_extracted_paths(state, hooks)
+        canonical = encode(
+            {
+                "episode_id": episode_id,
+                "script_revision": revision,
+                "source": source,
+                "state": state.model_dump(mode="json", exclude_none=True),
+                "unresolved_hooks": hooks,
+            }
+        )
+        return ContinuityExtractionProposal(
+            episode_id=episode_id,
+            script_revision=revision,
+            proposal_sha256=hashlib.sha256(canonical.encode()).hexdigest(),
+            source=source,
+            state=state,
+            unresolved_hooks=hooks,
+            extracted_paths=extracted_paths,
+            spoken_summary=self._continuity_proposal_summary(state, hooks),
+        )
+
+    def confirm_continuity_extraction(
+        self, episode_id: str, request: ContinuityExtractionConfirmation
+    ) -> ContinuityExtractionConfirmationResult:
+        proposal = self.continuity_extraction_proposal(episode_id)
+        if request.reviewed_script_revision != proposal.script_revision:
+            raise ConflictError("approved script changed after continuity review")
+        if request.proposal_sha256 != proposal.proposal_sha256:
+            raise ConflictError("continuity proposal changed after it was reviewed")
+        reviewed = {
+            "state": request.reviewed_state.model_dump(mode="json", exclude_none=True),
+            "unresolved_hooks": request.unresolved_hooks,
+        }
+        proposed = {
+            "state": proposal.state.model_dump(mode="json", exclude_none=True),
+            "unresolved_hooks": proposal.unresolved_hooks,
+        }
+        if reviewed != proposed and not request.change_summary.strip():
+            raise ConflictError("edited continuity extraction requires a change summary")
+        episode = self.get_episode(episode_id)
+        season = self.get_season(episode.season_id)
+        snapshot_id, approval_id, now = new_id("con"), new_id("apr"), utc_now()
+        with self.db.connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            current = connection.execute(
+                "SELECT status, approved_script_revision FROM episodes WHERE id = ?",
+                (episode_id,),
+            ).fetchone()
+            if (
+                current is None
+                or current["status"] != EpisodeStatus.SCRIPT_APPROVED
+                or current["approved_script_revision"] != proposal.script_revision
+            ):
+                raise ConflictError("approved script changed before continuity confirmation")
+            existing = connection.execute(
+                """SELECT id FROM approval_records
+                   WHERE episode_id = ? AND script_revision = ?
+                   AND action_type = 'continuity_extraction_confirmed'""",
+                (episode_id, proposal.script_revision),
+            ).fetchone()
+            if existing is not None:
+                raise ConflictError(
+                    "this approved script already has a confirmed ending handoff"
+                )
+            connection.execute(
+                "INSERT INTO continuity_snapshots VALUES (?, ?, ?, ?, ?, ?)",
+                (
+                    snapshot_id,
+                    episode_id,
+                    None,
+                    encode(reviewed["state"]),
+                    encode(request.unresolved_hooks),
+                    now,
+                ),
+            )
+            connection.execute(
+                "INSERT INTO approval_records VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    approval_id,
+                    "continuity_extraction_confirmed",
+                    season.project_id,
+                    episode_id,
+                    proposal.script_revision,
+                    request.confirmed_by,
+                    request.spoken_confirmation,
+                    int(request.guardian_approval),
+                    now,
+                ),
+            )
+            connection.execute(
+                """INSERT INTO continuity_extraction_confirmation_records
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    approval_id,
+                    snapshot_id,
+                    episode_id,
+                    proposal.script_revision,
+                    proposal.proposal_sha256,
+                    encode(reviewed["state"]),
+                    encode(request.unresolved_hooks),
+                    request.confirmed_by,
+                    request.spoken_confirmation,
+                    request.review_channel,
+                    int(request.guardian_approval),
+                    request.change_summary.strip(),
+                    now,
+                ),
+            )
+        return ContinuityExtractionConfirmationResult(
+            snapshot=self.get_continuity_snapshot(snapshot_id),
+            approval=ApprovalRecord(
+                id=approval_id,
+                action_type="continuity_extraction_confirmed",
+                project_id=season.project_id,
+                episode_id=episode_id,
+                script_revision=proposal.script_revision,
+                approved_by=request.confirmed_by,
+                spoken_confirmation=request.spoken_confirmation,
+                guardian_approval=request.guardian_approval,
+                created_at=now,
+            ),
+        )
 
     def create_continuity_snapshot(
         self, episode_id: str, request: ContinuitySnapshotCreate

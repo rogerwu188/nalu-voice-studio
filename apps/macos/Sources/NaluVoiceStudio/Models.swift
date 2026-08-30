@@ -396,6 +396,82 @@ struct ContinuitySnapshot: Codable, Identifiable, Sendable {
     }
 }
 
+struct ContinuityExtractionProposal: Codable, Sendable {
+    let schemaVersion: String
+    let episodeID: String
+    let scriptRevision: Int
+    let proposalSHA256: String
+    let source: String
+    let state: ContinuityState
+    let unresolvedHooks: [String]
+    let extractedPaths: [String]
+    let spokenSummary: String
+
+    enum CodingKeys: String, CodingKey {
+        case source, state
+        case schemaVersion = "schema_version"
+        case episodeID = "episode_id"
+        case scriptRevision = "script_revision"
+        case proposalSHA256 = "proposal_sha256"
+        case unresolvedHooks = "unresolved_hooks"
+        case extractedPaths = "extracted_paths"
+        case spokenSummary = "spoken_summary"
+    }
+}
+
+struct ContinuityExtractionConfirmationDraft: Codable, Sendable {
+    let reviewedScriptRevision: Int
+    let proposalSHA256: String
+    let reviewedState: ContinuityState
+    let unresolvedHooks: [String]
+    let confirmedBy: String
+    let spokenConfirmation: String
+    let reviewChannel: String
+    let guardianApproval: Bool
+    let changeSummary: String
+
+    enum CodingKeys: String, CodingKey {
+        case unresolvedHooks = "unresolved_hooks"
+        case reviewedScriptRevision = "reviewed_script_revision"
+        case proposalSHA256 = "proposal_sha256"
+        case reviewedState = "reviewed_state"
+        case confirmedBy = "confirmed_by"
+        case spokenConfirmation = "spoken_confirmation"
+        case reviewChannel = "review_channel"
+        case guardianApproval = "guardian_approval"
+        case changeSummary = "change_summary"
+    }
+}
+
+struct ContinuityExtractionApproval: Codable, Identifiable, Sendable {
+    let id: String
+    let actionType: String
+    let projectID: String
+    let episodeID: String
+    let scriptRevision: Int
+    let approvedBy: String
+    let spokenConfirmation: String
+    let guardianApproval: Bool
+    let createdAt: String
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case actionType = "action_type"
+        case projectID = "project_id"
+        case episodeID = "episode_id"
+        case scriptRevision = "script_revision"
+        case approvedBy = "approved_by"
+        case spokenConfirmation = "spoken_confirmation"
+        case guardianApproval = "guardian_approval"
+        case createdAt = "created_at"
+    }
+}
+
+struct ContinuityExtractionConfirmationResult: Codable, Sendable {
+    let snapshot: ContinuitySnapshot
+    let approval: ContinuityExtractionApproval
+}
+
 struct InheritedContinuityResult: Codable, Sendable {
     let snapshot: ContinuitySnapshot?
 }

@@ -313,6 +313,21 @@ actor RuntimeClient {
         try await post("v1/episodes/\(episodeID)/continuity-snapshots", body: draft)
     }
 
+    func continuityExtractionProposal(
+        episodeID: String
+    ) async throws -> ContinuityExtractionProposal {
+        try await get("v1/episodes/\(episodeID)/continuity-extraction-proposal")
+    }
+
+    func confirmContinuityExtraction(
+        episodeID: String, draft: ContinuityExtractionConfirmationDraft
+    ) async throws -> ContinuityExtractionConfirmationResult {
+        try await post(
+            "v1/episodes/\(episodeID)/continuity-extraction-confirmations",
+            body: draft
+        )
+    }
+
     func continuityPreflight(
         episodeID: String, draft: ContinuityPreflightDraft
     ) async throws -> ContinuityPreflightResult {

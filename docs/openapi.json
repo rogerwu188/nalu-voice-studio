@@ -529,6 +529,150 @@
         "title": "ContinuityConflict",
         "type": "object"
       },
+      "ContinuityExtractionConfirmation": {
+        "properties": {
+          "change_summary": {
+            "default": "",
+            "maxLength": 1000,
+            "title": "Change Summary",
+            "type": "string"
+          },
+          "confirmed_by": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Confirmed By",
+            "type": "string"
+          },
+          "guardian_approval": {
+            "default": false,
+            "title": "Guardian Approval",
+            "type": "boolean"
+          },
+          "proposal_sha256": {
+            "maxLength": 64,
+            "minLength": 64,
+            "title": "Proposal Sha256",
+            "type": "string"
+          },
+          "review_channel": {
+            "enum": [
+              "voice",
+              "visual",
+              "voice_and_visual"
+            ],
+            "title": "Review Channel",
+            "type": "string"
+          },
+          "reviewed_script_revision": {
+            "minimum": 1.0,
+            "title": "Reviewed Script Revision",
+            "type": "integer"
+          },
+          "reviewed_state": {
+            "$ref": "#/components/schemas/ContinuityState"
+          },
+          "spoken_confirmation": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Spoken Confirmation",
+            "type": "string"
+          },
+          "unresolved_hooks": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Unresolved Hooks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "reviewed_script_revision",
+          "proposal_sha256",
+          "reviewed_state",
+          "confirmed_by",
+          "spoken_confirmation",
+          "review_channel"
+        ],
+        "title": "ContinuityExtractionConfirmation",
+        "type": "object"
+      },
+      "ContinuityExtractionConfirmationResult": {
+        "properties": {
+          "approval": {
+            "$ref": "#/components/schemas/ApprovalRecord"
+          },
+          "snapshot": {
+            "$ref": "#/components/schemas/ContinuitySnapshot"
+          }
+        },
+        "required": [
+          "snapshot",
+          "approval"
+        ],
+        "title": "ContinuityExtractionConfirmationResult",
+        "type": "object"
+      },
+      "ContinuityExtractionProposal": {
+        "properties": {
+          "episode_id": {
+            "title": "Episode Id",
+            "type": "string"
+          },
+          "extracted_paths": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Extracted Paths",
+            "type": "array"
+          },
+          "proposal_sha256": {
+            "title": "Proposal Sha256",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "nalu.continuity-extraction/v1",
+            "default": "nalu.continuity-extraction/v1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "script_revision": {
+            "title": "Script Revision",
+            "type": "integer"
+          },
+          "source": {
+            "enum": [
+              "approved_script_metadata",
+              "approved_script_markers"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "spoken_summary": {
+            "title": "Spoken Summary",
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/ContinuityState"
+          },
+          "unresolved_hooks": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Unresolved Hooks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "episode_id",
+          "script_revision",
+          "proposal_sha256",
+          "source",
+          "state",
+          "spoken_summary"
+        ],
+        "title": "ContinuityExtractionProposal",
+        "type": "object"
+      },
       "ContinuityOverride": {
         "additionalProperties": false,
         "properties": {
@@ -2848,7 +2992,7 @@
             "type": "string"
           },
           "schema_version": {
-            "default": "nalu.project-export/v7",
+            "default": "nalu.project-export/v8",
             "enum": [
               "nalu.project-export/v1",
               "nalu.project-export/v2",
@@ -2856,7 +3000,8 @@
               "nalu.project-export/v4",
               "nalu.project-export/v5",
               "nalu.project-export/v6",
-              "nalu.project-export/v7"
+              "nalu.project-export/v7",
+              "nalu.project-export/v8"
             ],
             "title": "Schema Version",
             "type": "string"
@@ -3782,6 +3927,94 @@
           }
         },
         "summary": "Update Episode Plan"
+      }
+    },
+    "/v1/episodes/{episode_id}/continuity-extraction-confirmations": {
+      "post": {
+        "operationId": "confirm_continuity_extraction_v1_episodes__episode_id__continuity_extraction_confirmations_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "episode_id",
+            "required": true,
+            "schema": {
+              "title": "Episode Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContinuityExtractionConfirmation"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContinuityExtractionConfirmationResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Confirm Continuity Extraction"
+      }
+    },
+    "/v1/episodes/{episode_id}/continuity-extraction-proposal": {
+      "get": {
+        "operationId": "continuity_extraction_proposal_v1_episodes__episode_id__continuity_extraction_proposal_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "episode_id",
+            "required": true,
+            "schema": {
+              "title": "Episode Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContinuityExtractionProposal"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Continuity Extraction Proposal"
       }
     },
     "/v1/episodes/{episode_id}/continuity-preflight": {

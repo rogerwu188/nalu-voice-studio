@@ -383,7 +383,7 @@ def test_memory_card_requires_explicit_confirmation_and_keeps_evidence(tmp_path:
     assert confirmations[0]["spoken_confirmation"] == "我确认这张记忆卡并归档"
 
     backup = api.get(f"/v1/projects/{project['id']}/export").json()
-    assert backup["schema_version"] == "nalu.project-export/v7"
+    assert backup["schema_version"] == "nalu.project-export/v8"
     assert backup["payload"]["memory_cards"][0]["asset_id"] == asset["id"]
 
     other = api.post("/v1/projects", json={"title": "另一个项目"}).json()
@@ -736,6 +736,7 @@ def test_project_rename_archive_export_and_restore(tmp_path: Path) -> None:
     legacy["payload"].pop("library_entities")
     legacy["payload"].pop("library_entity_revisions")
     legacy["payload"].pop("library_entity_confirmation_records")
+    legacy["payload"].pop("continuity_extraction_confirmation_records")
     legacy["payload"]["projects"][0].pop("creative_format")
     legacy["payload"]["projects"][0].pop("production_pipeline")
     canonical = json.dumps(legacy["payload"], ensure_ascii=False, sort_keys=True)
@@ -828,7 +829,7 @@ def test_database_migration_preserves_existing_database(tmp_path: Path) -> None:
         connection.execute("INSERT INTO legacy_marker VALUES ('preserve-me')")
 
     api = create_app(database_path, tmp_path / "data")
-    assert api.state.repository.db.schema_version() == 11
+    assert api.state.repository.db.schema_version() == 12
     with sqlite3.connect(database_path) as connection:
         marker = connection.execute("SELECT value FROM legacy_marker").fetchone()[0]
         approval_table = connection.execute(
@@ -880,7 +881,7 @@ def test_populated_v1_database_upgrades_without_project_loss(tmp_path: Path) -> 
         connection.execute("DELETE FROM schema_migrations WHERE version >= 2")
 
     after = TestClient(create_app(database_path, data_root))
-    assert after.app.state.repository.db.schema_version() == 11
+    assert after.app.state.repository.db.schema_version() == 12
     assert after.get(f"/v1/projects/{project['id']}").json()["title"] == "我的一生"
     assert after.get(f"/v1/episodes/{episode['id']}").json()["approved_script_revision"] == 1
     approvals = after.get(f"/v1/episodes/{episode['id']}/script-approvals").json()
@@ -1075,6 +1076,7 @@ def test_project_season_and_episode_asset_scope_inheritance(tmp_path: Path) -> N
     legacy_v3["payload"].pop("library_entities")
     legacy_v3["payload"].pop("library_entity_revisions")
     legacy_v3["payload"].pop("library_entity_confirmation_records")
+    legacy_v3["payload"].pop("continuity_extraction_confirmation_records")
     legacy_v3["payload"]["projects"][0].pop("creative_format")
     legacy_v3["payload"]["projects"][0].pop("production_pipeline")
     for asset in legacy_v3["payload"]["assets"]:
@@ -1139,7 +1141,7 @@ def test_complete_privacy_export_and_confirmed_project_deletion(tmp_path: Path) 
         assert {"project-export.json", "privacy-manifest.json", media_name} <= names
         assert archive.read(media_name) == b"private-photo-bytes"
         project_backup = json.loads(archive.read("project-export.json"))
-        assert project_backup["schema_version"] == "nalu.project-export/v7"
+        assert project_backup["schema_version"] == "nalu.project-export/v8"
         assert project_backup["payload"]["asset_consent_records"][0]["action_type"] == "granted"
         manifest = json.loads(archive.read("privacy-manifest.json"))
         assert manifest["database_included"] is False

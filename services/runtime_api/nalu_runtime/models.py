@@ -128,7 +128,8 @@ class ProjectExport(BaseModel):
         "nalu.project-export/v5",
         "nalu.project-export/v6",
         "nalu.project-export/v7",
-    ] = "nalu.project-export/v7"
+        "nalu.project-export/v8",
+    ] = "nalu.project-export/v8"
     exported_at: str
     payload: dict[str, Any]
     payload_sha256: str
@@ -610,6 +611,51 @@ class ContinuitySnapshot(ContinuitySnapshotCreate):
     id: str
     episode_id: str
     created_at: str
+
+
+class ContinuityExtractionProposal(BaseModel):
+    schema_version: Literal["nalu.continuity-extraction/v1"] = (
+        "nalu.continuity-extraction/v1"
+    )
+    episode_id: str
+    script_revision: int
+    proposal_sha256: str
+    source: Literal["approved_script_metadata", "approved_script_markers"]
+    state: ContinuityState
+    unresolved_hooks: list[str] = Field(default_factory=list)
+    extracted_paths: list[str] = Field(default_factory=list)
+    spoken_summary: str
+
+
+class ContinuityExtractionConfirmation(BaseModel):
+    reviewed_script_revision: int = Field(ge=1)
+    proposal_sha256: str = Field(min_length=64, max_length=64)
+    reviewed_state: ContinuityState
+    unresolved_hooks: list[str] = Field(default_factory=list)
+    confirmed_by: str = Field(min_length=1, max_length=160)
+    spoken_confirmation: str = Field(min_length=1, max_length=1000)
+    review_channel: Literal["voice", "visual", "voice_and_visual"]
+    guardian_approval: bool = False
+    change_summary: str = Field(default="", max_length=1000)
+
+    @model_validator(mode="after")
+    def require_explicit_review_and_content(self) -> ContinuityExtractionConfirmation:
+        if not any(
+            phrase in self.spoken_confirmation for phrase in ("我确认", "我同意")
+        ):
+            raise ValueError("continuity extraction requires explicit confirmation language")
+        snapshot = ContinuitySnapshotCreate(
+            state=self.reviewed_state,
+            unresolved_hooks=self.unresolved_hooks,
+        )
+        self.reviewed_state = snapshot.state
+        self.unresolved_hooks = snapshot.unresolved_hooks
+        return self
+
+
+class ContinuityExtractionConfirmationResult(BaseModel):
+    snapshot: ContinuitySnapshot
+    approval: ApprovalRecord
 
 
 class InheritedContinuityResult(BaseModel):

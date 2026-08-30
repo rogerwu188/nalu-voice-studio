@@ -22,6 +22,9 @@ from .models import (
     AssetDependencyReport,
     AssetKind,
     ConsentScope,
+    ContinuityExtractionConfirmation,
+    ContinuityExtractionConfirmationResult,
+    ContinuityExtractionProposal,
     ContinuityPreflightRequest,
     ContinuityPreflightResult,
     ContinuitySnapshot,
@@ -476,6 +479,31 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
     )
     def create_continuity(episode_id: str, request: ContinuitySnapshotCreate) -> ContinuitySnapshot:
         return repository.create_continuity_snapshot(episode_id, request)
+
+    @app.get(
+        "/v1/episodes/{episode_id}/continuity-extraction-proposal",
+        response_model=ContinuityExtractionProposal,
+    )
+    def continuity_extraction_proposal(episode_id: str) -> ContinuityExtractionProposal:
+        return repository.continuity_extraction_proposal(episode_id)
+
+    @app.post(
+        "/v1/episodes/{episode_id}/continuity-extraction-confirmations",
+        response_model=ContinuityExtractionConfirmationResult,
+        status_code=201,
+    )
+    def confirm_continuity_extraction(
+        episode_id: str, request: ContinuityExtractionConfirmation
+    ) -> ContinuityExtractionConfirmationResult:
+        episode = repository.get_episode(episode_id)
+        season = repository.get_season(episode.season_id)
+        project = repository.get_project(season.project_id)
+        if project.audience_mode == "child" and not request.guardian_approval:
+            raise HTTPException(
+                status_code=409,
+                detail="child continuity confirmation requires guardian approval",
+            )
+        return repository.confirm_continuity_extraction(episode_id, request)
 
     @app.get(
         "/v1/episodes/{episode_id}/continuity-snapshots",

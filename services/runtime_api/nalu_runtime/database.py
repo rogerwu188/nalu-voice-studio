@@ -376,6 +376,33 @@ MIGRATIONS = (
         );
         """,
     ),
+    (
+        12,
+        "continuity_extraction_confirmation_records",
+        """
+        CREATE TABLE IF NOT EXISTS continuity_extraction_confirmation_records (
+          approval_id TEXT PRIMARY KEY REFERENCES approval_records(id) ON DELETE CASCADE,
+          snapshot_id TEXT NOT NULL UNIQUE
+            REFERENCES continuity_snapshots(id) ON DELETE CASCADE,
+          episode_id TEXT NOT NULL REFERENCES episodes(id) ON DELETE CASCADE,
+          reviewed_script_revision INTEGER NOT NULL,
+          proposal_sha256 TEXT NOT NULL,
+          reviewed_state_json TEXT NOT NULL,
+          unresolved_hooks_json TEXT NOT NULL,
+          confirmed_by TEXT NOT NULL,
+          spoken_confirmation TEXT NOT NULL,
+          review_channel TEXT NOT NULL,
+          guardian_approval INTEGER NOT NULL,
+          change_summary TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          UNIQUE(episode_id, reviewed_script_revision),
+          FOREIGN KEY(episode_id, reviewed_script_revision)
+            REFERENCES script_revisions(episode_id, revision)
+        );
+        CREATE INDEX IF NOT EXISTS continuity_extraction_confirmations_episode_idx
+          ON continuity_extraction_confirmation_records(episode_id, created_at);
+        """,
+    ),
 )
 
 
