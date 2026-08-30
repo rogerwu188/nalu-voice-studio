@@ -83,6 +83,17 @@ struct ContentView: View {
             }
             await model.load()
         }
+        .task(id: selectedSeason?.id) {
+            guard let seasonID = selectedSeason?.id else { return }
+            while !Task.isCancelled {
+                await model.refreshProductionProgress(seasonID: seasonID)
+                do {
+                    try await Task.sleep(for: .seconds(4))
+                } catch {
+                    return
+                }
+            }
+        }
         .fileImporter(
             isPresented: $isImportingProject,
             allowedContentTypes: [.json],
@@ -323,6 +334,16 @@ struct ContentView: View {
                 .padding(.horizontal, 24)
                 .padding(.vertical, 10)
                 .background(Color.purple.opacity(0.07))
+                Divider()
+            }
+            if let progress = selectedEpisodeProgress {
+                ProductionProgressStatusView(
+                    progress: progress,
+                    lastRefreshedAt: model.productionProgressLastRefreshedAt,
+                    refreshWarning: model.productionProgressRefreshWarning
+                )
+                .padding(.horizontal, 24)
+                .padding(.vertical, 12)
                 Divider()
             }
             if selectedProject != nil {

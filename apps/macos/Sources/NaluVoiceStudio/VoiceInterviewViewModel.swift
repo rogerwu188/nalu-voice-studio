@@ -28,6 +28,8 @@ final class VoiceInterviewViewModel {
     var seasons: [NaluSeason] = []
     var episodes: [NaluEpisode] = []
     var episodeProgressByID: [String: EpisodeProductionProgress] = [:]
+    var productionProgressLastRefreshedAt: Date?
+    var productionProgressRefreshWarning: String?
     var selectedEpisodeID: String?
     var messages: [InterviewMessage] = [
         InterviewMessage(
@@ -447,6 +449,8 @@ final class VoiceInterviewViewModel {
                 episodeProgressByID = Dictionary(
                     uniqueKeysWithValues: progress.map { ($0.episodeID, $0) }
                 )
+                productionProgressLastRefreshedAt = Date()
+                productionProgressRefreshWarning = nil
                 seasonPlanSummary = season.seasonArc["summary"]?.displayText ?? ""
                 if let first = episodes.first {
                     selectEpisode(first.id)
@@ -458,6 +462,8 @@ final class VoiceInterviewViewModel {
             } else {
                 episodes = []
                 episodeProgressByID = [:]
+                productionProgressLastRefreshedAt = nil
+                productionProgressRefreshWarning = nil
                 selectedEpisodeID = nil
                 scriptRevisions = []
                 scriptContent = ""
@@ -469,6 +475,21 @@ final class VoiceInterviewViewModel {
             }
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+
+    func refreshProductionProgress(seasonID: String) async {
+        do {
+            let progress = try await runtime.listEpisodeProgress(seasonID: seasonID)
+            guard seasons.contains(where: { $0.id == seasonID }) else { return }
+            episodeProgressByID = Dictionary(
+                uniqueKeysWithValues: progress.map { ($0.episodeID, $0) }
+            )
+            productionProgressLastRefreshedAt = Date()
+            productionProgressRefreshWarning = nil
+        } catch {
+            guard seasons.contains(where: { $0.id == seasonID }) else { return }
+            productionProgressRefreshWarning = "状态暂时没有更新，Nalu 会继续自动重试。"
         }
     }
 
