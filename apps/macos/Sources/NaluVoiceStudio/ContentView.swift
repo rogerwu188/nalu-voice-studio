@@ -1741,13 +1741,13 @@ struct ContentView: View {
             return [.image, .movie, .audio, .plainText, .pdf, .json]
         }
         switch assetKind {
-        case "character_image": [.image]
-        case "voice_reference": [.audio]
-        case "archive_audio": [.audio]
-        case "archive_video": [.movie]
-        case "scene_reference", "prop_reference", "style_reference": [.image, .movie]
-        case "source_document": [.image, .plainText, .pdf, .json]
-        default: [.data]
+        case "character_image": return [.image]
+        case "voice_reference": return [.audio]
+        case "archive_audio": return [.audio]
+        case "archive_video": return [.movie]
+        case "scene_reference", "prop_reference", "style_reference": return [.image, .movie]
+        case "source_document": return [.image, .plainText, .pdf, .json]
+        default: return [.data]
         }
     }
 
