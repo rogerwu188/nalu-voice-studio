@@ -23,9 +23,19 @@ The immutable JSON seal binds:
 - the sealing actor and time; and
 - a digest of the complete seal itself.
 
-Creating the seal does not mark an episode publishable. Release-blocking
-audiovisual QA must inspect the original-resolution master and then use this
-integrity report as one input to the future completion transition.
+Creating the seal does not mark an episode publishable. The separate completion
+endpoint requires the run and episode to both be in `qa_review`, a still-valid
+seal with one master and captions, and exactly one sealed structured QA report.
+That report must identify the same run and master hash, record an original-
+resolution human review, and pass picture, audio sync, captions, continuity and
+safety checks. An explicit completion confirmation is also required; child
+projects require guardian approval.
+
+The final `qa_review → completed` run update and `qa_review → ready_to_publish`
+episode update share one SQLite transaction with both audit events. If a process
+fails before commit, neither state nor either event advances. The already sealed
+files remain available, and retrying the same seal hash is safe. A retry after a
+successful commit returns the same result without creating another event.
 
 ## Verification and mutation behavior
 

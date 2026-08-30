@@ -930,3 +930,57 @@ class RenderedOutputIntegrityReport(BaseModel):
     seal: RenderedOutputSeal
     integrity_ok: bool
     failures: list[str] = Field(default_factory=list)
+
+
+class FinalQAEvidence(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: Literal["nalu.final-qa-evidence/v1"]
+    run_id: str = Field(min_length=1)
+    master_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    original_resolution_reviewed: bool
+    picture_passed: bool
+    audio_sync_passed: bool
+    captions_passed: bool
+    continuity_passed: bool
+    safety_passed: bool
+    reviewed_by: str = Field(min_length=1, max_length=160)
+    review_channel: Literal["human_original_resolution"]
+    reviewed_at: str = Field(min_length=1, max_length=100)
+    notes: str = Field(default="", max_length=4000)
+
+    @model_validator(mode="after")
+    def require_every_release_check(self) -> FinalQAEvidence:
+        checks = (
+            self.original_resolution_reviewed,
+            self.picture_passed,
+            self.audio_sync_passed,
+            self.captions_passed,
+            self.continuity_passed,
+            self.safety_passed,
+        )
+        if not all(checks):
+            raise ValueError("final QA evidence requires every release check to pass")
+        return self
+
+
+class ProductionCompletionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    output_seal_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    completed_by: str = Field(min_length=1, max_length=160)
+    spoken_confirmation: str = Field(min_length=1, max_length=1000)
+    guardian_approval: bool = False
+
+    @model_validator(mode="after")
+    def require_explicit_completion(self) -> ProductionCompletionRequest:
+        if not any(phrase in self.spoken_confirmation for phrase in ("我确认", "我同意")):
+            raise ValueError("production completion requires explicit confirmation language")
+        return self
+
+
+class ProductionCompletionResult(BaseModel):
+    run: ProductionRun
+    episode: Episode
+    output_seal_sha256: str
+    qa_report_sha256: str

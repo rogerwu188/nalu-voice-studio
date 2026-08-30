@@ -53,6 +53,8 @@ from .models import (
     MemoryCardRevision,
     MemoryCardUpdate,
     MemoryGraphConflictReport,
+    ProductionCompletionRequest,
+    ProductionCompletionResult,
     ProductionRun,
     ProductionRunCreate,
     Project,
@@ -584,6 +586,15 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
     )
     def rendered_output_integrity(run_id: str) -> RenderedOutputIntegrityReport:
         return production.rendered_output_integrity(run_id)
+
+    @app.post(
+        "/v1/production-runs/{run_id}/complete",
+        response_model=ProductionCompletionResult,
+    )
+    def complete_production(
+        run_id: str, request: ProductionCompletionRequest
+    ) -> ProductionCompletionResult:
+        return production.complete_run(run_id, request)
 
     @app.post("/v1/production-runs/{run_id}/cancel", response_model=ProductionRun)
     def cancel_run(run_id: str, request: RunActionRequest) -> ProductionRun:

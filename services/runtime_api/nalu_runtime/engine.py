@@ -12,6 +12,9 @@ from .models import (
     EpisodeProductionProgress,
     EpisodeStatus,
     EpisodeTransitionRequest,
+    FinalQAEvidence,
+    ProductionCompletionRequest,
+    ProductionCompletionResult,
     ProductionPackage,
     ProductionRun,
     ProductionRunCreate,
@@ -249,6 +252,63 @@ class ProductionService:
             seal=seal,
             integrity_ok=not failures,
             failures=failures,
+        )
+
+    def complete_run(
+        self, run_id: str, request: ProductionCompletionRequest
+    ) -> ProductionCompletionResult:
+        integrity = self.rendered_output_integrity(run_id)
+        if not integrity.integrity_ok:
+            raise ConflictError(
+                "rendered output integrity failed: " + "; ".join(integrity.failures)
+            )
+        seal = integrity.seal
+        if request.output_seal_sha256 != seal.manifest_sha256:
+            raise ConflictError("output seal changed after completion review")
+        run = self.repository.get_run(run_id)
+        project = self.repository.get_project(run.project_id)
+        if project.audience_mode == AudienceMode.CHILD and not request.guardian_approval:
+            raise ConflictError("child production completion requires guardian approval")
+
+        qa_artifacts = [artifact for artifact in seal.artifacts if artifact.kind == "qa_report"]
+        if len(qa_artifacts) != 1:
+            raise ConflictError("production completion requires exactly one sealed QA report")
+        master_artifacts = [
+            artifact for artifact in seal.artifacts if artifact.kind == "master_video"
+        ]
+        if len(master_artifacts) != 1:
+            raise ConflictError("production completion requires exactly one sealed master")
+        if not any(artifact.kind == "captions" for artifact in seal.artifacts):
+            raise ConflictError("production completion requires sealed captions")
+        qa_artifact = qa_artifacts[0]
+        qa_path = (
+            self._run_directory(run)
+            / "qingshan-workspace"
+            / "exports"
+            / qa_artifact.relative_path
+        )
+        try:
+            evidence = FinalQAEvidence.model_validate_json(
+                qa_path.read_text(encoding="utf-8")
+            )
+        except (OSError, UnicodeError, ValueError) as exc:
+            raise ConflictError("sealed final QA report is unreadable or invalid") from exc
+        if evidence.run_id != run_id:
+            raise ConflictError("final QA report belongs to a different production run")
+        if evidence.master_sha256 != master_artifacts[0].sha256:
+            raise ConflictError("final QA report reviewed a different master")
+
+        completed_run, episode = self.repository.complete_run_after_qa(
+            run_id,
+            output_seal_sha256=seal.manifest_sha256,
+            qa_report_sha256=qa_artifact.sha256,
+            completed_by=request.completed_by,
+        )
+        return ProductionCompletionResult(
+            run=completed_run,
+            episode=episode,
+            output_seal_sha256=seal.manifest_sha256,
+            qa_report_sha256=qa_artifact.sha256,
         )
 
     def start_run(

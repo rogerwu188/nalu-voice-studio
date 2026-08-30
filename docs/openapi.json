@@ -2747,6 +2747,66 @@
         "title": "MemoryPerson",
         "type": "object"
       },
+      "ProductionCompletionRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "completed_by": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Completed By",
+            "type": "string"
+          },
+          "guardian_approval": {
+            "default": false,
+            "title": "Guardian Approval",
+            "type": "boolean"
+          },
+          "output_seal_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Output Seal Sha256",
+            "type": "string"
+          },
+          "spoken_confirmation": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Spoken Confirmation",
+            "type": "string"
+          }
+        },
+        "required": [
+          "output_seal_sha256",
+          "completed_by",
+          "spoken_confirmation"
+        ],
+        "title": "ProductionCompletionRequest",
+        "type": "object"
+      },
+      "ProductionCompletionResult": {
+        "properties": {
+          "episode": {
+            "$ref": "#/components/schemas/Episode"
+          },
+          "output_seal_sha256": {
+            "title": "Output Seal Sha256",
+            "type": "string"
+          },
+          "qa_report_sha256": {
+            "title": "Qa Report Sha256",
+            "type": "string"
+          },
+          "run": {
+            "$ref": "#/components/schemas/ProductionRun"
+          }
+        },
+        "required": [
+          "run",
+          "episode",
+          "output_seal_sha256",
+          "qa_report_sha256"
+        ],
+        "title": "ProductionCompletionResult",
+        "type": "object"
+      },
       "ProductionRun": {
         "properties": {
           "created_at": {
@@ -5537,6 +5597,55 @@
           }
         },
         "summary": "Cancel Run"
+      }
+    },
+    "/v1/production-runs/{run_id}/complete": {
+      "post": {
+        "operationId": "complete_production_v1_production_runs__run_id__complete_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductionCompletionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductionCompletionResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Complete Production"
       }
     },
     "/v1/production-runs/{run_id}/events": {

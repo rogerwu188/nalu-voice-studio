@@ -1,6 +1,9 @@
 import hashlib
+import json
 from pathlib import Path
+from unittest.mock import patch
 
+import pytest
 from fastapi.testclient import TestClient
 from nalu_runtime.app import create_app
 from nalu_runtime.models import RunStatus
@@ -53,8 +56,8 @@ def approved_episode_with_library(api: TestClient) -> tuple[dict, dict, dict]:
     return project, episode, entity
 
 
-def seal_payload() -> dict:
-    return {
+def seal_payload(*, include_qa: bool = False) -> dict:
+    payload = {
         "sealed_by": "local-qa-worker",
         "artifacts": [
             {
@@ -69,6 +72,28 @@ def seal_payload() -> dict:
             },
         ],
     }
+    if include_qa:
+        payload["artifacts"].append(
+            {
+                "kind": "qa_report",
+                "relative_path": "E01_FINAL_QA.json",
+                "media_type": "application/json",
+            }
+        )
+    return payload
+
+
+def advance_episode_to_qa(api: TestClient, episode_id: str) -> None:
+    for target in ("generating", "postproduction", "qa_review"):
+        response = api.post(
+            f"/v1/episodes/{episode_id}/transition",
+            json={
+                "target_status": target,
+                "requested_by": "local-production-worker",
+                "reason": f"fixture entered {target}",
+            },
+        )
+        assert response.status_code == 200
 
 
 def test_sealed_outputs_survive_library_edits_and_detect_file_tampering(
@@ -145,6 +170,134 @@ def test_sealed_outputs_survive_library_edits_and_detect_file_tampering(
     ).json()
     assert damaged["integrity_ok"] is False
     assert damaged["failures"] == ["rendered output digest mismatch: E01_MASTER.mp4"]
+
+
+def test_verified_seal_and_human_qa_complete_atomically_and_retry_safely(
+    tmp_path: Path,
+) -> None:
+    api = client(tmp_path)
+    _project, episode, entity = approved_episode_with_library(api)
+    run = api.post(
+        f"/v1/episodes/{episode['id']}/production-runs",
+        json={"dry_run": True},
+    ).json()
+    advance_episode_to_qa(api, episode["id"])
+    api.app.state.repository.update_run_status(run["id"], RunStatus.QA_REVIEW)
+    exports = Path(run["package_path"]).parent / "qingshan-workspace" / "exports"
+    master_bytes = b"original-resolution-completed-master"
+    master_sha = hashlib.sha256(master_bytes).hexdigest()
+    (exports / "E01_MASTER.mp4").write_bytes(master_bytes)
+    (exports / "E01_zh-CN.vtt").write_text("WEBVTT\n", encoding="utf-8")
+    (exports / "E01_FINAL_QA.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "nalu.final-qa-evidence/v1",
+                "run_id": run["id"],
+                "master_sha256": master_sha,
+                "original_resolution_reviewed": True,
+                "picture_passed": True,
+                "audio_sync_passed": True,
+                "captions_passed": True,
+                "continuity_passed": True,
+                "safety_passed": True,
+                "reviewed_by": "human-reviewer",
+                "review_channel": "human_original_resolution",
+                "reviewed_at": "2026-08-30T06:00:00Z",
+                "notes": "自动化测试中的人工证据格式夹具，不作为真实人工 QA 声明。",
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    seal = api.post(
+        f"/v1/production-runs/{run['id']}/rendered-output-seal",
+        json=seal_payload(include_qa=True),
+    ).json()
+    completion_payload = {
+        "output_seal_sha256": seal["manifest_sha256"],
+        "completed_by": "local-user",
+        "spoken_confirmation": "我确认这份成片和人工质量检查记录",
+    }
+    repository = api.app.state.repository
+    with patch.object(
+        repository,
+        "_record_episode_transition",
+        side_effect=RuntimeError("simulated crash before SQLite commit"),
+    ), pytest.raises(RuntimeError, match="simulated crash"):
+        api.post(
+            f"/v1/production-runs/{run['id']}/complete",
+            json=completion_payload,
+        )
+    assert api.get(f"/v1/production-runs/{run['id']}").json()["status"] == "qa_review"
+    assert api.get(f"/v1/episodes/{episode['id']}").json()["status"] == "qa_review"
+    rolled_back_events = api.get(f"/v1/production-runs/{run['id']}/events").json()
+    assert not any(event["event_type"] == "production_completed" for event in rolled_back_events)
+
+    completed = api.post(
+        f"/v1/production-runs/{run['id']}/complete",
+        json=completion_payload,
+    )
+    assert completed.status_code == 200
+    result = completed.json()
+    assert result["run"]["status"] == "completed"
+    assert result["episode"]["status"] == "ready_to_publish"
+    assert result["output_seal_sha256"] == seal["manifest_sha256"]
+
+    replay = api.post(
+        f"/v1/production-runs/{run['id']}/complete",
+        json=completion_payload,
+    )
+    assert replay.status_code == 200
+    assert replay.json() == result
+    events = api.get(f"/v1/production-runs/{run['id']}/events").json()
+    completion_events = [event for event in events if event["event_type"] == "production_completed"]
+    assert len(completion_events) == 1
+
+    revision = api.post(
+        f"/v1/library-entities/{entity['id']}/revisions",
+        json={
+            "name": "林叔",
+            "description": "完成后供下一集使用的新设定",
+            "attributes": {"wardrobe": ["棕色外套"]},
+            "source_channel": "voice",
+            "change_summary": "成片完成后更新下一集设定",
+        },
+    ).json()
+    assert revision["current_revision"] == 2
+    integrity = api.get(
+        f"/v1/production-runs/{run['id']}/rendered-output-integrity"
+    ).json()
+    assert integrity["integrity_ok"] is True
+    assert (exports / "E01_MASTER.mp4").read_bytes() == master_bytes
+
+
+def test_completion_rejects_missing_or_mismatched_final_qa(tmp_path: Path) -> None:
+    api = client(tmp_path)
+    _, episode, _ = approved_episode_with_library(api)
+    run = api.post(
+        f"/v1/episodes/{episode['id']}/production-runs",
+        json={"dry_run": True},
+    ).json()
+    advance_episode_to_qa(api, episode["id"])
+    api.app.state.repository.update_run_status(run["id"], RunStatus.QA_REVIEW)
+    exports = Path(run["package_path"]).parent / "qingshan-workspace" / "exports"
+    (exports / "E01_MASTER.mp4").write_bytes(b"master")
+    (exports / "E01_zh-CN.vtt").write_text("WEBVTT\n", encoding="utf-8")
+    seal = api.post(
+        f"/v1/production-runs/{run['id']}/rendered-output-seal",
+        json=seal_payload(),
+    ).json()
+    missing = api.post(
+        f"/v1/production-runs/{run['id']}/complete",
+        json={
+            "output_seal_sha256": seal["manifest_sha256"],
+            "completed_by": "local-user",
+            "spoken_confirmation": "我确认完成",
+        },
+    )
+    assert missing.status_code == 409
+    assert "exactly one sealed QA report" in missing.text
+    assert api.get(f"/v1/production-runs/{run['id']}").json()["status"] == "qa_review"
 
 
 def test_output_seal_fails_closed_for_state_paths_and_empty_files(tmp_path: Path) -> None:

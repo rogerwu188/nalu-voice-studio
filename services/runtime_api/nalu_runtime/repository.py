@@ -2855,6 +2855,101 @@ class Repository:
             )
         return self.get_run(run_id)
 
+    def complete_run_after_qa(
+        self,
+        run_id: str,
+        *,
+        output_seal_sha256: str,
+        qa_report_sha256: str,
+        completed_by: str,
+    ) -> tuple[ProductionRun, Episode]:
+        run = self.get_run(run_id)
+        now = utc_now()
+        with self.db.connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            current_run = connection.execute(
+                "SELECT status, episode_id FROM production_runs WHERE id = ?", (run_id,)
+            ).fetchone()
+            if current_run is None:
+                raise NotFoundError("production run not found")
+            current_episode = connection.execute(
+                "SELECT status FROM episodes WHERE id = ?", (run.episode_id,)
+            ).fetchone()
+            if current_episode is None:
+                raise NotFoundError("episode not found")
+            run_status = RunStatus(current_run["status"])
+            episode_status = EpisodeStatus(current_episode["status"])
+            if (
+                run_status == RunStatus.COMPLETED
+                and episode_status == EpisodeStatus.READY_TO_PUBLISH
+            ):
+                prior = connection.execute(
+                    """SELECT payload_json FROM run_events
+                       WHERE run_id = ? AND event_type = 'production_completed'
+                       ORDER BY sequence DESC LIMIT 1""",
+                    (run_id,),
+                ).fetchone()
+                payload = decode(prior["payload_json"]) if prior else {}
+                if (
+                    payload.get("output_seal_sha256") == output_seal_sha256
+                    and payload.get("qa_report_sha256") == qa_report_sha256
+                ):
+                    return self.get_run(run_id), self.get_episode(run.episode_id)
+                raise ConflictError("production run was completed with different QA evidence")
+            if run_status != RunStatus.QA_REVIEW:
+                raise ConflictError("production run must be in QA review before completion")
+            if episode_status != EpisodeStatus.QA_REVIEW:
+                raise ConflictError("episode must be in QA review before completion")
+            latest = connection.execute(
+                """SELECT id FROM production_runs WHERE episode_id = ?
+                   ORDER BY created_at DESC, id DESC LIMIT 1""",
+                (run.episode_id,),
+            ).fetchone()
+            if latest is None or latest["id"] != run_id:
+                raise ConflictError("only the latest episode production run can complete")
+
+            connection.execute(
+                "UPDATE production_runs SET status = ?, error = NULL, updated_at = ? WHERE id = ?",
+                (RunStatus.COMPLETED, now, run_id),
+            )
+            connection.execute(
+                "UPDATE episodes SET status = ?, updated_at = ? WHERE id = ?",
+                (EpisodeStatus.READY_TO_PUBLISH, now, run.episode_id),
+            )
+            row = connection.execute(
+                "SELECT COALESCE(MAX(sequence), 0) + 1 AS sequence FROM run_events WHERE run_id = ?",
+                (run_id,),
+            ).fetchone()
+            connection.execute(
+                "INSERT INTO run_events VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    new_id("evt"),
+                    run_id,
+                    int(row["sequence"]),
+                    "production_completed",
+                    RunStatus.QA_REVIEW,
+                    RunStatus.COMPLETED,
+                    "Verified rendered outputs and final QA evidence completed production.",
+                    encode(
+                        {
+                            "output_seal_sha256": output_seal_sha256,
+                            "qa_report_sha256": qa_report_sha256,
+                            "completed_by": completed_by,
+                        }
+                    ),
+                    now,
+                ),
+            )
+            self._record_episode_transition(
+                connection,
+                run.episode_id,
+                EpisodeStatus.QA_REVIEW,
+                EpisodeStatus.READY_TO_PUBLISH,
+                completed_by,
+                f"production run {run_id} passed sealed final QA",
+            )
+        return self.get_run(run_id), self.get_episode(run.episode_id)
+
     def get_run(self, run_id: str) -> ProductionRun:
         with self.db.connect() as connection:
             row = connection.execute(
