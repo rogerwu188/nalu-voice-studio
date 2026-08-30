@@ -28,8 +28,8 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
           cache: pip
@@ -59,8 +59,8 @@ jobs:
             runner: macos-15-intel
     runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
           cache: pip
@@ -75,7 +75,7 @@ jobs:
       - run: scripts/verify-macos-release.sh
       - run: scripts/smoke-macos-bundle.sh
       - run: ditto -c -k --keepParent "dist/Nalu Voice Studio.app" "dist/Nalu-Voice-Studio-${{ matrix.architecture }}.zip"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: release-input-${{ matrix.architecture }}
           if-no-files-found: error
@@ -85,12 +85,12 @@ jobs:
     needs: build-architecture
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
         with:
           name: release-input-arm64
           path: .build/release-input/arm64
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: release-input-x86_64
           path: .build/release-input/x86_64
@@ -169,7 +169,7 @@ jobs:
               json.dumps(provenance, indent=2, sort_keys=True) + "\n", encoding="utf-8"
           )
           PY
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: Nalu-Voice-Studio-${{ inputs.version }}-${{ inputs.build_number }}
           if-no-files-found: error

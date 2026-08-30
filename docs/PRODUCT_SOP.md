@@ -709,9 +709,20 @@ Current evidence:
   signature-structure validation, bundled-Runtime launch and artifact upload; GitHub
   reports the `Nalu-Voice-Studio-macOS` artifact archive as 23,732,205 bytes. This CI
   run is intentionally ad-hoc signed and is not notarization evidence.
+- Commits `9980676` and `fb4f38b`, GitHub CI run `33327386453`: CI now builds the
+  identical commit on Apple Silicon and the official `macos-15-intel` runner, tests and
+  launches each self-contained architecture, then refuses to merge if the Info.plist or
+  bundled Qingshan resources differ. The canonical artifact requires both `arm64` and
+  `x86_64` slices in the native client and PyInstaller Runtime, verifies nested signatures,
+  and launches the merged Runtime on Apple Silicon. Runtime, all 77 tests, OpenAPI and SOP
+  audits, both Swift suites, both architecture builds, both bundle smokes and the universal
+  merge/smoke passed. The downloaded universal ZIP SHA-256 is
+  `3942723c916c4c630c6fb775c4882033aec5a6b799f130384fd724dd82c76de7`; GitHub reports
+  its workflow artifact archive as 43,395,214 bytes. The manual release workflow now
+  performs the same dual build and merge before Developer ID signing and notarization.
 - Still required before `PASS`: Developer ID signing, hardened runtime, notarized
-  universal release, update channel and clean-Mac upgrade/rollback QA with populated
-  multi-episode data.
+  universal release evidence, update channel and clean-Mac upgrade/rollback QA with
+  populated multi-episode data. The green universal build is still ad-hoc signed.
 
 ## SOP-12 · End-to-end release-candidate acceptance — TODO
 

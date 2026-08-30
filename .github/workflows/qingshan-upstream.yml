@@ -13,11 +13,11 @@ jobs:
   audit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - id: upstream
         run: python scripts/check_qingshan_upstream.py --check-latest
       - if: steps.upstream.outputs.update_available == 'true'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         env:
           LATEST_TAG: ${{ steps.upstream.outputs.latest_tag }}
           LATEST_URL: ${{ steps.upstream.outputs.latest_url }}
