@@ -22,6 +22,8 @@ handwriting become traceable, user-confirmed knowledge through the
 [family memory library](docs/FAMILY_MEMORY_LIBRARY.md). Approved legacy scripts
 use an evidence-bound, user-confirmed [continuity review](docs/CONTINUITY_REVIEW.md)
 instead of asking the creator to complete a professional end-state form.
+Completed renders are protected by a content-addressed
+[output integrity seal](docs/RENDERED_OUTPUT_INTEGRITY.md) before release QA.
 
 ## Product hierarchy
 

@@ -65,6 +65,9 @@ from .models import (
     ProjectPlan,
     ProjectPlanCreate,
     ProjectRename,
+    RenderedOutputIntegrityReport,
+    RenderedOutputSeal,
+    RenderedOutputSealCreate,
     RunActionRequest,
     RunEvent,
     RunResumeRequest,
@@ -564,6 +567,23 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
     @app.get("/v1/production-runs/{run_id}/events", response_model=list[RunEvent])
     def get_run_events(run_id: str) -> list[RunEvent]:
         return production.events(run_id)
+
+    @app.post(
+        "/v1/production-runs/{run_id}/rendered-output-seal",
+        response_model=RenderedOutputSeal,
+        status_code=201,
+    )
+    def seal_rendered_outputs(
+        run_id: str, request: RenderedOutputSealCreate
+    ) -> RenderedOutputSeal:
+        return production.seal_rendered_outputs(run_id, request)
+
+    @app.get(
+        "/v1/production-runs/{run_id}/rendered-output-integrity",
+        response_model=RenderedOutputIntegrityReport,
+    )
+    def rendered_output_integrity(run_id: str) -> RenderedOutputIntegrityReport:
+        return production.rendered_output_integrity(run_id)
 
     @app.post("/v1/production-runs/{run_id}/cancel", response_model=ProductionRun)
     def cancel_run(run_id: str, request: RunActionRequest) -> ProductionRun:

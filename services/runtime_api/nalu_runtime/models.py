@@ -863,3 +863,70 @@ class ProductionPackage(BaseModel):
     continuity_preflight: dict[str, Any] | None = None
     production_policy: dict[str, Any]
     package_sha256: str = ""
+
+
+class RenderedOutputCandidate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal[
+        "master_video",
+        "audio_master",
+        "captions",
+        "cover",
+        "qa_report",
+        "release_metadata",
+    ]
+    relative_path: str = Field(min_length=1, max_length=500)
+    media_type: str = Field(min_length=1, max_length=160)
+
+    @model_validator(mode="after")
+    def require_safe_relative_path(self) -> RenderedOutputCandidate:
+        path = self.relative_path.replace("\\", "/")
+        parts = path.split("/")
+        if path.startswith("/") or any(part in {"", ".", ".."} for part in parts):
+            raise ValueError("rendered output path must be a safe relative path")
+        self.relative_path = path
+        return self
+
+
+class RenderedOutputSealCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    artifacts: list[RenderedOutputCandidate] = Field(min_length=1, max_length=50)
+    sealed_by: str = Field(min_length=1, max_length=160)
+
+    @model_validator(mode="after")
+    def require_unique_master_and_paths(self) -> RenderedOutputSealCreate:
+        paths = [artifact.relative_path for artifact in self.artifacts]
+        if len(set(paths)) != len(paths):
+            raise ValueError("rendered output paths must be unique")
+        if sum(artifact.kind == "master_video" for artifact in self.artifacts) != 1:
+            raise ValueError("rendered output seal requires exactly one master video")
+        return self
+
+
+class RenderedOutputArtifact(RenderedOutputCandidate):
+    sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    byte_size: int = Field(ge=1)
+
+
+class RenderedOutputSeal(BaseModel):
+    schema_version: Literal["nalu.rendered-output-seal/v1"] = (
+        "nalu.rendered-output-seal/v1"
+    )
+    run_id: str
+    project_id: str
+    episode_id: str
+    production_package_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    resolved_library_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    workspace_manifest_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    artifacts: list[RenderedOutputArtifact]
+    sealed_by: str
+    sealed_at: str
+    manifest_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+
+
+class RenderedOutputIntegrityReport(BaseModel):
+    seal: RenderedOutputSeal
+    integrity_ok: bool
+    failures: list[str] = Field(default_factory=list)

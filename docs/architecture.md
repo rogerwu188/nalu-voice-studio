@@ -63,6 +63,13 @@ voice consent actions are separate audit records. Revocation blocks new
 production, while immutable run dependency snapshots prevent deletion from
 silently rewriting production history.
 
+Rendered outputs have a second immutable boundary. During QA, Nalu seals the
+master and related exports to the exact production-package hash, resolved project-
+library snapshot, Qingshan workspace manifest and per-file SHA-256 digests. Later
+library revisions only affect future packages; integrity verification detects any
+missing or modified earlier output. Sealing alone never marks an episode ready to
+publish. See [rendered output integrity](RENDERED_OUTPUT_INTEGRITY.md).
+
 The native continuity review has two deliberately separate forms. The opening
 form starts from the latest earlier-episode snapshot and the ending form creates
 a new immutable handoff snapshot. Both use typed character, prop, scene, time and

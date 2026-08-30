@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from pathlib import Path
 
 from .continuity import audit_continuity
@@ -14,6 +15,10 @@ from .models import (
     ProductionPackage,
     ProductionRun,
     ProductionRunCreate,
+    RenderedOutputArtifact,
+    RenderedOutputIntegrityReport,
+    RenderedOutputSeal,
+    RenderedOutputSealCreate,
     RunActionRequest,
     RunEvent,
     RunResumeRequest,
@@ -66,6 +71,185 @@ class ProductionService:
     def _model_policy(self) -> dict:
         policy_path = self.repository_root / "configs" / "model-policy.json"
         return json.loads(policy_path.read_text(encoding="utf-8"))
+
+    @staticmethod
+    def _sha256_file(path: Path) -> str:
+        digest = hashlib.sha256()
+        with path.open("rb") as source:
+            while chunk := source.read(1024 * 1024):
+                digest.update(chunk)
+        return digest.hexdigest()
+
+    @staticmethod
+    def _canonical_sha256(value: dict | list) -> str:
+        encoded = json.dumps(
+            value, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+        )
+        return hashlib.sha256(encoded.encode()).hexdigest()
+
+    def _run_directory(self, run: ProductionRun) -> Path:
+        run_directory = Path(run.package_path).resolve().parent
+        runs_root = (self.data_root / "runs").resolve()
+        if not run_directory.is_relative_to(runs_root):
+            raise ConflictError("production run package is outside the managed data root")
+        return run_directory
+
+    def seal_rendered_outputs(
+        self, run_id: str, request: RenderedOutputSealCreate
+    ) -> RenderedOutputSeal:
+        run = self.repository.get_run(run_id)
+        if run.status != RunStatus.QA_REVIEW:
+            raise ConflictError("rendered outputs can only be sealed during QA review")
+        run_directory = self._run_directory(run)
+        package_path = Path(run.package_path)
+        try:
+            package = json.loads(package_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            raise ConflictError("production package is unreadable before output seal") from exc
+        package_hash = package.get("package_sha256", "")
+        package_body = {key: value for key, value in package.items() if key != "package_sha256"}
+        if not package_hash or self._canonical_sha256(package_body) != package_hash:
+            raise ConflictError("production package integrity check failed before output seal")
+
+        workspace = run_directory / "qingshan-workspace"
+        exports_root = (workspace / "exports").resolve()
+        workspace_manifest = workspace / "workspace-manifest.json"
+        if not workspace_manifest.is_file():
+            raise ConflictError("Qingshan workspace manifest is missing")
+
+        artifacts: list[RenderedOutputArtifact] = []
+        for candidate in request.artifacts:
+            unresolved_path = exports_root / candidate.relative_path
+            artifact_path = unresolved_path.resolve()
+            if (
+                not artifact_path.is_relative_to(exports_root)
+                or not artifact_path.is_file()
+                or unresolved_path.is_symlink()
+            ):
+                raise ConflictError(
+                    "rendered output must be a regular file inside Qingshan exports: "
+                    + candidate.relative_path
+                )
+            byte_size = artifact_path.stat().st_size
+            if byte_size < 1:
+                raise ConflictError("rendered output is empty: " + candidate.relative_path)
+            artifacts.append(
+                RenderedOutputArtifact(
+                    **candidate.model_dump(),
+                    sha256=self._sha256_file(artifact_path),
+                    byte_size=byte_size,
+                )
+            )
+        artifacts.sort(key=lambda artifact: artifact.relative_path)
+
+        seal_without_hash = {
+            "schema_version": "nalu.rendered-output-seal/v1",
+            "run_id": run.id,
+            "project_id": run.project_id,
+            "episode_id": run.episode_id,
+            "production_package_sha256": package_hash,
+            "resolved_library_sha256": self._canonical_sha256(
+                package.get("resolved_library", [])
+            ),
+            "workspace_manifest_sha256": self._sha256_file(workspace_manifest),
+            "artifacts": [artifact.model_dump(mode="json") for artifact in artifacts],
+            "sealed_by": request.sealed_by,
+            "sealed_at": utc_now(),
+        }
+        seal = RenderedOutputSeal(
+            **seal_without_hash,
+            manifest_sha256=self._canonical_sha256(seal_without_hash),
+        )
+        seal_path = run_directory / "rendered-output-seal.json"
+        temporary_path = run_directory / f".{new_id('output-seal')}.tmp"
+        temporary_path.write_text(seal.model_dump_json(indent=2) + "\n", encoding="utf-8")
+        secure_file(temporary_path)
+        try:
+            os.link(temporary_path, seal_path)
+        except FileExistsError as exc:
+            raise ConflictError("rendered outputs are already sealed for this run") from exc
+        finally:
+            temporary_path.unlink(missing_ok=True)
+        secure_file(seal_path)
+        for artifact in artifacts:
+            secure_file(exports_root / artifact.relative_path)
+        self.repository.append_run_event(
+            run.id,
+            "rendered_outputs_sealed",
+            from_status=run.status,
+            to_status=run.status,
+            message="Rendered outputs were sealed for release-blocking QA.",
+            payload={
+                "manifest_path": str(seal_path),
+                "manifest_sha256": seal.manifest_sha256,
+                "artifact_count": len(artifacts),
+            },
+        )
+        return seal
+
+    def rendered_output_integrity(self, run_id: str) -> RenderedOutputIntegrityReport:
+        run = self.repository.get_run(run_id)
+        run_directory = self._run_directory(run)
+        seal_path = run_directory / "rendered-output-seal.json"
+        if not seal_path.is_file():
+            raise ConflictError("rendered outputs have not been sealed for this run")
+        try:
+            seal = RenderedOutputSeal.model_validate_json(
+                seal_path.read_text(encoding="utf-8")
+            )
+        except (OSError, ValueError) as exc:
+            raise ConflictError("rendered output seal is unreadable or invalid") from exc
+        failures: list[str] = []
+        seal_body = seal.model_dump(mode="json", exclude={"manifest_sha256"})
+        if self._canonical_sha256(seal_body) != seal.manifest_sha256:
+            failures.append("output seal manifest digest mismatch")
+
+        package_path = Path(run.package_path)
+        if not package_path.is_file():
+            failures.append("production package is missing")
+        else:
+            package = json.loads(package_path.read_text(encoding="utf-8"))
+            package_body = {
+                key: value for key, value in package.items() if key != "package_sha256"
+            }
+            if (
+                package.get("package_sha256") != seal.production_package_sha256
+                or self._canonical_sha256(package_body) != seal.production_package_sha256
+            ):
+                failures.append("production package digest mismatch")
+            if (
+                self._canonical_sha256(package.get("resolved_library", []))
+                != seal.resolved_library_sha256
+            ):
+                failures.append("resolved library snapshot digest mismatch")
+
+        workspace = run_directory / "qingshan-workspace"
+        workspace_manifest = workspace / "workspace-manifest.json"
+        if (
+            not workspace_manifest.is_file()
+            or self._sha256_file(workspace_manifest) != seal.workspace_manifest_sha256
+        ):
+            failures.append("workspace manifest digest mismatch")
+        exports_root = (workspace / "exports").resolve()
+        for artifact in seal.artifacts:
+            unresolved_path = exports_root / artifact.relative_path
+            artifact_path = unresolved_path.resolve()
+            if (
+                not artifact_path.is_relative_to(exports_root)
+                or not artifact_path.is_file()
+                or unresolved_path.is_symlink()
+            ):
+                failures.append("rendered output is missing: " + artifact.relative_path)
+            elif (
+                artifact_path.stat().st_size != artifact.byte_size
+                or self._sha256_file(artifact_path) != artifact.sha256
+            ):
+                failures.append("rendered output digest mismatch: " + artifact.relative_path)
+        return RenderedOutputIntegrityReport(
+            seal=seal,
+            integrity_ok=not failures,
+            failures=failures,
+        )
 
     def start_run(
         self,
@@ -224,7 +408,7 @@ class ProductionService:
         secure_directory(run_dir)
         package_path = run_dir / "production-package.json"
         package_path.write_text(
-            package.model_dump_json(indent=2, exclude_none=True) + "\n", encoding="utf-8"
+            package.model_dump_json(indent=2) + "\n", encoding="utf-8"
         )
         secure_file(package_path)
 
