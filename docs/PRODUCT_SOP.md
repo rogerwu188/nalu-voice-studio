@@ -304,7 +304,7 @@ Current evidence:
   Computer Use crashed while opening the new asset sheet, while Nalu stayed running,
   so that visual sheet check remains explicitly unaccepted.
 
-## SOP-06 · Cross-episode inheritance and continuity — IN_PROGRESS
+## SOP-06 · Cross-episode inheritance and continuity — PASS
 
 Acceptance:
 
@@ -436,8 +436,15 @@ Current evidence:
   tests, OpenAPI compatibility, real HTTP smoke, Swift tests, full app build, bundled-
   Runtime smoke, ZIP and downloadable artifact passed. The automated human-QA JSON is a
   format fixture and is not claimed as actual human review.
-- Still required before `PASS`: human/accessibility QA of the native continuity workflow
-  on the same release candidate.
+- GitHub issue `#4` records native accessibility E2E on the downloadable artifact from
+  the same `c7c4795` release candidate, including ZIP and executable SHA-256. Against an
+  isolated temporary Runtime, the accessibility tree exposed the automatic extraction,
+  11 exact source-evidence entries and every populated continuity field. Confirmation was
+  disabled before and during complete speech playback, enabled only after uninterrupted
+  completion, then immediately disabled again after changing weather from 大雪 to 小雪;
+  the required change-summary field appeared. No microphone, paid generation, release
+  action or user project data was used. This closes the SOP-06 native accessibility gate
+  without claiming acoustic voice-quality review or whole-product completion.
 
 ## SOP-07 · Productized Qingshan execution adapter — IN_PROGRESS
 
