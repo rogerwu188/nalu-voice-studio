@@ -10,6 +10,7 @@ from .qingshan_compilers import (
     ModelCompilerRegistry,
     verify_compilation,
 )
+from .qingshan_gate_audit import GateRegistryAuditError, audit_gate_registry
 
 
 class QingshanAdapterError(RuntimeError):
@@ -144,6 +145,17 @@ class QingshanAdapter:
             model_compilation = self.model_compilers.compile(package, workspace)
         except ModelCompilationError as exc:
             raise QingshanAdapterError(str(exc)) from exc
+        try:
+            gate_registry_audit = audit_gate_registry(
+                self.repository_root,
+                self.vendor_root,
+                upstream_release=self.upstream_release,
+                upstream_commit=self.upstream_commit,
+            )
+        except GateRegistryAuditError as exc:
+            raise QingshanAdapterError(str(exc)) from exc
+        gate_registry_audit_path = workspace / "workflow" / "qingshan-gate-registry-audit.json"
+        self._write_json(gate_registry_audit_path, gate_registry_audit)
 
         tracked_files = sorted(path for path in workspace.rglob("*") if path.is_file())
         manifest = {
@@ -154,6 +166,8 @@ class QingshanAdapter:
             "production_package_sha256": package["package_sha256"],
             "model_compilation": str(model_compilation.relative_to(workspace)),
             "model_compilation_sha256": self._sha256(model_compilation),
+            "gate_registry_audit": str(gate_registry_audit_path.relative_to(workspace)),
+            "gate_registry_audit_sha256": self._sha256(gate_registry_audit_path),
             "files": [
                 {
                     "path": str(path.relative_to(workspace)),
@@ -236,6 +250,33 @@ class QingshanAdapter:
             if self._sha256(compilation_path) != manifest.get("model_compilation_sha256"):
                 failures.append("workspace model compilation SHA mismatch")
 
+        gate_audit_relative = manifest.get("gate_registry_audit")
+        gate_audit_path = workspace / "workflow" / "qingshan-gate-registry-audit.json"
+        gate_audit: dict = {}
+        if gate_audit_relative != "workflow/qingshan-gate-registry-audit.json":
+            failures.append("Qingshan gate registry audit path is invalid")
+        elif not gate_audit_path.is_file() or gate_audit_path.is_symlink():
+            failures.append("Qingshan gate registry audit is absent or unsafe")
+        else:
+            try:
+                gate_audit = json.loads(gate_audit_path.read_text(encoding="utf-8"))
+            except json.JSONDecodeError:
+                failures.append("Qingshan gate registry audit is invalid JSON")
+            if self._sha256(gate_audit_path) != manifest.get("gate_registry_audit_sha256"):
+                failures.append("Qingshan gate registry audit SHA mismatch")
+            if gate_audit.get("upstream_commit") != self.upstream_commit:
+                failures.append("Qingshan gate registry audit is bound to another upstream commit")
+            if gate_audit.get("status") not in {
+                "PASS_INTEGRITY",
+                "QUARANTINED_KNOWN_UPSTREAM_DEFECT",
+            }:
+                failures.append("Qingshan gate registry has unreviewed integrity failures")
+            if (
+                not package.get("production_policy", {}).get("dry_run", True)
+                and gate_audit.get("paid_execution_allowed") is not True
+            ):
+                failures.append("paid execution is blocked by Qingshan gate registry quarantine")
+
         report = {
             "schema_version": "nalu.qingshan-preflight/v1",
             "upstream_release": self.upstream_release,
@@ -250,6 +291,11 @@ class QingshanAdapter:
             "model_compilation_sha256": manifest.get("model_compilation_sha256"),
             "registered_compilers": self.model_compilers.supported_models,
             "model_registry_failures": model_registry_failures,
+            "gate_registry_audit": gate_audit_relative,
+            "gate_registry_audit_sha256": manifest.get("gate_registry_audit_sha256"),
+            "gate_registry_status": gate_audit.get("status"),
+            "registered_gate_count": gate_audit.get("gate_count"),
+            "registered_tests_executed": gate_audit.get("registered_tests_executed", False),
             "capabilities": self.required_capabilities,
             "capability_contracts": self.capability_contracts,
             "missing_capabilities": missing,

@@ -1,0 +1,19 @@
+{
+  "schema_version": "nalu.qingshan-gate-registry-quarantine/v1",
+  "upstream_release": "v2026.08.29.1",
+  "upstream_commit": "26a8857dbde04dd945cf67e36ca1525639fe8b0d",
+  "gate_registry_path": "configs/GATE_REGISTRY_v3_20260716.json",
+  "gate_registry_sha256": "3cc550830e2a0e90e29f69ff449ea8115f7ae30ad4d3864b78fee32e07e96f89",
+  "gate_registry_validator_sha256": "a33b1f52de5e34d3d23f07596d611c78dcae7ca6cf8bb845af264ba4cdec3357",
+  "upstream_issue": "https://github.com/rogerwu188/qingshan-short-drama-production-line/issues/20",
+  "known_failures": [
+    "missing_path:GIGGLE-REROLL-COST-GUARD:configs/reroll_cost_guard_policy_v1_20260716.json",
+    "missing_path:AGENT-WATCH-LISTEN:workflow/AGENT_WATCH_LISTEN_GATE_TEMPLATE.json",
+    "missing_path:AGENT-MISTAKE-ANTI-RECURRENCE:workflow/agent_mistake_ledger.json",
+    "missing_path:THREE-EPISODE-CONCURRENCY:workflow/production_line/THREE_EPISODE_CONCURRENCY_POLICY.json",
+    "missing_path:LINE-HEARTBEAT-WATCHDOG:workflow/dashboard/build_status.py",
+    "missing_path:LINE-HEARTBEAT-WATCHDOG:workflow/time_ledger/E17_time_ledger.json",
+    "missing_path:S3-RELAY-PUBLIC-UPLOAD-SAFETY:workflow/s3_relay/S3_RELAY_UPLOAD_SAFETY_CHECKLIST.json",
+    "missing_path:AUDIENCE-SCORE-PRE-RELEASE:codex_docs/模拟观众审片门_发行前_规范v1_20260717.md"
+  ]
+}

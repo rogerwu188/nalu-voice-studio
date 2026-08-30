@@ -1220,6 +1220,25 @@ def test_dry_run_writes_immutable_package(tmp_path: Path) -> None:
     assert (workspace / "workspace-manifest.json").exists()
     assert (workspace / "source" / "E01_APPROVED_SCRIPT.md").exists()
     assert (workspace / "workflow" / "work_queue.json").exists()
+    gate_audit = json.loads(
+        (workspace / "workflow" / "qingshan-gate-registry-audit.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert gate_audit["status"] == "QUARANTINED_KNOWN_UPSTREAM_DEFECT"
+    assert gate_audit["gate_count"] == 68
+    assert gate_audit["coded_gate_count"] == gate_audit["runtime_bound_count"] == 65
+    assert len(gate_audit["known_failures"]) == 8
+    assert gate_audit["new_failures"] == []
+    assert gate_audit["quarantine_binding_valid"] is True
+    assert gate_audit["registered_tests_executed"] is False
+    assert gate_audit["paid_execution_allowed"] is False
+    preflight = json.loads(
+        package.with_name("qingshan-preflight-report.json").read_text(encoding="utf-8")
+    )
+    assert preflight["gate_registry_status"] == (
+        "QUARANTINED_KNOWN_UPSTREAM_DEFECT"
+    )
 
 
 def test_qingshan_models_use_distinct_versioned_compilers(tmp_path: Path) -> None:
@@ -1374,6 +1393,24 @@ def test_production_run_idempotency_and_paid_key_requirement(tmp_path: Path) -> 
     )
     assert paid.status_code == 409
     assert "Idempotency-Key" in paid.json()["detail"]
+
+    quarantined_api = client(tmp_path / "paid-quarantine")
+    _, _, quarantined_episode = create_approved_episode(quarantined_api)
+    quarantined = quarantined_api.post(
+        f"/v1/episodes/{quarantined_episode['id']}/production-runs",
+        json={
+            "dry_run": False,
+            "requested_model": "MiniMax-H3",
+            "estimated_budget_credits": 100,
+            "paid_generation_approved": True,
+            "approved_by": "owner",
+        },
+        headers={"Idempotency-Key": "paid-gate-quarantine"},
+    )
+    assert quarantined.status_code == 409
+    assert "paid execution is blocked by Qingshan gate registry quarantine" in (
+        quarantined.json()["detail"]
+    )
 
 
 def test_prohibited_model_is_rejected(tmp_path: Path) -> None:

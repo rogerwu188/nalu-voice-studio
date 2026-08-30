@@ -484,8 +484,19 @@ Current evidence:
   workspace bindings are revalidated during preflight. Local compilation explicitly
   remains unable to authorize a paid submission. Runtime regressions cover both routes,
   compiler separation, package tampering and compilation tampering.
-- Still required before `PASS`: full registered gate execution, durable paid-transaction
-  binding and authorized sandbox evidence.
+- Commit `654c672`, GitHub CI run `33298709262`: all 61 Runtime tests, upstream pin and
+  OpenAPI checks, real HTTP smoke, Swift tests, full application build, bundled-Runtime
+  smoke, ZIP and artifact upload passed for the separate compiler contracts.
+- Qingshan's own registry-integrity tool currently finds 68 registered gates and 65/65
+  coded gates runtime-bound, but release `v2026.08.29.1` omits eight declared evidence
+  paths and therefore cannot run the complete registered test set. Upstream issue `#20`
+  records the exact release defect. Nalu binds that quarantine to the upstream commit,
+  registry SHA and exact failure list in every workspace; new drift fails preflight and
+  the known quarantine blocks paid execution while permitting evidence-rich local dry
+  runs. This is not recorded as a full gate pass.
+- Still required before `PASS`: a corrected pinned Qingshan release whose registry
+  integrity and complete registered tests pass, durable paid-transaction binding and
+  authorized sandbox evidence.
 
 ## SOP-08 · Production jobs, progress, cancellation and recovery — IN_PROGRESS
 

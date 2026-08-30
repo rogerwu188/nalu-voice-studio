@@ -42,3 +42,9 @@ planning, prompt validation, provider asset transport, registered Qingshan gates
 cost approval, and the durable transaction submitter remain later mandatory boundaries.
 This prevents a successful local dry run from being mistaken for a paid or completed
 production.
+
+Each materialized workspace also contains the result of Qingshan's own gate-registry
+integrity checker. A known upstream release defect may be quarantined only by exact
+upstream commit, registry SHA-256 and failure list. A quarantine can keep local compilation
+usable for offline product work, but `paid_execution_allowed` remains false; any new drift
+fails preflight.
