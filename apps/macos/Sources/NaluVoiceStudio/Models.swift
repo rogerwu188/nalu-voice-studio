@@ -864,6 +864,76 @@ struct MemoryCardUpdateDraft: Codable, Sendable {
     }
 }
 
+struct DocumentaryEvidenceItem: Codable, Identifiable, Sendable {
+    var id: String { assetID }
+    let assetID: String
+    let memoryID: String?
+    let name: String
+    let kind: String
+    let scope: String
+    let confirmationStatus: String
+    let currentRevision: Int?
+    let allowedUse: String?
+    let narrativeAuthority: Bool
+    let visualGenerationAuthorized: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case name, kind, scope
+        case assetID = "asset_id"
+        case memoryID = "memory_id"
+        case confirmationStatus = "confirmation_status"
+        case currentRevision = "current_revision"
+        case allowedUse = "allowed_use"
+        case narrativeAuthority = "narrative_authority"
+        case visualGenerationAuthorized = "visual_generation_authorized"
+    }
+}
+
+struct DocumentaryReadinessReport: Codable, Sendable {
+    let projectID: String
+    let documentaryMode: String
+    let evidence: [DocumentaryEvidenceItem]
+    let confirmedNarrativeSourceCount: Int
+    let draftOrUnlinkedSourceCount: Int
+    let canPlanChapters: Bool
+    let canEnterProduction: Bool
+    let generatedReenactmentLabelRequired: Bool
+    let blockers: [String]
+    let nextQuestions: [String]
+
+    enum CodingKeys: String, CodingKey {
+        case evidence, blockers
+        case projectID = "project_id"
+        case documentaryMode = "documentary_mode"
+        case confirmedNarrativeSourceCount = "confirmed_narrative_source_count"
+        case draftOrUnlinkedSourceCount = "draft_or_unlinked_source_count"
+        case canPlanChapters = "can_plan_chapters"
+        case canEnterProduction = "can_enter_production"
+        case generatedReenactmentLabelRequired = "generated_reenactment_label_required"
+        case nextQuestions = "next_questions"
+    }
+
+    var spokenSummary: String {
+        var parts = [
+            "这个纪录片项目有 \(evidence.count) 份本地资料。",
+            "其中 \(confirmedNarrativeSourceCount) 份已经确认，可以作为故事依据。",
+        ]
+        if draftOrUnlinkedSourceCount > 0 {
+            parts.append("还有 \(draftOrUnlinkedSourceCount) 份需要说明或确认。")
+        }
+        parts.append(
+            canPlanChapters
+                ? "现在可以开始规划章节，但还不能进入成片生产。"
+                : "请先确认至少一份允许用于故事发展的资料。"
+        )
+        if generatedReenactmentLabelRequired {
+            parts.append("以后生成的剧情重现画面必须清楚标明为重现。")
+        }
+        if let question = nextQuestions.first { parts.append(question) }
+        return parts.joined(separator: " ")
+    }
+}
+
 struct ProjectPlanDraft: Codable, Sendable {
     let projectID: String?
     let project: ProjectDraft

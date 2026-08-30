@@ -182,6 +182,58 @@ def test_documentary_readiness_requires_confirmed_citable_sources(tmp_path: Path
     assert ready["can_enter_production"] is False
     assert any("adapter" in blocker for blocker in ready["blockers"])
 
+    portrait = api.post(
+        f"/v1/projects/{project['id']}/asset-imports",
+        params={
+            "filename": "father.jpg",
+            "kind": "character_image",
+            "name": "父亲照片",
+            "subject_name": "父亲",
+            "consent_granted": True,
+            "consent_granted_by": "本人",
+            "consent_statement": "同意用于本纪录片项目",
+        },
+        content=b"portrait bytes",
+        headers={"Content-Type": "image/jpeg"},
+    ).json()
+    portrait_card = api.post(
+        f"/v1/projects/{project['id']}/memory-cards",
+        json={
+            "asset_id": portrait["id"],
+            "title": "父亲青年照",
+            "allowed_use": "visual_generation",
+        },
+    ).json()
+    assert api.post(
+        f"/v1/memory-cards/{portrait_card['id']}/confirm",
+        json={
+            "confirmed_by": "本人",
+            "reviewed_revision": 1,
+            "review_channel": "voice",
+            "spoken_confirmation": "我确认这张记忆卡并归档",
+        },
+    ).status_code == 200
+    before_revocation = api.get(
+        f"/v1/projects/{project['id']}/documentary-readiness"
+    ).json()
+    portrait_evidence = next(
+        item for item in before_revocation["evidence"]
+        if item["asset_id"] == portrait["id"]
+    )
+    assert portrait_evidence["visual_generation_authorized"] is True
+    assert api.post(
+        f"/v1/assets/{portrait['id']}/consent-revocations",
+        json={"requested_by": "本人", "reason": "不再允许生成画面"},
+    ).status_code == 201
+    after_revocation = api.get(
+        f"/v1/projects/{project['id']}/documentary-readiness"
+    ).json()
+    portrait_evidence = next(
+        item for item in after_revocation["evidence"]
+        if item["asset_id"] == portrait["id"]
+    )
+    assert portrait_evidence["visual_generation_authorized"] is False
+
     drama = api.post("/v1/projects", json={"title": "剧情短剧"}).json()
     wrong_format = api.get(f"/v1/projects/{drama['id']}/documentary-readiness")
     assert wrong_format.status_code == 409

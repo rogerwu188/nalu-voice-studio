@@ -167,6 +167,10 @@ actor RuntimeClient {
         try await get("v1/projects/\(projectID)/memory-cards")
     }
 
+    func documentaryReadiness(projectID: String) async throws -> DocumentaryReadinessReport {
+        try await get("v1/projects/\(projectID)/documentary-readiness")
+    }
+
     func updateMemoryCard(id: String, draft: MemoryCardUpdateDraft) async throws -> MemoryCard {
         try await send("v1/memory-cards/\(id)", method: "PATCH", body: draft)
     }

@@ -43,6 +43,7 @@ final class VoiceInterviewViewModel {
     var continuityStatus = "尚未检查跨集连续性"
     var assets: [NaluAsset] = []
     var memoryCards: [MemoryCard] = []
+    var documentaryReadiness: DocumentaryReadinessReport?
     var reviewedMemoryCardIDs: Set<String> = []
     var memoryCorrectionCardID: String?
     var memoryConfirmationCardID: String?
@@ -239,6 +240,13 @@ final class VoiceInterviewViewModel {
         do {
             assets = try await runtime.listAssets(projectID: projectID)
             memoryCards = try await runtime.listMemoryCards(projectID: projectID)
+            if selectedProject?.creativeFormat == "documentary_series" {
+                documentaryReadiness = try await runtime.documentaryReadiness(
+                    projectID: projectID
+                )
+            } else {
+                documentaryReadiness = nil
+            }
             seasons = try await runtime.listSeasons(projectID: projectID)
             if let season = seasons.first {
                 episodes = try await runtime.listEpisodes(seasonID: season.id)
@@ -764,6 +772,7 @@ final class VoiceInterviewViewModel {
             )
             assets = try await runtime.listAssets(projectID: projectID)
             memoryCards = try await runtime.listMemoryCards(projectID: projectID)
+            await refreshDocumentaryReadiness()
             messages.append(
                 .init(
                     speaker: .nalu,
@@ -817,6 +826,7 @@ final class VoiceInterviewViewModel {
         do {
             _ = try await runtime.confirmMemoryCard(id: memoryID, revision: card.currentRevision)
             memoryCards = try await runtime.listMemoryCards(projectID: projectID)
+            await refreshDocumentaryReadiness()
             reviewedMemoryCardIDs.remove(memoryID)
             let response = "这张记忆卡已经由您确认归档，可以作为剧本事实来源。"
             messages.append(.init(speaker: .nalu, text: response))
@@ -853,6 +863,7 @@ final class VoiceInterviewViewModel {
                 )
             )
             memoryCards = try await runtime.listMemoryCards(projectID: projectID)
+            await refreshDocumentaryReadiness()
             reviewedMemoryCardIDs.remove(id)
             let response = "修改已保存为新版本。请重新听我朗读，再确认归档。"
             messages.append(.init(speaker: .nalu, text: response))
@@ -861,6 +872,28 @@ final class VoiceInterviewViewModel {
         } catch {
             errorMessage = error.localizedDescription
             return false
+        }
+    }
+
+    func speakDocumentaryReadiness() {
+        guard let documentaryReadiness else { return }
+        let summary = documentaryReadiness.spokenSummary
+        messages.append(.init(speaker: .nalu, text: summary))
+        speechPlayback.speak(summary, rate: comfortPreferences.speechRate)
+    }
+
+    private func refreshDocumentaryReadiness() async {
+        guard let projectID = selectedProjectID,
+              selectedProject?.creativeFormat == "documentary_series" else {
+            documentaryReadiness = nil
+            return
+        }
+        do {
+            documentaryReadiness = try await runtime.documentaryReadiness(
+                projectID: projectID
+            )
+        } catch {
+            errorMessage = error.localizedDescription
         }
     }
 
@@ -926,6 +959,7 @@ final class VoiceInterviewViewModel {
         do {
             _ = try await runtime.revokeAssetConsent(assetID: assetID)
             assets = try await runtime.listAssets(projectID: projectID)
+            await refreshDocumentaryReadiness()
             messages.append(.init(speaker: .nalu, text: "素材授权已撤销，后续生产将拒绝使用。"))
         } catch {
             errorMessage = error.localizedDescription
@@ -956,6 +990,8 @@ final class VoiceInterviewViewModel {
         do {
             try await runtime.deleteAsset(assetID: assetID)
             assets = try await runtime.listAssets(projectID: projectID)
+            memoryCards = try await runtime.listMemoryCards(projectID: projectID)
+            await refreshDocumentaryReadiness()
             messages.append(.init(speaker: .nalu, text: "本地素材和素材记录已经删除。"))
         } catch {
             errorMessage = error.localizedDescription

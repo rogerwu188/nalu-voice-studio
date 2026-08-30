@@ -827,6 +827,10 @@ struct ContentView: View {
 
     private var assetEditor: some View {
         VStack(alignment: .leading, spacing: 10) {
+            if selectedProject?.creativeFormat == "documentary_series" {
+                documentaryReadinessPanel
+                    .padding(.bottom, 8)
+            }
             Text("文件会复制到这个项目的本地目录，不会只记住原文件位置。")
                 .font(.body)
                 .foregroundStyle(.secondary)
@@ -986,6 +990,83 @@ struct ContentView: View {
             assetGuardianApproved = false
             assetConsentStatement = ""
             assetSubjectName = ""
+        }
+    }
+
+    @ViewBuilder
+    private var documentaryReadinessPanel: some View {
+        if let report = model.documentaryReadiness {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(alignment: .top, spacing: 12) {
+                    Image(systemName: "doc.text.magnifyingglass")
+                        .font(.title)
+                        .foregroundStyle(.blue)
+                        .frame(width: 34)
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text("纪录片资料准备")
+                            .font(.title2.bold())
+                        Label(
+                            report.canPlanChapters
+                                ? "资料已足够开始规划章节"
+                                : "请先说明并确认一份真实资料",
+                            systemImage: report.canPlanChapters
+                                ? "checkmark.circle.fill" : "exclamationmark.circle.fill"
+                        )
+                        .font(.title3.bold())
+                        .foregroundStyle(report.canPlanChapters ? .green : .orange)
+                    }
+                    Spacer()
+                    Button("朗读准备情况", systemImage: "speaker.wave.2.fill") {
+                        model.speakDocumentaryReadiness()
+                    }
+                    .controlSize(.large)
+                }
+
+                Text(
+                    "共有 \(report.evidence.count) 份本地资料；"
+                    + "\(report.confirmedNarrativeSourceCount) 份已确认可作为故事依据；"
+                    + "\(report.draftOrUnlinkedSourceCount) 份仍需说明或确认。"
+                )
+                .font(.body)
+
+                if report.generatedReenactmentLabelRequired {
+                    Label(
+                        "这个项目允许少量剧情重现。生成画面必须明确标注“剧情重现”，不能冒充历史影像。",
+                        systemImage: "exclamationmark.triangle.fill"
+                    )
+                    .font(.body.bold())
+                    .foregroundStyle(.orange)
+                }
+
+                Divider()
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("接下来 Nalu 会这样问")
+                        .font(.headline)
+                    ForEach(Array(report.nextQuestions.prefix(2)), id: \.self) { question in
+                        Label(question, systemImage: "questionmark.bubble")
+                            .font(.body)
+                    }
+                }
+
+                Label(
+                    "现在只开放资料整理和章节规划。纪录片生产线通过真实性与发行检查前，不会开始生成成片。",
+                    systemImage: "lock.shield.fill"
+                )
+                .font(.callout)
+                .foregroundStyle(.secondary)
+            }
+            .padding(18)
+            .background(Color.blue.opacity(0.07), in: RoundedRectangle(cornerRadius: 14))
+            .accessibilityElement(children: .contain)
+        } else {
+            HStack(spacing: 12) {
+                ProgressView()
+                Text("正在检查纪录片资料…")
+                    .font(.body)
+            }
+            .padding(18)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
         }
     }
 

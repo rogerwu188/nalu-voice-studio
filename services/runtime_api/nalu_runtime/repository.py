@@ -1169,6 +1169,13 @@ class Repository:
                 confirmed_authority += 1
             if confirmation_status != "confirmed":
                 draft_or_unlinked += 1
+            biometric_generation_allowed = asset.kind not in {
+                "character_image",
+                "voice_reference",
+            } or (
+                asset.consent_granted
+                and (project.audience_mode != "child" or asset.guardian_approved)
+            )
             evidence.append(
                 DocumentaryEvidenceItem(
                     asset_id=asset.id,
@@ -1184,6 +1191,7 @@ class Repository:
                         card
                         and card.confirmation_status == "confirmed"
                         and card.allowed_use == "visual_generation"
+                        and biometric_generation_allowed
                     ),
                 )
             )
