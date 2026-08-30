@@ -577,12 +577,15 @@ Current evidence:
   ordering, overlap and master-duration boundaries. Pass/fail structural fixtures prove
   specific `mp4_structure` and `caption_timeline` repair tasks. This is structural QA and
   is not misreported as decoded picture/audio acceptance.
+- Commit `5177fa5`, GitHub CI run `33299757668`: all 66 Runtime tests, OpenAPI
+  compatibility, real HTTP smoke, Swift tests, full app build, bundled-Runtime smoke,
+  ZIP and artifact upload passed for MP4/container and caption-timeline structural QA.
 - Still required before `PASS`: real shot selection/normalization and mix pipeline,
   ASR/VAD, decoded frame-repeat and adjacent-shot media-boundary gates, playable golden
   media fixtures and actual original-resolution human audiovisual review on the release
   candidate.
 
-## SOP-10 · Controlled release and learning loop — TODO
+## SOP-10 · Controlled release and learning loop — IN_PROGRESS
 
 Acceptance:
 
@@ -596,6 +599,20 @@ QA:
 
 - Dry-run platform adapters and duplicate/replacement protection tests.
 - Authorized test-channel publication and state reconciliation evidence.
+
+Current evidence:
+
+- Completed runs with an intact output seal and matching PASS media-structure report can
+  create an immutable offline release package containing title, description, cover,
+  captions, master and all sealed hashes. Exactly one cover/master/captions file is
+  required; changed metadata cannot replace an existing package.
+- Offline packages always set `publishing_enabled` to false and contain no platform
+  approvals. Creation does not transition the episode, upload media, call a platform or
+  claim publication. Automated fixtures cover too-early creation, exact replay and
+  changed-metadata rejection.
+- Still required before `PASS`: platform-specific dry-run adapters, separate adult/child
+  guardian approvals, duplicate/replacement publication protection, authorized test-
+  channel publication, remote ID/state reconciliation and versioned metrics feedback.
 
 ## SOP-11 · macOS packaging, updates and operations — IN_PROGRESS
 

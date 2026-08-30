@@ -1027,6 +1027,31 @@ class MediaStructureQAReport(BaseModel):
     report_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
 
 
+class ReleasePackageCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    title: str = Field(min_length=1, max_length=200)
+    description: str = Field(min_length=1, max_length=4000)
+    prepared_by: str = Field(min_length=1, max_length=160)
+
+
+class ReleasePackage(BaseModel):
+    schema_version: Literal["nalu.release-package/v1"] = "nalu.release-package/v1"
+    run_id: str
+    project_id: str
+    episode_id: str
+    output_seal_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    media_qa_report_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    title: str
+    description: str
+    artifacts: list[RenderedOutputArtifact]
+    prepared_by: str
+    prepared_at: str
+    publishing_enabled: Literal[False] = False
+    platform_approvals: list[dict[str, Any]] = Field(default_factory=list)
+    manifest_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+
+
 class ProductionCompletionRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

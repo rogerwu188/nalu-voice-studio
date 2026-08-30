@@ -22,6 +22,8 @@ from .models import (
     ProductionPackage,
     ProductionRun,
     ProductionRunCreate,
+    ReleasePackage,
+    ReleasePackageCreate,
     RemoteTaskState,
     RenderedOutputArtifact,
     RenderedOutputIntegrityReport,
@@ -517,6 +519,116 @@ class ProductionService:
                 codes=repair_codes,
             )
         return report
+
+    def stored_media_structure_qa(self, run_id: str) -> MediaStructureQAReport:
+        run = self.repository.get_run(run_id)
+        report_path = self._run_directory(run) / "media-structure-qa.json"
+        if not report_path.is_file() or report_path.is_symlink():
+            raise ConflictError("media structure QA has not been recorded for this run")
+        try:
+            report = MediaStructureQAReport.model_validate_json(
+                report_path.read_text(encoding="utf-8")
+            )
+        except (OSError, ValueError) as exc:
+            raise ConflictError("media structure QA report is unreadable or invalid") from exc
+        body = report.model_dump(mode="json", exclude={"report_sha256"})
+        if self._canonical_sha256(body) != report.report_sha256:
+            raise ConflictError("media structure QA report digest mismatch")
+        if report.run_id != run.id:
+            raise ConflictError("media structure QA report belongs to another run")
+        return report
+
+    def create_release_package(
+        self, run_id: str, request: ReleasePackageCreate
+    ) -> ReleasePackage:
+        run = self.repository.get_run(run_id)
+        if run.status != RunStatus.COMPLETED:
+            raise ConflictError("only a completed production run can create a release package")
+        episode = self.repository.get_episode(run.episode_id)
+        if episode.status != EpisodeStatus.READY_TO_PUBLISH:
+            raise ConflictError("episode is not ready to create a release package")
+        integrity = self.rendered_output_integrity(run.id)
+        if not integrity.integrity_ok:
+            raise ConflictError("sealed output integrity failed before release packaging")
+        media_qa = self.stored_media_structure_qa(run.id)
+        if media_qa.status != "PASS":
+            raise ConflictError("media structure QA must pass before release packaging")
+        if media_qa.output_seal_sha256 != integrity.seal.manifest_sha256:
+            raise ConflictError("media structure QA reviewed a different output seal")
+
+        artifacts_by_kind: dict[str, list[RenderedOutputArtifact]] = {}
+        for artifact in integrity.seal.artifacts:
+            artifacts_by_kind.setdefault(str(artifact.kind), []).append(artifact)
+        for required in ("master_video", "captions", "cover"):
+            if len(artifacts_by_kind.get(required, [])) != 1:
+                raise ConflictError(
+                    f"release package requires exactly one sealed {required} artifact"
+                )
+
+        release_path = self._run_directory(run) / "release-package.json"
+        if release_path.is_file():
+            try:
+                existing = ReleasePackage.model_validate_json(
+                    release_path.read_text(encoding="utf-8")
+                )
+            except (OSError, ValueError) as exc:
+                raise ConflictError("existing release package is unreadable or invalid") from exc
+            existing_body = existing.model_dump(mode="json", exclude={"manifest_sha256"})
+            if self._canonical_sha256(existing_body) != existing.manifest_sha256:
+                raise ConflictError("existing release package digest mismatch")
+            if (
+                existing.output_seal_sha256 == integrity.seal.manifest_sha256
+                and existing.media_qa_report_sha256 == media_qa.report_sha256
+                and existing.title == request.title
+                and existing.description == request.description
+                and existing.prepared_by == request.prepared_by
+            ):
+                return existing
+            raise ConflictError("release package already exists with different metadata")
+
+        body = {
+            "schema_version": "nalu.release-package/v1",
+            "run_id": run.id,
+            "project_id": run.project_id,
+            "episode_id": run.episode_id,
+            "output_seal_sha256": integrity.seal.manifest_sha256,
+            "media_qa_report_sha256": media_qa.report_sha256,
+            "title": request.title,
+            "description": request.description,
+            "artifacts": [
+                artifact.model_dump(mode="json") for artifact in integrity.seal.artifacts
+            ],
+            "prepared_by": request.prepared_by,
+            "prepared_at": utc_now(),
+            "publishing_enabled": False,
+            "platform_approvals": [],
+        }
+        package = ReleasePackage(
+            **body,
+            manifest_sha256=self._canonical_sha256(body),
+        )
+        temporary = release_path.with_name(f".{new_id('release-package')}.tmp")
+        temporary.write_text(package.model_dump_json(indent=2) + "\n", encoding="utf-8")
+        secure_file(temporary)
+        try:
+            os.link(temporary, release_path)
+        except FileExistsError as exc:
+            raise ConflictError("release package was created concurrently") from exc
+        finally:
+            temporary.unlink(missing_ok=True)
+        secure_file(release_path)
+        self.repository.append_run_event(
+            run.id,
+            "release_package_created",
+            from_status=run.status,
+            to_status=run.status,
+            message="Offline release package created; platform publishing remains disabled.",
+            payload={
+                "manifest_sha256": package.manifest_sha256,
+                "publishing_enabled": False,
+            },
+        )
+        return package
 
     def complete_run(
         self, run_id: str, request: ProductionCompletionRequest

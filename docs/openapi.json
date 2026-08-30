@@ -3543,6 +3543,125 @@
         "title": "PropContinuityState",
         "type": "object"
       },
+      "ReleasePackage": {
+        "properties": {
+          "artifacts": {
+            "items": {
+              "$ref": "#/components/schemas/RenderedOutputArtifact"
+            },
+            "title": "Artifacts",
+            "type": "array"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "episode_id": {
+            "title": "Episode Id",
+            "type": "string"
+          },
+          "manifest_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Manifest Sha256",
+            "type": "string"
+          },
+          "media_qa_report_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Media Qa Report Sha256",
+            "type": "string"
+          },
+          "output_seal_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Output Seal Sha256",
+            "type": "string"
+          },
+          "platform_approvals": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Platform Approvals",
+            "type": "array"
+          },
+          "prepared_at": {
+            "title": "Prepared At",
+            "type": "string"
+          },
+          "prepared_by": {
+            "title": "Prepared By",
+            "type": "string"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "publishing_enabled": {
+            "const": false,
+            "default": false,
+            "title": "Publishing Enabled",
+            "type": "boolean"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "nalu.release-package/v1",
+            "default": "nalu.release-package/v1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_id",
+          "project_id",
+          "episode_id",
+          "output_seal_sha256",
+          "media_qa_report_sha256",
+          "title",
+          "description",
+          "artifacts",
+          "prepared_by",
+          "prepared_at",
+          "manifest_sha256"
+        ],
+        "title": "ReleasePackage",
+        "type": "object"
+      },
+      "ReleasePackageCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Description",
+            "type": "string"
+          },
+          "prepared_by": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Prepared By",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "description",
+          "prepared_by"
+        ],
+        "title": "ReleasePackageCreate",
+        "type": "object"
+      },
       "RenderedOutputArtifact": {
         "additionalProperties": false,
         "properties": {
@@ -5879,6 +5998,43 @@
       }
     },
     "/v1/production-runs/{run_id}/media-structure-qa": {
+      "get": {
+        "operationId": "stored_media_structure_qa_v1_production_runs__run_id__media_structure_qa_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaStructureQAReport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Stored Media Structure Qa"
+      },
       "post": {
         "operationId": "media_structure_qa_v1_production_runs__run_id__media_structure_qa_post",
         "parameters": [
@@ -5954,6 +6110,55 @@
           }
         },
         "summary": "Postproduction Repair Plan"
+      }
+    },
+    "/v1/production-runs/{run_id}/release-package": {
+      "post": {
+        "operationId": "create_release_package_v1_production_runs__run_id__release_package_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReleasePackageCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReleasePackage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Release Package"
       }
     },
     "/v1/production-runs/{run_id}/rendered-output-integrity": {

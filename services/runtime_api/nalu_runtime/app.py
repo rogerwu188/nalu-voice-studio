@@ -69,6 +69,8 @@ from .models import (
     ProjectPlan,
     ProjectPlanCreate,
     ProjectRename,
+    ReleasePackage,
+    ReleasePackageCreate,
     RenderedOutputIntegrityReport,
     RenderedOutputSeal,
     RenderedOutputSealCreate,
@@ -602,6 +604,23 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
     )
     def media_structure_qa(run_id: str) -> MediaStructureQAReport:
         return production.media_structure_qa(run_id)
+
+    @app.get(
+        "/v1/production-runs/{run_id}/media-structure-qa",
+        response_model=MediaStructureQAReport,
+    )
+    def stored_media_structure_qa(run_id: str) -> MediaStructureQAReport:
+        return production.stored_media_structure_qa(run_id)
+
+    @app.post(
+        "/v1/production-runs/{run_id}/release-package",
+        response_model=ReleasePackage,
+        status_code=201,
+    )
+    def create_release_package(
+        run_id: str, request: ReleasePackageCreate
+    ) -> ReleasePackage:
+        return production.create_release_package(run_id, request)
 
     @app.post(
         "/v1/production-runs/{run_id}/complete",

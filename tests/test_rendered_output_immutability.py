@@ -466,6 +466,116 @@ def test_media_structure_and_caption_timeline_golden_fixtures(tmp_path: Path) ->
     ]
 
 
+def test_completed_media_qa_creates_offline_release_package_without_publishing(
+    tmp_path: Path,
+) -> None:
+    api = client(tmp_path)
+    _, episode, _ = approved_episode_with_library(api)
+    run = api.post(
+        f"/v1/episodes/{episode['id']}/production-runs",
+        json={"dry_run": True},
+    ).json()
+    advance_episode_to_qa(api, episode["id"])
+    api.app.state.repository.update_run_status(run["id"], RunStatus.QA_REVIEW)
+    exports = Path(run["package_path"]).parent / "qingshan-workspace" / "exports"
+    master = minimal_mp4(duration_milliseconds=2000)
+    master_sha = hashlib.sha256(master).hexdigest()
+    (exports / "E01_MASTER.mp4").write_bytes(master)
+    (exports / "E01_zh-CN.vtt").write_text(
+        "WEBVTT\n\n00:00.000 --> 00:01.900\n回家\n",
+        encoding="utf-8",
+    )
+    (exports / "E01_COVER.jpg").write_bytes(b"sealed-cover-fixture")
+    (exports / "E01_FINAL_QA.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "nalu.final-qa-evidence/v1",
+                "run_id": run["id"],
+                "master_sha256": master_sha,
+                "original_resolution_reviewed": True,
+                "picture_passed": True,
+                "audio_sync_passed": True,
+                "captions_passed": True,
+                "continuity_passed": True,
+                "safety_passed": True,
+                "reviewed_by": "human-reviewer",
+                "review_channel": "human_original_resolution",
+                "reviewed_at": "2026-08-30T08:00:00Z",
+                "notes": "结构夹具中的人工证据格式，不作为真实审片声明。",
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    payload = seal_payload(include_qa=True)
+    payload["artifacts"].append(
+        {
+            "kind": "cover",
+            "relative_path": "E01_COVER.jpg",
+            "media_type": "image/jpeg",
+        }
+    )
+    seal = api.post(
+        f"/v1/production-runs/{run['id']}/rendered-output-seal",
+        json=payload,
+    ).json()
+    media_qa = api.post(
+        f"/v1/production-runs/{run['id']}/media-structure-qa"
+    ).json()
+    assert media_qa["status"] == "PASS"
+    too_early = api.post(
+        f"/v1/production-runs/{run['id']}/release-package",
+        json={
+            "title": "离开故乡",
+            "description": "第一集",
+            "prepared_by": "local-user",
+        },
+    )
+    assert too_early.status_code == 409
+
+    completed = api.post(
+        f"/v1/production-runs/{run['id']}/complete",
+        json={
+            "output_seal_sha256": seal["manifest_sha256"],
+            "completed_by": "local-user",
+            "spoken_confirmation": "我确认这份成片",
+        },
+    )
+    assert completed.status_code == 200
+    release_request = {
+        "title": "离开故乡",
+        "description": "林叔穿着蓝色外套回到家。",
+        "prepared_by": "local-user",
+    }
+    release = api.post(
+        f"/v1/production-runs/{run['id']}/release-package",
+        json=release_request,
+    )
+    assert release.status_code == 201
+    package = release.json()
+    assert package["publishing_enabled"] is False
+    assert package["platform_approvals"] == []
+    assert package["output_seal_sha256"] == seal["manifest_sha256"]
+    assert package["media_qa_report_sha256"] == media_qa["report_sha256"]
+    assert {artifact["kind"] for artifact in package["artifacts"]} >= {
+        "master_video",
+        "captions",
+        "cover",
+    }
+    replay = api.post(
+        f"/v1/production-runs/{run['id']}/release-package",
+        json=release_request,
+    )
+    assert replay.status_code == 201
+    assert replay.json() == package
+    changed = api.post(
+        f"/v1/production-runs/{run['id']}/release-package",
+        json={**release_request, "title": "静默替换标题"},
+    )
+    assert changed.status_code == 409
+    assert "different metadata" in changed.text
+
+
 def test_output_seal_fails_closed_for_state_paths_and_empty_files(tmp_path: Path) -> None:
     api = client(tmp_path)
     _, episode, _ = approved_episode_with_library(api)
