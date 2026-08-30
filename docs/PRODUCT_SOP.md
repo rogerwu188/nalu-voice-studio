@@ -356,8 +356,15 @@ Current evidence:
   revisions; unknown mentions return not-found, while colliding names or aliases block
   the second entity's confirmation. All 34 Runtime tests, OpenAPI compatibility, real
   HTTP smoke, Swift tests, full app build, bundle smoke and artifact upload passed.
-- Still required before `PASS`: a native/voice library management workflow,
-  family-memory relationship/date/event contradiction gates, automatic
+- Commits `21c09a0` and `23dc463`, GitHub CI run `33286805948`: the native client
+  lists, reads and creates project-level character, scene, prop, voice and style drafts
+  before season/episode planning exists. A two-question local voice flow reads the draft
+  back and requires a separate explicit confirmation turn; ambiguous or negative speech
+  leaves it excluded from production. Swift contract tests, full build, bundle smoke,
+  ZIP and artifact upload passed. Artifact accessibility-tree QA verified the expanded
+  editor and all five native voice-menu actions without creating data or requesting
+  microphone permission.
+- Still required before `PASS`: family-memory relationship/date/event contradiction gates, automatic
   reviewed end-state extraction, unresolved-hook closure rules, completed-episode
   immutability after library edits at the final rendered-output layer, and
   human/accessibility QA of the native workflow.

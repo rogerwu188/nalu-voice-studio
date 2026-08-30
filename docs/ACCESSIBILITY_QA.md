@@ -39,3 +39,12 @@ returned `verified_absent: true`. The pre-existing project was not modified.
 - Authorized Realtime audio, interruption, network-loss and session-expiry QA.
 - Developer-ID-signed and notarized release-candidate repetition of this matrix.
 
+## 2026-08-29 · Project library entry
+
+Release candidate commits `21c09a0` and `23dc463`, GitHub CI run `33286805948`.
+Accessibility-tree inspection of the downloaded artifact confirmed that a project with
+no season or episode plan still exposes “项目人物、场景、道具和声音”. Expanding it
+exposes the type picker, name and description fields, disabled-until-valid draft action,
+plain-language authority warning and a “用语音添加” menu. The menu exposes 人物、场景、
+道具、声音 and 画面风格 as native actions. No library entry was created and no microphone
+permission was requested during this read-only pass.
