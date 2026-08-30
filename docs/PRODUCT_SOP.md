@@ -316,8 +316,13 @@ Current evidence:
   v7 backup/restore, revision history, future-run updates and byte-for-byte immutability
   of an earlier episode package. All 33 Runtime tests, real HTTP smoke, OpenAPI gates,
   Swift tests, full app build, bundle smoke and downloadable artifact passed.
+- Commit `4b79580`, GitHub CI run `33283727474`: confirmed library aliases add a
+  fail-closed first entity-resolution gate. Spoken names resolve only against confirmed
+  revisions; unknown mentions return not-found, while colliding names or aliases block
+  the second entity's confirmation. All 34 Runtime tests, OpenAPI compatibility, real
+  HTTP smoke, Swift tests, full app build, bundle smoke and artifact upload passed.
 - Still required before `PASS`: a native/voice library management workflow,
-  family-memory entity resolution and contradiction gates, automatic
+  family-memory relationship/date/event contradiction gates, automatic
   reviewed end-state extraction, unresolved-hook closure rules, completed-episode
   immutability after library edits at the final rendered-output layer, and
   human/accessibility QA of the native workflow.
