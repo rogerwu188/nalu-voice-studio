@@ -1013,6 +1013,20 @@ class PostproductionRepairPlan(BaseModel):
     plan_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
 
 
+class MediaStructureQAReport(BaseModel):
+    schema_version: Literal["nalu.media-structure-qa/v1"] = "nalu.media-structure-qa/v1"
+    run_id: str
+    output_seal_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    master_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    captions_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    mp4: dict[str, Any]
+    captions: dict[str, Any]
+    status: Literal["PASS", "FAIL"]
+    failures: list[str] = Field(default_factory=list)
+    created_at: str
+    report_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+
+
 class ProductionCompletionRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

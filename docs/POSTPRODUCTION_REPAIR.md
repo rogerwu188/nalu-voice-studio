@@ -28,3 +28,16 @@ or QA report in place. It creates a repair run, produces new outputs and repeats
 and release-blocking review. This contract does not by itself claim that ASR/VAD, media
 boundary, frame-repeat or human audiovisual QA has run; those gates still require their
 own evidence.
+
+## Container and caption timeline gate
+
+`POST /v1/production-runs/{run_id}/media-structure-qa` performs a deterministic local
+gate against the sealed files. It verifies ISO-BMFF box boundaries, `ftyp`, `moov`,
+`mdat`, fast-start ordering and a valid positive movie-header timescale/duration. It also
+parses UTF-8 WebVTT cues, rejects invalid or reversed timestamps, overlap/out-of-order
+cues, empty timelines and cues extending beyond the master duration. The digest-bound
+report is idempotent for the same seal. A failure produces `mp4_structure` and/or
+`caption_timeline` repair tasks.
+
+These are structural golden-fixture checks. They do not decode picture or audio and must
+not be reported as frame-repeat, ASR/VAD, synchronization or human visual acceptance.

@@ -2150,6 +2150,82 @@
         "title": "LibraryEntityRevisionCreate",
         "type": "object"
       },
+      "MediaStructureQAReport": {
+        "properties": {
+          "captions": {
+            "additionalProperties": true,
+            "title": "Captions",
+            "type": "object"
+          },
+          "captions_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Captions Sha256",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "failures": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Failures",
+            "type": "array"
+          },
+          "master_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Master Sha256",
+            "type": "string"
+          },
+          "mp4": {
+            "additionalProperties": true,
+            "title": "Mp4",
+            "type": "object"
+          },
+          "output_seal_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Output Seal Sha256",
+            "type": "string"
+          },
+          "report_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Report Sha256",
+            "type": "string"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "nalu.media-structure-qa/v1",
+            "default": "nalu.media-structure-qa/v1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "PASS",
+              "FAIL"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_id",
+          "output_seal_sha256",
+          "master_sha256",
+          "captions_sha256",
+          "mp4",
+          "captions",
+          "status",
+          "created_at",
+          "report_sha256"
+        ],
+        "title": "MediaStructureQAReport",
+        "type": "object"
+      },
       "MemoryCard": {
         "properties": {
           "allowed_use": {
@@ -5800,6 +5876,45 @@
           }
         },
         "summary": "Get Run Events"
+      }
+    },
+    "/v1/production-runs/{run_id}/media-structure-qa": {
+      "post": {
+        "operationId": "media_structure_qa_v1_production_runs__run_id__media_structure_qa_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaStructureQAReport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Media Structure Qa"
       }
     },
     "/v1/production-runs/{run_id}/postproduction-repair-plan": {

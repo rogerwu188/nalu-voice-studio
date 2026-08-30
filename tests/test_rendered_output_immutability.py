@@ -1,5 +1,6 @@
 import hashlib
 import json
+import struct
 from pathlib import Path
 from unittest.mock import patch
 
@@ -94,6 +95,24 @@ def advance_episode_to_qa(api: TestClient, episode_id: str) -> None:
             },
         )
         assert response.status_code == 200
+
+
+def mp4_box(kind: bytes, payload: bytes) -> bytes:
+    return struct.pack(">I4s", 8 + len(payload), kind) + payload
+
+
+def minimal_mp4(*, duration_milliseconds: int = 2000, include_media_data: bool = True) -> bytes:
+    ftyp = mp4_box(b"ftyp", b"isom" + struct.pack(">I", 0) + b"isommp42")
+    mvhd_payload = (
+        b"\x00\x00\x00\x00"
+        + struct.pack(">I", 0)
+        + struct.pack(">I", 0)
+        + struct.pack(">I", 1000)
+        + struct.pack(">I", duration_milliseconds)
+    )
+    moov = mp4_box(b"moov", mp4_box(b"mvhd", mvhd_payload))
+    mdat = mp4_box(b"mdat", b"golden-frame-fixture") if include_media_data else b""
+    return ftyp + moov + mdat
 
 
 def test_sealed_outputs_survive_library_edits_and_detect_file_tampering(
@@ -383,6 +402,68 @@ def test_failed_final_qa_creates_specific_idempotent_repair_tasks(tmp_path: Path
     )
     assert rejected_plan.status_code == 409
     assert "digest mismatch" in rejected_plan.text
+
+
+def test_media_structure_and_caption_timeline_golden_fixtures(tmp_path: Path) -> None:
+    api = client(tmp_path)
+    _, episode, _ = approved_episode_with_library(api)
+    run = api.post(
+        f"/v1/episodes/{episode['id']}/production-runs",
+        json={"dry_run": True},
+    ).json()
+    api.app.state.repository.update_run_status(run["id"], RunStatus.QA_REVIEW)
+    exports = Path(run["package_path"]).parent / "qingshan-workspace" / "exports"
+    (exports / "E01_MASTER.mp4").write_bytes(minimal_mp4())
+    (exports / "E01_zh-CN.vtt").write_text(
+        "WEBVTT\n\n00:00.000 --> 00:01.800\n回家\n",
+        encoding="utf-8",
+    )
+    api.post(
+        f"/v1/production-runs/{run['id']}/rendered-output-seal",
+        json=seal_payload(),
+    )
+    passed = api.post(
+        f"/v1/production-runs/{run['id']}/media-structure-qa"
+    ).json()
+    assert passed["status"] == "PASS"
+    assert passed["mp4"]["duration_seconds"] == 2.0
+    assert passed["mp4"]["top_level_boxes"] == ["ftyp", "moov", "mdat"]
+    assert passed["captions"]["cue_count"] == 1
+    assert passed["failures"] == []
+
+    _, failed_episode, _ = approved_episode_with_library(api)
+    failed_run = api.post(
+        f"/v1/episodes/{failed_episode['id']}/production-runs",
+        json={"dry_run": True},
+    ).json()
+    api.app.state.repository.update_run_status(failed_run["id"], RunStatus.QA_REVIEW)
+    failed_exports = (
+        Path(failed_run["package_path"]).parent / "qingshan-workspace" / "exports"
+    )
+    (failed_exports / "E01_MASTER.mp4").write_bytes(
+        minimal_mp4(include_media_data=False)
+    )
+    (failed_exports / "E01_zh-CN.vtt").write_text(
+        "WEBVTT\n\n00:00.000 --> 00:03.000\n超出成片\n",
+        encoding="utf-8",
+    )
+    api.post(
+        f"/v1/production-runs/{failed_run['id']}/rendered-output-seal",
+        json=seal_payload(),
+    )
+    failed = api.post(
+        f"/v1/production-runs/{failed_run['id']}/media-structure-qa"
+    ).json()
+    assert failed["status"] == "FAIL"
+    assert "mp4:MP4_MDAT_MISSING" in failed["failures"]
+    assert "captions:WEBVTT_CUE_EXCEEDS_MASTER_DURATION" in failed["failures"]
+    repair = api.get(
+        f"/v1/production-runs/{failed_run['id']}/postproduction-repair-plan"
+    ).json()
+    assert [task["code"] for task in repair["repair_tasks"]] == [
+        "caption_timeline",
+        "mp4_structure",
+    ]
 
 
 def test_output_seal_fails_closed_for_state_paths_and_empty_files(tmp_path: Path) -> None:

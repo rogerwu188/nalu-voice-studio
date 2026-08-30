@@ -46,6 +46,7 @@ from .models import (
     LibraryEntityResolution,
     LibraryEntityRevision,
     LibraryEntityRevisionCreate,
+    MediaStructureQAReport,
     MemoryCard,
     MemoryCardConfirmation,
     MemoryCardConfirmationRecord,
@@ -594,6 +595,13 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
     )
     def postproduction_repair_plan(run_id: str) -> PostproductionRepairPlan:
         return production.postproduction_repair_plan(run_id)
+
+    @app.post(
+        "/v1/production-runs/{run_id}/media-structure-qa",
+        response_model=MediaStructureQAReport,
+    )
+    def media_structure_qa(run_id: str) -> MediaStructureQAReport:
+        return production.media_structure_qa(run_id)
 
     @app.post(
         "/v1/production-runs/{run_id}/complete",

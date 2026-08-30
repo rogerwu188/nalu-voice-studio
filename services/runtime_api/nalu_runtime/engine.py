@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 
 from .continuity import audit_continuity
+from .media_structure_qa import inspect_mp4, inspect_webvtt
 from .models import (
     AudienceMode,
     ContinuityPreflightRequest,
@@ -13,6 +14,7 @@ from .models import (
     EpisodeStatus,
     EpisodeTransitionRequest,
     FinalQAEvidence,
+    MediaStructureQAReport,
     PostproductionRepairPlan,
     PostproductionRepairTask,
     ProductionCompletionRequest,
@@ -100,6 +102,16 @@ QA_REPAIR_CATALOG = {
         "final QA report",
         "The QA report reviewed a different master digest.",
         "Repeat original-resolution review against this exact master and reseal evidence.",
+    ),
+    "mp4_structure": (
+        "master video",
+        "The MP4 container, duration metadata or fast-start layout failed structural QA.",
+        "Normalize the final MP4 container and duration metadata, then create a new seal.",
+    ),
+    "caption_timeline": (
+        "captions",
+        "The WebVTT format, cue order or master-duration boundary failed QA.",
+        "Correct caption format and timestamps against the normalized master, then reseal.",
     ),
     "original_resolution_reviewed": (
         "master video",
@@ -353,7 +365,11 @@ class ProductionService:
                     plan_path.read_text(encoding="utf-8")
                 )
                 if (
-                    existing.output_seal_sha256 == output_seal_sha256
+                    self._canonical_sha256(
+                        existing.model_dump(mode="json", exclude={"plan_sha256"})
+                    )
+                    == existing.plan_sha256
+                    and existing.output_seal_sha256 == output_seal_sha256
                     and existing.master_sha256 == master_sha256
                     and existing.source_qa_sha256 == source_qa_sha256
                     and [task.code for task in existing.repair_tasks] == normalized_codes
@@ -409,6 +425,98 @@ class ProductionService:
         if plan.run_id != run.id:
             raise ConflictError("postproduction repair plan belongs to another run")
         return plan
+
+    def media_structure_qa(self, run_id: str) -> MediaStructureQAReport:
+        integrity = self.rendered_output_integrity(run_id)
+        if not integrity.integrity_ok:
+            raise ConflictError(
+                "rendered output integrity failed before media QA: "
+                + "; ".join(integrity.failures)
+            )
+        run = self.repository.get_run(run_id)
+        seal = integrity.seal
+        masters = [artifact for artifact in seal.artifacts if artifact.kind == "master_video"]
+        captions = [artifact for artifact in seal.artifacts if artifact.kind == "captions"]
+        if len(masters) != 1 or len(captions) != 1:
+            raise ConflictError("media structure QA requires exactly one master and captions file")
+        exports = self._run_directory(run) / "qingshan-workspace" / "exports"
+        master_path = exports / masters[0].relative_path
+        captions_path = exports / captions[0].relative_path
+        mp4_report = inspect_mp4(master_path)
+        captions_report = inspect_webvtt(
+            captions_path,
+            media_duration_seconds=mp4_report.get("duration_seconds"),
+        )
+        failures = [
+            *("mp4:" + value for value in mp4_report.get("failures") or []),
+            *("captions:" + value for value in captions_report.get("failures") or []),
+        ]
+        report_body = {
+            "schema_version": "nalu.media-structure-qa/v1",
+            "run_id": run.id,
+            "output_seal_sha256": seal.manifest_sha256,
+            "master_sha256": masters[0].sha256,
+            "captions_sha256": captions[0].sha256,
+            "mp4": mp4_report,
+            "captions": captions_report,
+            "status": "PASS" if not failures else "FAIL",
+            "failures": failures,
+            "created_at": utc_now(),
+        }
+        report = MediaStructureQAReport(
+            **report_body,
+            report_sha256=self._canonical_sha256(report_body),
+        )
+        report_path = self._run_directory(run) / "media-structure-qa.json"
+        if report_path.is_file():
+            try:
+                existing = MediaStructureQAReport.model_validate_json(
+                    report_path.read_text(encoding="utf-8")
+                )
+                if (
+                    self._canonical_sha256(
+                        existing.model_dump(mode="json", exclude={"report_sha256"})
+                    )
+                    == existing.report_sha256
+                    and existing.output_seal_sha256 == seal.manifest_sha256
+                    and existing.master_sha256 == masters[0].sha256
+                    and existing.captions_sha256 == captions[0].sha256
+                    and existing.status == report.status
+                    and existing.failures == report.failures
+                ):
+                    return existing
+            except (OSError, ValueError):
+                pass
+        temporary = report_path.with_name(f".{new_id('media-qa')}.tmp")
+        temporary.write_text(report.model_dump_json(indent=2) + "\n", encoding="utf-8")
+        secure_file(temporary)
+        os.replace(temporary, report_path)
+        secure_file(report_path)
+        self.repository.append_run_event(
+            run.id,
+            "media_structure_qa_completed",
+            from_status=run.status,
+            to_status=run.status,
+            message="MP4 container and caption timeline checks completed.",
+            payload={
+                "status": report.status,
+                "report_sha256": report.report_sha256,
+                "failure_count": len(failures),
+            },
+        )
+        if failures:
+            repair_codes = []
+            if mp4_report.get("status") != "PASS":
+                repair_codes.append("mp4_structure")
+            if captions_report.get("status") != "PASS":
+                repair_codes.append("caption_timeline")
+            self._record_postproduction_repair_plan(
+                run,
+                output_seal_sha256=seal.manifest_sha256,
+                master_sha256=masters[0].sha256,
+                codes=repair_codes,
+            )
+        return report
 
     def complete_run(
         self, run_id: str, request: ProductionCompletionRequest

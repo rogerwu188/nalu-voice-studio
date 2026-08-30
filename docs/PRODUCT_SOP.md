@@ -534,6 +534,9 @@ Current evidence:
   prepared, provider accepted, ambiguous charge under reconciliation, verified
   zero-charge awaiting new approval, and remote results received. The ambiguous-charge
   state explicitly disables cancellation and says that Nalu will not auto-resubmit.
+- Commit `f36a8f0`, GitHub CI run `33299566385`: Runtime, OpenAPI compatibility, real
+  HTTP smoke, Swift tests, full app build, bundled-Runtime smoke and artifact upload all
+  passed for durable task-derived stage explanations.
 - Still required before `PASS`: bind the imported durable submitter as the only writer,
   run authorized provider crash tests at every network/charge boundary, reconcile real
   ambiguous charges against the real provider and validate the stage explanations in a
@@ -569,9 +572,15 @@ Current evidence:
 - Commit `ad57e32`, GitHub CI run `33299440973`: all 65 Runtime tests, OpenAPI
   compatibility, real HTTP smoke, Swift tests, application build, bundled-Runtime smoke,
   ZIP and artifact upload passed for the release-blocking repair-plan contract.
+- A deterministic sealed-file gate now validates MP4 box integrity, `ftyp`/`moov`/`mdat`,
+  fast-start order and positive movie-header duration plus UTF-8 WebVTT cue syntax,
+  ordering, overlap and master-duration boundaries. Pass/fail structural fixtures prove
+  specific `mp4_structure` and `caption_timeline` repair tasks. This is structural QA and
+  is not misreported as decoded picture/audio acceptance.
 - Still required before `PASS`: real shot selection/normalization and mix pipeline,
-  ASR/VAD, timestamp, frame-repeat and media-boundary gates, golden media fixtures and
-  actual original-resolution human audiovisual review on the release candidate.
+  ASR/VAD, decoded frame-repeat and adjacent-shot media-boundary gates, playable golden
+  media fixtures and actual original-resolution human audiovisual review on the release
+  candidate.
 
 ## SOP-10 · Controlled release and learning loop — TODO
 
