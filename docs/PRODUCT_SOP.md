@@ -150,8 +150,8 @@ QA:
 
 - A 10-episode project survives application restart and export/import.
 - Concurrent episode planning has no numbering or state collision.
-- Voice intent distinguishes short drama, animation and commercial projects without
-  silently routing an unsupported format to a paid production adapter.
+- Voice intent distinguishes short drama, documentary, animation and commercial
+  projects without silently routing an unsupported format to a paid production adapter.
 
 Current evidence:
 
@@ -180,6 +180,14 @@ Current evidence:
 - Commit `c4d31ff`, GitHub CI run `33275631055`: every episode has an independent
   persisted-state-derived stage, percentage, current action, explanation and
   cancel/resume capability; the native episode strip and editor display that state.
+- Commits `54df37d`, `d26b73e`, `0ec2bff` and `de22586`, GitHub CI runs
+  `33284069716`, `33284236090` and `33284471023`: natural voice requests now create
+  archive-led or archive-plus-reenactment documentary projects, display units as
+  chapters, keep the production route `unassigned`, expose a local evidence-readiness
+  gate and show/read its next step in the native asset workflow. CI passed 36 Runtime
+  tests, 27 Swift tests, the complete app build, bundled-Runtime smoke and artifact
+  upload. A real artifact accessibility-tree check confirmed the documentary project
+  row reads “纪录片系列 · 计划 6 章”; the temporary QA project was then verified deleted.
 - Still required before `PASS`: clean-account voice-only, accessibility and restart/import
   QA evidence on the same release candidate. Implementation alone is not acceptance.
 
@@ -264,6 +272,11 @@ Current evidence:
 - Commit `0a12ec1`, GitHub CI run `33278834223`: the native picker accepts scanned
   handwriting as an image source. Commit `67c8179` moves the oversized inline form to
   a dedicated scrollable sheet and replaces it with a prominent guided upload card.
+- Commits `0ec2bff` and `de22586`, GitHub CI runs `33284236090` and `33284471023`:
+  documentary readiness distinguishes unlinked, draft, confirmed and narratively
+  authorized local evidence. A confirmed `reference_only` card cannot become factual
+  authority, and biometric visual-generation authority disappears immediately after
+  consent revocation. The macOS client refreshes and can read this state aloud.
 - Still required before `PASS`: human privacy/deletion QA and clean-account OCR,
   correction and voice archive QA on the same signed release candidate. Automated
   Computer Use crashed while opening the new asset sheet, while Nalu stayed running,
