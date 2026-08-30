@@ -1758,6 +1758,16 @@ class Repository:
         data["unresolved_hooks"] = decode(data.pop("unresolved_hooks_json"))
         return ContinuitySnapshot.model_validate(data)
 
+    def list_continuity_snapshots(self, episode_id: str) -> list[ContinuitySnapshot]:
+        self.get_episode(episode_id)
+        with self.db.connect() as connection:
+            rows = connection.execute(
+                """SELECT id FROM continuity_snapshots
+                   WHERE episode_id = ? ORDER BY created_at, id""",
+                (episode_id,),
+            ).fetchall()
+        return [self.get_continuity_snapshot(row["id"]) for row in rows]
+
     def latest_continuity(self, season_id: str, before_episode: int) -> ContinuitySnapshot | None:
         with self.db.connect() as connection:
             row = connection.execute(

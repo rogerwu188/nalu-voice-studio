@@ -255,16 +255,38 @@ actor RuntimeClient {
     }
 
     func createScript(
-        episodeID: String, content: String, summary: String, sourceTranscript: String = ""
+        episodeID: String, content: String, summary: String, sourceTranscript: String = "",
+        narrativeMetadata: [String: JSONValue] = [:]
     ) async throws -> ScriptRevision {
         try await post(
             "v1/episodes/\(episodeID)/scripts",
             body: ScriptRevisionDraft(
                 content: content,
                 summaryForVoiceReview: summary,
-                sourceTranscript: sourceTranscript
+                sourceTranscript: sourceTranscript,
+                narrativeMetadata: narrativeMetadata
             )
         )
+    }
+
+    func listContinuitySnapshots(episodeID: String) async throws -> [ContinuitySnapshot] {
+        try await get("v1/episodes/\(episodeID)/continuity-snapshots")
+    }
+
+    func inheritedContinuity(episodeID: String) async throws -> InheritedContinuityResult {
+        try await get("v1/episodes/\(episodeID)/inherited-continuity")
+    }
+
+    func createContinuitySnapshot(
+        episodeID: String, draft: ContinuitySnapshotDraft
+    ) async throws -> ContinuitySnapshot {
+        try await post("v1/episodes/\(episodeID)/continuity-snapshots", body: draft)
+    }
+
+    func continuityPreflight(
+        episodeID: String, draft: ContinuityPreflightDraft
+    ) async throws -> ContinuityPreflightResult {
+        try await post("v1/episodes/\(episodeID)/continuity-preflight", body: draft)
     }
 
     func approveScript(

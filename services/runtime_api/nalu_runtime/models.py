@@ -549,6 +549,10 @@ class ContinuitySnapshot(ContinuitySnapshotCreate):
     created_at: str
 
 
+class InheritedContinuityResult(BaseModel):
+    snapshot: ContinuitySnapshot | None = None
+
+
 class ProductionRunCreate(BaseModel):
     dry_run: bool = True
     requested_model: str = "seedance-2.0-pro"

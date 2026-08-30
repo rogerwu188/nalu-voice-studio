@@ -1,6 +1,11 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
+private enum ContinuityEditorKind {
+    case opening
+    case ending
+}
+
 struct ContentView: View {
     @Environment(VoiceInterviewViewModel.self) private var model
     @State private var isRenamingProject = false
@@ -9,6 +14,8 @@ struct ContentView: View {
     @State private var isExportingProject = false
     @State private var exportDocument: ProjectBackupDocument?
     @State private var isScriptEditorExpanded = false
+    @State private var isContinuityExpanded = false
+    @State private var isContinuityOverrideExpanded = false
     @State private var isPresentingAssetEditor = false
     @State private var isImportingAsset = false
     @State private var assetKind = "character_image"
@@ -532,6 +539,11 @@ struct ContentView: View {
                         .padding(.top, 10)
                 }
                 .font(.headline)
+                DisclosureGroup("跨集连续性与本集交接", isExpanded: $isContinuityExpanded) {
+                    continuityEditor
+                        .padding(.top, 10)
+                }
+                .font(.headline)
             }
         }
         .padding(.horizontal, 24)
@@ -620,6 +632,195 @@ struct ContentView: View {
             }
         }
         .font(.body)
+    }
+
+    private var continuityEditor: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Label(model.continuityStatus, systemImage: continuityStatusIcon)
+                .font(.headline)
+                .foregroundStyle(continuityStatusColor)
+            if model.inheritedContinuity == nil {
+                Text("本季第一集不需要核对上一集。完成本集剧本后，请保存结尾交接卡。")
+                    .foregroundStyle(.secondary)
+            } else {
+                GroupBox("一、本集开场核对") {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Nalu 已带入上一集最后状态。请只修改本集开场确实发生变化的地方。")
+                            .foregroundStyle(.secondary)
+                        continuityForm(.opening)
+                        HStack {
+                            Button("朗读本集开场", systemImage: "speaker.wave.2") {
+                                model.speakOpeningContinuity()
+                            }
+                            Button("检查与上一集是否连得上", systemImage: "checkmark.shield") {
+                                Task { await model.checkOpeningContinuity() }
+                            }
+                            .buttonStyle(.borderedProminent)
+                        }
+                        if let result = model.continuityPreflightResult {
+                            continuityResult(result)
+                        }
+                    }
+                    .padding(.top, 6)
+                }
+            }
+            GroupBox("二、保存本集结尾交接卡") {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("记录这一集最后一刻的人物、道具、时间和悬念，下一集会自动继承。")
+                        .foregroundStyle(.secondary)
+                    continuityForm(.ending)
+                    HStack {
+                        Button("朗读本集结尾", systemImage: "speaker.wave.2") {
+                            model.speakEndingContinuity()
+                        }
+                        Button("保存不可变交接卡", systemImage: "tray.and.arrow.down.fill") {
+                            Task { await model.saveEndingContinuity() }
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                    if !model.continuitySnapshots.isEmpty {
+                        Label(
+                            "本集已保存 \(model.continuitySnapshots.count) 个历史快照，旧快照不会被覆盖",
+                            systemImage: "lock.doc.fill"
+                        )
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.top, 6)
+            }
+        }
+        .font(.body)
+    }
+
+    @ViewBuilder
+    private func continuityResult(_ result: ContinuityPreflightResult) -> some View {
+        if result.canProceed {
+            Label("检查通过：这份开场状态会随下一版剧本一起锁定", systemImage: "checkmark.seal.fill")
+                .foregroundStyle(.green)
+        } else {
+            VStack(alignment: .leading, spacing: 10) {
+                Label("发现 \(result.conflicts.count) 处没有说明的变化", systemImage: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+                ForEach(result.conflicts) { conflict in
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(continuityPathLabel(conflict.path)).font(.headline)
+                        Text("上一集：\(conflict.inheritedValue.readableText)")
+                        Text("本集开场：\(conflict.proposedValue.readableText)")
+                    }
+                    .padding(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.orange.opacity(0.09), in: RoundedRectangle(cornerRadius: 10))
+                }
+                TextField(
+                    "说明中间发生了什么，例如：开场字幕说明三个月后",
+                    text: continuityTransitionExplanationBinding,
+                    axis: .vertical
+                )
+                .textFieldStyle(.roundedBorder)
+                Button("记录这个剧情解释并重新检查") {
+                    Task { await model.checkOpeningContinuity(applyExplanation: true) }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(
+                    model.continuityTransitionExplanation.trimmingCharacters(
+                        in: .whitespacesAndNewlines
+                    ).isEmpty
+                )
+                DisclosureGroup("高级：审阅后强制覆盖", isExpanded: $isContinuityOverrideExpanded) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("只有剧情确实故意不连续时使用。覆盖记录会绑定到当前剧本版本。")
+                            .foregroundStyle(.red)
+                        TextField("为什么必须覆盖", text: continuityOverrideReasonBinding)
+                            .textFieldStyle(.roundedBorder)
+                        TextField(
+                            "完整输入：我确认这些变化可以覆盖",
+                            text: continuityOverrideConfirmationBinding
+                        )
+                        .textFieldStyle(.roundedBorder)
+                        Button("确认覆盖并重新检查", role: .destructive) {
+                            Task { await model.checkOpeningContinuity(applyOverride: true) }
+                        }
+                    }
+                    .padding(.top, 8)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func continuityForm(_ kind: ContinuityEditorKind) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                TextField("故事地点", text: continuityTextBinding(kind, \.sceneLocation))
+                TextField("故事时间", text: continuityTextBinding(kind, \.storyTime))
+                TextField("天气", text: continuityTextBinding(kind, \.weather))
+            }
+            .textFieldStyle(.roundedBorder)
+            ForEach(continuityDraft(kind).characters) { character in
+                characterContinuityRow(kind, character: character)
+            }
+            Button("添加人物状态", systemImage: "person.badge.plus") {
+                mutateContinuityDraft(kind) { $0.characters.append(.init()) }
+            }
+            ForEach(continuityDraft(kind).props) { prop in
+                propContinuityRow(kind, prop: prop)
+            }
+            Button("添加道具状态", systemImage: "shippingbox.and.arrow.backward") {
+                mutateContinuityDraft(kind) { $0.props.append(.init()) }
+            }
+            TextField(
+                "还没解决的悬念，用顿号分开",
+                text: continuityTextBinding(kind, \.unresolvedHooks),
+                axis: .vertical
+            )
+            .textFieldStyle(.roundedBorder)
+        }
+    }
+
+    private func characterContinuityRow(
+        _ kind: ContinuityEditorKind, character: ContinuityCharacterEntry
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                TextField("人物名称", text: characterBinding(kind, character.id, \.name))
+                TextField("人物在哪里", text: characterBinding(kind, character.id, \.location))
+                Button("移除", systemImage: "minus.circle", role: .destructive) {
+                    mutateContinuityDraft(kind) {
+                        $0.characters.removeAll { $0.id == character.id }
+                    }
+                }
+            }
+            HStack {
+                TextField("穿着，用顿号分开", text: characterBinding(kind, character.id, \.wardrobe))
+                TextField("伤势，用顿号分开", text: characterBinding(kind, character.id, \.injuries))
+                TextField("手持道具，用顿号分开", text: characterBinding(kind, character.id, \.heldProps))
+            }
+            HStack {
+                TextField("关系，例如：小梅：姐姐", text: characterBinding(kind, character.id, \.relationships))
+                TextField("已经公开的事实", text: characterBinding(kind, character.id, \.revealedFacts))
+            }
+        }
+        .textFieldStyle(.roundedBorder)
+        .padding(10)
+        .background(Color.blue.opacity(0.06), in: RoundedRectangle(cornerRadius: 10))
+    }
+
+    private func propContinuityRow(
+        _ kind: ContinuityEditorKind, prop: ContinuityPropEntry
+    ) -> some View {
+        HStack {
+            TextField("道具名称", text: propBinding(kind, prop.id, \.name))
+            TextField("现在属于谁", text: propBinding(kind, prop.id, \.owner))
+            TextField("道具在哪里", text: propBinding(kind, prop.id, \.location))
+            TextField("状态，例如：锁扣损坏", text: propBinding(kind, prop.id, \.condition))
+            Button("移除", systemImage: "minus.circle", role: .destructive) {
+                mutateContinuityDraft(kind) { $0.props.removeAll { $0.id == prop.id } }
+            }
+        }
+        .textFieldStyle(.roundedBorder)
+        .padding(10)
+        .background(Color.purple.opacity(0.05), in: RoundedRectangle(cornerRadius: 10))
     }
 
     private var assetEditor: some View {
@@ -1252,6 +1453,128 @@ struct ContentView: View {
 
     private var scriptSummaryBinding: Binding<String> {
         Binding(get: { model.scriptSummary }, set: { model.scriptSummary = $0 })
+    }
+
+    private var continuityTransitionExplanationBinding: Binding<String> {
+        Binding(
+            get: { model.continuityTransitionExplanation },
+            set: { model.continuityTransitionExplanation = $0 }
+        )
+    }
+
+    private var continuityOverrideReasonBinding: Binding<String> {
+        Binding(
+            get: { model.continuityOverrideReason },
+            set: { model.continuityOverrideReason = $0 }
+        )
+    }
+
+    private var continuityOverrideConfirmationBinding: Binding<String> {
+        Binding(
+            get: { model.continuityOverrideConfirmation },
+            set: { model.continuityOverrideConfirmation = $0 }
+        )
+    }
+
+    private var continuityStatusIcon: String {
+        if model.continuityPreflightResult?.canProceed == true { return "checkmark.circle.fill" }
+        if model.continuityPreflightResult?.canProceed == false {
+            return "exclamationmark.triangle.fill"
+        }
+        return model.inheritedContinuity == nil ? "1.circle.fill" : "arrow.right.circle.fill"
+    }
+
+    private var continuityStatusColor: Color {
+        if model.continuityPreflightResult?.canProceed == true { return .green }
+        if model.continuityPreflightResult?.canProceed == false { return .orange }
+        return .blue
+    }
+
+    private func continuityDraft(_ kind: ContinuityEditorKind) -> ContinuityFormDraft {
+        switch kind {
+        case .opening: model.openingContinuityDraft
+        case .ending: model.endingContinuityDraft
+        }
+    }
+
+    private func mutateContinuityDraft(
+        _ kind: ContinuityEditorKind,
+        _ change: (inout ContinuityFormDraft) -> Void
+    ) {
+        switch kind {
+        case .opening: change(&model.openingContinuityDraft)
+        case .ending: change(&model.endingContinuityDraft)
+        }
+    }
+
+    private func continuityTextBinding(
+        _ kind: ContinuityEditorKind,
+        _ keyPath: WritableKeyPath<ContinuityFormDraft, String>
+    ) -> Binding<String> {
+        Binding(
+            get: { continuityDraft(kind)[keyPath: keyPath] },
+            set: { value in
+                mutateContinuityDraft(kind) { $0[keyPath: keyPath] = value }
+            }
+        )
+    }
+
+    private func characterBinding(
+        _ kind: ContinuityEditorKind, _ id: UUID,
+        _ keyPath: WritableKeyPath<ContinuityCharacterEntry, String>
+    ) -> Binding<String> {
+        Binding(
+            get: {
+                continuityDraft(kind).characters.first(where: { $0.id == id })?[keyPath: keyPath]
+                    ?? ""
+            },
+            set: { value in
+                mutateContinuityDraft(kind) { draft in
+                    guard let index = draft.characters.firstIndex(where: { $0.id == id }) else {
+                        return
+                    }
+                    draft.characters[index][keyPath: keyPath] = value
+                }
+            }
+        )
+    }
+
+    private func propBinding(
+        _ kind: ContinuityEditorKind, _ id: UUID,
+        _ keyPath: WritableKeyPath<ContinuityPropEntry, String>
+    ) -> Binding<String> {
+        Binding(
+            get: {
+                continuityDraft(kind).props.first(where: { $0.id == id })?[keyPath: keyPath]
+                    ?? ""
+            },
+            set: { value in
+                mutateContinuityDraft(kind) { draft in
+                    guard let index = draft.props.firstIndex(where: { $0.id == id }) else {
+                        return
+                    }
+                    draft.props[index][keyPath: keyPath] = value
+                }
+            }
+        )
+    }
+
+    private func continuityPathLabel(_ path: String) -> String {
+        let labels = [
+            "scene_location": "故事地点",
+            "story_time": "故事时间",
+            "weather": "天气",
+            "location": "人物或道具位置",
+            "wardrobe": "人物穿着",
+            "injuries": "人物伤势",
+            "held_props": "手持道具",
+            "relationships": "人物关系",
+            "revealed_facts": "已经公开的事实",
+            "owner": "道具归属",
+            "condition": "道具状态",
+        ]
+        let finalComponent = path.split(separator: ".").last.map(String.init) ?? path
+        return labels[finalComponent].map { "\($0)（\(path)）" } ?? path
     }
 
     private var exportFilename: String {

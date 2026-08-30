@@ -45,6 +45,20 @@ enum JSONValue: Codable, Hashable, Sendable {
         case .object, .array, .null: ""
         }
     }
+
+    var readableText: String {
+        switch self {
+        case .string(let item): item
+        case .number(let item): item.formatted()
+        case .bool(let item): item ? "是" : "否"
+        case .object(let item):
+            return item.keys.sorted().compactMap { key in
+                item[key].map { "\(key)：\($0.readableText)" }
+            }.joined(separator: "；")
+        case .array(let item): item.map(\.readableText).joined(separator: "、")
+        case .null: "未填写"
+        }
+    }
 }
 
 struct ProjectDraft: Codable, Sendable {
@@ -255,6 +269,7 @@ struct ScriptRevision: Codable, Identifiable, Sendable {
     let content: String
     let summaryForVoiceReview: String
     let sourceTranscript: String
+    let narrativeMetadata: [String: JSONValue]
     let approvedAt: String?
     let createdAt: String
 
@@ -263,6 +278,7 @@ struct ScriptRevision: Codable, Identifiable, Sendable {
         case episodeID = "episode_id"
         case summaryForVoiceReview = "summary_for_voice_review"
         case sourceTranscript = "source_transcript"
+        case narrativeMetadata = "narrative_metadata"
         case approvedAt = "approved_at"
         case createdAt = "created_at"
     }
@@ -272,11 +288,318 @@ struct ScriptRevisionDraft: Codable, Sendable {
     let content: String
     let summaryForVoiceReview: String
     let sourceTranscript: String
+    let narrativeMetadata: [String: JSONValue]
 
     enum CodingKeys: String, CodingKey {
         case content
         case summaryForVoiceReview = "summary_for_voice_review"
         case sourceTranscript = "source_transcript"
+        case narrativeMetadata = "narrative_metadata"
+    }
+}
+
+struct CharacterContinuityState: Codable, Equatable, Sendable {
+    var location: String?
+    var wardrobe: [String]?
+    var injuries: [String]?
+    var heldProps: [String]?
+    var relationships: [String: String]?
+    var revealedFacts: [String]?
+
+    enum CodingKeys: String, CodingKey {
+        case location, wardrobe, injuries, relationships
+        case heldProps = "held_props"
+        case revealedFacts = "revealed_facts"
+    }
+
+    var jsonValue: JSONValue {
+        var object: [String: JSONValue] = [:]
+        if let location { object["location"] = .string(location) }
+        if let wardrobe { object["wardrobe"] = .array(wardrobe.map(JSONValue.string)) }
+        if let injuries { object["injuries"] = .array(injuries.map(JSONValue.string)) }
+        if let heldProps { object["held_props"] = .array(heldProps.map(JSONValue.string)) }
+        if let relationships {
+            object["relationships"] = .object(relationships.mapValues(JSONValue.string))
+        }
+        if let revealedFacts {
+            object["revealed_facts"] = .array(revealedFacts.map(JSONValue.string))
+        }
+        return .object(object)
+    }
+}
+
+struct PropContinuityState: Codable, Equatable, Sendable {
+    var owner: String?
+    var location: String?
+    var condition: String?
+
+    var jsonValue: JSONValue {
+        var object: [String: JSONValue] = [:]
+        if let owner { object["owner"] = .string(owner) }
+        if let location { object["location"] = .string(location) }
+        if let condition { object["condition"] = .string(condition) }
+        return .object(object)
+    }
+}
+
+struct ContinuityState: Codable, Equatable, Sendable {
+    var characters: [String: CharacterContinuityState] = [:]
+    var props: [String: PropContinuityState] = [:]
+    var sceneLocation: String?
+    var storyTime: String?
+    var weather: String?
+
+    enum CodingKeys: String, CodingKey {
+        case characters, props, weather
+        case sceneLocation = "scene_location"
+        case storyTime = "story_time"
+    }
+
+    var jsonValue: JSONValue {
+        var object: [String: JSONValue] = [
+            "characters": .object(characters.mapValues(\.jsonValue)),
+            "props": .object(props.mapValues(\.jsonValue)),
+        ]
+        if let sceneLocation { object["scene_location"] = .string(sceneLocation) }
+        if let storyTime { object["story_time"] = .string(storyTime) }
+        if let weather { object["weather"] = .string(weather) }
+        return .object(object)
+    }
+}
+
+struct ContinuitySnapshotDraft: Codable, Sendable {
+    let sourceEpisodeID: String?
+    let state: ContinuityState
+    let unresolvedHooks: [String]
+
+    enum CodingKeys: String, CodingKey {
+        case state
+        case sourceEpisodeID = "source_episode_id"
+        case unresolvedHooks = "unresolved_hooks"
+    }
+}
+
+struct ContinuitySnapshot: Codable, Identifiable, Sendable {
+    let id: String
+    let episodeID: String
+    let sourceEpisodeID: String?
+    let state: ContinuityState
+    let unresolvedHooks: [String]
+    let createdAt: String
+
+    enum CodingKeys: String, CodingKey {
+        case id, state
+        case episodeID = "episode_id"
+        case sourceEpisodeID = "source_episode_id"
+        case unresolvedHooks = "unresolved_hooks"
+        case createdAt = "created_at"
+    }
+}
+
+struct InheritedContinuityResult: Codable, Sendable {
+    let snapshot: ContinuitySnapshot?
+}
+
+struct ContinuityOverrideDraft: Codable, Sendable {
+    let schemaVersion = "nalu.continuity-override/v1"
+    let conflictPaths: [String]
+    let reason: String
+    let reviewedBy: String
+    let spokenConfirmation: String
+
+    enum CodingKeys: String, CodingKey {
+        case reason
+        case schemaVersion = "schema_version"
+        case conflictPaths = "conflict_paths"
+        case reviewedBy = "reviewed_by"
+        case spokenConfirmation = "spoken_confirmation"
+    }
+}
+
+struct ContinuityPreflightDraft: Codable, Sendable {
+    let openingState: ContinuityState
+    let transitionExplanations: [String: String]
+    let override: ContinuityOverrideDraft?
+
+    enum CodingKeys: String, CodingKey {
+        case override
+        case openingState = "opening_state"
+        case transitionExplanations = "transition_explanations"
+    }
+}
+
+struct ContinuityConflict: Codable, Identifiable, Sendable {
+    var id: String { path }
+    let path: String
+    let inheritedValue: JSONValue
+    let proposedValue: JSONValue
+    let explanation: String
+    let overridden: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case path, explanation, overridden
+        case inheritedValue = "inherited_value"
+        case proposedValue = "proposed_value"
+    }
+}
+
+struct ContinuityPreflightResult: Codable, Sendable {
+    let inheritedSnapshotID: String?
+    let canProceed: Bool
+    let conflicts: [ContinuityConflict]
+    let explanation: String
+
+    enum CodingKeys: String, CodingKey {
+        case conflicts, explanation
+        case inheritedSnapshotID = "inherited_snapshot_id"
+        case canProceed = "can_proceed"
+    }
+}
+
+struct ContinuityCharacterEntry: Identifiable, Equatable, Sendable {
+    var id = UUID()
+    var name = ""
+    var location = ""
+    var wardrobe = ""
+    var injuries = ""
+    var heldProps = ""
+    var relationships = ""
+    var revealedFacts = ""
+}
+
+struct ContinuityPropEntry: Identifiable, Equatable, Sendable {
+    var id = UUID()
+    var name = ""
+    var owner = ""
+    var location = ""
+    var condition = ""
+}
+
+struct ContinuityFormDraft: Equatable, Sendable {
+    var characters: [ContinuityCharacterEntry] = []
+    var props: [ContinuityPropEntry] = []
+    var sceneLocation = ""
+    var storyTime = ""
+    var weather = ""
+    var unresolvedHooks = ""
+
+    init() {}
+
+    init(snapshot: ContinuitySnapshot) {
+        self.init(state: snapshot.state, unresolvedHooks: snapshot.unresolvedHooks)
+    }
+
+    init(state: ContinuityState, unresolvedHooks: [String] = []) {
+        characters = state.characters.keys.sorted().compactMap { name in
+            guard let item = state.characters[name] else { return nil }
+            return ContinuityCharacterEntry(
+                name: name,
+                location: item.location ?? "",
+                wardrobe: Self.join(item.wardrobe),
+                injuries: Self.join(item.injuries),
+                heldProps: Self.join(item.heldProps),
+                relationships: Self.joinRelationships(item.relationships),
+                revealedFacts: Self.join(item.revealedFacts)
+            )
+        }
+        props = state.props.keys.sorted().compactMap { name in
+            guard let item = state.props[name] else { return nil }
+            return ContinuityPropEntry(
+                name: name,
+                owner: item.owner ?? "",
+                location: item.location ?? "",
+                condition: item.condition ?? ""
+            )
+        }
+        sceneLocation = state.sceneLocation ?? ""
+        storyTime = state.storyTime ?? ""
+        weather = state.weather ?? ""
+        self.unresolvedHooks = Self.join(unresolvedHooks)
+    }
+
+    var state: ContinuityState {
+        var characterState: [String: CharacterContinuityState] = [:]
+        for item in characters {
+            let name = Self.clean(item.name)
+            guard !name.isEmpty else { continue }
+            characterState[name] = CharacterContinuityState(
+                location: Self.optional(item.location),
+                wardrobe: Self.list(item.wardrobe),
+                injuries: Self.list(item.injuries),
+                heldProps: Self.list(item.heldProps),
+                relationships: Self.relationshipMap(item.relationships),
+                revealedFacts: Self.list(item.revealedFacts)
+            )
+        }
+        var propState: [String: PropContinuityState] = [:]
+        for item in props {
+            let name = Self.clean(item.name)
+            guard !name.isEmpty else { continue }
+            propState[name] = PropContinuityState(
+                owner: Self.optional(item.owner),
+                location: Self.optional(item.location),
+                condition: Self.optional(item.condition)
+            )
+        }
+        return ContinuityState(
+            characters: characterState,
+            props: propState,
+            sceneLocation: Self.optional(sceneLocation),
+            storyTime: Self.optional(storyTime),
+            weather: Self.optional(weather)
+        )
+    }
+
+    var hooks: [String] { Self.list(unresolvedHooks) ?? [] }
+
+    var hasContent: Bool {
+        let value = state
+        return !value.characters.isEmpty || !value.props.isEmpty
+            || value.sceneLocation != nil || value.storyTime != nil || value.weather != nil
+            || !hooks.isEmpty
+    }
+
+    private static func clean(_ value: String) -> String {
+        value.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func optional(_ value: String) -> String? {
+        let cleaned = clean(value)
+        return cleaned.isEmpty ? nil : cleaned
+    }
+
+    private static func list(_ value: String) -> [String]? {
+        let values = value
+            .components(separatedBy: CharacterSet(charactersIn: "、，,；;\n"))
+            .map(clean)
+            .filter { !$0.isEmpty }
+        return values.isEmpty ? nil : values
+    }
+
+    private static func relationshipMap(_ value: String) -> [String: String]? {
+        var result: [String: String] = [:]
+        for line in value.components(separatedBy: CharacterSet(charactersIn: "；;\n")) {
+            let pieces = line.split(
+                maxSplits: 1,
+                omittingEmptySubsequences: false,
+                whereSeparator: { $0 == "：" || $0 == ":" }
+            )
+            guard pieces.count == 2 else { continue }
+            let person = clean(String(pieces[0]))
+            let relationship = clean(String(pieces[1]))
+            if !person.isEmpty, !relationship.isEmpty { result[person] = relationship }
+        }
+        return result.isEmpty ? nil : result
+    }
+
+    private static func join(_ values: [String]?) -> String {
+        values?.joined(separator: "、") ?? ""
+    }
+
+    private static func joinRelationships(_ values: [String: String]?) -> String {
+        values?.keys.sorted().compactMap { key in
+            values?[key].map { "\(key)：\($0)" }
+        }.joined(separator: "；") ?? ""
     }
 }
 

@@ -32,6 +32,15 @@ final class VoiceInterviewViewModel {
     var scriptSummary = ""
     var viewedScriptRevision: Int?
     var guardianConfirmedForScript = false
+    var inheritedContinuity: ContinuitySnapshot?
+    var continuitySnapshots: [ContinuitySnapshot] = []
+    var openingContinuityDraft = ContinuityFormDraft()
+    var endingContinuityDraft = ContinuityFormDraft()
+    var continuityPreflightResult: ContinuityPreflightResult?
+    var continuityTransitionExplanation = ""
+    var continuityOverrideReason = ""
+    var continuityOverrideConfirmation = ""
+    var continuityStatus = "尚未检查跨集连续性"
     var assets: [NaluAsset] = []
     var memoryCards: [MemoryCard] = []
     var reviewedMemoryCardIDs: Set<String> = []
@@ -49,6 +58,7 @@ final class VoiceInterviewViewModel {
     private let speechPlayback = SpeechPlayback()
     private var interviewFlow = InterviewFlow()
     private var planningVoiceFlow = PlanningVoiceFlow()
+    private var acceptedContinuityDraft: ContinuityPreflightDraft?
 
     func load() async {
         do {
@@ -267,6 +277,33 @@ final class VoiceInterviewViewModel {
         episodeLogline = episode.logline
         episodeOutlineSummary = episode.outline["summary"]?.displayText ?? ""
         Task { await loadScripts(episodeID: episodeID) }
+        Task { await loadContinuity(episodeID: episodeID) }
+    }
+
+    private func loadContinuity(episodeID: String) async {
+        do {
+            async let snapshotsRequest = runtime.listContinuitySnapshots(episodeID: episodeID)
+            async let inheritedRequest = runtime.inheritedContinuity(episodeID: episodeID)
+            let (snapshots, inheritedResult) = try await (snapshotsRequest, inheritedRequest)
+            guard selectedEpisodeID == episodeID else { return }
+            continuitySnapshots = snapshots
+            inheritedContinuity = inheritedResult.snapshot
+            endingContinuityDraft = snapshots.last.map(ContinuityFormDraft.init(snapshot:))
+                ?? ContinuityFormDraft()
+            openingContinuityDraft = inheritedResult.snapshot.map(
+                ContinuityFormDraft.init(snapshot:)
+            ) ?? ContinuityFormDraft()
+            continuityPreflightResult = nil
+            acceptedContinuityDraft = nil
+            continuityTransitionExplanation = ""
+            continuityOverrideReason = ""
+            continuityOverrideConfirmation = ""
+            continuityStatus = inheritedResult.snapshot == nil
+                ? "这是本季第一集，没有上一集交接卡"
+                : "已带入上一集交接卡，请核对本集开场"
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 
     private func loadScripts(episodeID: String) async {
@@ -399,12 +436,35 @@ final class VoiceInterviewViewModel {
             errorMessage = "请先填写剧本和朗读摘要。"
             return
         }
+        var narrativeMetadata: [String: JSONValue] = [:]
+        if inheritedContinuity != nil {
+            guard let acceptedContinuityDraft,
+                  continuityPreflightResult?.canProceed == true,
+                  acceptedContinuityDraft.openingState == openingContinuityDraft.state else {
+                errorMessage = "请先检查本集开场连续性；修改开场后需要重新检查。"
+                return
+            }
+            narrativeMetadata["opening_continuity"] = acceptedContinuityDraft.openingState.jsonValue
+            narrativeMetadata["continuity_transition_explanations"] = .object(
+                acceptedContinuityDraft.transitionExplanations.mapValues(JSONValue.string)
+            )
+            if let override = acceptedContinuityDraft.override {
+                narrativeMetadata["continuity_override"] = .object([
+                    "schema_version": .string(override.schemaVersion),
+                    "conflict_paths": .array(override.conflictPaths.map(JSONValue.string)),
+                    "reason": .string(override.reason),
+                    "reviewed_by": .string(override.reviewedBy),
+                    "spoken_confirmation": .string(override.spokenConfirmation),
+                ])
+            }
+        }
         do {
             _ = try await runtime.createScript(
                 episodeID: episodeID,
                 content: content,
                 summary: summary,
-                sourceTranscript: sourceTranscript
+                sourceTranscript: sourceTranscript,
+                narrativeMetadata: narrativeMetadata
             )
             await loadScripts(episodeID: episodeID)
             if let projectID = selectedProjectID { await selectProject(projectID) }
@@ -413,6 +473,121 @@ final class VoiceInterviewViewModel {
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    func saveEndingContinuity() async {
+        guard let episodeID = selectedEpisodeID else { return }
+        guard endingContinuityDraft.hasContent else {
+            errorMessage = "请至少填写人物、道具、地点、时间天气或一个未解悬念。"
+            return
+        }
+        do {
+            _ = try await runtime.createContinuitySnapshot(
+                episodeID: episodeID,
+                draft: ContinuitySnapshotDraft(
+                    sourceEpisodeID: nil,
+                    state: endingContinuityDraft.state,
+                    unresolvedHooks: endingContinuityDraft.hooks
+                )
+            )
+            await loadContinuity(episodeID: episodeID)
+            messages.append(
+                .init(speaker: .nalu, text: "本集结尾交接卡已经保存。后续修改会建立新快照，不会改写旧记录。")
+            )
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func checkOpeningContinuity(
+        applyExplanation: Bool = false, applyOverride: Bool = false
+    ) async {
+        guard let episodeID = selectedEpisodeID else { return }
+        let currentPaths = continuityPreflightResult?.conflicts.map(\.path) ?? []
+        let explanation = continuityTransitionExplanation.trimmingCharacters(
+            in: .whitespacesAndNewlines
+        )
+        let explanations = applyExplanation && !explanation.isEmpty
+            ? Dictionary(uniqueKeysWithValues: currentPaths.map { ($0, explanation) }) : [:]
+        var override: ContinuityOverrideDraft?
+        if applyOverride {
+            let reason = continuityOverrideReason.trimmingCharacters(in: .whitespacesAndNewlines)
+            let confirmation = continuityOverrideConfirmation.trimmingCharacters(
+                in: .whitespacesAndNewlines
+            )
+            guard !currentPaths.isEmpty, !reason.isEmpty,
+                  confirmation.contains("我确认") || confirmation.contains("我同意") else {
+                errorMessage = "强制覆盖需要填写原因，并明确输入“我确认”或“我同意”。"
+                return
+            }
+            override = ContinuityOverrideDraft(
+                conflictPaths: currentPaths,
+                reason: reason,
+                reviewedBy: "local-user",
+                spokenConfirmation: confirmation
+            )
+        }
+        let draft = ContinuityPreflightDraft(
+            openingState: openingContinuityDraft.state,
+            transitionExplanations: explanations,
+            override: override
+        )
+        do {
+            let result = try await runtime.continuityPreflight(
+                episodeID: episodeID, draft: draft
+            )
+            continuityPreflightResult = result
+            if result.canProceed {
+                acceptedContinuityDraft = draft
+                continuityStatus = result.conflicts.isEmpty
+                    ? "开场与上一集一致，可以保存剧本"
+                    : "所有变化已说明并记录，可以保存剧本"
+            } else {
+                acceptedContinuityDraft = nil
+                continuityStatus = "发现 \(result.conflicts.count) 处变化，请逐项核对"
+            }
+        } catch {
+            acceptedContinuityDraft = nil
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func speakOpeningContinuity() {
+        speechPlayback.speak(
+            continuitySpeechSummary(openingContinuityDraft, prefix: "本集开场"),
+            rate: comfortPreferences.speechRate
+        )
+    }
+
+    func speakEndingContinuity() {
+        speechPlayback.speak(
+            continuitySpeechSummary(endingContinuityDraft, prefix: "本集结尾"),
+            rate: comfortPreferences.speechRate
+        )
+    }
+
+    private func continuitySpeechSummary(
+        _ draft: ContinuityFormDraft, prefix: String
+    ) -> String {
+        var parts = [prefix]
+        if !draft.sceneLocation.isEmpty { parts.append("场景在 \(draft.sceneLocation)") }
+        if !draft.storyTime.isEmpty { parts.append("时间是 \(draft.storyTime)") }
+        if !draft.weather.isEmpty { parts.append("天气是 \(draft.weather)") }
+        for character in draft.characters where !character.name.isEmpty {
+            var detail = character.name
+            if !character.location.isEmpty { detail += "在 \(character.location)" }
+            if !character.wardrobe.isEmpty { detail += "，穿着 \(character.wardrobe)" }
+            if !character.injuries.isEmpty { detail += "，伤势是 \(character.injuries)" }
+            parts.append(detail)
+        }
+        for prop in draft.props where !prop.name.isEmpty {
+            var detail = "道具 \(prop.name)"
+            if !prop.owner.isEmpty { detail += "属于 \(prop.owner)" }
+            if !prop.location.isEmpty { detail += "，在 \(prop.location)" }
+            parts.append(detail)
+        }
+        if !draft.unresolvedHooks.isEmpty { parts.append("未解悬念：\(draft.unresolvedHooks)") }
+        return parts.joined(separator: "。") + "。"
     }
 
     func approveScriptVisually() async {

@@ -34,6 +34,7 @@ from .models import (
     EpisodeTransitionRequest,
     FeedbackCreate,
     FeedbackItem,
+    InheritedContinuityResult,
     MemoryCard,
     MemoryCardConfirmation,
     MemoryCardConfirmationRecord,
@@ -431,6 +432,24 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
         episode_id: str, request: ContinuitySnapshotCreate
     ) -> ContinuitySnapshot:
         return repository.create_continuity_snapshot(episode_id, request)
+
+    @app.get(
+        "/v1/episodes/{episode_id}/continuity-snapshots",
+        response_model=list[ContinuitySnapshot],
+    )
+    def list_continuity(episode_id: str) -> list[ContinuitySnapshot]:
+        return repository.list_continuity_snapshots(episode_id)
+
+    @app.get(
+        "/v1/episodes/{episode_id}/inherited-continuity",
+        response_model=InheritedContinuityResult,
+    )
+    def inherited_continuity(episode_id: str) -> InheritedContinuityResult:
+        episode = repository.get_episode(episode_id)
+        season = repository.get_season(episode.season_id)
+        return InheritedContinuityResult(
+            snapshot=repository.latest_continuity(season.id, episode.episode_number)
+        )
 
     @app.post(
         "/v1/episodes/{episode_id}/continuity-preflight",

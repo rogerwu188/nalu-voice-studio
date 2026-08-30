@@ -76,6 +76,16 @@ def test_matching_opening_state_passes_and_is_snapshotted(tmp_path: Path) -> Non
     first, second = plan["episodes"]
     snapshot = create_snapshot(api, first["id"])
 
+    listed = api.get(f"/v1/episodes/{first['id']}/continuity-snapshots")
+    assert listed.status_code == 200
+    assert [item["id"] for item in listed.json()] == [snapshot["id"]]
+    inherited = api.get(f"/v1/episodes/{second['id']}/inherited-continuity")
+    assert inherited.status_code == 200
+    assert inherited.json()["snapshot"]["id"] == snapshot["id"]
+    first_inherited = api.get(f"/v1/episodes/{first['id']}/inherited-continuity")
+    assert first_inherited.status_code == 200
+    assert first_inherited.json() == {"snapshot": None}
+
     preflight = api.post(
         f"/v1/episodes/{second['id']}/continuity-preflight",
         json={"opening_state": end_state()},
