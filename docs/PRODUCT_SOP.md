@@ -537,6 +537,20 @@ Current evidence:
 - Commit `f36a8f0`, GitHub CI run `33299566385`: Runtime, OpenAPI compatibility, real
   HTTP smoke, Swift tests, full app build, bundled-Runtime smoke and artifact upload all
   passed for durable task-derived stage explanations.
+- The native client now refreshes every episode's durable production state every four
+  seconds instead of only when a project is opened. A prominent card uses a moving arrow
+  only for actual work, and separately explains waiting-for-confirmation, ambiguous
+  charge, safely stopped and completed states. Transient refresh failure is visible and
+  retried without discarding the last durable state.
+- Safe pause and preflight-only resume are wired to the Runtime. Button pause requires a
+  visible confirmation. Voice pause requires the specific “pause this episode's
+  production” intent and a second explicit confirmation; bare “pause” remains an
+  interview command. Ambiguous-charge state exposes no pause control, and resume never
+  skips the paid preflight approval boundary.
+- Commit `3449e14`, GitHub CI run `33300330314`: Swift presentation and voice-command
+  regressions, Runtime/OpenAPI checks, full application build, bundled-Runtime smoke, ZIP
+  and artifact upload all passed. This is automated state/interaction evidence and does
+  not replace a signed-app long-running human production session.
 - Still required before `PASS`: bind the imported durable submitter as the only writer,
   run authorized provider crash tests at every network/charge boundary, reconcile real
   ambiguous charges against the real provider and validate the stage explanations in a
@@ -610,9 +624,19 @@ Current evidence:
   approvals. Creation does not transition the episode, upload media, call a platform or
   claim publication. Automated fixtures cover too-early creation, exact replay and
   changed-metadata rejection.
-- Still required before `PASS`: platform-specific dry-run adapters, separate adult/child
-  guardian approvals, duplicate/replacement publication protection, authorized test-
-  channel publication, remote ID/state reconciliation and versioned metrics feedback.
+- Versioned YouTube and Bilibili dry-run adapters now require a separate matching-platform
+  approval and guardian approval for child projects. They compile only immutable sealed
+  MP4, WebVTT and cover mappings, bind the exact release manifest and channel reference
+  to a duplicate-guard digest, and always record no network call and no episode-state
+  change. Exact replay is idempotent; changed approval/channel data and plan tampering
+  fail closed.
+- Commit `654d7f5`, GitHub CI run `33300480697`: all 67 Runtime tests, OpenAPI
+  compatibility, real HTTP smoke, Swift tests, full application build, bundled-Runtime
+  smoke, ZIP and artifact upload passed for offline packaging and platform dry runs.
+- Still required before `PASS`: explicit user-authorized real platform accounts and test-
+  channel publication, durable remote publication identity/state reconciliation,
+  replacement publication protection against real remote IDs and versioned metrics
+  feedback. Dry-run evidence is not a publication claim.
 
 ## SOP-11 · macOS packaging, updates and operations — IN_PROGRESS
 
@@ -639,8 +663,18 @@ Current evidence:
   Runtime build, application build, bundled-Runtime smoke and artifact upload passed.
   Artifact `Nalu-Voice-Studio-macOS` is 22,164,755 bytes; downloaded zip SHA-256 is
   `b7b1fbe4ac16a78d7b8048b35ae4da05a7a75542758e795d3ff241656c7cfd63`.
+- A read-only local diagnostic now reports total/free space, SQLite size and explicit
+  five-GiB minimum/twenty-GiB recommended reserves. The native header refreshes it once
+  per minute and always distinguishes sufficient, low and critical space in plain
+  language. It never uploads paths or deletes user media; critical space only blocks the
+  readiness claim and tells the user to clean the Mac first.
+- Commit `273cbc3`, GitHub CI run `33300577745`: all 68 Runtime tests, deterministic
+  healthy/warning/critical fixtures, OpenAPI compatibility, real HTTP smoke, Swift
+  formatting/presentation tests, full app build, bundled-Runtime smoke, ZIP and artifact
+  upload passed.
 - Still required before `PASS`: Developer ID signing, hardened runtime, notarized
-  universal release, update channel, disk diagnostics and clean-Mac upgrade/rollback QA.
+  universal release, update channel and clean-Mac upgrade/rollback QA with populated
+  multi-episode data.
 
 ## SOP-12 · End-to-end release-candidate acceptance — TODO
 
