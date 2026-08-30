@@ -720,6 +720,16 @@ Current evidence:
   `3942723c916c4c630c6fb775c4882033aec5a6b799f130384fd724dd82c76de7`; GitHub reports
   its workflow artifact archive as 43,395,214 bytes. The manual release workflow now
   performs the same dual build and merge before Developer ID signing and notarization.
+- Commit `ac100b5`, GitHub CI run `33327724626` and manually dispatched release rehearsal
+  `33327906350`: current official Action runtimes passed without the former Node 20
+  deprecation warning. The release workflow validated the product, independently built
+  and smoke-tested `arm64` and `x86_64` version `0.1.0-rc1 (1001)`, merged and enforced
+  universal slices, launched the merged Runtime, emitted the ZIP/checksum and recorded
+  provenance bound to exact commit `ac100b512c25e9c180b6607f3f6ae95bbf8d9980` and both
+  architectures. The downloaded ZIP and provenance both report SHA-256
+  `e541a44970d54496562dff950dfb2d201967ab6bc404eecbaf4b068f79b16182`.
+  Signing/notarization was explicitly false, so this is release-workflow evidence but not
+  Developer ID or Apple notarization evidence.
 - Still required before `PASS`: Developer ID signing, hardened runtime, notarized
   universal release evidence, update channel and clean-Mac upgrade/rollback QA with
   populated multi-episode data. The green universal build is still ad-hoc signed.
