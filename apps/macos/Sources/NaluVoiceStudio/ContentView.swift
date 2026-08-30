@@ -837,7 +837,10 @@ struct ContentView: View {
                         if model.continuityExtractionWasEdited {
                             TextField(
                                 "简单说明改了什么，例如：天气不是大雪，是小雪",
-                                text: $model.continuityExtractionChangeSummary,
+                                text: Binding(
+                                    get: { model.continuityExtractionChangeSummary },
+                                    set: { model.continuityExtractionChangeSummary = $0 }
+                                ),
                                 axis: .vertical
                             )
                             .textFieldStyle(.roundedBorder)

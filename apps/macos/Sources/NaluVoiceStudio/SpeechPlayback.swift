@@ -1,7 +1,7 @@
 import AVFoundation
 
 @MainActor
-final class SpeechPlayback: NSObject, AVSpeechSynthesizerDelegate {
+final class SpeechPlayback: NSObject, @preconcurrency AVSpeechSynthesizerDelegate {
     private let synthesizer = AVSpeechSynthesizer()
     private var activeUtterance: AVSpeechUtterance?
     private var completion: ((Bool) -> Void)?
