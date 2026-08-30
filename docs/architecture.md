@@ -63,9 +63,23 @@ voice consent actions are separate audit records. Revocation blocks new
 production, while immutable run dependency snapshots prevent deletion from
 silently rewriting production history.
 
-At episode completion, the production line writes an end-state snapshot for the
-next episode: character location and wardrobe, injuries, prop ownership,
-relationship changes, revealed facts, time/weather, and unresolved hooks.
+The native continuity review has two deliberately separate forms. The opening
+form starts from the latest earlier-episode snapshot and the ending form creates
+a new immutable handoff snapshot. Both use typed character, prop, scene, time and
+weather fields; the ending form also records unresolved hooks. Automatic
+end-state extraction from the completed episode remains an SOP-06 gap, so the
+current client requires a user-reviewed handoff instead of treating generated
+text as authority.
+
+Before a later episode script can be saved for production, its opening state is
+audited against the inherited snapshot. Missing or changed wardrobe, location,
+injuries, held props, relationships, revealed facts, prop ownership/condition,
+scene, time or weather block the path. A transition explanation may resolve an
+exact conflict path. The advanced override is fail-closed: its versioned record
+must name exactly the current conflict paths, include a reason and reviewer, and
+contain explicit confirmation language. The accepted opening state, explanations
+and any override are stored in the immutable script revision and re-audited when
+the production package is built.
 
 ## Workspace materialization
 

@@ -293,9 +293,25 @@ Current evidence:
   relevance and permitted-use fields are bound to local source assets with immutable
   revisions and confirmation audit. `docs/FAMILY_MEMORY_LIBRARY.md` defines the
   provenance and conflict boundary.
-- Still required before `PASS`: entity resolution, contradiction gates, complete
-  character/scene/prop libraries, end-state extraction, continuity overrides and the
-  required multi-episode positive/negative fixtures.
+- Commit `4f772e4`, GitHub CI run `33281856388`: typed episode end state covers
+  character location, wardrobe, injuries, held props, relationships and revealed
+  facts; prop owner/location/condition; scene, time, weather and unresolved hooks.
+  A pure preflight blocks missing or unexplained inherited fields before workspace
+  or paid submission. Exact transition explanations and a versioned, reviewed,
+  explicit-confirmation override are bound to the immutable approved script and
+  production package. Four multi-episode test cases cover a matching handoff,
+  character/prop/time conflicts, explained transitions, mismatched and exact
+  overrides, missing opening declarations and empty-state bypass attempts.
+- Commits `c8ad29e` and `91e3e64`, GitHub CI run `33283238515`: the native macOS
+  client reads the prior handoff, keeps opening and ending forms separate, supports
+  multiple typed characters and props, reads both states aloud, displays plain-language
+  conflicts, records explanations, protects the advanced override with explicit review,
+  and locks the accepted preflight into the next script revision. Swift tests, the full
+  app build, bundled Runtime smoke, ZIP and downloadable artifact passed.
+- Still required before `PASS`: project-level character/scene/prop/voice/style
+  libraries, family-memory entity resolution and contradiction gates, automatic
+  reviewed end-state extraction, unresolved-hook closure rules, completed-episode
+  immutability after library edits, and human/accessibility QA of the native workflow.
 
 ## SOP-07 · Productized Qingshan execution adapter — IN_PROGRESS
 

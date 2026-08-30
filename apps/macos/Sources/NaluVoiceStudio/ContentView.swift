@@ -769,12 +769,14 @@ struct ContentView: View {
             Button("添加道具状态", systemImage: "shippingbox.and.arrow.backward") {
                 mutateContinuityDraft(kind) { $0.props.append(.init()) }
             }
-            TextField(
-                "还没解决的悬念，用顿号分开",
-                text: continuityTextBinding(kind, \.unresolvedHooks),
-                axis: .vertical
-            )
-            .textFieldStyle(.roundedBorder)
+            if kind == .ending {
+                TextField(
+                    "还没解决的悬念，用顿号分开",
+                    text: continuityTextBinding(kind, \.unresolvedHooks),
+                    axis: .vertical
+                )
+                .textFieldStyle(.roundedBorder)
+            }
         }
     }
 
