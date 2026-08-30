@@ -53,6 +53,7 @@ from .models import (
     MemoryCardRevision,
     MemoryCardUpdate,
     MemoryGraphConflictReport,
+    PostproductionRepairPlan,
     ProductionCompletionRequest,
     ProductionCompletionResult,
     ProductionRun,
@@ -586,6 +587,13 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
     )
     def rendered_output_integrity(run_id: str) -> RenderedOutputIntegrityReport:
         return production.rendered_output_integrity(run_id)
+
+    @app.get(
+        "/v1/production-runs/{run_id}/postproduction-repair-plan",
+        response_model=PostproductionRepairPlan,
+    )
+    def postproduction_repair_plan(run_id: str) -> PostproductionRepairPlan:
+        return production.postproduction_repair_plan(run_id)
 
     @app.post(
         "/v1/production-runs/{run_id}/complete",

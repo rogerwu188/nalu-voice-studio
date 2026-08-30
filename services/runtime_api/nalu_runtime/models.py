@@ -992,6 +992,27 @@ class FinalQAEvidence(BaseModel):
         return self
 
 
+class PostproductionRepairTask(BaseModel):
+    code: str = Field(min_length=1, max_length=100)
+    target: str = Field(min_length=1, max_length=160)
+    issue: str = Field(min_length=1, max_length=1000)
+    required_action: str = Field(min_length=1, max_length=2000)
+    release_blocking: Literal[True] = True
+
+
+class PostproductionRepairPlan(BaseModel):
+    schema_version: Literal["nalu.postproduction-repair-plan/v1"] = (
+        "nalu.postproduction-repair-plan/v1"
+    )
+    run_id: str
+    output_seal_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    master_sha256: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
+    source_qa_sha256: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
+    repair_tasks: list[PostproductionRepairTask] = Field(min_length=1)
+    created_at: str
+    plan_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+
+
 class ProductionCompletionRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

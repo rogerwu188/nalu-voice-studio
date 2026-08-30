@@ -145,6 +145,8 @@ Paid production requires that header, and a key is cryptographically bound to
 its original request so it cannot be reused with changed model or budget data.
 Remote task persistence and restart semantics are documented in
 [the durable recovery contract](docs/REMOTE_TASK_RECOVERY.md).
+Failed release gates create persistent work according to
+[the postproduction repair contract](docs/POSTPRODUCTION_REPAIR.md).
 
 Project completion is governed by [the product SOP](docs/PRODUCT_SOP.md). A
 module, milestone, or green CI run is not treated as completion of the product.

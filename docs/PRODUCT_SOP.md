@@ -526,11 +526,15 @@ Current evidence:
   complete Runtime restart and replays idempotently. Separate regressions cover ambiguous
   responses, exact zero-charge reconciliation and duplicate remote task protection. This
   is offline persistence evidence and does not claim a provider call occurred.
+- Commit `630dcaa`, GitHub CI run `33299221573`: all 64 Runtime tests, Qingshan pin and
+  OpenAPI checks, real HTTP smoke, Swift tests, full application build, bundled-Runtime
+  smoke, ZIP and downloadable artifact passed. The same run confirms gate-registry
+  quarantine behavior is deterministic on clean Linux and macOS hosts.
 - Still required before `PASS`: bind the imported durable submitter as the only writer,
   run authorized provider crash tests at every network/charge boundary, reconcile real
   ambiguous charges and expose finer stage-level progress.
 
-## SOP-09 · Postproduction and release-blocking QA — TODO
+## SOP-09 · Postproduction and release-blocking QA — IN_PROGRESS
 
 Acceptance:
 
@@ -544,6 +548,22 @@ QA:
 
 - Golden media fixtures for pass/fail cases.
 - Human audiovisual review of original-resolution final master.
+
+Current evidence:
+
+- Rendered-output seals bind the exact master/captions/QA artifacts to the immutable
+  production package, confirmed project-library snapshot and Qingshan workspace; file,
+  package and workspace mutation fail closed.
+- Completion requires one sealed master, captions and structured original-resolution
+  human review whose picture, audio sync, captions, continuity and safety checks all pass.
+  Run and episode completion plus audit events share one crash-safe SQLite transaction.
+- Failed completion now persists a digest-bound, restart-readable repair plan with
+  specific release-blocking tasks for missing artifacts, evidence binding, picture,
+  audio, captions, continuity, safety and original-resolution review. Identical failed
+  evidence is idempotent and never advances the run beyond `qa_review`.
+- Still required before `PASS`: real shot selection/normalization and mix pipeline,
+  ASR/VAD, timestamp, frame-repeat and media-boundary gates, golden media fixtures and
+  actual original-resolution human audiovisual review on the release candidate.
 
 ## SOP-10 · Controlled release and learning loop — TODO
 

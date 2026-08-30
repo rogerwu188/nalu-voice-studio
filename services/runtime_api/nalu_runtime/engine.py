@@ -13,6 +13,8 @@ from .models import (
     EpisodeStatus,
     EpisodeTransitionRequest,
     FinalQAEvidence,
+    PostproductionRepairPlan,
+    PostproductionRepairTask,
     ProductionCompletionRequest,
     ProductionCompletionResult,
     ProductionPackage,
@@ -60,6 +62,74 @@ RUN_PROGRESS = {
     RunStatus.COMPLETED: ("completed", 100, "制作完成", "本集制作已经完成。"),
     RunStatus.FAILED: ("failed", 0, "制作遇到问题", "任务已停止，可查看原因后恢复。"),
     RunStatus.CANCELLED: ("cancelled", 0, "已经取消", "任务已安全取消，可以从检查点恢复。"),
+}
+
+QA_REPAIR_CATALOG = {
+    "output_integrity": (
+        "sealed outputs",
+        "A sealed output or its production snapshot no longer matches its recorded digest.",
+        "Restore the exact sealed files or create a new repair run and seal new outputs.",
+    ),
+    "master_presence": (
+        "master video",
+        "Exactly one final master video was not sealed.",
+        "Export one normalized final MP4 in a repair run, then seal it as master_video.",
+    ),
+    "captions_presence": (
+        "captions",
+        "No release captions were sealed.",
+        "Generate, time-check and seal the release captions in a repair run.",
+    ),
+    "qa_report_presence": (
+        "final QA report",
+        "Exactly one structured final QA report was not sealed.",
+        "Perform original-resolution human review and seal one valid QA report.",
+    ),
+    "qa_report_contract": (
+        "final QA report",
+        "The sealed final QA report is unreadable or does not match its schema.",
+        "Correct the structured review evidence in a repair run and reseal all outputs.",
+    ),
+    "qa_run_binding": (
+        "final QA report",
+        "The QA report belongs to another production run.",
+        "Review this run's master and create evidence bound to this exact run ID.",
+    ),
+    "qa_master_binding": (
+        "final QA report",
+        "The QA report reviewed a different master digest.",
+        "Repeat original-resolution review against this exact master and reseal evidence.",
+    ),
+    "original_resolution_reviewed": (
+        "master video",
+        "Original-resolution human review was not completed.",
+        "Watch the full original-resolution master without interruption and record review.",
+    ),
+    "picture_passed": (
+        "picture track",
+        "Picture, identity, wardrobe, space, pose or prop review failed.",
+        "Repair the cited shots, regenerate a master and repeat visual QA.",
+    ),
+    "audio_sync_passed": (
+        "audio mix",
+        "Dialogue, ambience, foley, music or synchronization review failed.",
+        "Repair the mix or synchronization, regenerate a master and repeat audio QA.",
+    ),
+    "captions_passed": (
+        "captions",
+        "Caption text, timing or readability review failed.",
+        "Correct caption text and timestamps, then repeat caption QA.",
+    ),
+    "continuity_passed": (
+        "continuity",
+        "Identity, wardrobe, space, axis, pose, prop, sound or transition continuity failed.",
+        "Repair every cited continuity break and repeat cross-shot/cross-episode review.",
+    ),
+    "safety_passed": (
+        "safety and rights",
+        "Safety, consent, rights or release review failed.",
+        "Resolve the cited safety or rights issue before creating a new release candidate.",
+    ),
 }
 
 
@@ -254,11 +324,111 @@ class ProductionService:
             failures=failures,
         )
 
+    def _record_postproduction_repair_plan(
+        self,
+        run: ProductionRun,
+        *,
+        output_seal_sha256: str,
+        codes: list[str],
+        master_sha256: str | None = None,
+        source_qa_sha256: str | None = None,
+    ) -> PostproductionRepairPlan:
+        normalized_codes = sorted(set(codes)) or ["qa_report_contract"]
+        tasks = [
+            PostproductionRepairTask(
+                code=code,
+                target=QA_REPAIR_CATALOG.get(code, QA_REPAIR_CATALOG["qa_report_contract"])[0],
+                issue=QA_REPAIR_CATALOG.get(code, QA_REPAIR_CATALOG["qa_report_contract"])[1],
+                required_action=QA_REPAIR_CATALOG.get(
+                    code, QA_REPAIR_CATALOG["qa_report_contract"]
+                )[2],
+            )
+            for code in normalized_codes
+        ]
+        plan_path = self._run_directory(run) / "postproduction-repair-plan.json"
+        if plan_path.is_file():
+            try:
+                existing = PostproductionRepairPlan.model_validate_json(
+                    plan_path.read_text(encoding="utf-8")
+                )
+                if (
+                    existing.output_seal_sha256 == output_seal_sha256
+                    and existing.master_sha256 == master_sha256
+                    and existing.source_qa_sha256 == source_qa_sha256
+                    and [task.code for task in existing.repair_tasks] == normalized_codes
+                ):
+                    return existing
+            except (OSError, ValueError):
+                pass
+        body = {
+            "schema_version": "nalu.postproduction-repair-plan/v1",
+            "run_id": run.id,
+            "output_seal_sha256": output_seal_sha256,
+            "master_sha256": master_sha256,
+            "source_qa_sha256": source_qa_sha256,
+            "repair_tasks": [task.model_dump(mode="json") for task in tasks],
+            "created_at": utc_now(),
+        }
+        plan = PostproductionRepairPlan(
+            **body,
+            plan_sha256=self._canonical_sha256(body),
+        )
+        temporary = plan_path.with_name(f".{new_id('repair-plan')}.tmp")
+        temporary.write_text(plan.model_dump_json(indent=2) + "\n", encoding="utf-8")
+        secure_file(temporary)
+        os.replace(temporary, plan_path)
+        secure_file(plan_path)
+        self.repository.append_run_event(
+            run.id,
+            "postproduction_repair_required",
+            from_status=run.status,
+            to_status=run.status,
+            message="Release-blocking QA created specific repair tasks.",
+            payload={
+                "plan_sha256": plan.plan_sha256,
+                "repair_codes": normalized_codes,
+            },
+        )
+        return plan
+
+    def postproduction_repair_plan(self, run_id: str) -> PostproductionRepairPlan:
+        run = self.repository.get_run(run_id)
+        plan_path = self._run_directory(run) / "postproduction-repair-plan.json"
+        if not plan_path.is_file() or plan_path.is_symlink():
+            raise ConflictError("this production run has no postproduction repair plan")
+        try:
+            plan = PostproductionRepairPlan.model_validate_json(
+                plan_path.read_text(encoding="utf-8")
+            )
+        except (OSError, ValueError) as exc:
+            raise ConflictError("postproduction repair plan is unreadable or invalid") from exc
+        body = plan.model_dump(mode="json", exclude={"plan_sha256"})
+        if self._canonical_sha256(body) != plan.plan_sha256:
+            raise ConflictError("postproduction repair plan digest mismatch")
+        if plan.run_id != run.id:
+            raise ConflictError("postproduction repair plan belongs to another run")
+        return plan
+
     def complete_run(
         self, run_id: str, request: ProductionCompletionRequest
     ) -> ProductionCompletionResult:
         integrity = self.rendered_output_integrity(run_id)
         if not integrity.integrity_ok:
+            run = self.repository.get_run(run_id)
+            master = next(
+                (
+                    artifact
+                    for artifact in integrity.seal.artifacts
+                    if artifact.kind == "master_video"
+                ),
+                None,
+            )
+            self._record_postproduction_repair_plan(
+                run,
+                output_seal_sha256=integrity.seal.manifest_sha256,
+                master_sha256=master.sha256 if master else None,
+                codes=["output_integrity"],
+            )
             raise ConflictError(
                 "rendered output integrity failed: " + "; ".join(integrity.failures)
             )
@@ -272,13 +442,29 @@ class ProductionService:
 
         qa_artifacts = [artifact for artifact in seal.artifacts if artifact.kind == "qa_report"]
         if len(qa_artifacts) != 1:
+            self._record_postproduction_repair_plan(
+                run,
+                output_seal_sha256=seal.manifest_sha256,
+                codes=["qa_report_presence"],
+            )
             raise ConflictError("production completion requires exactly one sealed QA report")
         master_artifacts = [
             artifact for artifact in seal.artifacts if artifact.kind == "master_video"
         ]
         if len(master_artifacts) != 1:
+            self._record_postproduction_repair_plan(
+                run,
+                output_seal_sha256=seal.manifest_sha256,
+                codes=["master_presence"],
+            )
             raise ConflictError("production completion requires exactly one sealed master")
         if not any(artifact.kind == "captions" for artifact in seal.artifacts):
+            self._record_postproduction_repair_plan(
+                run,
+                output_seal_sha256=seal.manifest_sha256,
+                master_sha256=master_artifacts[0].sha256,
+                codes=["captions_presence"],
+            )
             raise ConflictError("production completion requires sealed captions")
         qa_artifact = qa_artifacts[0]
         qa_path = (
@@ -287,15 +473,54 @@ class ProductionService:
             / "exports"
             / qa_artifact.relative_path
         )
+        qa_bytes: bytes | None = None
+        qa_payload: dict | None = None
         try:
-            evidence = FinalQAEvidence.model_validate_json(
-                qa_path.read_text(encoding="utf-8")
-            )
+            qa_bytes = qa_path.read_bytes()
+            decoded_payload = json.loads(qa_bytes.decode("utf-8"))
+            qa_payload = decoded_payload if isinstance(decoded_payload, dict) else None
+            evidence = FinalQAEvidence.model_validate(qa_payload)
         except (OSError, UnicodeError, ValueError) as exc:
+            source_qa_sha256 = (
+                hashlib.sha256(qa_bytes).hexdigest() if qa_bytes is not None else None
+            )
+            failed_checks = [
+                field
+                for field in (
+                    "original_resolution_reviewed",
+                    "picture_passed",
+                    "audio_sync_passed",
+                    "captions_passed",
+                    "continuity_passed",
+                    "safety_passed",
+                )
+                if qa_payload is None or qa_payload.get(field) is not True
+            ]
+            self._record_postproduction_repair_plan(
+                run,
+                output_seal_sha256=seal.manifest_sha256,
+                master_sha256=master_artifacts[0].sha256,
+                source_qa_sha256=source_qa_sha256,
+                codes=failed_checks or ["qa_report_contract"],
+            )
             raise ConflictError("sealed final QA report is unreadable or invalid") from exc
         if evidence.run_id != run_id:
+            self._record_postproduction_repair_plan(
+                run,
+                output_seal_sha256=seal.manifest_sha256,
+                master_sha256=master_artifacts[0].sha256,
+                source_qa_sha256=qa_artifact.sha256,
+                codes=["qa_run_binding"],
+            )
             raise ConflictError("final QA report belongs to a different production run")
         if evidence.master_sha256 != master_artifacts[0].sha256:
+            self._record_postproduction_repair_plan(
+                run,
+                output_seal_sha256=seal.manifest_sha256,
+                master_sha256=master_artifacts[0].sha256,
+                source_qa_sha256=qa_artifact.sha256,
+                codes=["qa_master_binding"],
+            )
             raise ConflictError("final QA report reviewed a different master")
 
         completed_run, episode = self.repository.complete_run_after_qa(

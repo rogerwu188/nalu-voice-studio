@@ -298,6 +298,91 @@ def test_completion_rejects_missing_or_mismatched_final_qa(tmp_path: Path) -> No
     assert missing.status_code == 409
     assert "exactly one sealed QA report" in missing.text
     assert api.get(f"/v1/production-runs/{run['id']}").json()["status"] == "qa_review"
+    plan = api.get(
+        f"/v1/production-runs/{run['id']}/postproduction-repair-plan"
+    ).json()
+    assert [task["code"] for task in plan["repair_tasks"]] == ["qa_report_presence"]
+    assert plan["repair_tasks"][0]["release_blocking"] is True
+
+
+def test_failed_final_qa_creates_specific_idempotent_repair_tasks(tmp_path: Path) -> None:
+    api = client(tmp_path)
+    _, episode, _ = approved_episode_with_library(api)
+    run = api.post(
+        f"/v1/episodes/{episode['id']}/production-runs",
+        json={"dry_run": True},
+    ).json()
+    advance_episode_to_qa(api, episode["id"])
+    api.app.state.repository.update_run_status(run["id"], RunStatus.QA_REVIEW)
+    exports = Path(run["package_path"]).parent / "qingshan-workspace" / "exports"
+    master = b"master-needing-audio-caption-and-continuity-repair"
+    master_sha = hashlib.sha256(master).hexdigest()
+    (exports / "E01_MASTER.mp4").write_bytes(master)
+    (exports / "E01_zh-CN.vtt").write_text("WEBVTT\n", encoding="utf-8")
+    (exports / "E01_FINAL_QA.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "nalu.final-qa-evidence/v1",
+                "run_id": run["id"],
+                "master_sha256": master_sha,
+                "original_resolution_reviewed": True,
+                "picture_passed": True,
+                "audio_sync_passed": False,
+                "captions_passed": False,
+                "continuity_passed": False,
+                "safety_passed": True,
+                "reviewed_by": "human-reviewer",
+                "review_channel": "human_original_resolution",
+                "reviewed_at": "2026-08-30T07:30:00Z",
+                "notes": "三个发布门禁失败。",
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    seal = api.post(
+        f"/v1/production-runs/{run['id']}/rendered-output-seal",
+        json=seal_payload(include_qa=True),
+    ).json()
+    completion = {
+        "output_seal_sha256": seal["manifest_sha256"],
+        "completed_by": "local-user",
+        "spoken_confirmation": "我确认检查结果",
+    }
+    first = api.post(f"/v1/production-runs/{run['id']}/complete", json=completion)
+    second = api.post(f"/v1/production-runs/{run['id']}/complete", json=completion)
+    assert first.status_code == second.status_code == 409
+    plan = api.get(
+        f"/v1/production-runs/{run['id']}/postproduction-repair-plan"
+    ).json()
+    assert plan["output_seal_sha256"] == seal["manifest_sha256"]
+    assert plan["master_sha256"] == master_sha
+    assert len(plan["plan_sha256"]) == 64
+    assert [task["code"] for task in plan["repair_tasks"]] == [
+        "audio_sync_passed",
+        "captions_passed",
+        "continuity_passed",
+    ]
+    assert all(task["required_action"] for task in plan["repair_tasks"])
+    events = api.get(f"/v1/production-runs/{run['id']}/events").json()
+    repair_events = [
+        event for event in events if event["event_type"] == "postproduction_repair_required"
+    ]
+    assert len(repair_events) == 1
+    assert api.get(f"/v1/production-runs/{run['id']}").json()["status"] == "qa_review"
+
+    plan_path = Path(run["package_path"]).parent / "postproduction-repair-plan.json"
+    tampered = json.loads(plan_path.read_text(encoding="utf-8"))
+    tampered["repair_tasks"][0]["required_action"] = "跳过返修"
+    plan_path.write_text(
+        json.dumps(tampered, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    rejected_plan = api.get(
+        f"/v1/production-runs/{run['id']}/postproduction-repair-plan"
+    )
+    assert rejected_plan.status_code == 409
+    assert "digest mismatch" in rejected_plan.text
 
 
 def test_output_seal_fails_closed_for_state_paths_and_empty_files(tmp_path: Path) -> None:
