@@ -401,9 +401,21 @@ Current evidence:
   read the complete arrangement back and require a separate explicit confirmation; edits
   invalidate that confirmation. All 51 Runtime tests, Swift voice/model tests, full app
   build, bundled-Runtime smoke, ZIP and downloadable artifact passed.
-- Still required before `PASS`: broader semantic extraction from unstructured legacy
-  scripts, completed-episode immutability after library edits at the final rendered-output
-  layer, and human/accessibility QA of the native workflow on the same release candidate.
+- Commits `0403d26`, `b933c25` and `1d80d99`, GitHub CI run `33297505140`:
+  approved unstructured legacy scripts now have a conservative, deterministic local
+  final-scene extraction path for time, weather, named-character location, wardrobe,
+  injury, held props, learned facts and explicit unresolved hooks. Earlier scenes,
+  uncertain prose and ordinary dialogue questions are excluded. Every semantic result
+  carries its exact approved-script excerpt, extraction rule and confidence; the native
+  app shows that evidence without requiring a professional form, while the existing
+  complete readback and separate confirmation remain authoritative. Runtime fixtures
+  cover evidence binding, final-scene isolation, ambiguous negative cases and confirmed
+  snapshot creation. All 53 Runtime tests, OpenAPI compatibility, real HTTP smoke, Swift
+  tests including old-response compatibility, full app build, bundled-Runtime smoke, ZIP
+  and downloadable artifact passed.
+- Still required before `PASS`: completed-episode immutability after library edits at the
+  final rendered-output layer, and human/accessibility QA of the native workflow on the
+  same release candidate.
 
 ## SOP-07 · Productized Qingshan execution adapter — IN_PROGRESS
 
