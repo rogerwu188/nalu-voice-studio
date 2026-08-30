@@ -375,9 +375,24 @@ Current evidence:
   build, bundled Runtime smoke, ZIP and downloadable artifact passed. A same-turn native
   accessibility-tree recheck could not run because the QA Mac was locked, so no human or
   AX pass is claimed from that attempt.
-- Still required before `PASS`: automatic reviewed end-state extraction, unresolved-hook
-  closure rules, completed-episode immutability after library edits at the final rendered-
-  output layer, and human/accessibility QA of the native workflow.
+- Commits `01065bc` and `b571e83`, GitHub CI run `33293222020`: the Runtime now
+  prepares a script-revision-bound, non-authoritative ending-state proposal from locked
+  structured metadata or explicit ending markers and refuses unapproved, empty, stale,
+  duplicate or ambiguous confirmation. The native macOS flow auto-fills the typed state,
+  keeps the manual form behind an advanced disclosure, reads every character, prop,
+  place, time, weather and unresolved-hook field, and unlocks confirmation only after
+  uninterrupted speech completion. Cancellation, another utterance or any edit invalidates
+  review; edited facts require a persisted change summary. A dedicated SQLite migration
+  records proposal hash, reviewed script/content, review channel, guardian state and change
+  summary, and project export v8 restores that immutable audit with the handoff snapshot.
+  Five Runtime fixtures plus Swift model/voice-flow tests cover inheritance, markers,
+  stale/duplicate review, child guardian protection, edited readback, cancellation and
+  ambiguous speech. All 47 Runtime tests, Swift tests, full app build, bundled-Runtime
+  smoke, ZIP and downloadable artifact passed.
+- Still required before `PASS`: broader semantic extraction from unstructured legacy
+  scripts, unresolved-hook closure rules, completed-episode immutability after library
+  edits at the final rendered-output layer, and human/accessibility QA of the native
+  workflow on the same release candidate.
 
 ## SOP-07 · Productized Qingshan execution adapter — IN_PROGRESS
 
