@@ -78,3 +78,19 @@ come from a format-specific brief:
 
 The user reviews the plain-language brief before any professional production route
 is selected.
+
+## Documentary evidence gate
+
+`GET /v1/projects/{project_id}/documentary-readiness` builds a local, read-only
+readiness report from managed assets and their memory cards. Imported material is
+reported as `unlinked`, `draft`, or `confirmed`. A confirmed card only becomes
+narrative authority when the user also allowed `story_development` or
+`visual_generation`; `reference_only` remains useful for follow-up questions but
+cannot silently become a factual claim in a chapter.
+
+One confirmed, citable source is enough to begin discussing chapter structure. It is
+not enough to enter production. The current report always keeps documentary production
+closed while the route is `unassigned`, lists the missing evidence or review steps, and
+requires a reconstruction label for archive-plus-reenactment projects. This distinction
+prevents an early chapter outline from being mistaken for an authenticated, releasable
+documentary.

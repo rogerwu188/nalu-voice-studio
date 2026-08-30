@@ -26,6 +26,7 @@ from .models import (
     ContinuityPreflightResult,
     ContinuitySnapshot,
     ContinuitySnapshotCreate,
+    DocumentaryReadinessReport,
     Episode,
     EpisodeCreate,
     EpisodeEvent,
@@ -147,13 +148,16 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
     def create_memory_card(project_id: str, request: MemoryCardCreate) -> MemoryCard:
         return repository.create_memory_card(project_id, request)
 
-    @app.get(
-        "/v1/projects/{project_id}/memory-cards", response_model=list[MemoryCard]
-    )
-    def list_memory_cards(
-        project_id: str, confirmed_only: bool = False
-    ) -> list[MemoryCard]:
+    @app.get("/v1/projects/{project_id}/memory-cards", response_model=list[MemoryCard])
+    def list_memory_cards(project_id: str, confirmed_only: bool = False) -> list[MemoryCard]:
         return repository.list_memory_cards(project_id, confirmed_only)
+
+    @app.get(
+        "/v1/projects/{project_id}/documentary-readiness",
+        response_model=DocumentaryReadinessReport,
+    )
+    def documentary_readiness(project_id: str) -> DocumentaryReadinessReport:
+        return repository.documentary_readiness(project_id)
 
     @app.patch("/v1/memory-cards/{memory_id}", response_model=MemoryCard)
     def update_memory_card(memory_id: str, request: MemoryCardUpdate) -> MemoryCard:
@@ -166,12 +170,8 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
     def list_memory_card_revisions(memory_id: str) -> list[MemoryCardRevision]:
         return repository.list_memory_card_revisions(memory_id)
 
-    @app.post(
-        "/v1/memory-cards/{memory_id}/confirm", response_model=MemoryCard
-    )
-    def confirm_memory_card(
-        memory_id: str, request: MemoryCardConfirmation
-    ) -> MemoryCard:
+    @app.post("/v1/memory-cards/{memory_id}/confirm", response_model=MemoryCard)
+    def confirm_memory_card(memory_id: str, request: MemoryCardConfirmation) -> MemoryCard:
         return repository.confirm_memory_card(memory_id, request)
 
     @app.get(
@@ -222,12 +222,8 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
     def project_deletion_preview(project_id: str) -> ProjectDeletionPreview:
         return repository.project_deletion_preview(project_id)
 
-    @app.delete(
-        "/v1/projects/{project_id}", response_model=ProjectDeletionResult
-    )
-    def delete_project(
-        project_id: str, request: ProjectDeletionRequest
-    ) -> ProjectDeletionResult:
+    @app.delete("/v1/projects/{project_id}", response_model=ProjectDeletionResult)
+    def delete_project(project_id: str, request: ProjectDeletionRequest) -> ProjectDeletionResult:
         return privacy_service.delete_project(project_id, request)
 
     @app.post("/v1/projects/{project_id}/seasons", response_model=Season, status_code=201)
@@ -260,9 +256,7 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
         season = repository.get_season(season_id)
         project = repository.get_project(season.project_id)
         if project.audience_mode == "child" and not request.guardian_approval:
-            raise HTTPException(
-                status_code=409, detail="child projects require guardian approval"
-            )
+            raise HTTPException(status_code=409, detail="child projects require guardian approval")
         return repository.approve_season_plan(season_id, request)
 
     @app.get(
@@ -305,33 +299,23 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
         return production.season_progress(season_id)
 
     @app.post("/v1/episodes/{episode_id}/transition", response_model=Episode)
-    def transition_episode(
-        episode_id: str, request: EpisodeTransitionRequest
-    ) -> Episode:
+    def transition_episode(episode_id: str, request: EpisodeTransitionRequest) -> Episode:
         return repository.transition_episode(episode_id, request)
 
     @app.get("/v1/episodes/{episode_id}/events", response_model=list[EpisodeEvent])
     def list_episode_events(episode_id: str) -> list[EpisodeEvent]:
         return repository.list_episode_events(episode_id)
 
-    @app.post(
-        "/v1/episodes/{episode_id}/scripts", response_model=ScriptRevision, status_code=201
-    )
+    @app.post("/v1/episodes/{episode_id}/scripts", response_model=ScriptRevision, status_code=201)
     def create_script(episode_id: str, request: ScriptRevisionCreate) -> ScriptRevision:
         return repository.create_script(episode_id, request)
 
-    @app.get(
-        "/v1/episodes/{episode_id}/scripts", response_model=list[ScriptRevision]
-    )
+    @app.get("/v1/episodes/{episode_id}/scripts", response_model=list[ScriptRevision])
     def list_scripts(episode_id: str) -> list[ScriptRevision]:
         return repository.list_scripts(episode_id)
 
-    @app.post(
-        "/v1/episodes/{episode_id}/scripts/{revision}/approve", response_model=ScriptRevision
-    )
-    def approve_script(
-        episode_id: str, revision: int, approval: ApprovalCreate
-    ) -> ScriptRevision:
+    @app.post("/v1/episodes/{episode_id}/scripts/{revision}/approve", response_model=ScriptRevision)
+    def approve_script(episode_id: str, revision: int, approval: ApprovalCreate) -> ScriptRevision:
         episode = repository.get_episode(episode_id)
         season = repository.get_season(episode.season_id)
         project = repository.get_project(season.project_id)
@@ -348,9 +332,7 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
     ) -> ScriptRevision:
         return repository.revoke_script_approval(episode_id, revision, request)
 
-    @app.get(
-        "/v1/episodes/{episode_id}/script-approvals", response_model=list[ApprovalRecord]
-    )
+    @app.get("/v1/episodes/{episode_id}/script-approvals", response_model=list[ApprovalRecord])
     def list_script_approvals(episode_id: str) -> list[ApprovalRecord]:
         return repository.list_script_approvals(episode_id)
 
@@ -358,9 +340,7 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
     def create_asset(project_id: str, request: AssetCreate) -> Asset:
         return asset_service.register_existing(project_id, request)
 
-    @app.post(
-        "/v1/projects/{project_id}/asset-imports", response_model=Asset, status_code=201
-    )
+    @app.post("/v1/projects/{project_id}/asset-imports", response_model=Asset, status_code=201)
     def import_asset(
         project_id: str,
         filename: Annotated[str, Query(min_length=1, max_length=255)],
@@ -419,9 +399,7 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
     ) -> AssetConsentRecord:
         return repository.revoke_asset_consent(asset_id, request)
 
-    @app.get(
-        "/v1/assets/{asset_id}/dependencies", response_model=AssetDependencyReport
-    )
+    @app.get("/v1/assets/{asset_id}/dependencies", response_model=AssetDependencyReport)
     def asset_dependencies(asset_id: str) -> AssetDependencyReport:
         return repository.asset_dependency_report(asset_id)
 
@@ -435,9 +413,7 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
         response_model=LibraryEntity,
         status_code=201,
     )
-    def create_library_entity(
-        project_id: str, request: LibraryEntityCreate
-    ) -> LibraryEntity:
+    def create_library_entity(project_id: str, request: LibraryEntityCreate) -> LibraryEntity:
         return repository.create_library_entity(project_id, request)
 
     @app.get(
@@ -490,9 +466,7 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
         response_model=ContinuitySnapshot,
         status_code=201,
     )
-    def create_continuity(
-        episode_id: str, request: ContinuitySnapshotCreate
-    ) -> ContinuitySnapshot:
+    def create_continuity(episode_id: str, request: ContinuitySnapshotCreate) -> ContinuitySnapshot:
         return repository.create_continuity_snapshot(episode_id, request)
 
     @app.get(
@@ -522,9 +496,7 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
     ) -> ContinuityPreflightResult:
         episode = repository.get_episode(episode_id)
         season = repository.get_season(episode.season_id)
-        inherited = repository.latest_continuity(
-            season.id, episode.episode_number
-        )
+        inherited = repository.latest_continuity(season.id, episode.episode_number)
         return audit_continuity(inherited, request)
 
     @app.post(

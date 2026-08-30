@@ -19,6 +19,8 @@ from .models import (
     AssetDependencyReport,
     ContinuitySnapshot,
     ContinuitySnapshotCreate,
+    DocumentaryEvidenceItem,
+    DocumentaryReadinessReport,
     Episode,
     EpisodeCreate,
     EpisodeEvent,
@@ -210,7 +212,9 @@ class Repository:
         project_id = request.project_id or new_id("prj")
         season_id, now = new_id("sea"), utc_now()
         episode_count = request.project.planned_episode_count
-        titles = request.episode_titles or [f"第{number}集" for number in range(1, episode_count + 1)]
+        titles = request.episode_titles or [
+            f"第{number}集" for number in range(1, episode_count + 1)
+        ]
         if len(titles) != episode_count or any(not title.strip() for title in titles):
             raise ConflictError("episode titles must match planned episode count")
         episode_ids: list[str] = []
@@ -368,7 +372,9 @@ class Repository:
 
     def get_project(self, project_id: str) -> Project:
         with self.db.connect() as connection:
-            row = connection.execute("SELECT * FROM projects WHERE id = ?", (project_id,)).fetchone()
+            row = connection.execute(
+                "SELECT * FROM projects WHERE id = ?", (project_id,)
+            ).fetchone()
         if row is None:
             raise NotFoundError("project not found")
         data = dict(row)
@@ -384,9 +390,7 @@ class Repository:
             )
         return self.get_project(project_id)
 
-    def archive_project(
-        self, project_id: str, request: ProjectArchiveRequest
-    ) -> Project:
+    def archive_project(self, project_id: str, request: ProjectArchiveRequest) -> Project:
         self.get_project(project_id)
         now = utc_now()
         with self.db.connect() as connection:
@@ -499,78 +503,194 @@ class Repository:
             raise ConflictError("project export digest mismatch")
         allowed_columns = {
             "projects": (
-                "id", "title", "description", "audience_mode", "visual_style",
-                "aspect_ratio", "planned_episode_count", "target_episode_seconds",
-                "project_bible_json", "created_at", "updated_at", "archived_at",
-                "creative_format", "production_pipeline",
+                "id",
+                "title",
+                "description",
+                "audience_mode",
+                "visual_style",
+                "aspect_ratio",
+                "planned_episode_count",
+                "target_episode_seconds",
+                "project_bible_json",
+                "created_at",
+                "updated_at",
+                "archived_at",
+                "creative_format",
+                "production_pipeline",
             ),
             "seasons": (
-                "id", "project_id", "title", "season_number", "planned_episode_count",
-                "season_arc_json", "created_at", "updated_at",
+                "id",
+                "project_id",
+                "title",
+                "season_number",
+                "planned_episode_count",
+                "season_arc_json",
+                "created_at",
+                "updated_at",
             ),
             "episodes": (
-                "id", "season_id", "title", "episode_number", "logline", "outline_json",
-                "target_seconds", "status", "approved_script_revision", "created_at", "updated_at",
+                "id",
+                "season_id",
+                "title",
+                "episode_number",
+                "logline",
+                "outline_json",
+                "target_seconds",
+                "status",
+                "approved_script_revision",
+                "created_at",
+                "updated_at",
             ),
             "season_plan_revisions": (
-                "season_id", "revision", "plan_json", "source_transcript", "created_at",
+                "season_id",
+                "revision",
+                "plan_json",
+                "source_transcript",
+                "created_at",
             ),
             "season_plan_approval_records": (
-                "id", "season_id", "plan_revision", "approved_by",
-                "spoken_confirmation", "review_channel", "guardian_approval", "created_at",
+                "id",
+                "season_id",
+                "plan_revision",
+                "approved_by",
+                "spoken_confirmation",
+                "review_channel",
+                "guardian_approval",
+                "created_at",
             ),
             "script_revisions": (
-                "episode_id", "revision", "content", "summary_for_voice_review",
-                "source_transcript", "narrative_metadata_json", "approved_at", "created_at",
+                "episode_id",
+                "revision",
+                "content",
+                "summary_for_voice_review",
+                "source_transcript",
+                "narrative_metadata_json",
+                "approved_at",
+                "created_at",
             ),
             "assets": (
-                "id", "project_id", "season_id", "episode_id", "kind", "name", "local_uri",
-                "subject_name", "metadata_json", "consent_granted", "consent_scope",
-                "guardian_approved", "created_at",
+                "id",
+                "project_id",
+                "season_id",
+                "episode_id",
+                "kind",
+                "name",
+                "local_uri",
+                "subject_name",
+                "metadata_json",
+                "consent_granted",
+                "consent_scope",
+                "guardian_approved",
+                "created_at",
             ),
             "asset_consent_records": (
-                "id", "asset_id", "action_type", "consent_scope", "recorded_by",
-                "statement", "guardian_approved", "created_at",
+                "id",
+                "asset_id",
+                "action_type",
+                "consent_scope",
+                "recorded_by",
+                "statement",
+                "guardian_approved",
+                "created_at",
             ),
             "continuity_snapshots": (
-                "id", "episode_id", "source_episode_id", "state_json",
-                "unresolved_hooks_json", "created_at",
+                "id",
+                "episode_id",
+                "source_episode_id",
+                "state_json",
+                "unresolved_hooks_json",
+                "created_at",
             ),
             "approval_records": (
-                "id", "action_type", "project_id", "episode_id", "script_revision",
-                "approved_by", "spoken_confirmation", "guardian_approval", "created_at",
+                "id",
+                "action_type",
+                "project_id",
+                "episode_id",
+                "script_revision",
+                "approved_by",
+                "spoken_confirmation",
+                "guardian_approval",
+                "created_at",
             ),
             "feedback_items": (
-                "id", "project_id", "category", "message", "source", "screen",
-                "share_authorized", "guardian_approval", "status",
-                "redaction_applied", "created_at",
+                "id",
+                "project_id",
+                "category",
+                "message",
+                "source",
+                "screen",
+                "share_authorized",
+                "guardian_approval",
+                "status",
+                "redaction_applied",
+                "created_at",
             ),
             "memory_cards": (
-                "id", "project_id", "asset_id", "title", "description", "ocr_text",
-                "spoken_context", "approximate_date", "place", "people_json",
-                "story_relevance", "allowed_use", "current_revision",
-                "confirmation_status", "confirmed_by", "created_at", "updated_at",
+                "id",
+                "project_id",
+                "asset_id",
+                "title",
+                "description",
+                "ocr_text",
+                "spoken_context",
+                "approximate_date",
+                "place",
+                "people_json",
+                "story_relevance",
+                "allowed_use",
+                "current_revision",
+                "confirmation_status",
+                "confirmed_by",
+                "created_at",
+                "updated_at",
             ),
             "memory_card_revisions": (
-                "memory_id", "revision", "content_json", "source_channel",
-                "change_summary", "created_at",
+                "memory_id",
+                "revision",
+                "content_json",
+                "source_channel",
+                "change_summary",
+                "created_at",
             ),
             "memory_card_confirmation_records": (
-                "id", "memory_id", "reviewed_revision", "confirmed_by",
-                "spoken_confirmation", "review_channel", "created_at",
+                "id",
+                "memory_id",
+                "reviewed_revision",
+                "confirmed_by",
+                "spoken_confirmation",
+                "review_channel",
+                "created_at",
             ),
             "library_entities": (
-                "id", "project_id", "kind", "stable_name", "current_revision",
-                "confirmed_revision", "created_at", "updated_at",
+                "id",
+                "project_id",
+                "kind",
+                "stable_name",
+                "current_revision",
+                "confirmed_revision",
+                "created_at",
+                "updated_at",
             ),
             "library_entity_revisions": (
-                "entity_id", "revision", "name", "description", "attributes_json",
-                "source_asset_ids_json", "source_memory_ids_json", "source_channel",
-                "change_summary", "created_at",
+                "entity_id",
+                "revision",
+                "name",
+                "description",
+                "attributes_json",
+                "source_asset_ids_json",
+                "source_memory_ids_json",
+                "source_channel",
+                "change_summary",
+                "created_at",
             ),
             "library_entity_confirmation_records": (
-                "id", "entity_id", "reviewed_revision", "confirmed_by",
-                "spoken_confirmation", "review_channel", "created_at",
+                "id",
+                "entity_id",
+                "reviewed_revision",
+                "confirmed_by",
+                "spoken_confirmation",
+                "review_channel",
+                "created_at",
             ),
         }
         if backup.schema_version in {
@@ -650,8 +770,7 @@ class Repository:
         ):
             raise ConflictError("project export contains plan approval from another project")
         if any(
-            row.get("episode_id") not in episode_ids
-            for row in backup.payload["script_revisions"]
+            row.get("episode_id") not in episode_ids for row in backup.payload["script_revisions"]
         ):
             raise ConflictError("project export contains a script from another project")
         if any(
@@ -682,8 +801,7 @@ class Repository:
         ):
             raise ConflictError("project export contains approval from another project")
         if any(
-            row.get("project_id") != project_id
-            for row in backup.payload.get("feedback_items", [])
+            row.get("project_id") != project_id for row in backup.payload.get("feedback_items", [])
         ):
             raise ConflictError("project export contains feedback from another project")
         if any(
@@ -701,7 +819,9 @@ class Repository:
             row.get("memory_id") not in memory_ids
             for row in backup.payload.get("memory_card_confirmation_records", [])
         ):
-            raise ConflictError("project export contains a memory confirmation from another project")
+            raise ConflictError(
+                "project export contains a memory confirmation from another project"
+            )
         library_ids = {row.get("id") for row in backup.payload.get("library_entities", [])}
         if any(
             row.get("project_id") != project_id
@@ -719,11 +839,12 @@ class Repository:
             raise ConflictError("project export contains a library revision from another project")
         if any(
             row.get("entity_id") not in library_ids
-            or (row.get("entity_id"), row.get("reviewed_revision"))
-            not in library_revision_keys
+            or (row.get("entity_id"), row.get("reviewed_revision")) not in library_revision_keys
             for row in backup.payload.get("library_entity_confirmation_records", [])
         ):
-            raise ConflictError("project export contains a library confirmation from another project")
+            raise ConflictError(
+                "project export contains a library confirmation from another project"
+            )
         try:
             with self.db.connect() as connection:
                 connection.execute("BEGIN IMMEDIATE")
@@ -765,9 +886,7 @@ class Repository:
                 and request.share_authorized
                 and not request.guardian_approval
             ):
-                raise ConflictError(
-                    "guardian approval is required before sharing child feedback"
-                )
+                raise ConflictError("guardian approval is required before sharing child feedback")
         message, redaction_applied = self._redact_feedback_message(request.message)
         feedback_id, now = new_id("fbk"), utc_now()
         status = "ready_for_review" if request.share_authorized else "local_only"
@@ -815,9 +934,7 @@ class Repository:
             ids = [row["id"] for row in connection.execute(query, params)]
         return [self.get_feedback(feedback_id) for feedback_id in ids]
 
-    def create_memory_card(
-        self, project_id: str, request: MemoryCardCreate
-    ) -> MemoryCard:
+    def create_memory_card(self, project_id: str, request: MemoryCardCreate) -> MemoryCard:
         project = self.get_project(project_id)
         asset = self.get_asset(request.asset_id)
         if asset.project_id != project_id:
@@ -825,9 +942,11 @@ class Repository:
         if request.allowed_use == "visual_generation":
             if asset.kind in {"character_image", "voice_reference"} and not asset.consent_granted:
                 raise ConflictError("visual generation requires active biometric consent")
-            if project.audience_mode == "child" and asset.kind in {
-                "character_image", "voice_reference"
-            } and not asset.guardian_approved:
+            if (
+                project.audience_mode == "child"
+                and asset.kind in {"character_image", "voice_reference"}
+                and not asset.guardian_approved
+            ):
                 raise ConflictError("child visual generation requires guardian approval")
         memory_id, now = new_id("mem"), utc_now()
         try:
@@ -883,9 +1002,7 @@ class Repository:
         data["people"] = decode(data.pop("people_json"))
         return MemoryCard.model_validate(data)
 
-    def list_memory_cards(
-        self, project_id: str, confirmed_only: bool = False
-    ) -> list[MemoryCard]:
+    def list_memory_cards(self, project_id: str, confirmed_only: bool = False) -> list[MemoryCard]:
         self.get_project(project_id)
         query = "SELECT id FROM memory_cards WHERE project_id = ?"
         params: tuple[str, ...] = (project_id,)
@@ -896,18 +1013,18 @@ class Repository:
             ids = [row["id"] for row in connection.execute(query, params)]
         return [self.get_memory_card(memory_id) for memory_id in ids]
 
-    def update_memory_card(
-        self, memory_id: str, request: MemoryCardUpdate
-    ) -> MemoryCard:
+    def update_memory_card(self, memory_id: str, request: MemoryCardUpdate) -> MemoryCard:
         current = self.get_memory_card(memory_id)
         if request.allowed_use == "visual_generation":
             project = self.get_project(current.project_id)
             asset = self.get_asset(current.asset_id)
             if asset.kind in {"character_image", "voice_reference"} and not asset.consent_granted:
                 raise ConflictError("visual generation requires active biometric consent")
-            if project.audience_mode == "child" and asset.kind in {
-                "character_image", "voice_reference"
-            } and not asset.guardian_approved:
+            if (
+                project.audience_mode == "child"
+                and asset.kind in {"character_image", "voice_reference"}
+                and not asset.guardian_approved
+            ):
                 raise ConflictError("child visual generation requires guardian approval")
         updates = request.model_dump(
             exclude={"source_channel", "change_summary"}, exclude_none=True
@@ -915,8 +1032,16 @@ class Repository:
         content = current.model_dump(
             mode="json",
             include={
-                "asset_id", "title", "description", "ocr_text", "spoken_context",
-                "approximate_date", "place", "people", "story_relevance", "allowed_use",
+                "asset_id",
+                "title",
+                "description",
+                "ocr_text",
+                "spoken_context",
+                "approximate_date",
+                "place",
+                "people",
+                "story_relevance",
+                "allowed_use",
             },
         )
         content.update(updates)
@@ -971,15 +1096,11 @@ class Repository:
                 (memory_id,),
             ).fetchall()
         return [
-            MemoryCardRevision.model_validate(
-                {**dict(row), "content": decode(row["content_json"])}
-            )
+            MemoryCardRevision.model_validate({**dict(row), "content": decode(row["content_json"])})
             for row in rows
         ]
 
-    def confirm_memory_card(
-        self, memory_id: str, request: MemoryCardConfirmation
-    ) -> MemoryCard:
+    def confirm_memory_card(self, memory_id: str, request: MemoryCardConfirmation) -> MemoryCard:
         card = self.get_memory_card(memory_id)
         if request.reviewed_revision != card.current_revision:
             raise ConflictError("memory card changed after it was reviewed")
@@ -1013,9 +1134,7 @@ class Repository:
             )
         return self.get_memory_card(memory_id)
 
-    def list_memory_card_confirmations(
-        self, memory_id: str
-    ) -> list[MemoryCardConfirmationRecord]:
+    def list_memory_card_confirmations(self, memory_id: str) -> list[MemoryCardConfirmationRecord]:
         self.get_memory_card(memory_id)
         with self.db.connect() as connection:
             rows = connection.execute(
@@ -1024,6 +1143,84 @@ class Repository:
                 (memory_id,),
             ).fetchall()
         return [MemoryCardConfirmationRecord.model_validate(dict(row)) for row in rows]
+
+    def documentary_readiness(self, project_id: str) -> DocumentaryReadinessReport:
+        project = self.get_project(project_id)
+        if project.creative_format != "documentary_series":
+            raise ConflictError("documentary readiness is only available for documentary projects")
+
+        mode = str(project.project_bible.get("documentary_mode", "archival_voiceover"))
+        if mode not in {"archival_voiceover", "archival_with_reenactment"}:
+            mode = "archival_voiceover"
+        cards_by_asset = {card.asset_id: card for card in self.list_memory_cards(project_id)}
+        evidence: list[DocumentaryEvidenceItem] = []
+        confirmed_authority = 0
+        draft_or_unlinked = 0
+        for asset in self.list_assets(project_id):
+            card = cards_by_asset.get(asset.id)
+            scope = "episode" if asset.episode_id else "season" if asset.season_id else "project"
+            confirmation_status = card.confirmation_status if card else "unlinked"
+            narrative_authority = bool(
+                card
+                and card.confirmation_status == "confirmed"
+                and card.allowed_use in {"story_development", "visual_generation"}
+            )
+            if narrative_authority:
+                confirmed_authority += 1
+            if confirmation_status != "confirmed":
+                draft_or_unlinked += 1
+            evidence.append(
+                DocumentaryEvidenceItem(
+                    asset_id=asset.id,
+                    memory_id=card.id if card else None,
+                    name=asset.name,
+                    kind=asset.kind,
+                    scope=scope,
+                    confirmation_status=confirmation_status,
+                    current_revision=card.current_revision if card else None,
+                    allowed_use=card.allowed_use if card else None,
+                    narrative_authority=narrative_authority,
+                    visual_generation_authorized=bool(
+                        card
+                        and card.confirmation_status == "confirmed"
+                        and card.allowed_use == "visual_generation"
+                    ),
+                )
+            )
+
+        blockers: list[str] = []
+        if not evidence:
+            blockers.append("no documentary source material has been imported")
+        if confirmed_authority == 0:
+            blockers.append("at least one confirmed story-development source is required")
+        if draft_or_unlinked:
+            blockers.append("draft or unlinked sources must be reviewed before they can be cited")
+        if project.production_pipeline == "unassigned":
+            blockers.append("no documentary adapter has passed authenticity and release QA")
+        else:
+            blockers.append("the selected documentary adapter has not been capability-verified")
+
+        next_questions: list[str] = []
+        if not evidence:
+            next_questions.append("请上传一张老照片、手稿、录音或家庭视频。")
+        if draft_or_unlinked:
+            next_questions.append("我们逐份确认这些资料里的人、时间、地点和用途，可以吗？")
+        if confirmed_authority:
+            next_questions.append("您想按时间顺序讲，还是按人生主题分章？")
+        next_questions.append("旁白由您自己讲、家人讲，还是使用合成声音？")
+
+        return DocumentaryReadinessReport(
+            project_id=project_id,
+            documentary_mode=mode,
+            evidence=evidence,
+            confirmed_narrative_source_count=confirmed_authority,
+            draft_or_unlinked_source_count=draft_or_unlinked,
+            can_plan_chapters=confirmed_authority > 0,
+            can_enter_production=False,
+            generated_reenactment_label_required=mode == "archival_with_reenactment",
+            blockers=blockers,
+            next_questions=next_questions,
+        )
 
     def project_deletion_preview(self, project_id: str) -> ProjectDeletionPreview:
         project = self.get_project(project_id)
@@ -1063,9 +1260,7 @@ class Repository:
             raise ConflictError("immutable production snapshot deletion was not confirmed")
         with self.db.connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
-            connection.execute(
-                "DELETE FROM production_runs WHERE project_id = ?", (project_id,)
-            )
+            connection.execute("DELETE FROM production_runs WHERE project_id = ?", (project_id,))
             connection.execute("DELETE FROM projects WHERE id = ?", (project_id,))
         return preview.asset_count, preview.production_run_count
 
@@ -1123,9 +1318,7 @@ class Repository:
     def _snapshot_season_plan(
         self, connection, season_id: str, source_transcript: str
     ) -> SeasonPlanRevision:
-        season = connection.execute(
-            "SELECT * FROM seasons WHERE id = ?", (season_id,)
-        ).fetchone()
+        season = connection.execute("SELECT * FROM seasons WHERE id = ?", (season_id,)).fetchone()
         if season is None:
             raise NotFoundError("season not found")
         episodes = [
@@ -1250,7 +1443,8 @@ class Repository:
             ids = [
                 row["id"]
                 for row in connection.execute(
-                    "SELECT id FROM seasons WHERE project_id = ? ORDER BY season_number", (project_id,)
+                    "SELECT id FROM seasons WHERE project_id = ? ORDER BY season_number",
+                    (project_id,),
                 )
             ]
         return [self.get_season(season_id) for season_id in ids]
@@ -1309,17 +1503,15 @@ class Repository:
                 raise NotFoundError("episode not found")
             if EpisodeStatus(current["status"]) not in EDITABLE_EPISODE_PLAN_STATUSES:
                 raise ConflictError("approved or production-stage episode plans are immutable")
-            connection.execute(
-                f"UPDATE episodes SET {', '.join(updates)} WHERE id = ?", values
-            )
-            self._snapshot_season_plan(
-                connection, current["season_id"], request.source_transcript
-            )
+            connection.execute(f"UPDATE episodes SET {', '.join(updates)} WHERE id = ?", values)
+            self._snapshot_season_plan(connection, current["season_id"], request.source_transcript)
         return self.get_episode(episode_id)
 
     def get_episode(self, episode_id: str) -> Episode:
         with self.db.connect() as connection:
-            row = connection.execute("SELECT * FROM episodes WHERE id = ?", (episode_id,)).fetchone()
+            row = connection.execute(
+                "SELECT * FROM episodes WHERE id = ?", (episode_id,)
+            ).fetchone()
         if row is None:
             raise NotFoundError("episode not found")
         data = dict(row)
@@ -1332,7 +1524,8 @@ class Repository:
             ids = [
                 row["id"]
                 for row in connection.execute(
-                    "SELECT id FROM episodes WHERE season_id = ? ORDER BY episode_number", (season_id,)
+                    "SELECT id FROM episodes WHERE season_id = ? ORDER BY episode_number",
+                    (season_id,),
                 )
             ]
         return [self.get_episode(episode_id) for episode_id in ids]
@@ -1365,9 +1558,7 @@ class Repository:
             ),
         )
 
-    def transition_episode(
-        self, episode_id: str, request: EpisodeTransitionRequest
-    ) -> Episode:
+    def transition_episode(self, episode_id: str, request: EpisodeTransitionRequest) -> Episode:
         episode = self.get_episode(episode_id)
         if request.target_status not in EPISODE_TRANSITIONS[episode.status]:
             raise ConflictError(
@@ -1410,8 +1601,13 @@ class Repository:
 
     def create_script(self, episode_id: str, request: ScriptRevisionCreate) -> ScriptRevision:
         episode = self.get_episode(episode_id)
-        if EpisodeStatus.SCRIPT_REVIEW not in EPISODE_TRANSITIONS[episode.status] and episode.status != EpisodeStatus.SCRIPT_REVIEW:
-            raise ConflictError(f"cannot create a script revision while episode is {episode.status}")
+        if (
+            EpisodeStatus.SCRIPT_REVIEW not in EPISODE_TRANSITIONS[episode.status]
+            and episode.status != EpisodeStatus.SCRIPT_REVIEW
+        ):
+            raise ConflictError(
+                f"cannot create a script revision while episode is {episode.status}"
+            )
         now = utc_now()
         with self.db.connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
@@ -1732,9 +1928,7 @@ class Repository:
             ).fetchone()
             if current is None or not bool(current["consent_granted"]):
                 raise ConflictError("asset consent changed before revocation")
-            connection.execute(
-                "UPDATE assets SET consent_granted = 0 WHERE id = ?", (asset_id,)
-            )
+            connection.execute("UPDATE assets SET consent_granted = 0 WHERE id = ?", (asset_id,))
             connection.execute(
                 """INSERT INTO asset_consent_records
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
@@ -1866,9 +2060,7 @@ class Repository:
             if memory.allowed_use == "reference_only":
                 raise ConflictError("reference-only memory cannot become library authority")
 
-    def create_library_entity(
-        self, project_id: str, request: LibraryEntityCreate
-    ) -> LibraryEntity:
+    def create_library_entity(self, project_id: str, request: LibraryEntityCreate) -> LibraryEntity:
         self.get_project(project_id)
         self._validate_library_sources(project_id, request)
         entity_id, now = new_id("lib"), utc_now()
@@ -1897,7 +2089,9 @@ class Repository:
                 )
         except Exception as exc:
             if "UNIQUE constraint failed" in str(exc):
-                raise ConflictError("a library entity with this kind and name already exists") from exc
+                raise ConflictError(
+                    "a library entity with this kind and name already exists"
+                ) from exc
             raise
         return self.get_library_entity(entity_id)
 
@@ -1986,7 +2180,11 @@ class Repository:
         candidate = self.get_library_revision(entity_id, request.reviewed_revision)
         candidate_names = self._library_resolution_names(entity.stable_name, candidate)
         for other in self.list_library_entities(entity.project_id):
-            if other.id == entity_id or other.kind != entity.kind or other.confirmed_revision is None:
+            if (
+                other.id == entity_id
+                or other.kind != entity.kind
+                or other.confirmed_revision is None
+            ):
                 continue
             other_revision = self.get_library_revision(other.id, other.confirmed_revision)
             overlap = candidate_names & self._library_resolution_names(
@@ -2123,7 +2321,9 @@ class Repository:
 
     def get_run(self, run_id: str) -> ProductionRun:
         with self.db.connect() as connection:
-            row = connection.execute("SELECT * FROM production_runs WHERE id = ?", (run_id,)).fetchone()
+            row = connection.execute(
+                "SELECT * FROM production_runs WHERE id = ?", (run_id,)
+            ).fetchone()
         if row is None:
             raise NotFoundError("production run not found")
         data = dict(row)
@@ -2177,7 +2377,9 @@ class Repository:
 
     def get_run_event(self, event_id: str) -> RunEvent:
         with self.db.connect() as connection:
-            row = connection.execute("SELECT * FROM run_events WHERE id = ?", (event_id,)).fetchone()
+            row = connection.execute(
+                "SELECT * FROM run_events WHERE id = ?", (event_id,)
+            ).fetchone()
         if row is None:
             raise NotFoundError("run event not found")
         data = dict(row)

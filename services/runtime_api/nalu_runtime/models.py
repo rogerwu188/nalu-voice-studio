@@ -87,9 +87,7 @@ class ProjectCreate(BaseModel):
     target_episode_seconds: int = Field(default=150, ge=15, le=3600)
     project_bible: dict[str, Any] = Field(default_factory=dict)
     creative_format: CreativeFormat = CreativeFormat.SHORT_DRAMA_SERIES
-    production_pipeline: str = Field(
-        default="qingshan-short-drama", min_length=1, max_length=120
-    )
+    production_pipeline: str = Field(default="qingshan-short-drama", min_length=1, max_length=120)
 
     @model_validator(mode="after")
     def fail_closed_for_documentary_route(self) -> ProjectCreate:
@@ -128,9 +126,7 @@ class ProjectExport(BaseModel):
         "nalu.project-export/v5",
         "nalu.project-export/v6",
         "nalu.project-export/v7",
-    ] = (
-        "nalu.project-export/v7"
-    )
+    ] = "nalu.project-export/v7"
     exported_at: str
     payload: dict[str, Any]
     payload_sha256: str
@@ -197,8 +193,7 @@ class EpisodePlanUpdate(BaseModel):
     @model_validator(mode="after")
     def require_change(self) -> EpisodePlanUpdate:
         if all(
-            value is None
-            for value in (self.title, self.logline, self.outline, self.target_seconds)
+            value is None for value in (self.title, self.logline, self.outline, self.target_seconds)
         ):
             raise ValueError("episode plan update requires at least one changed field")
         return self
@@ -308,9 +303,9 @@ class MemoryCardCreate(BaseModel):
     place: str = Field(default="", max_length=300)
     people: list[MemoryPerson] = Field(default_factory=list, max_length=50)
     story_relevance: str = Field(default="", max_length=5000)
-    allowed_use: Literal[
-        "reference_only", "story_development", "visual_generation"
-    ] = "reference_only"
+    allowed_use: Literal["reference_only", "story_development", "visual_generation"] = (
+        "reference_only"
+    )
 
 
 class MemoryCard(MemoryCardCreate):
@@ -345,9 +340,7 @@ class MemoryCardUpdate(BaseModel):
     place: str | None = Field(default=None, max_length=300)
     people: list[MemoryPerson] | None = Field(default=None, max_length=50)
     story_relevance: str | None = Field(default=None, max_length=5000)
-    allowed_use: Literal[
-        "reference_only", "story_development", "visual_generation"
-    ] | None = None
+    allowed_use: Literal["reference_only", "story_development", "visual_generation"] | None = None
     source_channel: Literal["voice", "visual"]
     change_summary: str = Field(min_length=1, max_length=1000)
 
@@ -376,6 +369,32 @@ class MemoryCardRevision(BaseModel):
     source_channel: Literal["voice", "visual", "system"]
     change_summary: str
     created_at: str
+
+
+class DocumentaryEvidenceItem(BaseModel):
+    asset_id: str
+    memory_id: str | None = None
+    name: str
+    kind: AssetKind
+    scope: Literal["project", "season", "episode"]
+    confirmation_status: Literal["unlinked", "draft", "confirmed"]
+    current_revision: int | None = None
+    allowed_use: Literal["reference_only", "story_development", "visual_generation"] | None = None
+    narrative_authority: bool = False
+    visual_generation_authorized: bool = False
+
+
+class DocumentaryReadinessReport(BaseModel):
+    project_id: str
+    documentary_mode: Literal["archival_voiceover", "archival_with_reenactment"]
+    evidence: list[DocumentaryEvidenceItem] = Field(default_factory=list)
+    confirmed_narrative_source_count: int = 0
+    draft_or_unlinked_source_count: int = 0
+    can_plan_chapters: bool = False
+    can_enter_production: bool = False
+    generated_reenactment_label_required: bool = False
+    blockers: list[str] = Field(default_factory=list)
+    next_questions: list[str] = Field(default_factory=list)
 
 
 class ScriptRevisionCreate(BaseModel):
@@ -428,7 +447,6 @@ class AssetBase(BaseModel):
 
 
 class AssetCreate(AssetBase):
-
     @model_validator(mode="after")
     def require_biometric_consent(self) -> AssetCreate:
         if self.season_id is not None and self.episode_id is not None:
@@ -513,9 +531,7 @@ class ContinuityOverride(BaseModel):
     @model_validator(mode="after")
     def require_explicit_review(self) -> ContinuityOverride:
         cleaned_paths = [path.strip() for path in self.conflict_paths]
-        if any(not path for path in cleaned_paths) or len(set(cleaned_paths)) != len(
-            cleaned_paths
-        ):
+        if any(not path for path in cleaned_paths) or len(set(cleaned_paths)) != len(cleaned_paths):
             raise ValueError("continuity override paths must be non-empty and unique")
         confirmation = self.spoken_confirmation
         if not any(word in confirmation for word in ("我确认", "我同意")):

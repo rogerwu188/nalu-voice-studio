@@ -7,6 +7,9 @@ Versioning and the Keep a Changelog structure.
 
 ### Added
 
+- Documentary-series intent with archive-led and archive-plus-reenactment modes.
+- A fail-closed documentary evidence-readiness report that distinguishes imported,
+  draft, confirmed and narratively authorized family-memory sources.
 - Project → Season → Episode domain hierarchy.
 - Versioned script revisions and spoken approval endpoint.
 - Consent-aware project asset registry.

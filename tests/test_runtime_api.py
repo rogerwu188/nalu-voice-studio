@@ -103,10 +103,13 @@ def test_creative_format_routes_projects_without_faking_an_adapter(tmp_path: Pat
         f"/v1/episodes/{episode['id']}/scripts",
         json={"content": "广告脚本", "summary_for_voice_review": "主片摘要"},
     ).json()
-    assert api.post(
-        f"/v1/episodes/{episode['id']}/scripts/{script['revision']}/approve",
-        json={"approved_by": "user"},
-    ).status_code == 200
+    assert (
+        api.post(
+            f"/v1/episodes/{episode['id']}/scripts/{script['revision']}/approve",
+            json={"approved_by": "user"},
+        ).status_code
+        == 200
+    )
     blocked = api.post(
         f"/v1/episodes/{episode['id']}/production-runs",
         json={"dry_run": True},
@@ -114,6 +117,74 @@ def test_creative_format_routes_projects_without_faking_an_adapter(tmp_path: Pat
     )
     assert blocked.status_code == 409
     assert "no approved production adapter" in blocked.text
+
+
+def test_documentary_readiness_requires_confirmed_citable_sources(tmp_path: Path) -> None:
+    api = client(tmp_path)
+    project = api.post(
+        "/v1/projects",
+        json={
+            "title": "父亲的远行",
+            "creative_format": "documentary_series",
+            "production_pipeline": "unassigned",
+            "project_bible": {"documentary_mode": "archival_with_reenactment"},
+        },
+    ).json()
+    empty = api.get(f"/v1/projects/{project['id']}/documentary-readiness").json()
+    assert empty["can_plan_chapters"] is False
+    assert empty["can_enter_production"] is False
+    assert empty["generated_reenactment_label_required"] is True
+
+    asset = api.post(
+        f"/v1/projects/{project['id']}/asset-imports",
+        params={
+            "filename": "station-1982.jpg",
+            "kind": "source_document",
+            "name": "1982 年火车站老照片",
+        },
+        content=b"local archive bytes",
+        headers={"Content-Type": "image/jpeg"},
+    ).json()
+    unlinked = api.get(f"/v1/projects/{project['id']}/documentary-readiness").json()
+    assert unlinked["evidence"][0]["confirmation_status"] == "unlinked"
+    assert unlinked["draft_or_unlinked_source_count"] == 1
+
+    card = api.post(
+        f"/v1/projects/{project['id']}/memory-cards",
+        json={
+            "asset_id": asset["id"],
+            "title": "第一次离开家乡",
+            "description": "父亲在火车站准备南下工作。",
+            "approximate_date": "1982 年秋天",
+            "place": "杭州火车站",
+            "story_relevance": "作为第一章的真实开场。",
+            "allowed_use": "story_development",
+        },
+    ).json()
+    draft = api.get(f"/v1/projects/{project['id']}/documentary-readiness").json()
+    assert draft["evidence"][0]["confirmation_status"] == "draft"
+    assert draft["can_plan_chapters"] is False
+
+    confirmed = api.post(
+        f"/v1/memory-cards/{card['id']}/confirm",
+        json={
+            "confirmed_by": "本人",
+            "reviewed_revision": 1,
+            "review_channel": "voice_and_visual",
+            "spoken_confirmation": "我确认这份资料可以归档并用于故事规划",
+        },
+    )
+    assert confirmed.status_code == 200
+    ready = api.get(f"/v1/projects/{project['id']}/documentary-readiness").json()
+    assert ready["confirmed_narrative_source_count"] == 1
+    assert ready["evidence"][0]["narrative_authority"] is True
+    assert ready["can_plan_chapters"] is True
+    assert ready["can_enter_production"] is False
+    assert any("adapter" in blocker for blocker in ready["blockers"])
+
+    drama = api.post("/v1/projects", json={"title": "剧情短剧"}).json()
+    wrong_format = api.get(f"/v1/projects/{drama['id']}/documentary-readiness")
+    assert wrong_format.status_code == 409
 
 
 def test_feedback_is_local_redacted_and_child_sharing_fails_closed(tmp_path: Path) -> None:
@@ -214,10 +285,13 @@ def test_memory_card_requires_explicit_confirmation_and_keeps_evidence(tmp_path:
     assert created.status_code == 201
     assert created.json()["confirmation_status"] == "draft"
     assert created.json()["asset_id"] == asset["id"]
-    assert api.get(
-        f"/v1/projects/{project['id']}/memory-cards",
-        params={"confirmed_only": True},
-    ).json() == []
+    assert (
+        api.get(
+            f"/v1/projects/{project['id']}/memory-cards",
+            params={"confirmed_only": True},
+        ).json()
+        == []
+    )
 
     corrected = api.patch(
         f"/v1/memory-cards/{created.json()['id']}",
@@ -230,9 +304,7 @@ def test_memory_card_requires_explicit_confirmation_and_keeps_evidence(tmp_path:
     assert corrected.status_code == 200
     assert corrected.json()["current_revision"] == 2
     assert corrected.json()["confirmation_status"] == "draft"
-    revisions = api.get(
-        f"/v1/memory-cards/{created.json()['id']}/revisions"
-    ).json()
+    revisions = api.get(f"/v1/memory-cards/{created.json()['id']}/revisions").json()
     assert [revision["revision"] for revision in revisions] == [1, 2]
     assert revisions[1]["source_channel"] == "voice"
     assert revisions[1]["content"]["place"] == "杭州灵隐寺"
@@ -254,9 +326,7 @@ def test_memory_card_requires_explicit_confirmation_and_keeps_evidence(tmp_path:
     ).json()
     assert authoritative[0]["place"] == "杭州灵隐寺"
     assert authoritative[0]["people"][0]["relationship"] == "配偶"
-    confirmations = api.get(
-        f"/v1/memory-cards/{created.json()['id']}/confirmations"
-    ).json()
+    confirmations = api.get(f"/v1/memory-cards/{created.json()['id']}/confirmations").json()
     assert confirmations[0]["reviewed_revision"] == 2
     assert confirmations[0]["spoken_confirmation"] == "我确认这张记忆卡并归档"
 
@@ -451,14 +521,10 @@ def test_season_plan_revisions_approval_and_episode_immutability(tmp_path: Path)
         json={"approved_by": "user", "spoken_confirmation": "确认第一集"},
     )
     locked_before = api.get(f"/v1/episodes/{first['id']}").json()
-    rejected = api.patch(
-        f"/v1/episodes/{first['id']}", json={"title": "不允许覆盖的标题"}
-    )
+    rejected = api.patch(f"/v1/episodes/{first['id']}", json={"title": "不允许覆盖的标题"})
     assert rejected.status_code == 409
 
-    assert api.patch(
-        f"/v1/episodes/{third['id']}", json={"title": "未来的团圆"}
-    ).status_code == 200
+    assert api.patch(f"/v1/episodes/{third['id']}", json={"title": "未来的团圆"}).status_code == 200
     assert api.get(f"/v1/episodes/{first['id']}").json() == locked_before
     latest_season = api.get(f"/v1/projects/{plan['project']['id']}/seasons").json()[0]
     assert latest_season["plan_revision"] > latest_season["approved_plan_revision"]
@@ -539,9 +605,7 @@ def test_project_rename_archive_export_and_restore(tmp_path: Path) -> None:
         json={"project": {"title": "十集人生", "planned_episode_count": 10}},
     ).json()
     project_id = plan["project"]["id"]
-    renamed = source.patch(
-        f"/v1/projects/{project_id}", json={"title": "十集人生故事"}
-    )
+    renamed = source.patch(f"/v1/projects/{project_id}", json={"title": "十集人生故事"})
     assert renamed.status_code == 200
     assert renamed.json()["title"] == "十集人生故事"
 
@@ -656,12 +720,14 @@ def test_episode_lifecycle_and_restart_recovery(tmp_path: Path) -> None:
 
     restarted = TestClient(create_app(database_path, data_root))
     assert restarted.get(f"/v1/production-runs/{run['id']}").json()["id"] == run["id"]
-    assert restarted.get(f"/v1/production-runs/{run['id']}/events").json()[0][
-        "event_type"
-    ] == "run_created"
-    assert restarted.get(f"/v1/episodes/{episode['id']}/events").json()[-1][
-        "to_status"
-    ] == "preproduction"
+    assert (
+        restarted.get(f"/v1/production-runs/{run['id']}/events").json()[0]["event_type"]
+        == "run_created"
+    )
+    assert (
+        restarted.get(f"/v1/episodes/{episode['id']}/events").json()[-1]["to_status"]
+        == "preproduction"
+    )
     replay = restarted.post(
         production_path,
         json={"dry_run": True},
@@ -732,9 +798,7 @@ def test_populated_v1_database_upgrades_without_project_loss(tmp_path: Path) -> 
     after = TestClient(create_app(database_path, data_root))
     assert after.app.state.repository.db.schema_version() == 11
     assert after.get(f"/v1/projects/{project['id']}").json()["title"] == "我的一生"
-    assert after.get(f"/v1/episodes/{episode['id']}").json()[
-        "approved_script_revision"
-    ] == 1
+    assert after.get(f"/v1/episodes/{episode['id']}").json()["approved_script_revision"] == 1
     approvals = after.get(f"/v1/episodes/{episode['id']}/script-approvals").json()
     assert approvals[0]["spoken_confirmation"] == "我确认这个剧本"
 
@@ -992,9 +1056,7 @@ def test_complete_privacy_export_and_confirmed_project_deletion(tmp_path: Path) 
         assert archive.read(media_name) == b"private-photo-bytes"
         project_backup = json.loads(archive.read("project-export.json"))
         assert project_backup["schema_version"] == "nalu.project-export/v7"
-        assert project_backup["payload"]["asset_consent_records"][0][
-            "action_type"
-        ] == "granted"
+        assert project_backup["payload"]["asset_consent_records"][0]["action_type"] == "granted"
         manifest = json.loads(archive.read("privacy-manifest.json"))
         assert manifest["database_included"] is False
         assert manifest["secret_material_included"] is False
@@ -1048,9 +1110,7 @@ def test_production_requires_approved_script(tmp_path: Path) -> None:
         f"/v1/seasons/{season['id']}/episodes",
         json={"title": "第一集", "episode_number": 1},
     ).json()
-    response = api.post(
-        f"/v1/episodes/{episode['id']}/production-runs", json={"dry_run": True}
-    )
+    response = api.post(f"/v1/episodes/{episode['id']}/production-runs", json={"dry_run": True})
     assert response.status_code == 409
 
 

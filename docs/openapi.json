@@ -770,6 +770,164 @@
         "title": "CreativeFormat",
         "type": "string"
       },
+      "DocumentaryEvidenceItem": {
+        "properties": {
+          "allowed_use": {
+            "anyOf": [
+              {
+                "enum": [
+                  "reference_only",
+                  "story_development",
+                  "visual_generation"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allowed Use"
+          },
+          "asset_id": {
+            "title": "Asset Id",
+            "type": "string"
+          },
+          "confirmation_status": {
+            "enum": [
+              "unlinked",
+              "draft",
+              "confirmed"
+            ],
+            "title": "Confirmation Status",
+            "type": "string"
+          },
+          "current_revision": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Revision"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/AssetKind"
+          },
+          "memory_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Memory Id"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "narrative_authority": {
+            "default": false,
+            "title": "Narrative Authority",
+            "type": "boolean"
+          },
+          "scope": {
+            "enum": [
+              "project",
+              "season",
+              "episode"
+            ],
+            "title": "Scope",
+            "type": "string"
+          },
+          "visual_generation_authorized": {
+            "default": false,
+            "title": "Visual Generation Authorized",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "asset_id",
+          "name",
+          "kind",
+          "scope",
+          "confirmation_status"
+        ],
+        "title": "DocumentaryEvidenceItem",
+        "type": "object"
+      },
+      "DocumentaryReadinessReport": {
+        "properties": {
+          "blockers": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Blockers",
+            "type": "array"
+          },
+          "can_enter_production": {
+            "default": false,
+            "title": "Can Enter Production",
+            "type": "boolean"
+          },
+          "can_plan_chapters": {
+            "default": false,
+            "title": "Can Plan Chapters",
+            "type": "boolean"
+          },
+          "confirmed_narrative_source_count": {
+            "default": 0,
+            "title": "Confirmed Narrative Source Count",
+            "type": "integer"
+          },
+          "documentary_mode": {
+            "enum": [
+              "archival_voiceover",
+              "archival_with_reenactment"
+            ],
+            "title": "Documentary Mode",
+            "type": "string"
+          },
+          "draft_or_unlinked_source_count": {
+            "default": 0,
+            "title": "Draft Or Unlinked Source Count",
+            "type": "integer"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/DocumentaryEvidenceItem"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "generated_reenactment_label_required": {
+            "default": false,
+            "title": "Generated Reenactment Label Required",
+            "type": "boolean"
+          },
+          "next_questions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Next Questions",
+            "type": "array"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project_id",
+          "documentary_mode"
+        ],
+        "title": "DocumentaryReadinessReport",
+        "type": "object"
+      },
       "Episode": {
         "properties": {
           "approved_script_revision": {
@@ -5427,6 +5585,45 @@
           }
         },
         "summary": "Project Deletion Preview"
+      }
+    },
+    "/v1/projects/{project_id}/documentary-readiness": {
+      "get": {
+        "operationId": "documentary_readiness_v1_projects__project_id__documentary_readiness_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentaryReadinessReport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Documentary Readiness"
       }
     },
     "/v1/projects/{project_id}/export": {

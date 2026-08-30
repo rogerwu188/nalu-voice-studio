@@ -35,6 +35,12 @@ card and its history. Raw OCR never causes cloud upload.
    is a local state-machine action, never an inference made by a Realtime model.
 7. Only confirmed cards may be treated as narrative authority by a script planner.
 
+For a documentary project, confirmation and use permission are both required. A
+confirmed `reference_only` card can help Nalu ask a better question, but only a
+confirmed `story_development` or `visual_generation` card may be cited as narrative
+authority. The documentary readiness report exposes this distinction before chapter
+planning begins.
+
 Example readback:
 
 > 这张记忆卡的标题是“在杭州的全家福”。时间是 1980 年春天，地点是杭州
@@ -82,4 +88,3 @@ confirmation turn bound to the reviewed revision.
 - Unauthorized visual generation and child biometric use fail closed.
 - Export/restore and complete deletion preserve or remove the exact revision graph.
 - A script citation resolves to the confirmed memory card revision used.
-
