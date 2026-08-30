@@ -304,7 +304,7 @@ Current evidence:
   Computer Use crashed while opening the new asset sheet, while Nalu stayed running,
   so that visual sheet check remains explicitly unaccepted.
 
-## SOP-06 · Cross-episode inheritance and continuity — PASS
+## SOP-06 · Cross-episode inheritance and continuity — REGRESSION
 
 Acceptance:
 
@@ -445,6 +445,12 @@ Current evidence:
   the required change-summary field appeared. No microphone, paid generation, release
   action or user project data was used. This closes the SOP-06 native accessibility gate
   without claiming acoustic voice-quality review or whole-product completion.
+- Completion audit on release candidate `8be9945`: implementation regressions and the
+  full macOS build pass in GitHub CI run `33300671992`, but the native accessibility E2E
+  evidence in issue `#4` is bound to the earlier `c7c4795` artifact. Subsequent changes
+  modified the main interview and production-status UI, so SOP-06 cannot remain `PASS`
+  until the same readback, invalidation and continuity-confirmation scenario is rerun on
+  a downloadable artifact from the current release candidate.
 
 ## SOP-07 · Productized Qingshan execution adapter — IN_PROGRESS
 
