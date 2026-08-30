@@ -15,6 +15,7 @@ from .models import (
     EpisodeTransitionRequest,
     FinalQAEvidence,
     MediaStructureQAReport,
+    PlatformPublicationApproval,
     PostproductionRepairPlan,
     PostproductionRepairTask,
     ProductionCompletionRequest,
@@ -22,6 +23,8 @@ from .models import (
     ProductionPackage,
     ProductionRun,
     ProductionRunCreate,
+    PublicationDryRun,
+    PublicationDryRunCreate,
     ReleasePackage,
     ReleasePackageCreate,
     RemoteTaskState,
@@ -34,6 +37,7 @@ from .models import (
     RunResumeRequest,
     RunStatus,
 )
+from .publication_adapters import publication_adapter
 from .qingshan_adapter import QingshanAdapter, QingshanAdapterError
 from .repository import ConflictError, Repository, new_id, utc_now
 from .secure_files import harden_tree, secure_directory, secure_file
@@ -629,6 +633,159 @@ class ProductionService:
             },
         )
         return package
+
+    def stored_release_package(self, run_id: str) -> ReleasePackage:
+        run = self.repository.get_run(run_id)
+        release_path = self._run_directory(run) / "release-package.json"
+        if not release_path.is_file() or release_path.is_symlink():
+            raise ConflictError("offline release package has not been created")
+        try:
+            package = ReleasePackage.model_validate_json(
+                release_path.read_text(encoding="utf-8")
+            )
+        except (OSError, ValueError) as exc:
+            raise ConflictError("release package is unreadable or invalid") from exc
+        body = package.model_dump(mode="json", exclude={"manifest_sha256"})
+        if self._canonical_sha256(body) != package.manifest_sha256:
+            raise ConflictError("release package digest mismatch")
+        if package.run_id != run.id:
+            raise ConflictError("release package belongs to another run")
+        integrity = self.rendered_output_integrity(run.id)
+        if not integrity.integrity_ok:
+            raise ConflictError("sealed output integrity failed after release packaging")
+        if package.output_seal_sha256 != integrity.seal.manifest_sha256:
+            raise ConflictError("release package references a different output seal")
+        return package
+
+    def create_publication_dry_run(
+        self, run_id: str, request: PublicationDryRunCreate
+    ) -> PublicationDryRun:
+        run = self.repository.get_run(run_id)
+        episode = self.repository.get_episode(run.episode_id)
+        if run.status != RunStatus.COMPLETED or episode.status != EpisodeStatus.READY_TO_PUBLISH:
+            raise ConflictError("only completed, ready-to-publish episodes can prepare publishing")
+        project = self.repository.get_project(run.project_id)
+        if project.audience_mode == AudienceMode.CHILD and not request.guardian_approval:
+            raise ConflictError("child publication dry-run requires guardian approval")
+        package = self.stored_release_package(run.id)
+        try:
+            adapter = publication_adapter(request.platform)
+            compiled_plan = adapter.compile(package, request.channel_reference)
+        except ValueError as exc:
+            raise ConflictError(str(exc)) from exc
+
+        dry_run_path = self._run_directory(run) / f"publication-dry-run-{request.platform}.json"
+        if dry_run_path.is_file():
+            existing = self.stored_publication_dry_run(run.id, request.platform)
+            approval = existing.approval
+            if (
+                approval.channel_reference == request.channel_reference
+                and approval.approved_by == request.approved_by
+                and approval.spoken_confirmation == request.spoken_confirmation
+                and approval.guardian_approval == request.guardian_approval
+                and existing.release_manifest_sha256 == package.manifest_sha256
+            ):
+                return existing
+            raise ConflictError(
+                "publication dry-run already exists for this platform with different approval"
+            )
+
+        approved_at = utc_now()
+        approval_body = {
+            "platform": request.platform,
+            "channel_reference": request.channel_reference,
+            "approved_by": request.approved_by,
+            "spoken_confirmation": request.spoken_confirmation,
+            "guardian_approval": request.guardian_approval,
+            "approved_at": approved_at,
+        }
+        approval = PlatformPublicationApproval(
+            **approval_body,
+            approval_sha256=self._canonical_sha256(approval_body),
+        )
+        duplicate_guard = self._canonical_sha256(
+            {
+                "run_id": run.id,
+                "platform": request.platform,
+                "channel_reference": request.channel_reference,
+                "release_manifest_sha256": package.manifest_sha256,
+            }
+        )
+        body = {
+            "schema_version": "nalu.publication-dry-run/v1",
+            "id": new_id("publication-dry-run"),
+            "run_id": run.id,
+            "project_id": run.project_id,
+            "episode_id": run.episode_id,
+            "release_manifest_sha256": package.manifest_sha256,
+            "platform": request.platform,
+            "adapter_version": adapter.version,
+            "approval": approval.model_dump(mode="json"),
+            "duplicate_guard_sha256": duplicate_guard,
+            "compiled_plan": compiled_plan,
+            "dry_run": True,
+            "network_call_performed": False,
+            "episode_state_changed": False,
+            "created_at": approved_at,
+        }
+        dry_run = PublicationDryRun(
+            **body,
+            plan_sha256=self._canonical_sha256(body),
+        )
+        temporary = dry_run_path.with_name(f".{new_id('publication-dry-run')}.tmp")
+        temporary.write_text(dry_run.model_dump_json(indent=2) + "\n", encoding="utf-8")
+        secure_file(temporary)
+        try:
+            os.link(temporary, dry_run_path)
+        except FileExistsError as exc:
+            raise ConflictError("publication dry-run was created concurrently") from exc
+        finally:
+            temporary.unlink(missing_ok=True)
+        secure_file(dry_run_path)
+        self.repository.append_run_event(
+            run.id,
+            "publication_dry_run_created",
+            from_status=run.status,
+            to_status=run.status,
+            message="Platform-specific dry-run created; network publishing remained disabled.",
+            payload={
+                "platform": request.platform,
+                "plan_sha256": dry_run.plan_sha256,
+                "duplicate_guard_sha256": duplicate_guard,
+                "network_call_performed": False,
+            },
+        )
+        return dry_run
+
+    def stored_publication_dry_run(
+        self, run_id: str, platform: str
+    ) -> PublicationDryRun:
+        run = self.repository.get_run(run_id)
+        try:
+            publication_adapter(platform)
+        except ValueError as exc:
+            raise ConflictError(str(exc)) from exc
+        path = self._run_directory(run) / f"publication-dry-run-{platform}.json"
+        if not path.is_file() or path.is_symlink():
+            raise ConflictError("publication dry-run has not been created")
+        try:
+            dry_run = PublicationDryRun.model_validate_json(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            raise ConflictError("publication dry-run is unreadable or invalid") from exc
+        body = dry_run.model_dump(mode="json", exclude={"plan_sha256"})
+        if self._canonical_sha256(body) != dry_run.plan_sha256:
+            raise ConflictError("publication dry-run digest mismatch")
+        approval_body = dry_run.approval.model_dump(
+            mode="json", exclude={"approval_sha256"}
+        )
+        if self._canonical_sha256(approval_body) != dry_run.approval.approval_sha256:
+            raise ConflictError("publication approval digest mismatch")
+        if dry_run.run_id != run.id or dry_run.platform != platform:
+            raise ConflictError("publication dry-run binding mismatch")
+        package = self.stored_release_package(run.id)
+        if dry_run.release_manifest_sha256 != package.manifest_sha256:
+            raise ConflictError("publication dry-run references a different release package")
+        return dry_run
 
     def complete_run(
         self, run_id: str, request: ProductionCompletionRequest

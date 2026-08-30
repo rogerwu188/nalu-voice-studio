@@ -69,6 +69,8 @@ from .models import (
     ProjectPlan,
     ProjectPlanCreate,
     ProjectRename,
+    PublicationDryRun,
+    PublicationDryRunCreate,
     ReleasePackage,
     ReleasePackageCreate,
     RenderedOutputIntegrityReport,
@@ -621,6 +623,23 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
         run_id: str, request: ReleasePackageCreate
     ) -> ReleasePackage:
         return production.create_release_package(run_id, request)
+
+    @app.post(
+        "/v1/production-runs/{run_id}/publication-dry-runs",
+        response_model=PublicationDryRun,
+        status_code=201,
+    )
+    def create_publication_dry_run(
+        run_id: str, request: PublicationDryRunCreate
+    ) -> PublicationDryRun:
+        return production.create_publication_dry_run(run_id, request)
+
+    @app.get(
+        "/v1/production-runs/{run_id}/publication-dry-runs/{platform}",
+        response_model=PublicationDryRun,
+    )
+    def get_publication_dry_run(run_id: str, platform: str) -> PublicationDryRun:
+        return production.stored_publication_dry_run(run_id, platform)
 
     @app.post(
         "/v1/production-runs/{run_id}/complete",

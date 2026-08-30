@@ -1052,6 +1052,56 @@ class ReleasePackage(BaseModel):
     manifest_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
 
 
+class PublicationDryRunCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    platform: Literal["youtube", "bilibili"]
+    confirmed_platform: Literal["youtube", "bilibili"]
+    channel_reference: str = Field(min_length=1, max_length=300)
+    approved_by: str = Field(min_length=1, max_length=160)
+    spoken_confirmation: str = Field(min_length=1, max_length=1000)
+    guardian_approval: bool = False
+
+    @model_validator(mode="after")
+    def require_platform_specific_confirmation(self) -> PublicationDryRunCreate:
+        if self.confirmed_platform != self.platform:
+            raise ValueError("confirmed platform must match the requested platform")
+        if not any(phrase in self.spoken_confirmation for phrase in ("我确认", "我同意")):
+            raise ValueError("publication dry-run requires explicit confirmation language")
+        return self
+
+
+class PlatformPublicationApproval(BaseModel):
+    platform: Literal["youtube", "bilibili"]
+    channel_reference: str
+    approved_by: str
+    spoken_confirmation: str
+    guardian_approval: bool
+    approved_at: str
+    approval_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+
+
+class PublicationDryRun(BaseModel):
+    schema_version: Literal["nalu.publication-dry-run/v1"] = (
+        "nalu.publication-dry-run/v1"
+    )
+    id: str
+    run_id: str
+    project_id: str
+    episode_id: str
+    release_manifest_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    platform: Literal["youtube", "bilibili"]
+    adapter_version: str
+    approval: PlatformPublicationApproval
+    duplicate_guard_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    compiled_plan: dict[str, Any]
+    dry_run: Literal[True] = True
+    network_call_performed: Literal[False] = False
+    episode_state_changed: Literal[False] = False
+    created_at: str
+    plan_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+
+
 class ProductionCompletionRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

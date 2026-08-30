@@ -575,6 +575,97 @@ def test_completed_media_qa_creates_offline_release_package_without_publishing(
     assert changed.status_code == 409
     assert "different metadata" in changed.text
 
+    mismatch = api.post(
+        f"/v1/production-runs/{run['id']}/publication-dry-runs",
+        json={
+            "platform": "youtube",
+            "confirmed_platform": "bilibili",
+            "channel_reference": "local-test-channel",
+            "approved_by": "local-user",
+            "spoken_confirmation": "我确认进行 YouTube 发布演练",
+        },
+    )
+    assert mismatch.status_code == 422
+
+    dry_run_request = {
+        "platform": "youtube",
+        "confirmed_platform": "youtube",
+        "channel_reference": "local-test-channel",
+        "approved_by": "local-user",
+        "spoken_confirmation": "我确认进行 YouTube 发布演练",
+    }
+    publication = api.post(
+        f"/v1/production-runs/{run['id']}/publication-dry-runs",
+        json=dry_run_request,
+    )
+    assert publication.status_code == 201
+    dry_run = publication.json()
+    assert dry_run["platform"] == "youtube"
+    assert dry_run["adapter_version"] == "nalu.youtube-dry-run/v1"
+    assert dry_run["dry_run"] is True
+    assert dry_run["network_call_performed"] is False
+    assert dry_run["episode_state_changed"] is False
+    assert dry_run["compiled_plan"]["network_operations"] == []
+    assert dry_run["compiled_plan"]["media"]["master"]["sha256"] == master_sha
+    assert len(dry_run["duplicate_guard_sha256"]) == 64
+    assert api.get(f"/v1/episodes/{episode['id']}").json()["status"] == "ready_to_publish"
+    assert api.get(
+        f"/v1/production-runs/{run['id']}/publication-dry-runs/youtube"
+    ).json() == dry_run
+    assert api.post(
+        f"/v1/production-runs/{run['id']}/publication-dry-runs",
+        json=dry_run_request,
+    ).json() == dry_run
+    changed_channel = api.post(
+        f"/v1/production-runs/{run['id']}/publication-dry-runs",
+        json={**dry_run_request, "channel_reference": "different-channel"},
+    )
+    assert changed_channel.status_code == 409
+    assert "different approval" in changed_channel.text
+
+    with api.app.state.repository.db.connect() as connection:
+        connection.execute(
+            "UPDATE projects SET audience_mode = 'child' WHERE id = ?",
+            (package["project_id"],),
+        )
+    child_without_guardian = api.post(
+        f"/v1/production-runs/{run['id']}/publication-dry-runs",
+        json={
+            "platform": "bilibili",
+            "confirmed_platform": "bilibili",
+            "channel_reference": "guardian-test-channel",
+            "approved_by": "guardian",
+            "spoken_confirmation": "我确认进行哔哩哔哩发布演练",
+            "guardian_approval": False,
+        },
+    )
+    assert child_without_guardian.status_code == 409
+    assert "guardian approval" in child_without_guardian.text
+    child_with_guardian = api.post(
+        f"/v1/production-runs/{run['id']}/publication-dry-runs",
+        json={
+            "platform": "bilibili",
+            "confirmed_platform": "bilibili",
+            "channel_reference": "guardian-test-channel",
+            "approved_by": "guardian",
+            "spoken_confirmation": "我确认进行哔哩哔哩发布演练",
+            "guardian_approval": True,
+        },
+    )
+    assert child_with_guardian.status_code == 201
+    assert child_with_guardian.json()["adapter_version"] == "nalu.bilibili-dry-run/v1"
+    assert child_with_guardian.json()["approval"]["guardian_approval"] is True
+
+    dry_run_path = Path(run["package_path"]).parent / "publication-dry-run-youtube.json"
+    tampered = json.loads(dry_run_path.read_text(encoding="utf-8"))
+    tampered["compiled_plan"]["channel_reference"] = "tampered-channel"
+    dry_run_path.write_text(json.dumps(tampered), encoding="utf-8")
+    damaged_dry_run = api.get(
+        f"/v1/production-runs/{run['id']}/publication-dry-runs/youtube"
+    )
+    assert damaged_dry_run.status_code == 409
+    assert "digest mismatch" in damaged_dry_run.text
+
 
 def test_output_seal_fails_closed_for_state_paths_and_empty_files(tmp_path: Path) -> None:
     api = client(tmp_path)
