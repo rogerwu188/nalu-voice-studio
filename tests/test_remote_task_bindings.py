@@ -107,6 +107,11 @@ def test_remote_binding_rejects_dry_run_and_changed_submission(tmp_path: Path) -
         request_sha256="b" * 64,
     )
     assert replay.id == first.id
+    progress = api.get(
+        f"/v1/episodes/{episode['id']}/production-progress"
+    ).json()
+    assert progress["stage"] == "provider_submission_prepared"
+    assert progress["progress_percent"] == 42
     with pytest.raises(ConflictError, match="different submission inputs"):
         repository.prepare_remote_task_binding(
             paid.id,
@@ -186,6 +191,11 @@ def test_remote_response_commit_is_crash_safe_and_survives_restart(
         charge_classification="TASK_ID_BOUND_CHARGE_PENDING",
     )
     assert replay == submitted
+    submitted_progress = restarted.get(
+        f"/v1/episodes/{episode['id']}/production-progress"
+    ).json()
+    assert submitted_progress["stage"] == "remote_generation"
+    assert "不会重复提交" in submitted_progress["explanation"]
     assert [event.event_type for event in restarted.app.state.repository.list_run_events(run.id)] == [
         "remote_task_prepared",
         "remote_task_submitted",
@@ -215,6 +225,11 @@ def test_remote_response_commit_is_crash_safe_and_survives_restart(
     )
     assert completed.state == RemoteTaskState.COMPLETED
     assert completed.actual_charged_credits == 80
+    completed_progress = restarted.get(
+        f"/v1/episodes/{episode['id']}/production-progress"
+    ).json()
+    assert completed_progress["stage"] == "remote_results_received"
+    assert completed_progress["progress_percent"] == 72
 
 
 def test_remote_binding_classifies_ambiguous_and_duplicate_provider_ids(
@@ -248,6 +263,12 @@ def test_remote_binding_classifies_ambiguous_and_duplicate_provider_ids(
     )
     assert ambiguous.state == RemoteTaskState.AMBIGUOUS_CHARGE
     assert ambiguous.provider_task_id is None
+    ambiguous_progress = api.get(
+        f"/v1/episodes/{episode['id']}/production-progress"
+    ).json()
+    assert ambiguous_progress["stage"] == "charge_reconciliation"
+    assert ambiguous_progress["can_cancel"] is False
+    assert "绝不会自动重复提交" in ambiguous_progress["explanation"]
 
     reconciled = repository.transition_remote_task_binding(
         first.id,
@@ -258,6 +279,11 @@ def test_remote_binding_classifies_ambiguous_and_duplicate_provider_ids(
         actual_charged_credits=0,
     )
     assert reconciled.state == RemoteTaskState.ZERO_CHARGE_FAILED
+    zero_charge_progress = api.get(
+        f"/v1/episodes/{episode['id']}/production-progress"
+    ).json()
+    assert zero_charge_progress["stage"] == "safe_retry_review"
+    assert "零扣费" in zero_charge_progress["explanation"]
 
     submitted = repository.prepare_remote_task_binding(
         run.id,

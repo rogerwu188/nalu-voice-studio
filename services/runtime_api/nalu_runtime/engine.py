@@ -20,6 +20,7 @@ from .models import (
     ProductionPackage,
     ProductionRun,
     ProductionRunCreate,
+    RemoteTaskState,
     RenderedOutputArtifact,
     RenderedOutputIntegrityReport,
     RenderedOutputSeal,
@@ -789,10 +790,51 @@ class ProductionService:
         episode = self.repository.get_episode(episode_id)
         run = self.repository.latest_run_for_episode(episode_id)
         stage, percent, action, explanation = EPISODE_PROGRESS[episode.status]
+        remote_states: set[RemoteTaskState] = set()
         if run is not None:
             stage, percent, action, explanation = RUN_PROGRESS[run.status]
             if run.status in {RunStatus.FAILED, RunStatus.CANCELLED}:
                 percent = EPISODE_PROGRESS[episode.status][1]
+            bindings = self.repository.list_remote_task_bindings(run.id)
+            remote_states = {binding.state for binding in bindings}
+            if RemoteTaskState.AMBIGUOUS_CHARGE in remote_states:
+                stage, percent, action, explanation = (
+                    "charge_reconciliation",
+                    45,
+                    "正在核对是否扣费",
+                    "远端结果不明确；Nalu 正在核对任务和账单，绝不会自动重复提交。",
+                )
+            elif RemoteTaskState.PREPARED in remote_states:
+                stage, percent, action, explanation = (
+                    "provider_submission_prepared",
+                    42,
+                    "提交记录已安全保存",
+                    "付费任务意图已保存在本机，正在等待远端接单证据。",
+                )
+            elif RemoteTaskState.SUBMITTED in remote_states:
+                stage, percent, action, explanation = (
+                    "remote_generation",
+                    55,
+                    "远端已接单，正在制作",
+                    "远端任务编号已经安全记录；重新打开应用也不会重复提交。",
+                )
+            elif remote_states and remote_states == {RemoteTaskState.ZERO_CHARGE_FAILED}:
+                stage, percent, action, explanation = (
+                    "safe_retry_review",
+                    45,
+                    "已确认没有扣费",
+                    "本次失败已核对为零扣费；再次提交前仍需重新确认。",
+                )
+            elif remote_states and remote_states <= {
+                RemoteTaskState.COMPLETED,
+                RemoteTaskState.CANCELLED,
+            } and RemoteTaskState.COMPLETED in remote_states:
+                stage, percent, action, explanation = (
+                    "remote_results_received",
+                    72,
+                    "远端结果已返回",
+                    "生成结果和扣费凭证已经保存，正在进入后期制作。",
+                )
         return EpisodeProductionProgress(
             episode_id=episode.id,
             episode_number=episode.episode_number,
@@ -815,6 +857,7 @@ class ProductionService:
                     RunStatus.RUNNING,
                     RunStatus.QA_REVIEW,
                 }
+                and RemoteTaskState.AMBIGUOUS_CHARGE not in remote_states
             ),
             can_resume=bool(
                 run and run.status in {RunStatus.FAILED, RunStatus.CANCELLED}

@@ -530,9 +530,14 @@ Current evidence:
   OpenAPI checks, real HTTP smoke, Swift tests, full application build, bundled-Runtime
   smoke, ZIP and downloadable artifact passed. The same run confirms gate-registry
   quarantine behavior is deterministic on clean Linux and macOS hosts.
+- Episode progress now derives finer stages from durable remote bindings: locally
+  prepared, provider accepted, ambiguous charge under reconciliation, verified
+  zero-charge awaiting new approval, and remote results received. The ambiguous-charge
+  state explicitly disables cancellation and says that Nalu will not auto-resubmit.
 - Still required before `PASS`: bind the imported durable submitter as the only writer,
   run authorized provider crash tests at every network/charge boundary, reconcile real
-  ambiguous charges and expose finer stage-level progress.
+  ambiguous charges against the real provider and validate the stage explanations in a
+  signed-app long-running production QA session.
 
 ## SOP-09 · Postproduction and release-blocking QA — IN_PROGRESS
 
@@ -561,6 +566,9 @@ Current evidence:
   specific release-blocking tasks for missing artifacts, evidence binding, picture,
   audio, captions, continuity, safety and original-resolution review. Identical failed
   evidence is idempotent and never advances the run beyond `qa_review`.
+- Commit `ad57e32`, GitHub CI run `33299440973`: all 65 Runtime tests, OpenAPI
+  compatibility, real HTTP smoke, Swift tests, application build, bundled-Runtime smoke,
+  ZIP and artifact upload passed for the release-blocking repair-plan contract.
 - Still required before `PASS`: real shot selection/normalization and mix pipeline,
   ASR/VAD, timestamp, frame-repeat and media-boundary gates, golden media fixtures and
   actual original-resolution human audiovisual review on the release candidate.

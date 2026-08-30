@@ -27,6 +27,11 @@ transaction. A crash after the binding row changes but before the event is writt
 back both. On restart, Nalu can recover the exact state and provider evidence; replaying
 the same evidence is idempotent, while changed evidence is rejected.
 
+The episode progress view derives plain-language stages from these records. In
+particular, an ambiguous response is shown as “正在核对是否扣费”, disables cancellation,
+and states that Nalu will not submit again automatically. A verified zero-charge failure
+is distinct from an ambiguous charge and still waits for renewed approval before retry.
+
 This is a persistence and recovery boundary, not a provider submission feature. The
 current Qingshan gate-registry quarantine keeps all paid execution disabled. Before paid
 production can be enabled, the imported durable submitter must be the only caller of this
