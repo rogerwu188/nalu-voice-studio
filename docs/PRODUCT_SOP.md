@@ -364,10 +364,20 @@ Current evidence:
   ZIP and artifact upload passed. Artifact accessibility-tree QA verified the expanded
   editor and all five native voice-menu actions without creating data or requesting
   microphone permission.
-- Still required before `PASS`: family-memory relationship/date/event contradiction gates, automatic
-  reviewed end-state extraction, unresolved-hook closure rules, completed-episode
-  immutability after library edits at the final rendered-output layer, and
-  human/accessibility QA of the native workflow.
+- Commit `396d224`, GitHub CI run `33287357769`: a fail-closed family-memory graph
+  preflight blocks incompatible storyteller relationships and specifically named event
+  dates or places before confirmation. Every conflict binds both memory-card IDs, exact
+  revisions and managed asset IDs; the native client keeps the card as a draft, displays
+  a plain-language red state and reads the discrepancy aloud. Five Runtime fixtures cover
+  relationship, date and place failures plus compatible approximate dates, aliases,
+  drafts, reference-only authority and generic-photo false-positive boundaries. All 42
+  Runtime tests, OpenAPI compatibility, real HTTP smoke, Swift contract tests, full app
+  build, bundled Runtime smoke, ZIP and downloadable artifact passed. A same-turn native
+  accessibility-tree recheck could not run because the QA Mac was locked, so no human or
+  AX pass is claimed from that attempt.
+- Still required before `PASS`: automatic reviewed end-state extraction, unresolved-hook
+  closure rules, completed-episode immutability after library edits at the final rendered-
+  output layer, and human/accessibility QA of the native workflow.
 
 ## SOP-07 · Productized Qingshan execution adapter — IN_PROGRESS
 
