@@ -394,6 +394,38 @@ def test_memory_card_requires_explicit_confirmation_and_keeps_evidence(tmp_path:
     assert cross_project.status_code == 409
 
 
+def test_archive_audio_and_video_import_as_reference_without_generation_consent(
+    tmp_path: Path,
+) -> None:
+    api = client(tmp_path)
+    project = api.post(
+        "/v1/projects", json={"title": "家庭档案", "audience_mode": "older_adult"}
+    ).json()
+    for kind, filename, content_type in (
+        ("archive_audio", "口述回忆.m4a", "audio/mp4"),
+        ("archive_video", "家庭录像.mov", "video/quicktime"),
+    ):
+        imported = api.post(
+            f"/v1/projects/{project['id']}/asset-imports",
+            params={"filename": filename, "kind": kind, "name": filename},
+            content=b"local family archive",
+            headers={"Content-Type": content_type},
+        )
+        assert imported.status_code == 201
+        assert imported.json()["consent_granted"] is False
+
+        card = api.post(
+            f"/v1/projects/{project['id']}/memory-cards",
+            json={
+                "asset_id": imported.json()["id"],
+                "title": filename,
+                "allowed_use": "reference_only",
+            },
+        )
+        assert card.status_code == 201
+        assert card.json()["confirmation_status"] == "draft"
+
+
 def test_script_history_stale_approval_and_revocation(tmp_path: Path) -> None:
     api = client(tmp_path)
     project = api.post("/v1/projects", json={"title": "剧本版本"}).json()

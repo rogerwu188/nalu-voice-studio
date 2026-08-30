@@ -381,6 +381,8 @@
         "enum": [
           "character_image",
           "voice_reference",
+          "archive_audio",
+          "archive_video",
           "scene_reference",
           "prop_reference",
           "style_reference",

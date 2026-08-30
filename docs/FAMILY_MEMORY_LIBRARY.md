@@ -23,11 +23,14 @@ card and its history. Raw OCR never causes cloud upload.
 
 ## Accessible archive flow
 
-1. The user selects a large, obvious photo/document control.
-2. Nalu copies the bytes into local managed storage and uses Apple Vision on the Mac
-   to recognize text in an image. The result starts as a draft.
-3. Nalu asks one question at a time: who, when, where, what happened, why it matters,
-   and how the material may be used.
+1. The user selects one large, obvious “let Nalu organize it” control. No metadata
+   form is required before choosing a photo, scan, audio recording, or family video.
+2. Nalu infers the safe archive type and title, copies the bytes into local managed
+   storage, uses Apple Vision on the Mac to recognize image text, and creates a
+   `reference_only` draft. The professional form remains available only in an
+   advanced disclosure.
+3. Nalu asks one question at a time by voice: what happened, when, where, and why it
+   matters. “I don't know” and “I don't remember” are valid answers.
 4. The current card is shown as text and read aloud. The user can interrupt, ask for
    repetition, or correct a field by voice or in the visual editor.
 5. Every edit appends a revision and makes an earlier confirmation stale.
@@ -63,6 +66,9 @@ remain an incomplete SOP-06 item.
 
 Knowledge permission and generation permission are separate:
 
+- `archive_audio` and `archive_video` are local historical evidence, not voice/face
+  generation references. Importing them never silently grants biometric generation
+  permission.
 - `reference_only` may help Nalu ask questions but cannot authorize visual copying.
 - `story_development` may inform the script but does not authorize a face or voice.
 - `visual_generation` still requires active face/voice consent and child guardian

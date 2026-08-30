@@ -42,6 +42,8 @@ class RunStatus(StrEnum):
 class AssetKind(StrEnum):
     CHARACTER_IMAGE = "character_image"
     VOICE_REFERENCE = "voice_reference"
+    ARCHIVE_AUDIO = "archive_audio"
+    ARCHIVE_VIDEO = "archive_video"
     SCENE_REFERENCE = "scene_reference"
     PROP_REFERENCE = "prop_reference"
     STYLE_REFERENCE = "style_reference"

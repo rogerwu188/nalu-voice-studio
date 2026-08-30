@@ -1,6 +1,13 @@
 import Foundation
 import Observation
 
+private enum MemoryIntakeStep {
+    case description
+    case approximateDate
+    case place
+    case storyRelevance
+}
+
 @MainActor
 @Observable
 final class VoiceInterviewViewModel {
@@ -47,6 +54,8 @@ final class VoiceInterviewViewModel {
     var reviewedMemoryCardIDs: Set<String> = []
     var memoryCorrectionCardID: String?
     var memoryConfirmationCardID: String?
+    private var memoryIntakeCardID: String?
+    private var memoryIntakeStep: MemoryIntakeStep?
     var draftProjectID: String?
     var feedbackDraftText = ""
     var isCapturingFeedback = false
@@ -111,6 +120,14 @@ final class VoiceInterviewViewModel {
         transcript = ""
         transcriptConfidence = 0
         if applyComfortCommand(spoken) { return }
+        if let memoryIntakeCardID, let memoryIntakeStep {
+            handleMemoryIntakeAnswer(
+                spoken,
+                memoryID: memoryIntakeCardID,
+                step: memoryIntakeStep
+            )
+            return
+        }
         if let memoryConfirmationCardID {
             self.memoryConfirmationCardID = nil
             guard spoken.contains("确认") && spoken.contains("归档") else {
@@ -755,7 +772,7 @@ final class VoiceInterviewViewModel {
                         note: "用户在导入素材时提供"
                     )
                 ]
-            _ = try await runtime.createMemoryCard(
+            let card = try await runtime.createMemoryCard(
                 projectID: projectID,
                 draft: MemoryCardDraft(
                     assetID: asset.id,
@@ -773,12 +790,11 @@ final class VoiceInterviewViewModel {
             assets = try await runtime.listAssets(projectID: projectID)
             memoryCards = try await runtime.listMemoryCards(projectID: projectID)
             await refreshDocumentaryReadiness()
-            messages.append(
-                .init(
-                    speaker: .nalu,
-                    text: "素材已复制到本机，并建立了一张待确认的记忆卡。请先听我复述，再确认归档。"
-                )
-            )
+            memoryIntakeCardID = card.id
+            memoryIntakeStep = .description
+            let response = "资料已复制到本机。我先按“只供理解和核对”建好草稿，没有替您同意人脸或声音生成。请告诉我，这份资料里发生了什么？"
+            messages.append(.init(speaker: .nalu, text: response))
+            speechPlayback.speak(response, rate: comfortPreferences.speechRate)
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -793,6 +809,8 @@ final class VoiceInterviewViewModel {
     }
 
     func beginMemoryCorrection(_ memoryID: String) async {
+        memoryIntakeCardID = nil
+        memoryIntakeStep = nil
         memoryCorrectionCardID = memoryID
         memoryConfirmationCardID = nil
         let response = "请说要修改哪一项，例如：地点不是西湖，是灵隐寺；或者年份改成一九八零年。"
@@ -802,6 +820,8 @@ final class VoiceInterviewViewModel {
     }
 
     func beginMemoryVoiceConfirmation(_ memoryID: String) async {
+        memoryIntakeCardID = nil
+        memoryIntakeStep = nil
         guard reviewedMemoryCardIDs.contains(memoryID) else {
             speakMemoryCard(memoryID)
             return
@@ -845,7 +865,8 @@ final class VoiceInterviewViewModel {
         storyRelevance: String,
         allowedUse: String,
         sourceChannel: String = "visual",
-        changeSummary: String = "用户在本机修改记忆卡"
+        changeSummary: String = "用户在本机修改记忆卡",
+        announceReview: Bool = true
     ) async -> Bool {
         guard let projectID = selectedProjectID else { return false }
         do {
@@ -865,9 +886,11 @@ final class VoiceInterviewViewModel {
             memoryCards = try await runtime.listMemoryCards(projectID: projectID)
             await refreshDocumentaryReadiness()
             reviewedMemoryCardIDs.remove(id)
-            let response = "修改已保存为新版本。请重新听我朗读，再确认归档。"
-            messages.append(.init(speaker: .nalu, text: response))
-            speechPlayback.speak(response, rate: comfortPreferences.speechRate)
+            if announceReview {
+                let response = "修改已保存为新版本。请重新听我朗读，再确认归档。"
+                messages.append(.init(speaker: .nalu, text: response))
+                speechPlayback.speak(response, rate: comfortPreferences.speechRate)
+            }
             return true
         } catch {
             errorMessage = error.localizedDescription
@@ -894,6 +917,70 @@ final class VoiceInterviewViewModel {
             )
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+
+    private func handleMemoryIntakeAnswer(
+        _ spoken: String,
+        memoryID: String,
+        step: MemoryIntakeStep
+    ) {
+        guard let card = memoryCards.first(where: { $0.id == memoryID }) else {
+            memoryIntakeCardID = nil
+            memoryIntakeStep = nil
+            return
+        }
+        let answer = ["不知道", "记不清", "不清楚"].contains(where: spoken.contains)
+            ? "" : spoken
+        var description = card.description
+        var date = card.approximateDate
+        var place = card.place
+        var relevance = card.storyRelevance
+        switch step {
+        case .description: description = answer
+        case .approximateDate: date = answer
+        case .place: place = answer
+        case .storyRelevance: relevance = answer
+        }
+
+        Task {
+            let saved = await updateMemoryCard(
+                id: memoryID,
+                title: card.title,
+                description: description,
+                approximateDate: date,
+                place: place,
+                storyRelevance: relevance,
+                allowedUse: card.allowedUse,
+                sourceChannel: "voice",
+                changeSummary: "Nalu 语音建档：\(spoken)",
+                announceReview: false
+            )
+            guard saved else { return }
+            let next: MemoryIntakeStep?
+            let prompt: String?
+            switch step {
+            case .description:
+                next = .approximateDate
+                prompt = "好的。大约是什么时候？记不清可以直接说记不清。"
+            case .approximateDate:
+                next = .place
+                prompt = "这份资料和哪个地方有关？不知道也可以直接说不知道。"
+            case .place:
+                next = .storyRelevance
+                prompt = "最后一个问题：为什么这份资料对您的故事重要？"
+            case .storyRelevance:
+                next = nil
+                prompt = nil
+            }
+            memoryIntakeStep = next
+            if let prompt {
+                messages.append(.init(speaker: .nalu, text: prompt))
+                speechPlayback.speak(prompt, rate: comfortPreferences.speechRate)
+            } else {
+                memoryIntakeCardID = nil
+                speakMemoryCard(memoryID)
+            }
         }
     }
 

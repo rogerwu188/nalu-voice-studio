@@ -18,7 +18,9 @@ struct ContentView: View {
     @State private var isContinuityOverrideExpanded = false
     @State private var isPresentingAssetEditor = false
     @State private var isImportingAsset = false
-    @State private var assetKind = "character_image"
+    @State private var isAutomaticAssetImport = true
+    @State private var isAdvancedAssetEditorExpanded = false
+    @State private var assetKind = "source_document"
     @State private var assetName = ""
     @State private var assetSubjectName = ""
     @State private var assetConsentGranted = false
@@ -251,7 +253,8 @@ struct ContentView: View {
                 }
                 Spacer()
                 Button("添加照片 / 手稿 / 视频", systemImage: "photo.badge.plus") {
-                    assetKind = "character_image"
+                    assetKind = "source_document"
+                    isAdvancedAssetEditorExpanded = false
                     isPresentingAssetEditor = true
                 }
                 .buttonStyle(.borderedProminent)
@@ -317,6 +320,8 @@ struct ContentView: View {
             }
             if selectedProject != nil {
                 Button {
+                    assetKind = "source_document"
+                    isAdvancedAssetEditorExpanded = false
                     isPresentingAssetEditor = true
                 } label: {
                     HStack(spacing: 14) {
@@ -831,74 +836,40 @@ struct ContentView: View {
                 documentaryReadinessPanel
                     .padding(.bottom, 8)
             }
-            Text("文件会复制到这个项目的本地目录，不会只记住原文件位置。")
-                .font(.body)
+            VStack(alignment: .leading, spacing: 12) {
+                Text("不用填写表格")
+                    .font(.title2.bold())
+                Text("您只要选择照片、手稿、录音或家庭视频。Nalu 会在本机识别并建立草稿，再用语音问您缺少的内容。")
+                    .font(.body)
+                Label(
+                    "第一次导入只供理解和核对，不会自动同意用人脸或声音生成画面。",
+                    systemImage: "lock.shield.fill"
+                )
+                .font(.callout)
                 .foregroundStyle(.secondary)
-            HStack {
-                Picker("素材类型", selection: $assetKind) {
-                    ForEach(assetKindOptions, id: \.value) { option in
-                        Text(option.label).tag(option.value)
-                    }
-                }
-                .frame(maxWidth: 260)
-                TextField("素材名称", text: $assetName)
-                    .textFieldStyle(.roundedBorder)
-            }
-            if assetIsBiometric {
-                TextField("照片或声音属于谁", text: $assetSubjectName)
-                    .textFieldStyle(.roundedBorder)
-                Toggle("本人或合法授权人同意用于本项目短剧制作", isOn: $assetConsentGranted)
-                TextField("请写明授权范围，例如：同意把这张照片用于《我的故事》", text: $assetConsentStatement)
-                    .textFieldStyle(.roundedBorder)
-                if selectedProject?.audienceMode == "child" {
-                    Toggle("监护人已在场并同意儿童肖像或声音使用", isOn: $assetGuardianApproved)
-                }
-            }
-            Picker("使用范围", selection: $assetScope) {
-                Text("整个项目").tag("project")
-                Text("当前这一季").tag("season")
-                Text("当前这一集").tag("episode")
-            }
-            .pickerStyle(.segmented)
-            GroupBox("给照片或手稿建立记忆卡") {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Nalu 会在本机识别图片文字。以下内容保存为草稿，朗读确认后才归档。")
-                        .foregroundStyle(.secondary)
-                    TextField("这是什么、发生了什么", text: $assetMemoryDescription)
-                        .textFieldStyle(.roundedBorder)
-                    HStack {
-                        TextField("大约什么时候，例如 1980 年春天", text: $assetMemoryDate)
-                            .textFieldStyle(.roundedBorder)
-                        TextField("在哪里", text: $assetMemoryPlace)
-                            .textFieldStyle(.roundedBorder)
-                    }
-                    TextField("这个人和您是什么关系", text: $assetMemoryRelationship)
-                        .textFieldStyle(.roundedBorder)
-                    TextField("这份资料对故事有什么意义", text: $assetMemoryStoryRelevance)
-                        .textFieldStyle(.roundedBorder)
-                    Picker("允许怎样使用", selection: $assetMemoryAllowedUse) {
-                        Text("只供理解和核对").tag("reference_only")
-                        Text("可用于编写剧本").tag("story_development")
-                        Text("可用于生成画面").tag("visual_generation")
-                    }
-                    .pickerStyle(.segmented)
-                }
-                .padding(.top, 4)
-            }
-            HStack {
-                Button("选择并复制文件", systemImage: "plus.rectangle.on.folder") {
+                Button("选择家庭资料，让 Nalu 整理", systemImage: "plus.rectangle.on.folder") {
+                    isAutomaticAssetImport = true
                     isImportingAsset = true
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(!assetImportIsReady)
-                if assetIsBiometric && !assetConsentGranted {
-                    Label("人物照片和声音必须先取得明确授权", systemImage: "hand.raised.fill")
-                        .font(.caption)
-                        .foregroundStyle(.orange)
-                }
+                .controlSize(.large)
+                .keyboardShortcut("u", modifiers: [.command])
             }
+            .padding(18)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.blue.opacity(0.07), in: RoundedRectangle(cornerRadius: 14))
+
+            DisclosureGroup(
+                "我想自己修改资料类型、范围或授权",
+                isExpanded: $isAdvancedAssetEditorExpanded
+            ) {
+                advancedAssetEditor
+                    .padding(.top, 12)
+            }
+            .font(.headline)
+            .padding(.vertical, 8)
             if model.assets.isEmpty {
-                Text("这个项目还没有素材。")
+                Text("还没有资料。按上面的蓝色按钮选择一份就可以。")
                     .font(.body)
                     .foregroundStyle(.secondary)
             } else {
@@ -993,6 +964,71 @@ struct ContentView: View {
         }
     }
 
+    private var advancedAssetEditor: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("这些是专业设置。大多数情况下不需要修改。")
+                .font(.body)
+                .foregroundStyle(.secondary)
+            HStack {
+                Picker("资料类型", selection: $assetKind) {
+                    ForEach(assetKindOptions, id: \.value) { option in
+                        Text(option.label).tag(option.value)
+                    }
+                }
+                .frame(maxWidth: 280)
+                TextField("资料名称", text: $assetName)
+                    .textFieldStyle(.roundedBorder)
+            }
+            if assetIsBiometric {
+                TextField("照片或声音属于谁", text: $assetSubjectName)
+                    .textFieldStyle(.roundedBorder)
+                Toggle("本人或合法授权人明确同意用于生成", isOn: $assetConsentGranted)
+                TextField("授权范围，例如：同意把这张照片用于《我的故事》", text: $assetConsentStatement)
+                    .textFieldStyle(.roundedBorder)
+                if selectedProject?.audienceMode == "child" {
+                    Toggle("监护人已在场并同意儿童肖像或声音使用", isOn: $assetGuardianApproved)
+                }
+            }
+            Picker("使用范围", selection: $assetScope) {
+                Text("整个项目").tag("project")
+                Text("当前这一季").tag("season")
+                Text("当前这一集").tag("episode")
+            }
+            .pickerStyle(.segmented)
+            TextField("这是什么、发生了什么", text: $assetMemoryDescription)
+                .textFieldStyle(.roundedBorder)
+            HStack {
+                TextField("大约什么时候", text: $assetMemoryDate)
+                    .textFieldStyle(.roundedBorder)
+                TextField("在哪里", text: $assetMemoryPlace)
+                    .textFieldStyle(.roundedBorder)
+            }
+            TextField("这份资料对故事有什么意义", text: $assetMemoryStoryRelevance)
+                .textFieldStyle(.roundedBorder)
+            Picker("允许怎样使用", selection: $assetMemoryAllowedUse) {
+                Text("只供理解和核对").tag("reference_only")
+                Text("可用于编写剧本").tag("story_development")
+                Text("可用于生成画面").tag("visual_generation")
+            }
+            .pickerStyle(.segmented)
+            HStack {
+                Button("按这些设置选择文件", systemImage: "slider.horizontal.3") {
+                    isAutomaticAssetImport = false
+                    isImportingAsset = true
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.large)
+                .disabled(!assetImportIsReady)
+                if assetIsBiometric && !assetConsentGranted {
+                    Label("人物照片和声音必须先取得明确授权", systemImage: "hand.raised.fill")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
+            }
+        }
+        .font(.body)
+    }
+
     @ViewBuilder
     private var documentaryReadinessPanel: some View {
         if let report = model.documentaryReadiness {
@@ -1079,7 +1115,7 @@ struct ContentView: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("添加家庭资料")
                         .font(.title2.bold())
-                    Text("先说明资料，再选择文件。保存后 Nalu 会朗读给您确认。")
+                    Text("只要选择文件，其他内容交给 Nalu 整理，再朗读给您确认。")
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
@@ -1672,12 +1708,14 @@ struct ContentView: View {
 
     private var assetKindOptions: [(value: String, label: String)] {
         [
+            ("source_document", "照片、手稿或文件（只归档）"),
+            ("archive_audio", "录音资料（只归档）"),
+            ("archive_video", "家庭视频（只归档）"),
             ("character_image", "人物照片"),
             ("voice_reference", "人物声音"),
             ("scene_reference", "场景参考"),
             ("prop_reference", "道具参考"),
             ("style_reference", "画面风格参考"),
-            ("source_document", "手写照片、文字或 PDF"),
         ]
     }
 
@@ -1699,9 +1737,14 @@ struct ContentView: View {
     }
 
     private var allowedAssetContentTypes: [UTType] {
+        if isAutomaticAssetImport {
+            return [.image, .movie, .audio, .plainText, .pdf, .json]
+        }
         switch assetKind {
         case "character_image": [.image]
         case "voice_reference": [.audio]
+        case "archive_audio": [.audio]
+        case "archive_video": [.movie]
         case "scene_reference", "prop_reference", "style_reference": [.image, .movie]
         case "source_document": [.image, .plainText, .pdf, .json]
         default: [.data]
@@ -1924,19 +1967,24 @@ struct ContentView: View {
             let data = try Data(contentsOf: url)
             let contentType = UTType(filenameExtension: url.pathExtension)?.preferredMIMEType
                 ?? "application/octet-stream"
-            let importedName = assetName
-            let importedSubjectName = assetSubjectName
-            let importedKind = assetKind
-            let importedConsent = assetConsentGranted
-            let importedGuardianApproval = assetGuardianApproved
-            let importedConsentStatement = assetConsentStatement
-            let importedScope = assetScope
-            let memoryDescription = assetMemoryDescription
-            let memoryDate = assetMemoryDate
-            let memoryPlace = assetMemoryPlace
-            let memoryRelationship = assetMemoryRelationship
-            let memoryStoryRelevance = assetMemoryStoryRelevance
-            let memoryAllowedUse = assetMemoryAllowedUse
+            let automaticImport = isAutomaticAssetImport
+            let inferredName = url.deletingPathExtension().lastPathComponent
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            let importedName = automaticImport
+                ? (inferredName.isEmpty ? "家庭资料" : inferredName) : assetName
+            let importedSubjectName = automaticImport ? "" : assetSubjectName
+            let importedKind = automaticImport
+                ? automaticAssetKind(for: contentType) : assetKind
+            let importedConsent = automaticImport ? false : assetConsentGranted
+            let importedGuardianApproval = automaticImport ? false : assetGuardianApproved
+            let importedConsentStatement = automaticImport ? "" : assetConsentStatement
+            let importedScope = automaticImport ? "project" : assetScope
+            let memoryDescription = automaticImport ? "" : assetMemoryDescription
+            let memoryDate = automaticImport ? "" : assetMemoryDate
+            let memoryPlace = automaticImport ? "" : assetMemoryPlace
+            let memoryRelationship = automaticImport ? "" : assetMemoryRelationship
+            let memoryStoryRelevance = automaticImport ? "" : assetMemoryStoryRelevance
+            let memoryAllowedUse = automaticImport ? "reference_only" : assetMemoryAllowedUse
             Task {
                 let recognizedText = contentType.hasPrefix("image/")
                     ? await LocalTextRecognizer.recognize(in: data)
@@ -1952,7 +2000,9 @@ struct ContentView: View {
                     consentGranted: importedConsent,
                     guardianApproved: importedGuardianApproval,
                     consentStatement: importedConsentStatement,
-                    memoryDescription: memoryDescription,
+                    memoryDescription: automaticImport && !recognizedText.isEmpty
+                        ? "Nalu 已在本机识别到图片文字，等待您用语音说明。"
+                        : memoryDescription,
                     memoryDate: memoryDate,
                     memoryPlace: memoryPlace,
                     memoryRelationship: memoryRelationship,
@@ -1964,6 +2014,12 @@ struct ContentView: View {
         } catch {
             model.errorMessage = error.localizedDescription
         }
+    }
+
+    private func automaticAssetKind(for contentType: String) -> String {
+        if contentType.hasPrefix("audio/") { return "archive_audio" }
+        if contentType.hasPrefix("video/") { return "archive_video" }
+        return "source_document"
     }
 
     private func assetIsBiometricKind(_ kind: String) -> Bool {
@@ -1987,6 +2043,8 @@ struct ContentView: View {
         switch kind {
         case "character_image": "person.crop.rectangle"
         case "voice_reference": "waveform"
+        case "archive_audio": "waveform.circle"
+        case "archive_video": "video"
         case "scene_reference": "photo.on.rectangle"
         case "prop_reference": "shippingbox"
         case "style_reference": "paintpalette"

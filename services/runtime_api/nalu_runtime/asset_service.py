@@ -150,6 +150,8 @@ class AssetService:
         allowed_prefixes = {
             AssetKind.CHARACTER_IMAGE: ("image/",),
             AssetKind.VOICE_REFERENCE: ("audio/",),
+            AssetKind.ARCHIVE_AUDIO: ("audio/",),
+            AssetKind.ARCHIVE_VIDEO: ("video/",),
             AssetKind.SCENE_REFERENCE: ("image/", "video/"),
             AssetKind.PROP_REFERENCE: ("image/", "video/"),
             AssetKind.STYLE_REFERENCE: ("image/", "video/"),
