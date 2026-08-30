@@ -308,10 +308,19 @@ Current evidence:
   conflicts, records explanations, protects the advanced override with explicit review,
   and locks the accepted preflight into the next script revision. Swift tests, the full
   app build, bundled Runtime smoke, ZIP and downloadable artifact passed.
-- Still required before `PASS`: project-level character/scene/prop/voice/style
-  libraries, family-memory entity resolution and contradiction gates, automatic
+- Commit `ed1080f`, GitHub CI run `33283577897`: schema migration v11 adds
+  project-level character, scene, prop, voice and style entities with stable identity,
+  append-only revisions and explicit current-revision confirmation. Only confirmed
+  revisions resolve into immutable production packages and typed Qingshan library
+  indexes. Tests cover all five kinds, duplicate identity, ambiguous/stale confirmation,
+  v7 backup/restore, revision history, future-run updates and byte-for-byte immutability
+  of an earlier episode package. All 33 Runtime tests, real HTTP smoke, OpenAPI gates,
+  Swift tests, full app build, bundle smoke and downloadable artifact passed.
+- Still required before `PASS`: a native/voice library management workflow,
+  family-memory entity resolution and contradiction gates, automatic
   reviewed end-state extraction, unresolved-hook closure rules, completed-episode
-  immutability after library edits, and human/accessibility QA of the native workflow.
+  immutability after library edits at the final rendered-output layer, and
+  human/accessibility QA of the native workflow.
 
 ## SOP-07 · Productized Qingshan execution adapter — IN_PROGRESS
 
