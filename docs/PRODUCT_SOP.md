@@ -413,9 +413,19 @@ Current evidence:
   snapshot creation. All 53 Runtime tests, OpenAPI compatibility, real HTTP smoke, Swift
   tests including old-response compatibility, full app build, bundled-Runtime smoke, ZIP
   and downloadable artifact passed.
-- Still required before `PASS`: completed-episode immutability after library edits at the
-  final rendered-output layer, and human/accessibility QA of the native workflow on the
-  same release candidate.
+- Commit `1115155`, GitHub CI run `33297766372`: QA-stage rendered outputs can now be
+  sealed to the exact production-package digest, confirmed project-library snapshot,
+  Qingshan workspace manifest and per-file byte size/SHA-256. Paths outside the managed
+  exports directory, symbolic links, empty files, duplicate paths, missing masters,
+  altered packages and duplicate seals fail closed. A regression changes and confirms
+  the character library after sealing, proves that the earlier package and master remain
+  byte-for-byte unchanged, then mutates the master and verifies that integrity becomes
+  false with the exact failed path. All 55 Runtime tests, OpenAPI compatibility, real HTTP
+  smoke, Swift tests, full app build, bundled-Runtime smoke, ZIP and downloadable artifact
+  passed. The seal deliberately does not make an episode publishable by itself.
+- Still required before `PASS`: bind a verified output seal into the crash-safe QA-to-
+  completed transition, rerun the library-edit regression on that completed episode, and
+  perform human/accessibility QA of the native workflow on the same release candidate.
 
 ## SOP-07 · Productized Qingshan execution adapter — IN_PROGRESS
 
