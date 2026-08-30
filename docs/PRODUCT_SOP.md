@@ -277,6 +277,15 @@ Current evidence:
   authorized local evidence. A confirmed `reference_only` card cannot become factual
   authority, and biometric visual-generation authority disappears immediately after
   consent revocation. The macOS client refreshes and can read this state aloud.
+- Commits `6ffe814` and `1a7822a`, GitHub CI run `33285285247`: the default family-
+  material flow is now a single prominent file choice instead of a required metadata
+  form. Nalu safely infers local archive type, draft name, project scope and
+  `reference_only` use, then asks one short voice question at a time for event, date,
+  place and significance before reading the memory card back for explicit archive
+  confirmation. Audio/video archives remain distinct from biometric generation
+  references; face/voice generation consent is never inferred. All 37 Runtime tests,
+  Swift tests, full application build, bundled-Runtime smoke, ZIP and artifact upload
+  passed. The professional editor remains available only behind an advanced disclosure.
 - Still required before `PASS`: human privacy/deletion QA and clean-account OCR,
   correction and voice archive QA on the same signed release candidate. Automated
   Computer Use crashed while opening the new asset sheet, while Nalu stayed running,
