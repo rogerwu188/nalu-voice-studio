@@ -122,6 +122,31 @@ struct RuntimeHealth: Codable, Sendable {
     }
 }
 
+struct StorageDiagnostics: Codable, Sendable {
+    let status: String
+    let availableBytes: Int64
+    let totalBytes: Int64
+    let databaseBytes: Int64
+    let minimumProductionReserveBytes: Int64
+    let recommendedFreeBytes: Int64
+    let canStartNewProduction: Bool
+    let explanation: String
+
+    enum CodingKeys: String, CodingKey {
+        case status, explanation
+        case availableBytes = "available_bytes"
+        case totalBytes = "total_bytes"
+        case databaseBytes = "database_bytes"
+        case minimumProductionReserveBytes = "minimum_production_reserve_bytes"
+        case recommendedFreeBytes = "recommended_free_bytes"
+        case canStartNewProduction = "can_start_new_production"
+    }
+
+    var availableLabel: String {
+        ByteCountFormatter.string(fromByteCount: availableBytes, countStyle: .file)
+    }
+}
+
 struct SeasonDraft: Codable, Sendable {
     let title: String
     let seasonNumber: Int

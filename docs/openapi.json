@@ -4538,6 +4538,64 @@
         "title": "SeasonPlanUpdate",
         "type": "object"
       },
+      "StorageDiagnostics": {
+        "properties": {
+          "available_bytes": {
+            "minimum": 0.0,
+            "title": "Available Bytes",
+            "type": "integer"
+          },
+          "can_start_new_production": {
+            "title": "Can Start New Production",
+            "type": "boolean"
+          },
+          "database_bytes": {
+            "minimum": 0.0,
+            "title": "Database Bytes",
+            "type": "integer"
+          },
+          "explanation": {
+            "title": "Explanation",
+            "type": "string"
+          },
+          "minimum_production_reserve_bytes": {
+            "exclusiveMinimum": 0.0,
+            "title": "Minimum Production Reserve Bytes",
+            "type": "integer"
+          },
+          "recommended_free_bytes": {
+            "exclusiveMinimum": 0.0,
+            "title": "Recommended Free Bytes",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "healthy",
+              "warning",
+              "critical"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "total_bytes": {
+            "exclusiveMinimum": 0.0,
+            "title": "Total Bytes",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "status",
+          "available_bytes",
+          "total_bytes",
+          "database_bytes",
+          "minimum_production_reserve_bytes",
+          "recommended_free_bytes",
+          "can_start_new_production",
+          "explanation"
+        ],
+        "title": "StorageDiagnostics",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -4770,6 +4828,24 @@
           }
         },
         "summary": "Asset Dependencies"
+      }
+    },
+    "/v1/diagnostics/storage": {
+      "get": {
+        "operationId": "storage_diagnostics_v1_diagnostics_storage_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StorageDiagnostics"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Storage Diagnostics"
       }
     },
     "/v1/episodes/{episode_id}": {

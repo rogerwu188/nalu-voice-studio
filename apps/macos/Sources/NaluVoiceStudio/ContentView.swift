@@ -95,6 +95,16 @@ struct ContentView: View {
                 }
             }
         }
+        .task {
+            while !Task.isCancelled {
+                await model.refreshStorageDiagnostics()
+                do {
+                    try await Task.sleep(for: .seconds(60))
+                } catch {
+                    return
+                }
+            }
+        }
         .fileImporter(
             isPresented: $isImportingProject,
             allowedContentTypes: [.json],
@@ -280,6 +290,9 @@ struct ContentView: View {
                 VStack(alignment: .leading) {
                     Text("和 Nalu 讲故事").font(.title.bold())
                     RuntimeStatusBadge(status: model.runtimeStatus)
+                    if let diagnostics = model.storageDiagnostics {
+                        StorageStatusBadge(diagnostics: diagnostics)
+                    }
                 }
                 Spacer()
                 Button("选择家庭资料", systemImage: "photo.badge.plus") {

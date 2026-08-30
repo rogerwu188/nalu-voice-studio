@@ -124,6 +124,17 @@ class ProjectRename(BaseModel):
     title: str = Field(min_length=1, max_length=160)
 
 
+class StorageDiagnostics(BaseModel):
+    status: Literal["healthy", "warning", "critical"]
+    available_bytes: int = Field(ge=0)
+    total_bytes: int = Field(gt=0)
+    database_bytes: int = Field(ge=0)
+    minimum_production_reserve_bytes: int = Field(gt=0)
+    recommended_free_bytes: int = Field(gt=0)
+    can_start_new_production: bool
+    explanation: str
+
+
 class ProjectArchiveRequest(BaseModel):
     archived: bool = True
 

@@ -44,6 +44,7 @@ final class VoiceInterviewViewModel {
     var isListening = false
     var isInterviewPaused: Bool { interviewFlow.isPaused }
     var runtimeStatus = "正在连接本地制片厂…"
+    var storageDiagnostics: StorageDiagnostics?
     var errorMessage: String?
     var includeArchivedProjects = false
     var seasonPlanSummary = ""
@@ -121,11 +122,21 @@ final class VoiceInterviewViewModel {
         do {
             let health = try await runtime.health()
             runtimeStatus = "本地制片厂已就绪 · \(health.version)"
+            await refreshStorageDiagnostics()
             projects = try await runtime.listProjects(includeArchived: includeArchivedProjects)
             if let first = projects.first { await selectProject(first.id) }
         } catch {
             runtimeStatus = "本地制片厂尚未启动"
             errorMessage = error.localizedDescription
+        }
+    }
+
+    func refreshStorageDiagnostics() async {
+        do {
+            storageDiagnostics = try await runtime.storageDiagnostics()
+        } catch {
+            // Runtime health remains the authoritative connection signal. A transient
+            // diagnostics failure should not interrupt the user's interview.
         }
     }
 

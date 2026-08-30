@@ -87,9 +87,11 @@ from .models import (
     SeasonPlanApprovalCreate,
     SeasonPlanRevision,
     SeasonPlanUpdate,
+    StorageDiagnostics,
 )
 from .privacy_service import ProjectPrivacyService
 from .repository import ConflictError, NotFoundError, Repository
+from .storage_diagnostics import inspect_storage
 
 
 def create_app(database_path: Path | None = None, data_root: Path | None = None) -> FastAPI:
@@ -131,6 +133,10 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
             "version": "0.1.0",
             "schema_version": str(database.schema_version()),
         }
+
+    @app.get("/v1/diagnostics/storage", response_model=StorageDiagnostics)
+    def storage_diagnostics() -> StorageDiagnostics:
+        return inspect_storage(data_root, database_path)
 
     @app.post("/v1/projects", response_model=Project, status_code=201)
     def create_project(request: ProjectCreate) -> Project:

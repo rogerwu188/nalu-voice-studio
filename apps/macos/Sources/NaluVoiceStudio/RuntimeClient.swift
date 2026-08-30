@@ -19,6 +19,10 @@ actor RuntimeClient {
         return try decoder.decode(RuntimeHealth.self, from: data)
     }
 
+    func storageDiagnostics() async throws -> StorageDiagnostics {
+        try await get("v1/diagnostics/storage")
+    }
+
     func listProjects(includeArchived: Bool = false) async throws -> [NaluProject] {
         var components = URLComponents(
             url: baseURL.appending(path: "v1/projects"), resolvingAgainstBaseURL: false
