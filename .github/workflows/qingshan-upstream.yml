@@ -13,7 +13,7 @@ jobs:
   audit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - id: upstream
         run: python scripts/check_qingshan_upstream.py --check-latest
       - if: steps.upstream.outputs.update_available == 'true'
