@@ -20,6 +20,8 @@ Versioning and the Keep a Changelog structure.
 - Script-revision-bound ending-continuity extraction with completion-aware full-field
   spoken review, edit/cancellation invalidation, explicit voice/visual confirmation,
   an older-adult-safe advanced manual form and immutable handoff audit.
+- Versioned unresolved-hook review with voice-guided carry/resolve/abandon choices,
+  child guardian protection and ending-state enforcement that prevents silent closure.
 - Project → Season → Episode domain hierarchy.
 - Versioned script revisions and spoken approval endpoint.
 - Consent-aware project asset registry.

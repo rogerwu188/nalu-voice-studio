@@ -574,16 +574,57 @@ class ContinuityConflict(BaseModel):
     overridden: bool = False
 
 
+class ContinuityHookResolution(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    hook: str = Field(min_length=1, max_length=1000)
+    disposition: Literal["carry_forward", "resolved", "abandoned"]
+    explanation: str = Field(default="", max_length=4000)
+
+    @model_validator(mode="after")
+    def require_closure_explanation(self) -> ContinuityHookResolution:
+        self.hook = self.hook.strip()
+        self.explanation = self.explanation.strip()
+        if self.disposition in {"resolved", "abandoned"} and not self.explanation:
+            raise ValueError("resolved or abandoned hooks require an explanation")
+        return self
+
+
+class ContinuityHookReview(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: Literal["nalu.continuity-hook-review/v1"]
+    inherited_snapshot_id: str = Field(min_length=1)
+    resolutions: list[ContinuityHookResolution] = Field(min_length=1, max_length=100)
+    reviewed_by: str = Field(min_length=1, max_length=160)
+    spoken_confirmation: str = Field(min_length=1, max_length=1000)
+    guardian_approval: bool = False
+
+    @model_validator(mode="after")
+    def require_explicit_unique_review(self) -> ContinuityHookReview:
+        hooks = [item.hook for item in self.resolutions]
+        if len(set(hooks)) != len(hooks):
+            raise ValueError("hook review resolutions must be unique")
+        if not any(word in self.spoken_confirmation for word in ("我确认", "我同意")):
+            raise ValueError("hook review requires explicit confirmation language")
+        return self
+
+
 class ContinuityPreflightRequest(BaseModel):
     opening_state: ContinuityState = Field(default_factory=ContinuityState)
     transition_explanations: dict[str, str] = Field(default_factory=dict)
     override: ContinuityOverride | None = None
+    hook_review: ContinuityHookReview | None = None
 
 
 class ContinuityPreflightResult(BaseModel):
     inherited_snapshot_id: str | None = None
     can_proceed: bool
     conflicts: list[ContinuityConflict] = Field(default_factory=list)
+    hook_review_status: Literal[
+        "not_required", "missing", "stale", "incomplete", "accepted"
+    ] = "not_required"
+    hook_resolutions: list[ContinuityHookResolution] = Field(default_factory=list)
     explanation: str
 
 

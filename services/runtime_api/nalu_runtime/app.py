@@ -532,6 +532,16 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
     ) -> ContinuityPreflightResult:
         episode = repository.get_episode(episode_id)
         season = repository.get_season(episode.season_id)
+        project = repository.get_project(season.project_id)
+        if (
+            project.audience_mode == "child"
+            and request.hook_review is not None
+            and not request.hook_review.guardian_approval
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail="child hook review requires guardian approval",
+            )
         inherited = repository.latest_continuity(season.id, episode.episode_number)
         return audit_continuity(inherited, request)
 

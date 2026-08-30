@@ -107,17 +107,25 @@ class ProductionService:
                             "continuity_transition_explanations", {}
                         ),
                         "override": metadata.get("continuity_override"),
+                        "hook_review": metadata.get("continuity_hook_review"),
                     }
                 )
             except ValueError as exc:
                 raise ConflictError(f"invalid continuity metadata: {exc}") from exc
+            if (
+                project.audience_mode == AudienceMode.CHILD
+                and preflight_request.hook_review is not None
+                and not preflight_request.hook_review.guardian_approval
+            ):
+                raise ConflictError("child hook review requires guardian approval")
             continuity_preflight = audit_continuity(continuity, preflight_request)
             if not continuity_preflight.can_proceed:
                 paths = ", ".join(
                     conflict.path for conflict in continuity_preflight.conflicts
                     if not conflict.explanation and not conflict.overridden
                 )
-                raise ConflictError("unexplained continuity conflicts: " + paths)
+                detail = paths or continuity_preflight.explanation
+                raise ConflictError("continuity preflight blocked: " + detail)
 
         if request.requested_model not in policy["allowed_video_models"]:
             raise ConflictError(

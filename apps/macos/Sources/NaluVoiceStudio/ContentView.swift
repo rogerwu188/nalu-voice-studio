@@ -778,6 +778,94 @@ struct ContentView: View {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Nalu 已带入上一集最后状态。请只修改本集开场确实发生变化的地方。")
                             .foregroundStyle(.secondary)
+                        if !model.continuityHookResolutions.isEmpty {
+                            VStack(alignment: .leading, spacing: 12) {
+                                Label(
+                                    "上一集留下 \(model.continuityHookResolutions.count) 个悬念",
+                                    systemImage: "questionmark.bubble.fill"
+                                )
+                                .font(.headline)
+                                Text("Nalu 会把选择写进剧本。悬念不能悄悄消失。")
+                                    .foregroundStyle(.secondary)
+                                ForEach(model.continuityHookResolutions) { resolution in
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        Text(resolution.hook).font(.body.weight(.semibold))
+                                        Picker(
+                                            "这一集怎样处理",
+                                            selection: Binding(
+                                                get: { resolution.disposition },
+                                                set: {
+                                                    model.updateHookResolution(
+                                                        hook: resolution.hook,
+                                                        disposition: $0
+                                                    )
+                                                }
+                                            )
+                                        ) {
+                                            Text("请选择").tag("")
+                                            Text("继续留到后面").tag("carry_forward")
+                                            Text("在本集解决").tag("resolved")
+                                            Text("审阅后不再继续").tag("abandoned")
+                                        }
+                                        .pickerStyle(.segmented)
+                                        if ["resolved", "abandoned"].contains(
+                                            resolution.disposition
+                                        ) {
+                                            TextField(
+                                                resolution.disposition == "resolved"
+                                                    ? "怎样解决的"
+                                                    : "为什么不再继续",
+                                                text: Binding(
+                                                    get: { resolution.explanation },
+                                                    set: {
+                                                        model.updateHookResolution(
+                                                            hook: resolution.hook,
+                                                            explanation: $0
+                                                        )
+                                                    }
+                                                ),
+                                                axis: .vertical
+                                            )
+                                            .textFieldStyle(.roundedBorder)
+                                        }
+                                    }
+                                    .padding(12)
+                                    .background(
+                                        Color.orange.opacity(0.08),
+                                        in: RoundedRectangle(cornerRadius: 12)
+                                    )
+                                }
+                                HStack {
+                                    Button("用语音逐个回答", systemImage: "waveform.badge.mic") {
+                                        Task { await model.beginHookVoiceReview() }
+                                    }
+                                    .buttonStyle(.borderedProminent)
+                                    Button("朗读悬念安排", systemImage: "speaker.wave.2") {
+                                        model.speakHookReview()
+                                    }
+                                }
+                                TextField(
+                                    "听完后说或输入：我确认这份悬念安排",
+                                    text: Binding(
+                                        get: { model.continuityHookConfirmation },
+                                        set: { model.updateHookConfirmation($0) }
+                                    )
+                                )
+                                .textFieldStyle(.roundedBorder)
+                                if selectedProject?.audienceMode == "child" {
+                                    Label(
+                                        "儿童项目还需要上方的监护人确认",
+                                        systemImage: "person.badge.shield.checkmark.fill"
+                                    )
+                                    .foregroundStyle(.secondary)
+                                }
+                            }
+                            .padding(14)
+                            .background(
+                                Color.orange.opacity(0.05),
+                                in: RoundedRectangle(cornerRadius: 14)
+                            )
+                        }
                         continuityForm(.opening)
                         HStack {
                             Button("朗读本集开场", systemImage: "speaker.wave.2") {
@@ -924,8 +1012,15 @@ struct ContentView: View {
                 .foregroundStyle(.green)
         } else {
             VStack(alignment: .leading, spacing: 10) {
-                Label("发现 \(result.conflicts.count) 处没有说明的变化", systemImage: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.orange)
+                if !["accepted", "not_required"].contains(result.hookReviewStatus) {
+                    Label("上一集悬念还没有逐项确认", systemImage: "questionmark.bubble.fill")
+                        .foregroundStyle(.orange)
+                    Text(result.explanation).foregroundStyle(.secondary)
+                }
+                if !result.conflicts.isEmpty {
+                    Label("发现 \(result.conflicts.count) 处没有说明的变化", systemImage: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                }
                 ForEach(result.conflicts) { conflict in
                     VStack(alignment: .leading, spacing: 4) {
                         Text(continuityPathLabel(conflict.path)).font(.headline)
@@ -936,37 +1031,39 @@ struct ContentView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(Color.orange.opacity(0.09), in: RoundedRectangle(cornerRadius: 10))
                 }
-                TextField(
-                    "说明中间发生了什么，例如：开场字幕说明三个月后",
-                    text: continuityTransitionExplanationBinding,
-                    axis: .vertical
-                )
-                .textFieldStyle(.roundedBorder)
-                Button("记录这个剧情解释并重新检查") {
-                    Task { await model.checkOpeningContinuity(applyExplanation: true) }
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(
-                    model.continuityTransitionExplanation.trimmingCharacters(
-                        in: .whitespacesAndNewlines
-                    ).isEmpty
-                )
-                DisclosureGroup("高级：审阅后强制覆盖", isExpanded: $isContinuityOverrideExpanded) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("只有剧情确实故意不连续时使用。覆盖记录会绑定到当前剧本版本。")
-                            .foregroundStyle(.red)
-                        TextField("为什么必须覆盖", text: continuityOverrideReasonBinding)
-                            .textFieldStyle(.roundedBorder)
-                        TextField(
-                            "完整输入：我确认这些变化可以覆盖",
-                            text: continuityOverrideConfirmationBinding
-                        )
-                        .textFieldStyle(.roundedBorder)
-                        Button("确认覆盖并重新检查", role: .destructive) {
-                            Task { await model.checkOpeningContinuity(applyOverride: true) }
-                        }
+                if !result.conflicts.isEmpty {
+                    TextField(
+                        "说明中间发生了什么，例如：开场字幕说明三个月后",
+                        text: continuityTransitionExplanationBinding,
+                        axis: .vertical
+                    )
+                    .textFieldStyle(.roundedBorder)
+                    Button("记录这个剧情解释并重新检查") {
+                        Task { await model.checkOpeningContinuity(applyExplanation: true) }
                     }
-                    .padding(.top, 8)
+                    .buttonStyle(.borderedProminent)
+                    .disabled(
+                        model.continuityTransitionExplanation.trimmingCharacters(
+                            in: .whitespacesAndNewlines
+                        ).isEmpty
+                    )
+                    DisclosureGroup("高级：审阅后强制覆盖", isExpanded: $isContinuityOverrideExpanded) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("只有剧情确实故意不连续时使用。覆盖记录会绑定到当前剧本版本。")
+                                .foregroundStyle(.red)
+                            TextField("为什么必须覆盖", text: continuityOverrideReasonBinding)
+                                .textFieldStyle(.roundedBorder)
+                            TextField(
+                                "完整输入：我确认这些变化可以覆盖",
+                                text: continuityOverrideConfirmationBinding
+                            )
+                            .textFieldStyle(.roundedBorder)
+                            Button("确认覆盖并重新检查", role: .destructive) {
+                                Task { await model.checkOpeningContinuity(applyOverride: true) }
+                            }
+                        }
+                        .padding(.top, 8)
+                    }
                 }
             }
         }

@@ -492,15 +492,42 @@ struct ContinuityOverrideDraft: Codable, Sendable {
     }
 }
 
+struct ContinuityHookResolutionDraft: Codable, Identifiable, Equatable, Sendable {
+    var id: String { hook }
+    let hook: String
+    var disposition: String
+    var explanation: String
+}
+
+struct ContinuityHookReviewDraft: Codable, Equatable, Sendable {
+    let schemaVersion = "nalu.continuity-hook-review/v1"
+    let inheritedSnapshotID: String
+    let resolutions: [ContinuityHookResolutionDraft]
+    let reviewedBy: String
+    let spokenConfirmation: String
+    let guardianApproval: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case resolutions
+        case schemaVersion = "schema_version"
+        case inheritedSnapshotID = "inherited_snapshot_id"
+        case reviewedBy = "reviewed_by"
+        case spokenConfirmation = "spoken_confirmation"
+        case guardianApproval = "guardian_approval"
+    }
+}
+
 struct ContinuityPreflightDraft: Codable, Sendable {
     let openingState: ContinuityState
     let transitionExplanations: [String: String]
     let override: ContinuityOverrideDraft?
+    let hookReview: ContinuityHookReviewDraft?
 
     enum CodingKeys: String, CodingKey {
         case override
         case openingState = "opening_state"
         case transitionExplanations = "transition_explanations"
+        case hookReview = "hook_review"
     }
 }
 
@@ -523,12 +550,16 @@ struct ContinuityPreflightResult: Codable, Sendable {
     let inheritedSnapshotID: String?
     let canProceed: Bool
     let conflicts: [ContinuityConflict]
+    let hookReviewStatus: String
+    let hookResolutions: [ContinuityHookResolutionDraft]
     let explanation: String
 
     enum CodingKeys: String, CodingKey {
         case conflicts, explanation
         case inheritedSnapshotID = "inherited_snapshot_id"
         case canProceed = "can_proceed"
+        case hookReviewStatus = "hook_review_status"
+        case hookResolutions = "hook_resolutions"
     }
 }
 

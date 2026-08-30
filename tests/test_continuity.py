@@ -53,6 +53,22 @@ def create_snapshot(api: TestClient, first_episode_id: str) -> dict:
     return response.json()
 
 
+def hook_review(snapshot: dict, disposition: str = "carry_forward") -> dict:
+    return {
+        "schema_version": "nalu.continuity-hook-review/v1",
+        "inherited_snapshot_id": snapshot["id"],
+        "resolutions": [
+            {
+                "hook": "父亲的信还没有打开",
+                "disposition": disposition,
+                "explanation": "本集继续追查" if disposition == "carry_forward" else "本集已经交代",
+            }
+        ],
+        "reviewed_by": "user",
+        "spoken_confirmation": "我确认这份悬念安排",
+    }
+
+
 def approve_script(api: TestClient, episode_id: str, metadata: dict) -> dict:
     script = api.post(
         f"/v1/episodes/{episode_id}/scripts",
@@ -88,17 +104,26 @@ def test_matching_opening_state_passes_and_is_snapshotted(tmp_path: Path) -> Non
 
     preflight = api.post(
         f"/v1/episodes/{second['id']}/continuity-preflight",
-        json={"opening_state": end_state()},
+        json={"opening_state": end_state(), "hook_review": hook_review(snapshot)},
     )
     assert preflight.status_code == 200
     assert preflight.json() == {
         "inherited_snapshot_id": snapshot["id"],
         "can_proceed": True,
         "conflicts": [],
+        "hook_review_status": "accepted",
+        "hook_resolutions": hook_review(snapshot)["resolutions"],
         "explanation": "opening state is consistent with the previous episode",
     }
 
-    approve_script(api, second["id"], {"opening_continuity": end_state()})
+    approve_script(
+        api,
+        second["id"],
+        {
+            "opening_continuity": end_state(),
+            "continuity_hook_review": hook_review(snapshot),
+        },
+    )
     run = api.post(
         f"/v1/episodes/{second['id']}/production-runs",
         json={"dry_run": True},
@@ -108,13 +133,17 @@ def test_matching_opening_state_passes_and_is_snapshotted(tmp_path: Path) -> Non
     package = json.loads(Path(run.json()["package_path"]).read_text(encoding="utf-8"))
     assert package["continuity"]["id"] == snapshot["id"]
     assert package["continuity_preflight"]["can_proceed"] is True
+    assert package["continuity_preflight"]["hook_review_status"] == "accepted"
+    assert package["continuity_preflight"]["hook_resolutions"][0]["hook"] == (
+        "父亲的信还没有打开"
+    )
 
 
 def test_unexplained_character_prop_and_time_conflicts_block(tmp_path: Path) -> None:
     api = client(tmp_path)
     plan = two_episode_project(api)
     first, second = plan["episodes"]
-    create_snapshot(api, first["id"])
+    snapshot = create_snapshot(api, first["id"])
     opening = end_state()
     opening["characters"]["lin"]["location"] = "姐姐家"
     opening["characters"]["lin"]["wardrobe"] = ["白色衬衫"]
@@ -125,7 +154,7 @@ def test_unexplained_character_prop_and_time_conflicts_block(tmp_path: Path) -> 
 
     preflight = api.post(
         f"/v1/episodes/{second['id']}/continuity-preflight",
-        json={"opening_state": opening},
+        json={"opening_state": opening, "hook_review": hook_review(snapshot)},
     ).json()
     paths = {item["path"] for item in preflight["conflicts"]}
     assert preflight["can_proceed"] is False
@@ -138,7 +167,11 @@ def test_unexplained_character_prop_and_time_conflicts_block(tmp_path: Path) -> 
         "props.suitcase.owner",
     }
 
-    approve_script(api, second["id"], {"opening_continuity": opening})
+    approve_script(
+        api,
+        second["id"],
+        {"opening_continuity": opening, "continuity_hook_review": hook_review(snapshot)},
+    )
     blocked = api.post(
         f"/v1/episodes/{second['id']}/production-runs",
         json={"dry_run": True},
@@ -153,7 +186,7 @@ def test_explanations_and_exact_versioned_override_are_fail_closed(tmp_path: Pat
     api = client(tmp_path)
     plan = two_episode_project(api)
     first, second = plan["episodes"]
-    create_snapshot(api, first["id"])
+    snapshot = create_snapshot(api, first["id"])
     opening = end_state()
     opening["scene_location"] = "姐姐家"
     opening["weather"] = "晴"
@@ -166,6 +199,7 @@ def test_explanations_and_exact_versioned_override_are_fail_closed(tmp_path: Pat
                 "scene_location": "字幕说明三天后，主人公已经回到姐姐家。",
                 "weather": "场景发生在暴雪后的晴天。",
             },
+            "hook_review": hook_review(snapshot),
         },
     ).json()
     assert explained["can_proceed"] is True
@@ -180,7 +214,11 @@ def test_explanations_and_exact_versioned_override_are_fail_closed(tmp_path: Pat
     }
     rejected = api.post(
         f"/v1/episodes/{second['id']}/continuity-preflight",
-        json={"opening_state": opening, "override": bad_override},
+        json={
+            "opening_state": opening,
+            "override": bad_override,
+            "hook_review": hook_review(snapshot),
+        },
     ).json()
     assert rejected["can_proceed"] is False
     assert "exactly match" in rejected["explanation"]
@@ -189,7 +227,11 @@ def test_explanations_and_exact_versioned_override_are_fail_closed(tmp_path: Pat
     ambiguous["spoken_confirmation"] = "大概可以"
     invalid_confirmation = api.post(
         f"/v1/episodes/{second['id']}/continuity-preflight",
-        json={"opening_state": opening, "override": ambiguous},
+        json={
+            "opening_state": opening,
+            "override": ambiguous,
+            "hook_review": hook_review(snapshot),
+        },
     )
     assert invalid_confirmation.status_code == 422
 
@@ -197,7 +239,11 @@ def test_explanations_and_exact_versioned_override_are_fail_closed(tmp_path: Pat
     exact_override["conflict_paths"] = ["scene_location", "weather"]
     accepted = api.post(
         f"/v1/episodes/{second['id']}/continuity-preflight",
-        json={"opening_state": opening, "override": exact_override},
+        json={
+            "opening_state": opening,
+            "override": exact_override,
+            "hook_review": hook_review(snapshot),
+        },
     ).json()
     assert accepted["can_proceed"] is True
     assert all(item["overridden"] for item in accepted["conflicts"])
@@ -208,6 +254,7 @@ def test_explanations_and_exact_versioned_override_are_fail_closed(tmp_path: Pat
         {
             "opening_continuity": opening,
             "continuity_override": exact_override,
+            "continuity_hook_review": hook_review(snapshot),
         },
     )
     run = api.post(

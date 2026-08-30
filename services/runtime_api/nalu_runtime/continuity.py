@@ -4,11 +4,49 @@ from typing import Any
 
 from .models import (
     ContinuityConflict,
+    ContinuityHookReview,
     ContinuityPreflightRequest,
     ContinuityPreflightResult,
     ContinuitySnapshot,
     ContinuityState,
 )
+
+
+def audit_hook_review(
+    inherited_snapshot: ContinuitySnapshot,
+    review: ContinuityHookReview | None,
+) -> tuple[str, str]:
+    inherited_hooks = inherited_snapshot.unresolved_hooks
+    if not inherited_hooks:
+        return "not_required", ""
+    if review is None:
+        return "missing", "every inherited unresolved hook requires an explicit review"
+    if review.inherited_snapshot_id != inherited_snapshot.id:
+        return "stale", "hook review targets a stale inherited snapshot"
+    reviewed_hooks = {item.hook for item in review.resolutions}
+    if reviewed_hooks != set(inherited_hooks):
+        return "incomplete", "hook review must cover exactly the inherited unresolved hooks"
+    return "accepted", ""
+
+
+def ending_hooks_match_review(
+    inherited_snapshot: ContinuitySnapshot | None,
+    review: ContinuityHookReview | None,
+    ending_hooks: list[str],
+) -> tuple[bool, str]:
+    if inherited_snapshot is None or not inherited_snapshot.unresolved_hooks:
+        return True, ""
+    status, message = audit_hook_review(inherited_snapshot, review)
+    if status != "accepted" or review is None:
+        return False, message
+    ending = set(ending_hooks)
+    for resolution in review.resolutions:
+        remains = resolution.hook in ending
+        if resolution.disposition == "carry_forward" and not remains:
+            return False, f"carried-forward hook is missing from the ending: {resolution.hook}"
+        if resolution.disposition != "carry_forward" and remains:
+            return False, f"closed hook remains unresolved at the ending: {resolution.hook}"
+    return True, ""
 
 
 def _append_if_changed(
@@ -130,6 +168,9 @@ def audit_continuity(
         )
 
     conflicts = _raw_conflicts(inherited_snapshot.state, request.opening_state)
+    hook_status, hook_message = audit_hook_review(
+        inherited_snapshot, request.hook_review
+    )
     override_paths = set(request.override.conflict_paths) if request.override else set()
     actual_paths = {conflict.path for conflict in conflicts}
     if request.override and override_paths != actual_paths:
@@ -143,7 +184,7 @@ def audit_continuity(
             ),
         )
 
-    blocked = False
+    blocked = hook_status not in {"not_required", "accepted"}
     resolved: list[ContinuityConflict] = []
     for conflict in conflicts:
         explanation = request.transition_explanations.get(conflict.path, "").strip()
@@ -155,7 +196,9 @@ def audit_continuity(
                 update={"explanation": explanation, "overridden": overridden}
             )
         )
-    if not conflicts:
+    if hook_message:
+        message = hook_message
+    elif not conflicts:
         message = "opening state is consistent with the previous episode"
     elif blocked:
         message = "unexplained continuity conflicts block production"
@@ -165,5 +208,7 @@ def audit_continuity(
         inherited_snapshot_id=inherited_snapshot.id,
         can_proceed=not blocked,
         conflicts=resolved,
+        hook_review_status=hook_status,
+        hook_resolutions=request.hook_review.resolutions if request.hook_review else [],
         explanation=message,
     )

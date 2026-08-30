@@ -673,6 +673,88 @@
         "title": "ContinuityExtractionProposal",
         "type": "object"
       },
+      "ContinuityHookResolution": {
+        "additionalProperties": false,
+        "properties": {
+          "disposition": {
+            "enum": [
+              "carry_forward",
+              "resolved",
+              "abandoned"
+            ],
+            "title": "Disposition",
+            "type": "string"
+          },
+          "explanation": {
+            "default": "",
+            "maxLength": 4000,
+            "title": "Explanation",
+            "type": "string"
+          },
+          "hook": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Hook",
+            "type": "string"
+          }
+        },
+        "required": [
+          "hook",
+          "disposition"
+        ],
+        "title": "ContinuityHookResolution",
+        "type": "object"
+      },
+      "ContinuityHookReview": {
+        "additionalProperties": false,
+        "properties": {
+          "guardian_approval": {
+            "default": false,
+            "title": "Guardian Approval",
+            "type": "boolean"
+          },
+          "inherited_snapshot_id": {
+            "minLength": 1,
+            "title": "Inherited Snapshot Id",
+            "type": "string"
+          },
+          "resolutions": {
+            "items": {
+              "$ref": "#/components/schemas/ContinuityHookResolution"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Resolutions",
+            "type": "array"
+          },
+          "reviewed_by": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Reviewed By",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "nalu.continuity-hook-review/v1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "spoken_confirmation": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Spoken Confirmation",
+            "type": "string"
+          }
+        },
+        "required": [
+          "schema_version",
+          "inherited_snapshot_id",
+          "resolutions",
+          "reviewed_by",
+          "spoken_confirmation"
+        ],
+        "title": "ContinuityHookReview",
+        "type": "object"
+      },
       "ContinuityOverride": {
         "additionalProperties": false,
         "properties": {
@@ -721,6 +803,16 @@
       },
       "ContinuityPreflightRequest": {
         "properties": {
+          "hook_review": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContinuityHookReview"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "opening_state": {
             "$ref": "#/components/schemas/ContinuityState"
           },
@@ -760,6 +852,25 @@
           },
           "explanation": {
             "title": "Explanation",
+            "type": "string"
+          },
+          "hook_resolutions": {
+            "items": {
+              "$ref": "#/components/schemas/ContinuityHookResolution"
+            },
+            "title": "Hook Resolutions",
+            "type": "array"
+          },
+          "hook_review_status": {
+            "default": "not_required",
+            "enum": [
+              "not_required",
+              "missing",
+              "stale",
+              "incomplete",
+              "accepted"
+            ],
+            "title": "Hook Review Status",
             "type": "string"
           },
           "inherited_snapshot_id": {

@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
+from .continuity import ending_hooks_match_review
 from .database import Database
 from .models import (
     ApprovalCreate,
@@ -20,6 +21,7 @@ from .models import (
     ContinuityExtractionConfirmation,
     ContinuityExtractionConfirmationResult,
     ContinuityExtractionProposal,
+    ContinuityHookReview,
     ContinuitySnapshot,
     ContinuitySnapshotCreate,
     ContinuityState,
@@ -2399,6 +2401,29 @@ class Repository:
             raise ConflictError("edited continuity extraction requires a change summary")
         episode = self.get_episode(episode_id)
         season = self.get_season(episode.season_id)
+        inherited = self.latest_continuity(season.id, episode.episode_number)
+        script = self.get_script(episode_id, proposal.script_revision)
+        raw_hook_review = script.narrative_metadata.get("continuity_hook_review")
+        try:
+            hook_review = (
+                ContinuityHookReview.model_validate(raw_hook_review)
+                if raw_hook_review is not None
+                else None
+            )
+        except ValueError as exc:
+            raise ConflictError(f"invalid continuity hook review: {exc}") from exc
+        project = self.get_project(season.project_id)
+        if (
+            project.audience_mode == "child"
+            and hook_review is not None
+            and not hook_review.guardian_approval
+        ):
+            raise ConflictError("child hook review requires guardian approval")
+        hooks_match, hook_message = ending_hooks_match_review(
+            inherited, hook_review, request.unresolved_hooks
+        )
+        if not hooks_match:
+            raise ConflictError(hook_message)
         snapshot_id, approval_id, now = new_id("con"), new_id("apr"), utc_now()
         with self.db.connect() as connection:
             connection.execute("BEGIN IMMEDIATE")

@@ -90,6 +90,16 @@ contain explicit confirmation language. The accepted opening state, explanations
 and any override are stored in the immutable script revision and re-audited when
 the production package is built.
 
+Inherited unresolved hooks have a separate, non-overridable review contract. Every
+hook from the exact inherited snapshot must be marked `carry_forward`, `resolved` or
+`abandoned`; resolved and abandoned hooks require a plain-language explanation, and
+the full set requires explicit confirmation. Child projects require guardian presence.
+The native client asks one hook at a time by voice, reads the complete arrangement back
+and stores the versioned review in the approved script. At ending confirmation, a
+carried hook must still be unresolved, while a resolved or abandoned hook must be absent.
+New hooks may be added. The same rules run again before production and are frozen into
+the production package, so a hook cannot disappear silently between episodes.
+
 Project libraries use the same authority boundary. Characters, scenes, props,
 voices and styles have a stable project identity plus append-only revisions.
 Editing creates a draft revision without silently replacing the last confirmed

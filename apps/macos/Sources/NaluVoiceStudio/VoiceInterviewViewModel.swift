@@ -14,6 +14,12 @@ private enum LibraryIntakeStep {
     case confirmation
 }
 
+private enum HookReviewVoiceStep {
+    case disposition(Int)
+    case explanation(Int)
+    case confirmation
+}
+
 @MainActor
 @Observable
 final class VoiceInterviewViewModel {
@@ -53,6 +59,8 @@ final class VoiceInterviewViewModel {
     var reviewedContinuityExtractionHash: String?
     var isReadingEndingContinuity = false
     var continuityExtractionChangeSummary = ""
+    var continuityHookResolutions: [ContinuityHookResolutionDraft] = []
+    var continuityHookConfirmation = ""
     var continuityPreflightResult: ContinuityPreflightResult?
     var continuityTransitionExplanation = ""
     var continuityOverrideReason = ""
@@ -73,6 +81,8 @@ final class VoiceInterviewViewModel {
     private var memoryIntakeStep: MemoryIntakeStep?
     private var libraryIntakeStep: LibraryIntakeStep?
     private var libraryIntakeEntityID: String?
+    private var hookReviewVoiceStep: HookReviewVoiceStep?
+    private var hookReviewShouldCapture = false
     var draftProjectID: String?
     var feedbackDraftText = ""
     var isCapturingFeedback = false
@@ -153,6 +163,10 @@ final class VoiceInterviewViewModel {
         transcript = ""
         transcriptConfidence = 0
         if applyComfortCommand(spoken) { return }
+        if let hookReviewVoiceStep {
+            handleHookReviewVoiceAnswer(spoken, step: hookReviewVoiceStep)
+            return
+        }
         if let libraryIntakeStep {
             handleLibraryIntakeAnswer(spoken, step: libraryIntakeStep)
             return
@@ -481,6 +495,14 @@ final class VoiceInterviewViewModel {
             reviewedContinuityExtractionHash = nil
             isReadingEndingContinuity = false
             continuityExtractionChangeSummary = ""
+            continuityHookResolutions = inheritedResult.snapshot?.unresolvedHooks.map {
+                ContinuityHookResolutionDraft(
+                    hook: $0, disposition: "", explanation: ""
+                )
+            } ?? []
+            continuityHookConfirmation = ""
+            hookReviewVoiceStep = nil
+            hookReviewShouldCapture = false
             openingContinuityDraft = inheritedResult.snapshot.map(
                 ContinuityFormDraft.init(snapshot:)
             ) ?? ContinuityFormDraft()
@@ -658,6 +680,22 @@ final class VoiceInterviewViewModel {
                     "spoken_confirmation": .string(override.spokenConfirmation),
                 ])
             }
+            if let hookReview = acceptedContinuityDraft.hookReview {
+                narrativeMetadata["continuity_hook_review"] = .object([
+                    "schema_version": .string(hookReview.schemaVersion),
+                    "inherited_snapshot_id": .string(hookReview.inheritedSnapshotID),
+                    "resolutions": .array(hookReview.resolutions.map { resolution in
+                        .object([
+                            "hook": .string(resolution.hook),
+                            "disposition": .string(resolution.disposition),
+                            "explanation": .string(resolution.explanation),
+                        ])
+                    }),
+                    "reviewed_by": .string(hookReview.reviewedBy),
+                    "spoken_confirmation": .string(hookReview.spokenConfirmation),
+                    "guardian_approval": .bool(hookReview.guardianApproval),
+                ])
+            }
         }
         if endingContinuityDraft.hasContent {
             narrativeMetadata["ending_continuity"] = endingContinuityDraft.state.jsonValue
@@ -798,10 +836,38 @@ final class VoiceInterviewViewModel {
                 spokenConfirmation: confirmation
             )
         }
+        var hookReview: ContinuityHookReviewDraft?
+        if let inherited = inheritedContinuity, !inherited.unresolvedHooks.isEmpty {
+            let confirmation = continuityHookConfirmation.trimmingCharacters(
+                in: .whitespacesAndNewlines
+            )
+            let validDispositions = Set(["carry_forward", "resolved", "abandoned"])
+            guard continuityHookResolutions.count == inherited.unresolvedHooks.count,
+                  Set(continuityHookResolutions.map(\.hook)) == Set(inherited.unresolvedHooks),
+                  continuityHookResolutions.allSatisfy({ resolution in
+                      validDispositions.contains(resolution.disposition)
+                          && (resolution.disposition == "carry_forward"
+                              || !resolution.explanation.trimmingCharacters(
+                                  in: .whitespacesAndNewlines
+                              ).isEmpty)
+                  }),
+                  confirmation.contains("我确认") || confirmation.contains("我同意") else {
+                errorMessage = "请逐个选择悬念是继续保留、本集解决或不再继续；解决或放弃时要说明原因，最后明确说或输入“我确认”。"
+                return
+            }
+            hookReview = ContinuityHookReviewDraft(
+                inheritedSnapshotID: inherited.id,
+                resolutions: continuityHookResolutions,
+                reviewedBy: "local-user",
+                spokenConfirmation: confirmation,
+                guardianApproval: guardianConfirmedForScript
+            )
+        }
         let draft = ContinuityPreflightDraft(
             openingState: openingContinuityDraft.state,
             transitionExplanations: explanations,
-            override: override
+            override: override,
+            hookReview: hookReview
         )
         do {
             let result = try await runtime.continuityPreflight(
@@ -828,6 +894,143 @@ final class VoiceInterviewViewModel {
             continuitySpeechSummary(openingContinuityDraft, prefix: "本集开场"),
             rate: comfortPreferences.speechRate
         )
+    }
+
+    func updateHookResolution(
+        hook: String, disposition: String? = nil, explanation: String? = nil
+    ) {
+        guard let index = continuityHookResolutions.firstIndex(where: { $0.hook == hook }) else {
+            return
+        }
+        if let disposition { continuityHookResolutions[index].disposition = disposition }
+        if let explanation { continuityHookResolutions[index].explanation = explanation }
+        continuityHookConfirmation = ""
+        continuityPreflightResult = nil
+        acceptedContinuityDraft = nil
+    }
+
+    func updateHookConfirmation(_ confirmation: String) {
+        continuityHookConfirmation = confirmation
+        continuityPreflightResult = nil
+        acceptedContinuityDraft = nil
+    }
+
+    func beginHookVoiceReview(startLocalCapture: Bool = true) async {
+        guard !continuityHookResolutions.isEmpty else { return }
+        continuityHookConfirmation = ""
+        hookReviewShouldCapture = startLocalCapture
+        hookReviewVoiceStep = .disposition(0)
+        presentHookVoicePrompt(hookDispositionPrompt(at: 0))
+        if startLocalCapture, !isListening { await toggleListening() }
+    }
+
+    private func handleHookReviewVoiceAnswer(
+        _ spoken: String, step: HookReviewVoiceStep
+    ) {
+        switch step {
+        case .disposition(let index):
+            let disposition: String?
+            if ["继续", "保留", "后面", "下一集"].contains(where: spoken.contains) {
+                disposition = "carry_forward"
+            } else if ["解决", "揭晓", "打开", "交代"].contains(where: spoken.contains) {
+                disposition = "resolved"
+            } else if ["放弃", "删除", "不再继续", "不要了"].contains(where: spoken.contains) {
+                disposition = "abandoned"
+            } else {
+                presentHookVoicePrompt("我没有听清选择。请说：继续保留、本集解决，或者不再继续。")
+                restartHookVoiceCapture()
+                return
+            }
+            let hook = continuityHookResolutions[index].hook
+            updateHookResolution(hook: hook, disposition: disposition)
+            if disposition == "carry_forward" {
+                advanceHookVoice(after: index)
+            } else {
+                hookReviewVoiceStep = .explanation(index)
+                presentHookVoicePrompt(
+                    disposition == "resolved"
+                        ? "请告诉我，这个悬念在本集怎样解决？"
+                        : "请告诉我，为什么决定不再继续这个悬念？"
+                )
+            }
+        case .explanation(let index):
+            let hook = continuityHookResolutions[index].hook
+            updateHookResolution(hook: hook, explanation: spoken)
+            advanceHookVoice(after: index)
+        case .confirmation:
+            if ["不确认", "不同意", "还要改", "取消"].contains(where: spoken.contains) {
+                hookReviewVoiceStep = .disposition(0)
+                continuityHookConfirmation = ""
+                presentHookVoicePrompt("好的，没有确认。我们从第一个悬念重新核对。" + hookDispositionPrompt(at: 0))
+            } else if spoken.contains("我确认") || spoken.contains("我同意") {
+                if selectedProject?.audienceMode == "child" && !guardianConfirmedForScript {
+                    hookReviewVoiceStep = nil
+                    hookReviewShouldCapture = false
+                    presentHookVoicePrompt("这是儿童项目。监护人没有确认在场，我不会保存这份悬念安排。")
+                    return
+                }
+                updateHookConfirmation(spoken)
+                hookReviewVoiceStep = nil
+                hookReviewShouldCapture = false
+                presentHookVoicePrompt("悬念安排已经由您确认。现在可以检查本集开场。")
+                return
+            } else {
+                presentHookVoicePrompt("为了避免误操作，请明确说：我确认这份悬念安排；或者说：不确认。")
+            }
+        }
+        restartHookVoiceCapture()
+    }
+
+    private func advanceHookVoice(after index: Int) {
+        let next = index + 1
+        if next < continuityHookResolutions.count {
+            hookReviewVoiceStep = .disposition(next)
+            presentHookVoicePrompt(hookDispositionPrompt(at: next))
+        } else {
+            hookReviewVoiceStep = .confirmation
+            presentHookVoicePrompt(
+                hookReviewSpeechSummary()
+                    + "如果都正确，请明确说：我确认这份悬念安排。"
+            )
+        }
+    }
+
+    private func hookDispositionPrompt(at index: Int) -> String {
+        let hook = continuityHookResolutions[index].hook
+        return "上一集留下的悬念是：\(hook)。这一集要继续保留、本集解决，还是不再继续？"
+    }
+
+    private func presentHookVoicePrompt(_ prompt: String) {
+        messages.append(.init(speaker: .nalu, text: prompt))
+        speechPlayback.speak(prompt, rate: comfortPreferences.speechRate)
+    }
+
+    private func restartHookVoiceCapture() {
+        guard hookReviewShouldCapture else { return }
+        Task { if !isListening { await toggleListening() } }
+    }
+
+    func speakHookReview() {
+        guard !continuityHookResolutions.isEmpty else { return }
+        speechPlayback.speak(
+            hookReviewSpeechSummary(), rate: comfortPreferences.speechRate
+        )
+    }
+
+    private func hookReviewSpeechSummary() -> String {
+        let parts = continuityHookResolutions.map { resolution in
+            let action: String
+            switch resolution.disposition {
+            case "resolved": action = "本集解决"
+            case "abandoned": action = "审阅后不再继续"
+            case "carry_forward": action = "继续留到后面"
+            default: action = "还没有选择"
+            }
+            let reason = resolution.explanation.isEmpty
+                ? "" : "，说明是\(resolution.explanation)"
+            return "悬念，\(resolution.hook)，安排为\(action)\(reason)"
+        }
+        return "请核对上一集留下的悬念。" + parts.joined(separator: "。") + "。"
     }
 
     func speakEndingContinuity() {
