@@ -63,18 +63,23 @@ nalu-runtime
 
 Open `http://127.0.0.1:8765/docs` for the local OpenAPI explorer.
 
-Build the unsigned local macOS application bundle:
+Build the local macOS application bundle:
 
 ```bash
 scripts/build-macos-release.sh
 open "dist/Nalu Voice Studio.app"
 ```
 
-The release script creates a self-contained app and zip. It bundles the Python
+The release script creates a self-contained ad-hoc-signed app, zip and SHA-256 file. It bundles the Python
 Runtime, pinned Qingshan resources and local supervisor; users do not manually
 start a server after launching the app. Building requires macOS 14+, Xcode
-Command Line Tools and Python 3.11+. Python is a build dependency, not an
+and Python 3.11+. Python is a build dependency, not an
 end-user runtime dependency.
+
+Official distribution additionally requires Developer ID signing, hardened runtime and
+Apple notarization. The fail-closed release workflow and credential setup are documented
+in [the macOS release guide](docs/MACOS_RELEASE.md). A local build never claims to be an
+official notarized release.
 
 The default runtime is safe and local:
 

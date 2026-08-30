@@ -5,6 +5,10 @@ repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 app_root="$repo_root/apps/macos"
 output_root="$repo_root/dist"
 bundle="$output_root/Nalu Voice Studio.app"
+release_version="${NALU_RELEASE_VERSION:-0.1.0}"
+build_number="${NALU_BUILD_NUMBER:-1}"
+
+"$repo_root/scripts/check-macos-build-environment.sh"
 
 build_root="$repo_root/.build/nalu-macos"
 binary_path="$build_root/NaluVoiceStudio"
@@ -56,6 +60,12 @@ cp "$runtime_binary" "$bundle/Contents/Resources/runtime/nalu-runtime"
 cp -R "$repo_root/configs" "$bundle/Contents/Resources/runtime-resources/configs"
 cp -R "$repo_root/vendor" "$bundle/Contents/Resources/runtime-resources/vendor"
 cp "$app_root/Info.plist" "$bundle/Contents/Info.plist"
+/usr/libexec/PlistBuddy \
+  -c "Set :CFBundleShortVersionString $release_version" \
+  "$bundle/Contents/Info.plist"
+/usr/libexec/PlistBuddy \
+  -c "Set :CFBundleVersion $build_number" \
+  "$bundle/Contents/Info.plist"
 
 codesign --force --deep --sign - "$bundle"
 echo "$bundle"

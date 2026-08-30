@@ -1,0 +1,125 @@
+name: macOS release candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: CFBundleShortVersionString, for example 0.2.0
+        required: true
+        type: string
+      build_number:
+        description: Monotonically increasing CFBundleVersion
+        required: true
+        type: string
+      signed_and_notarized:
+        description: Require Developer ID signing and Apple notarization
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: macos-release-${{ inputs.version }}-${{ inputs.build_number }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - name: Validate release identity
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+          BUILD_NUMBER: ${{ inputs.build_number }}
+        run: |
+          [[ "$RELEASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][A-Za-z0-9]+)?$ ]]
+          [[ "$BUILD_NUMBER" =~ ^[1-9][0-9]*$ ]]
+      - run: python -m pip install -e '.[dev,packaging]'
+      - run: pytest -q
+      - run: ruff check services tests scripts
+      - run: python scripts/export-openapi.py --check
+      - run: python scripts/check_qingshan_upstream.py
+      - run: swift test --package-path apps/macos
+      - name: Import Developer ID and notary credentials
+        if: inputs.signed_and_notarized
+        env:
+          CERTIFICATE_BASE64: ${{ secrets.APPLE_DEVELOPER_ID_CERTIFICATE_BASE64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_CERTIFICATE_PASSWORD }}
+          NOTARY_KEY_BASE64: ${{ secrets.APPLE_NOTARY_KEY_BASE64 }}
+          NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
+          NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
+          KEYCHAIN_PASSWORD: ${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          for required in CERTIFICATE_BASE64 CERTIFICATE_PASSWORD NOTARY_KEY_BASE64 NOTARY_KEY_ID NOTARY_ISSUER_ID; do
+            [[ -n "${!required}" ]] || { echo "Missing release secret: $required" >&2; exit 1; }
+          done
+          keychain="$RUNNER_TEMP/nalu-signing.keychain-db"
+          certificate="$RUNNER_TEMP/developer-id.p12"
+          notary_key="$RUNNER_TEMP/AuthKey_${NOTARY_KEY_ID}.p8"
+          printf '%s' "$CERTIFICATE_BASE64" | base64 -D > "$certificate"
+          printf '%s' "$NOTARY_KEY_BASE64" | base64 -D > "$notary_key"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$keychain"
+          security import "$certificate" -k "$keychain" -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$keychain"
+          security list-keychains -d user -s "$keychain"
+          xcrun notarytool store-credentials nalu-ci-notary \
+            --key "$notary_key" \
+            --key-id "$NOTARY_KEY_ID" \
+            --issuer "$NOTARY_ISSUER_ID" \
+            --keychain "$keychain"
+          echo "NALU_CI_KEYCHAIN=$keychain" >> "$GITHUB_ENV"
+      - name: Build local source release
+        if: ${{ !inputs.signed_and_notarized }}
+        env:
+          NALU_RELEASE_VERSION: ${{ inputs.version }}
+          NALU_BUILD_NUMBER: ${{ inputs.build_number }}
+        run: scripts/build-macos-release.sh
+      - name: Build signed and notarized release
+        if: inputs.signed_and_notarized
+        env:
+          NALU_RELEASE_VERSION: ${{ inputs.version }}
+          NALU_BUILD_NUMBER: ${{ inputs.build_number }}
+          NALU_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          NALU_NOTARY_PROFILE: nalu-ci-notary
+          NALU_NOTARY_KEYCHAIN: ${{ env.NALU_CI_KEYCHAIN }}
+          NALU_REQUIRE_DEVELOPER_ID: "true"
+          NALU_REQUIRE_NOTARIZATION: "true"
+        run: scripts/build-macos-release.sh
+      - name: Record release-candidate provenance
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+          BUILD_NUMBER: ${{ inputs.build_number }}
+          SIGNED: ${{ inputs.signed_and_notarized }}
+        run: |
+          python - <<'PY'
+          import hashlib, json, os, pathlib, subprocess
+          artifact = pathlib.Path("dist/Nalu-Voice-Studio-macOS.zip")
+          provenance = {
+              "schema_version": "nalu.macos-release-provenance/v1",
+              "version": os.environ["RELEASE_VERSION"],
+              "build_number": os.environ["BUILD_NUMBER"],
+              "commit": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
+              "signed_and_notarized_required": os.environ["SIGNED"].lower() == "true",
+              "artifact": artifact.name,
+              "artifact_sha256": hashlib.sha256(artifact.read_bytes()).hexdigest(),
+          }
+          pathlib.Path("dist/release-provenance.json").write_text(
+              json.dumps(provenance, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+          )
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Nalu-Voice-Studio-${{ inputs.version }}-${{ inputs.build_number }}
+          if-no-files-found: error
+          path: |
+            dist/Nalu-Voice-Studio-macOS.zip
+            dist/Nalu-Voice-Studio-macOS.zip.sha256
+            dist/release-provenance.json

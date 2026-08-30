@@ -46,11 +46,16 @@ jobs:
           python-version: "3.13"
           cache: pip
       - run: python -m pip install -e '.[packaging]'
+      - run: scripts/check-macos-build-environment.sh
       - run: swift test --package-path apps/macos
       - run: scripts/build-macos-app.sh
+      - run: scripts/verify-macos-release.sh
       - run: scripts/smoke-macos-bundle.sh
       - run: ditto -c -k --keepParent "dist/Nalu Voice Studio.app" "dist/Nalu-Voice-Studio-macOS.zip"
+      - run: shasum -a 256 "dist/Nalu-Voice-Studio-macOS.zip" > "dist/Nalu-Voice-Studio-macOS.zip.sha256"
       - uses: actions/upload-artifact@v4
         with:
           name: Nalu-Voice-Studio-macOS
-          path: dist/Nalu-Voice-Studio-macOS.zip
+          path: |
+            dist/Nalu-Voice-Studio-macOS.zip
+            dist/Nalu-Voice-Studio-macOS.zip.sha256

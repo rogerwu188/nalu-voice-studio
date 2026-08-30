@@ -19,6 +19,7 @@ trap cleanup EXIT
 test -x "$runtime"
 test -f "$runtime_resources/configs/qingshan-upstream.json"
 test -f "$runtime_resources/vendor/qingshan/LICENSE"
+"$repo_root/scripts/verify-macos-release.sh" "$bundle"
 
 NALU_DATA_ROOT="$smoke_root/data" \
 NALU_DATABASE_PATH="$smoke_root/nalu.sqlite3" \
