@@ -23,8 +23,10 @@ card and its history. Raw OCR never causes cloud upload.
 
 ## Accessible archive flow
 
-1. The user selects one large, obvious “let Nalu organize it” control. No metadata
-   form is required before choosing a photo, scan, audio recording, or family video.
+1. The user selects one large, obvious “let Nalu organize it” control and the native
+   file picker opens immediately. No metadata form or intermediate modal is required
+   before choosing a photo, scan, audio recording, or family video. Existing archives
+   and professional authorization controls remain available through “管理资料”.
 2. Nalu infers the safe archive type and title, copies the bytes into local managed
    storage, uses Apple Vision on the Mac to recognize image text, and creates a
    `reference_only` draft. The professional form remains available only in an

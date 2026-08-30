@@ -252,12 +252,18 @@ struct ContentView: View {
                     RuntimeStatusBadge(status: model.runtimeStatus)
                 }
                 Spacer()
-                Button("添加照片 / 手稿 / 视频", systemImage: "photo.badge.plus") {
+                Button("选择家庭资料", systemImage: "photo.badge.plus") {
+                    beginAutomaticAssetImport()
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .disabled(selectedProject == nil)
+                .accessibilityHint("直接打开文件选择器，资料名称和归档草稿由 Nalu 整理")
+                Button("管理资料", systemImage: "tray.full") {
                     assetKind = "source_document"
                     isAdvancedAssetEditorExpanded = false
                     isPresentingAssetEditor = true
                 }
-                .buttonStyle(.borderedProminent)
                 .controlSize(.large)
                 .disabled(selectedProject == nil)
                 Button(
@@ -320,9 +326,7 @@ struct ContentView: View {
             }
             if selectedProject != nil {
                 Button {
-                    assetKind = "source_document"
-                    isAdvancedAssetEditorExpanded = false
-                    isPresentingAssetEditor = true
+                    beginAutomaticAssetImport()
                 } label: {
                     HStack(spacing: 14) {
                         Image(systemName: "photo.stack.fill")
@@ -343,6 +347,7 @@ struct ContentView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
+                .accessibilityHint("直接打开文件选择器，选择后 Nalu 会用语音逐项确认")
                 .padding(.horizontal, 24)
                 .padding(.vertical, 12)
                 Divider()
@@ -1113,9 +1118,9 @@ struct ContentView: View {
                     .font(.title)
                     .foregroundStyle(.blue)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("添加家庭资料")
+                    Text("管理家庭资料")
                         .font(.title2.bold())
-                    Text("只要选择文件，其他内容交给 Nalu 整理，再朗读给您确认。")
+                    Text("查看已经归档的资料；专业类型和授权设置在需要时再展开。")
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
@@ -2014,6 +2019,12 @@ struct ContentView: View {
         } catch {
             model.errorMessage = error.localizedDescription
         }
+    }
+
+    private func beginAutomaticAssetImport() {
+        assetKind = "source_document"
+        isAutomaticAssetImport = true
+        isImportingAsset = true
     }
 
     private func automaticAssetKind(for contentType: String) -> String {

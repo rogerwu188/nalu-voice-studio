@@ -10,8 +10,9 @@ Versioning and the Keep a Changelog structure.
 - Documentary-series intent with archive-led and archive-plus-reenactment modes.
 - A fail-closed documentary evidence-readiness report that distinguishes imported,
   draft, confirmed and narratively authorized family-memory sources.
-- One-action family archive import: Nalu safely infers local photo/document/audio/video
-  evidence fields and conducts the missing memory-card questions by voice.
+- One-action family archive import: the main controls open the native file picker
+  directly; Nalu safely infers local photo/document/audio/video evidence fields and
+  conducts the missing memory-card questions by voice. The detailed manager is secondary.
 - Project → Season → Episode domain hierarchy.
 - Versioned script revisions and spoken approval endpoint.
 - Consent-aware project asset registry.

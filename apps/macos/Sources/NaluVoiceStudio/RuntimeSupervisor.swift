@@ -17,7 +17,9 @@ final class RuntimeSupervisor {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.process?.terminate()
+            Task { @MainActor in
+                self?.process?.terminate()
+            }
         }
     }
 
