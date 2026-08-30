@@ -27,6 +27,12 @@ from .models import (
     EpisodeTransitionRequest,
     FeedbackCreate,
     FeedbackItem,
+    LibraryEntity,
+    LibraryEntityConfirmation,
+    LibraryEntityConfirmationRecord,
+    LibraryEntityCreate,
+    LibraryEntityRevision,
+    LibraryEntityRevisionCreate,
     MemoryCard,
     MemoryCardConfirmation,
     MemoryCardConfirmationRecord,
@@ -458,6 +464,22 @@ class Repository:
                    JOIN memory_cards m ON m.id = c.memory_id WHERE m.project_id = ?""",
                 (project_id,),
             ),
+            "library_entities": (
+                "SELECT * FROM library_entities WHERE project_id = ?",
+                (project_id,),
+            ),
+            "library_entity_revisions": (
+                """SELECT r.* FROM library_entity_revisions r
+                   JOIN library_entities e ON e.id = r.entity_id
+                   WHERE e.project_id = ?""",
+                (project_id,),
+            ),
+            "library_entity_confirmation_records": (
+                """SELECT c.* FROM library_entity_confirmation_records c
+                   JOIN library_entities e ON e.id = c.entity_id
+                   WHERE e.project_id = ?""",
+                (project_id,),
+            ),
         }
         payload: dict[str, list[dict[str, Any]]] = {}
         with self.db.connect() as connection:
@@ -536,6 +558,19 @@ class Repository:
                 "id", "memory_id", "reviewed_revision", "confirmed_by",
                 "spoken_confirmation", "review_channel", "created_at",
             ),
+            "library_entities": (
+                "id", "project_id", "kind", "stable_name", "current_revision",
+                "confirmed_revision", "created_at", "updated_at",
+            ),
+            "library_entity_revisions": (
+                "entity_id", "revision", "name", "description", "attributes_json",
+                "source_asset_ids_json", "source_memory_ids_json", "source_channel",
+                "change_summary", "created_at",
+            ),
+            "library_entity_confirmation_records": (
+                "id", "entity_id", "reviewed_revision", "confirmed_by",
+                "spoken_confirmation", "review_channel", "created_at",
+            ),
         }
         if backup.schema_version in {
             "nalu.project-export/v1",
@@ -567,6 +602,17 @@ class Repository:
             allowed_columns.pop("memory_cards")
             allowed_columns.pop("memory_card_revisions")
             allowed_columns.pop("memory_card_confirmation_records")
+        if backup.schema_version in {
+            "nalu.project-export/v1",
+            "nalu.project-export/v2",
+            "nalu.project-export/v3",
+            "nalu.project-export/v4",
+            "nalu.project-export/v5",
+            "nalu.project-export/v6",
+        }:
+            allowed_columns.pop("library_entities")
+            allowed_columns.pop("library_entity_revisions")
+            allowed_columns.pop("library_entity_confirmation_records")
         if backup.schema_version == "nalu.project-export/v1":
             allowed_columns.pop("season_plan_revisions")
             allowed_columns.pop("season_plan_approval_records")
@@ -655,6 +701,28 @@ class Repository:
             for row in backup.payload.get("memory_card_confirmation_records", [])
         ):
             raise ConflictError("project export contains a memory confirmation from another project")
+        library_ids = {row.get("id") for row in backup.payload.get("library_entities", [])}
+        if any(
+            row.get("project_id") != project_id
+            for row in backup.payload.get("library_entities", [])
+        ):
+            raise ConflictError("project export contains a library entity from another project")
+        library_revision_keys = {
+            (row.get("entity_id"), row.get("revision"))
+            for row in backup.payload.get("library_entity_revisions", [])
+        }
+        if any(
+            row.get("entity_id") not in library_ids
+            for row in backup.payload.get("library_entity_revisions", [])
+        ):
+            raise ConflictError("project export contains a library revision from another project")
+        if any(
+            row.get("entity_id") not in library_ids
+            or (row.get("entity_id"), row.get("reviewed_revision"))
+            not in library_revision_keys
+            for row in backup.payload.get("library_entity_confirmation_records", [])
+        ):
+            raise ConflictError("project export contains a library confirmation from another project")
         try:
             with self.db.connect() as connection:
                 connection.execute("BEGIN IMMEDIATE")
@@ -1778,6 +1846,187 @@ class Repository:
                 (season_id, before_episode),
             ).fetchone()
         return self.get_continuity_snapshot(row["id"]) if row else None
+
+    def _validate_library_sources(
+        self, project_id: str, request: LibraryEntityRevisionCreate
+    ) -> None:
+        for asset_id in request.source_asset_ids:
+            asset = self.get_asset(asset_id)
+            if asset.project_id != project_id:
+                raise ConflictError("library source asset belongs to another project")
+            if asset.kind in {"character_image", "voice_reference"} and not asset.consent_granted:
+                raise ConflictError("library biometric source requires active consent")
+        for memory_id in request.source_memory_ids:
+            memory = self.get_memory_card(memory_id)
+            if memory.project_id != project_id:
+                raise ConflictError("library source memory belongs to another project")
+            if memory.confirmation_status != "confirmed":
+                raise ConflictError("library source memory must be confirmed")
+            if memory.allowed_use == "reference_only":
+                raise ConflictError("reference-only memory cannot become library authority")
+
+    def create_library_entity(
+        self, project_id: str, request: LibraryEntityCreate
+    ) -> LibraryEntity:
+        self.get_project(project_id)
+        self._validate_library_sources(project_id, request)
+        entity_id, now = new_id("lib"), utc_now()
+        stable_name = re.sub(r"\s+", " ", request.name.strip()).casefold()
+        try:
+            with self.db.connect() as connection:
+                connection.execute(
+                    """INSERT INTO library_entities
+                       VALUES (?, ?, ?, ?, 1, NULL, ?, ?)""",
+                    (entity_id, project_id, request.kind, stable_name, now, now),
+                )
+                connection.execute(
+                    """INSERT INTO library_entity_revisions
+                       VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (
+                        entity_id,
+                        request.name.strip(),
+                        request.description,
+                        encode(request.attributes),
+                        encode(request.source_asset_ids),
+                        encode(request.source_memory_ids),
+                        request.source_channel,
+                        request.change_summary,
+                        now,
+                    ),
+                )
+        except Exception as exc:
+            if "UNIQUE constraint failed" in str(exc):
+                raise ConflictError("a library entity with this kind and name already exists") from exc
+            raise
+        return self.get_library_entity(entity_id)
+
+    def get_library_revision(self, entity_id: str, revision: int) -> LibraryEntityRevision:
+        with self.db.connect() as connection:
+            row = connection.execute(
+                """SELECT * FROM library_entity_revisions
+                   WHERE entity_id = ? AND revision = ?""",
+                (entity_id, revision),
+            ).fetchone()
+        if row is None:
+            raise NotFoundError("library revision not found")
+        data = dict(row)
+        data["attributes"] = decode(data.pop("attributes_json"))
+        data["source_asset_ids"] = decode(data.pop("source_asset_ids_json"))
+        data["source_memory_ids"] = decode(data.pop("source_memory_ids_json"))
+        return LibraryEntityRevision.model_validate(data)
+
+    def get_library_entity(self, entity_id: str) -> LibraryEntity:
+        with self.db.connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM library_entities WHERE id = ?", (entity_id,)
+            ).fetchone()
+        if row is None:
+            raise NotFoundError("library entity not found")
+        data = dict(row)
+        data["current"] = self.get_library_revision(entity_id, data["current_revision"])
+        return LibraryEntity.model_validate(data)
+
+    def list_library_entities(self, project_id: str) -> list[LibraryEntity]:
+        self.get_project(project_id)
+        with self.db.connect() as connection:
+            rows = connection.execute(
+                """SELECT id FROM library_entities WHERE project_id = ?
+                   ORDER BY kind, stable_name""",
+                (project_id,),
+            ).fetchall()
+        return [self.get_library_entity(row["id"]) for row in rows]
+
+    def list_library_revisions(self, entity_id: str) -> list[LibraryEntityRevision]:
+        self.get_library_entity(entity_id)
+        with self.db.connect() as connection:
+            rows = connection.execute(
+                """SELECT revision FROM library_entity_revisions
+                   WHERE entity_id = ? ORDER BY revision""",
+                (entity_id,),
+            ).fetchall()
+        return [self.get_library_revision(entity_id, row["revision"]) for row in rows]
+
+    def create_library_revision(
+        self, entity_id: str, request: LibraryEntityRevisionCreate
+    ) -> LibraryEntity:
+        entity = self.get_library_entity(entity_id)
+        self._validate_library_sources(entity.project_id, request)
+        revision, now = entity.current_revision + 1, utc_now()
+        with self.db.connect() as connection:
+            connection.execute(
+                """INSERT INTO library_entity_revisions
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    entity_id,
+                    revision,
+                    request.name.strip(),
+                    request.description,
+                    encode(request.attributes),
+                    encode(request.source_asset_ids),
+                    encode(request.source_memory_ids),
+                    request.source_channel,
+                    request.change_summary,
+                    now,
+                ),
+            )
+            connection.execute(
+                """UPDATE library_entities SET current_revision = ?, updated_at = ?
+                   WHERE id = ?""",
+                (revision, now, entity_id),
+            )
+        return self.get_library_entity(entity_id)
+
+    def confirm_library_entity(
+        self, entity_id: str, request: LibraryEntityConfirmation
+    ) -> LibraryEntityConfirmationRecord:
+        entity = self.get_library_entity(entity_id)
+        if request.reviewed_revision != entity.current_revision:
+            raise ConflictError("only the current library revision can be confirmed")
+        record_id, now = new_id("lcf"), utc_now()
+        try:
+            with self.db.connect() as connection:
+                connection.execute(
+                    """INSERT INTO library_entity_confirmation_records
+                       VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                    (
+                        record_id,
+                        entity_id,
+                        request.reviewed_revision,
+                        request.confirmed_by,
+                        request.spoken_confirmation,
+                        request.review_channel,
+                        now,
+                    ),
+                )
+                connection.execute(
+                    """UPDATE library_entities SET confirmed_revision = ?, updated_at = ?
+                       WHERE id = ?""",
+                    (request.reviewed_revision, now, entity_id),
+                )
+        except Exception as exc:
+            if "UNIQUE constraint failed" in str(exc):
+                raise ConflictError("this library revision is already confirmed") from exc
+            raise
+        return LibraryEntityConfirmationRecord(
+            id=record_id, entity_id=entity_id, created_at=now, **request.model_dump()
+        )
+
+    def resolved_project_library(self, project_id: str) -> list[dict[str, Any]]:
+        resolved: list[dict[str, Any]] = []
+        for entity in self.list_library_entities(project_id):
+            if entity.confirmed_revision is None:
+                continue
+            revision = self.get_library_revision(entity.id, entity.confirmed_revision)
+            resolved.append(
+                {
+                    "entity_id": entity.id,
+                    "kind": entity.kind,
+                    "stable_name": entity.stable_name,
+                    "confirmed_revision": entity.confirmed_revision,
+                    "revision": revision.model_dump(mode="json"),
+                }
+            )
+        return resolved
 
     def save_run(self, run: ProductionRun) -> None:
         with self.db.connect() as connection:

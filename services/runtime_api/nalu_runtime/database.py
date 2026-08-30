@@ -332,6 +332,50 @@ MIGRATIONS = (
         );
         """,
     ),
+    (
+        11,
+        "versioned_project_libraries",
+        """
+        CREATE TABLE IF NOT EXISTS library_entities (
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+          kind TEXT NOT NULL,
+          stable_name TEXT NOT NULL,
+          current_revision INTEGER NOT NULL,
+          confirmed_revision INTEGER,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          UNIQUE(project_id, kind, stable_name)
+        );
+        CREATE INDEX IF NOT EXISTS library_entities_project_kind_idx
+          ON library_entities(project_id, kind, stable_name);
+        CREATE TABLE IF NOT EXISTS library_entity_revisions (
+          entity_id TEXT NOT NULL REFERENCES library_entities(id) ON DELETE CASCADE,
+          revision INTEGER NOT NULL,
+          name TEXT NOT NULL,
+          description TEXT NOT NULL,
+          attributes_json TEXT NOT NULL,
+          source_asset_ids_json TEXT NOT NULL,
+          source_memory_ids_json TEXT NOT NULL,
+          source_channel TEXT NOT NULL,
+          change_summary TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          PRIMARY KEY(entity_id, revision)
+        );
+        CREATE TABLE IF NOT EXISTS library_entity_confirmation_records (
+          id TEXT PRIMARY KEY,
+          entity_id TEXT NOT NULL REFERENCES library_entities(id) ON DELETE CASCADE,
+          reviewed_revision INTEGER NOT NULL,
+          confirmed_by TEXT NOT NULL,
+          spoken_confirmation TEXT NOT NULL,
+          review_channel TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          UNIQUE(entity_id, reviewed_revision),
+          FOREIGN KEY(entity_id, reviewed_revision)
+            REFERENCES library_entity_revisions(entity_id, revision)
+        );
+        """,
+    ),
 )
 
 

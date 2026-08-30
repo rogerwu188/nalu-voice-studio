@@ -68,6 +68,14 @@ class FeedbackCategory(StrEnum):
     PREFERENCE = "preference"
 
 
+class LibraryEntityKind(StrEnum):
+    CHARACTER = "character"
+    SCENE = "scene"
+    PROP = "prop"
+    VOICE = "voice"
+    STYLE = "style"
+
+
 class ProjectCreate(BaseModel):
     title: str = Field(min_length=1, max_length=160)
     description: str = ""
@@ -106,8 +114,9 @@ class ProjectExport(BaseModel):
         "nalu.project-export/v4",
         "nalu.project-export/v5",
         "nalu.project-export/v6",
+        "nalu.project-export/v7",
     ] = (
-        "nalu.project-export/v6"
+        "nalu.project-export/v7"
     )
     exported_at: str
     payload: dict[str, Any]
@@ -553,6 +562,65 @@ class InheritedContinuityResult(BaseModel):
     snapshot: ContinuitySnapshot | None = None
 
 
+class LibraryEntityRevisionCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=160)
+    description: str = Field(default="", max_length=10000)
+    attributes: dict[str, Any] = Field(default_factory=dict)
+    source_asset_ids: list[str] = Field(default_factory=list, max_length=100)
+    source_memory_ids: list[str] = Field(default_factory=list, max_length=100)
+    source_channel: Literal["voice", "visual", "system"]
+    change_summary: str = Field(min_length=1, max_length=1000)
+
+    @model_validator(mode="after")
+    def require_unique_sources(self) -> LibraryEntityRevisionCreate:
+        if len(set(self.source_asset_ids)) != len(self.source_asset_ids):
+            raise ValueError("library source asset IDs must be unique")
+        if len(set(self.source_memory_ids)) != len(self.source_memory_ids):
+            raise ValueError("library source memory IDs must be unique")
+        return self
+
+
+class LibraryEntityCreate(LibraryEntityRevisionCreate):
+    kind: LibraryEntityKind
+
+
+class LibraryEntityRevision(LibraryEntityRevisionCreate):
+    entity_id: str
+    revision: int
+    created_at: str
+
+
+class LibraryEntity(BaseModel):
+    id: str
+    project_id: str
+    kind: LibraryEntityKind
+    stable_name: str
+    current_revision: int
+    confirmed_revision: int | None = None
+    current: LibraryEntityRevision
+    created_at: str
+    updated_at: str
+
+
+class LibraryEntityConfirmation(BaseModel):
+    confirmed_by: str = Field(min_length=1, max_length=160)
+    reviewed_revision: int = Field(ge=1)
+    review_channel: Literal["voice", "visual", "voice_and_visual"]
+    spoken_confirmation: str = Field(min_length=1, max_length=1000)
+
+    @model_validator(mode="after")
+    def require_explicit_confirmation(self) -> LibraryEntityConfirmation:
+        if not any(word in self.spoken_confirmation for word in ("我确认", "我同意")):
+            raise ValueError("library confirmation requires explicit confirmation language")
+        return self
+
+
+class LibraryEntityConfirmationRecord(LibraryEntityConfirmation):
+    id: str
+    entity_id: str
+    created_at: str
+
+
 class ProductionRunCreate(BaseModel):
     dry_run: bool = True
     requested_model: str = "seedance-2.0-pro"
@@ -626,6 +694,7 @@ class ProductionPackage(BaseModel):
     episode: dict[str, Any]
     approved_script: dict[str, Any]
     inherited_assets: list[dict[str, Any]]
+    resolved_library: list[dict[str, Any]] = Field(default_factory=list)
     continuity: dict[str, Any] | None
     continuity_preflight: dict[str, Any] | None = None
     production_policy: dict[str, Any]

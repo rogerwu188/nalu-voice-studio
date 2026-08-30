@@ -1291,6 +1291,361 @@
         "title": "InheritedContinuityResult",
         "type": "object"
       },
+      "LibraryEntity": {
+        "properties": {
+          "confirmed_revision": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirmed Revision"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "current": {
+            "$ref": "#/components/schemas/LibraryEntityRevision"
+          },
+          "current_revision": {
+            "title": "Current Revision",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/LibraryEntityKind"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "stable_name": {
+            "title": "Stable Name",
+            "type": "string"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "project_id",
+          "kind",
+          "stable_name",
+          "current_revision",
+          "current",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "LibraryEntity",
+        "type": "object"
+      },
+      "LibraryEntityConfirmation": {
+        "properties": {
+          "confirmed_by": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Confirmed By",
+            "type": "string"
+          },
+          "review_channel": {
+            "enum": [
+              "voice",
+              "visual",
+              "voice_and_visual"
+            ],
+            "title": "Review Channel",
+            "type": "string"
+          },
+          "reviewed_revision": {
+            "minimum": 1.0,
+            "title": "Reviewed Revision",
+            "type": "integer"
+          },
+          "spoken_confirmation": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Spoken Confirmation",
+            "type": "string"
+          }
+        },
+        "required": [
+          "confirmed_by",
+          "reviewed_revision",
+          "review_channel",
+          "spoken_confirmation"
+        ],
+        "title": "LibraryEntityConfirmation",
+        "type": "object"
+      },
+      "LibraryEntityConfirmationRecord": {
+        "properties": {
+          "confirmed_by": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Confirmed By",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "entity_id": {
+            "title": "Entity Id",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "review_channel": {
+            "enum": [
+              "voice",
+              "visual",
+              "voice_and_visual"
+            ],
+            "title": "Review Channel",
+            "type": "string"
+          },
+          "reviewed_revision": {
+            "minimum": 1.0,
+            "title": "Reviewed Revision",
+            "type": "integer"
+          },
+          "spoken_confirmation": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Spoken Confirmation",
+            "type": "string"
+          }
+        },
+        "required": [
+          "confirmed_by",
+          "reviewed_revision",
+          "review_channel",
+          "spoken_confirmation",
+          "id",
+          "entity_id",
+          "created_at"
+        ],
+        "title": "LibraryEntityConfirmationRecord",
+        "type": "object"
+      },
+      "LibraryEntityCreate": {
+        "properties": {
+          "attributes": {
+            "additionalProperties": true,
+            "title": "Attributes",
+            "type": "object"
+          },
+          "change_summary": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Change Summary",
+            "type": "string"
+          },
+          "description": {
+            "default": "",
+            "maxLength": 10000,
+            "title": "Description",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/LibraryEntityKind"
+          },
+          "name": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "source_asset_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 100,
+            "title": "Source Asset Ids",
+            "type": "array"
+          },
+          "source_channel": {
+            "enum": [
+              "voice",
+              "visual",
+              "system"
+            ],
+            "title": "Source Channel",
+            "type": "string"
+          },
+          "source_memory_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 100,
+            "title": "Source Memory Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "source_channel",
+          "change_summary",
+          "kind"
+        ],
+        "title": "LibraryEntityCreate",
+        "type": "object"
+      },
+      "LibraryEntityKind": {
+        "enum": [
+          "character",
+          "scene",
+          "prop",
+          "voice",
+          "style"
+        ],
+        "title": "LibraryEntityKind",
+        "type": "string"
+      },
+      "LibraryEntityRevision": {
+        "properties": {
+          "attributes": {
+            "additionalProperties": true,
+            "title": "Attributes",
+            "type": "object"
+          },
+          "change_summary": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Change Summary",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "description": {
+            "default": "",
+            "maxLength": 10000,
+            "title": "Description",
+            "type": "string"
+          },
+          "entity_id": {
+            "title": "Entity Id",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "source_asset_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 100,
+            "title": "Source Asset Ids",
+            "type": "array"
+          },
+          "source_channel": {
+            "enum": [
+              "voice",
+              "visual",
+              "system"
+            ],
+            "title": "Source Channel",
+            "type": "string"
+          },
+          "source_memory_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 100,
+            "title": "Source Memory Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "source_channel",
+          "change_summary",
+          "entity_id",
+          "revision",
+          "created_at"
+        ],
+        "title": "LibraryEntityRevision",
+        "type": "object"
+      },
+      "LibraryEntityRevisionCreate": {
+        "properties": {
+          "attributes": {
+            "additionalProperties": true,
+            "title": "Attributes",
+            "type": "object"
+          },
+          "change_summary": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Change Summary",
+            "type": "string"
+          },
+          "description": {
+            "default": "",
+            "maxLength": 10000,
+            "title": "Description",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "source_asset_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 100,
+            "title": "Source Asset Ids",
+            "type": "array"
+          },
+          "source_channel": {
+            "enum": [
+              "voice",
+              "visual",
+              "system"
+            ],
+            "title": "Source Channel",
+            "type": "string"
+          },
+          "source_memory_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 100,
+            "title": "Source Memory Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "source_channel",
+          "change_summary"
+        ],
+        "title": "LibraryEntityRevisionCreate",
+        "type": "object"
+      },
       "MemoryCard": {
         "properties": {
           "allowed_use": {
@@ -2183,14 +2538,15 @@
             "type": "string"
           },
           "schema_version": {
-            "default": "nalu.project-export/v6",
+            "default": "nalu.project-export/v7",
             "enum": [
               "nalu.project-export/v1",
               "nalu.project-export/v2",
               "nalu.project-export/v3",
               "nalu.project-export/v4",
               "nalu.project-export/v5",
-              "nalu.project-export/v6"
+              "nalu.project-export/v6",
+              "nalu.project-export/v7"
             ],
             "title": "Schema Version",
             "type": "string"
@@ -3827,6 +4183,145 @@
         "summary": "Create Feedback"
       }
     },
+    "/v1/library-entities/{entity_id}/confirmations": {
+      "post": {
+        "operationId": "confirm_library_entity_v1_library_entities__entity_id__confirmations_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "entity_id",
+            "required": true,
+            "schema": {
+              "title": "Entity Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LibraryEntityConfirmation"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibraryEntityConfirmationRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Confirm Library Entity"
+      }
+    },
+    "/v1/library-entities/{entity_id}/revisions": {
+      "get": {
+        "operationId": "list_library_revisions_v1_library_entities__entity_id__revisions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "entity_id",
+            "required": true,
+            "schema": {
+              "title": "Entity Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LibraryEntityRevision"
+                  },
+                  "title": "Response List Library Revisions V1 Library Entities  Entity Id  Revisions Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Library Revisions"
+      },
+      "post": {
+        "operationId": "create_library_revision_v1_library_entities__entity_id__revisions_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "entity_id",
+            "required": true,
+            "schema": {
+              "title": "Entity Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LibraryEntityRevisionCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibraryEntity"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Library Revision"
+      }
+    },
     "/v1/memory-cards/{memory_id}": {
       "patch": {
         "operationId": "update_memory_card_v1_memory_cards__memory_id__patch",
@@ -4929,6 +5424,96 @@
           }
         },
         "summary": "Export Project"
+      }
+    },
+    "/v1/projects/{project_id}/library-entities": {
+      "get": {
+        "operationId": "list_library_entities_v1_projects__project_id__library_entities_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LibraryEntity"
+                  },
+                  "title": "Response List Library Entities V1 Projects  Project Id  Library Entities Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Library Entities"
+      },
+      "post": {
+        "operationId": "create_library_entity_v1_projects__project_id__library_entities_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LibraryEntityCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibraryEntity"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Library Entity"
       }
     },
     "/v1/projects/{project_id}/memory-cards": {

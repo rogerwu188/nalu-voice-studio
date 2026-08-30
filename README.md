@@ -120,7 +120,15 @@ backup boundaries and deletion behavior.
 - `POST /v1/assets/{asset_id}/consent-revocations`
 - `GET /v1/assets/{asset_id}/dependencies`
 - `DELETE /v1/assets/{asset_id}`
+- `POST /v1/projects/{project_id}/library-entities`
+- `GET /v1/projects/{project_id}/library-entities`
+- `GET /v1/library-entities/{entity_id}/revisions`
+- `POST /v1/library-entities/{entity_id}/revisions`
+- `POST /v1/library-entities/{entity_id}/confirmations`
 - `POST /v1/episodes/{episode_id}/continuity-snapshots`
+- `GET /v1/episodes/{episode_id}/continuity-snapshots`
+- `GET /v1/episodes/{episode_id}/inherited-continuity`
+- `POST /v1/episodes/{episode_id}/continuity-preflight`
 - `POST /v1/episodes/{episode_id}/production-runs`
 - `GET /v1/production-runs/{run_id}`
 - `GET /v1/production-runs/{run_id}/events`

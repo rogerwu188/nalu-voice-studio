@@ -81,6 +81,20 @@ contain explicit confirmation language. The accepted opening state, explanations
 and any override are stored in the immutable script revision and re-audited when
 the production package is built.
 
+Project libraries use the same authority boundary. Characters, scenes, props,
+voices and styles have a stable project identity plus append-only revisions.
+Editing creates a draft revision without silently replacing the last confirmed
+revision. Confirmation must target the current revision and contain explicit
+confirmation language. Source asset IDs must belong to the same project and
+biometric sources must retain active consent; source memory cards must be
+confirmed and authorized for story or visual use.
+
+At production-package creation, the Runtime resolves only confirmed library
+revisions. That resolved set is hashed into the package and emitted into the
+corresponding Qingshan character, scene, prop, audio and visual-style indexes.
+Later library edits therefore affect only future packages and cannot mutate a
+completed episode workspace.
+
 ## Workspace materialization
 
 Every run produces a clean `qingshan-workspace/` containing the approved script,

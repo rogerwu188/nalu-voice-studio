@@ -87,6 +87,7 @@ class ProductionService:
             )
         script = self.repository.get_script(episode.id, episode.approved_script_revision)
         assets = self.repository.list_assets(project.id, episode.id)
+        resolved_library = self.repository.resolved_project_library(project.id)
         continuity = self.repository.latest_continuity(season.id, episode.episode_number)
         policy = self._model_policy()
 
@@ -188,6 +189,7 @@ class ProductionService:
                 )
                 for asset in assets
             ],
+            resolved_library=resolved_library,
             continuity=continuity.model_dump(mode="json") if continuity else None,
             continuity_preflight=(
                 continuity_preflight.model_dump(mode="json")

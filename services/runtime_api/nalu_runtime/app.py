@@ -35,6 +35,12 @@ from .models import (
     FeedbackCreate,
     FeedbackItem,
     InheritedContinuityResult,
+    LibraryEntity,
+    LibraryEntityConfirmation,
+    LibraryEntityConfirmationRecord,
+    LibraryEntityCreate,
+    LibraryEntityRevision,
+    LibraryEntityRevisionCreate,
     MemoryCard,
     MemoryCardConfirmation,
     MemoryCardConfirmationRecord,
@@ -422,6 +428,50 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
     def delete_asset(asset_id: str) -> Response:
         asset_service.delete_asset(asset_id)
         return Response(status_code=204)
+
+    @app.post(
+        "/v1/projects/{project_id}/library-entities",
+        response_model=LibraryEntity,
+        status_code=201,
+    )
+    def create_library_entity(
+        project_id: str, request: LibraryEntityCreate
+    ) -> LibraryEntity:
+        return repository.create_library_entity(project_id, request)
+
+    @app.get(
+        "/v1/projects/{project_id}/library-entities",
+        response_model=list[LibraryEntity],
+    )
+    def list_library_entities(project_id: str) -> list[LibraryEntity]:
+        return repository.list_library_entities(project_id)
+
+    @app.get(
+        "/v1/library-entities/{entity_id}/revisions",
+        response_model=list[LibraryEntityRevision],
+    )
+    def list_library_revisions(entity_id: str) -> list[LibraryEntityRevision]:
+        return repository.list_library_revisions(entity_id)
+
+    @app.post(
+        "/v1/library-entities/{entity_id}/revisions",
+        response_model=LibraryEntity,
+        status_code=201,
+    )
+    def create_library_revision(
+        entity_id: str, request: LibraryEntityRevisionCreate
+    ) -> LibraryEntity:
+        return repository.create_library_revision(entity_id, request)
+
+    @app.post(
+        "/v1/library-entities/{entity_id}/confirmations",
+        response_model=LibraryEntityConfirmationRecord,
+        status_code=201,
+    )
+    def confirm_library_entity(
+        entity_id: str, request: LibraryEntityConfirmation
+    ) -> LibraryEntityConfirmationRecord:
+        return repository.confirm_library_entity(entity_id, request)
 
     @app.post(
         "/v1/episodes/{episode_id}/continuity-snapshots",

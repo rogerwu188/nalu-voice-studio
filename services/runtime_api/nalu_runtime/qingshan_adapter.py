@@ -98,20 +98,25 @@ class QingshanAdapter:
         assets_by_kind: dict[str, list[dict]] = {}
         for asset in package.get("inherited_assets") or []:
             assets_by_kind.setdefault(str(asset["kind"]), []).append(asset)
+        entities_by_kind: dict[str, list[dict]] = {}
+        for entity in package.get("resolved_library") or []:
+            entities_by_kind.setdefault(str(entity["kind"]), []).append(entity)
         library_targets = {
-            "character_image": "libraries/characters/index.json",
-            "voice_reference": "libraries/audio/index.json",
-            "scene_reference": "libraries/scenes/index.json",
-            "prop_reference": "libraries/props/index.json",
-            "style_reference": "libraries/visual_style/index.json",
+            "character_image": ("character", "libraries/characters/index.json"),
+            "voice_reference": ("voice", "libraries/audio/index.json"),
+            "scene_reference": ("scene", "libraries/scenes/index.json"),
+            "prop_reference": ("prop", "libraries/props/index.json"),
+            "style_reference": ("style", "libraries/visual_style/index.json"),
         }
-        for kind, target in library_targets.items():
+        for asset_kind, (entity_kind, target) in library_targets.items():
             self._write_json(
                 workspace / target,
                 {
-                    "schema_version": "nalu.qingshan-asset-index/v1",
-                    "kind": kind,
-                    "assets": assets_by_kind.get(kind, []),
+                    "schema_version": "nalu.qingshan-resolved-library/v1",
+                    "asset_kind": asset_kind,
+                    "entity_kind": entity_kind,
+                    "assets": assets_by_kind.get(asset_kind, []),
+                    "confirmed_entities": entities_by_kind.get(entity_kind, []),
                 },
             )
 
