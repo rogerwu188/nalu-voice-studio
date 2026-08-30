@@ -131,6 +131,13 @@ Current evidence:
   saves reversible revisions, and permits season/script approval only when that exact
   native confirmation task was visibly armed and its phrase/guardian gates pass. Swift
   tests, full app build, bundled Runtime smoke and downloadable artifact passed.
+- Commit `c2001b4`, GitHub CI run `33286249745`: the main family-material control
+  now opens the native file picker directly and exposes a plain-language accessibility
+  hint; archive management is a separate secondary action. Accessibility-tree QA on
+  the downloaded artifact verified the native `Open` panel, safe cancel/return and
+  readable Runtime, microphone and project states. `docs/ACCESSIBILITY_QA.md` records
+  the environment, exact evidence and remaining human matrix. Swift tests, the full
+  application build, bundled-Runtime smoke, ZIP and artifact upload passed.
 - Still required before `PASS`: authorized paid Realtime connectivity, interruption,
   real function-call, network-loss, session-expiry and provider usage/cost QA;
   VoiceOver/Accessibility Inspector audit; and a clean-account voice-only QA session
@@ -286,6 +293,12 @@ Current evidence:
   references; face/voice generation consent is never inferred. All 37 Runtime tests,
   Swift tests, full application build, bundled-Runtime smoke, ZIP and artifact upload
   passed. The professional editor remains available only behind an advanced disclosure.
+- Commit `c2001b4`, GitHub CI run `33286249745`: both prominent family-material
+  controls bypass the manager and open the native file picker immediately; the manager
+  remains a secondary entry for existing assets and professional authorization. Artifact
+  accessibility-tree QA verified the direct panel and safe cancel without selecting or
+  transmitting a file. The single QA-created empty project was deleted and the Runtime
+  reported `verified_absent: true`.
 - Still required before `PASS`: human privacy/deletion QA and clean-account OCR,
   correction and voice archive QA on the same signed release candidate. Automated
   Computer Use crashed while opening the new asset sheet, while Nalu stayed running,
