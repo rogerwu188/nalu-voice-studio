@@ -7,6 +7,7 @@ expected_version="${NALU_RELEASE_VERSION:-}"
 expected_build="${NALU_BUILD_NUMBER:-}"
 require_developer_id="${NALU_REQUIRE_DEVELOPER_ID:-false}"
 require_notarization="${NALU_REQUIRE_NOTARIZATION:-false}"
+require_universal="${NALU_REQUIRE_UNIVERSAL:-false}"
 
 plist="$bundle/Contents/Info.plist"
 runtime="$bundle/Contents/Resources/runtime/nalu-runtime"
@@ -27,6 +28,10 @@ build="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$plist")"
 [[ -z "$expected_build" || "$build" == "$expected_build" ]]
 
 codesign --verify --deep --strict --verbose=2 "$bundle"
+if [[ "$require_universal" == "true" ]]; then
+  lipo "$executable" -verify_arch arm64 x86_64
+  lipo "$runtime" -verify_arch arm64 x86_64
+fi
 authority="$(codesign -dv --verbose=4 "$bundle" 2>&1 | sed -n 's/^Authority=//p' | head -1)"
 if [[ "$require_developer_id" == "true" && "$authority" != Developer\ ID\ Application:* ]]; then
   echo "发布校验要求 Developer ID，但当前签名不是 Developer ID Application。" >&2

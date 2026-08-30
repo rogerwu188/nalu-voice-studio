@@ -24,6 +24,27 @@ before the slower Runtime bundle is assembled. The output is:
 Python is needed to build the application but is bundled into the app and is not required
 on the end user's Mac.
 
+A local source build targets the architecture of that Mac. CI separately builds the same
+commit on `macos-15` (Apple Silicon) and `macos-15-intel`, verifies each architecture, then
+uses `scripts/merge-macos-universal.sh` to combine both the Swift executable and bundled
+PyInstaller Runtime. The merge refuses mismatched Info.plists or Runtime resources. The
+canonical `Nalu-Voice-Studio-macOS` CI artifact is accepted only when both executables
+contain `arm64` and `x86_64` slices, the nested signatures verify and the bundled Runtime
+passes a real loopback smoke test on Apple Silicon. Architecture-specific artifacts remain
+available as build evidence and debugging inputs.
+
+To reproduce only the deterministic merge from two matching builds:
+
+```bash
+scripts/merge-macos-universal.sh \
+  /path/to/arm64/Nalu\ Voice\ Studio.app \
+  /path/to/x86_64/Nalu\ Voice\ Studio.app \
+  dist/Nalu\ Voice\ Studio.app
+NALU_REQUIRE_UNIVERSAL=true scripts/verify-macos-release.sh
+```
+
+The merged bundle is ad-hoc signed until the separate Developer ID step below runs.
+
 ## Developer ID release
 
 Import a `Developer ID Application` certificate into the active keychain and create a
