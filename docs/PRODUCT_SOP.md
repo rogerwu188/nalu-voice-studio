@@ -505,9 +505,16 @@ Current evidence:
   registry SHA and exact failure list in every workspace; new drift fails preflight and
   the known quarantine blocks paid execution while permitting evidence-rich local dry
   runs. This is not recorded as a full gate pass.
+- Commits `700c239`, `1654b76` and `1a2582a`, GitHub CI runs `33326751267` and
+  `33326931637`: the Runtime binds exactly one durable submitter; Repository remote-task
+  writes require its per-instance authority, and the only Runtime source allowed to
+  invoke a paid transport is that submitter. Immediately before I/O it revalidates the
+  immutable package hash, explicit approver, requested model and provider idempotency
+  guarantee. Concrete paid transports remain deliberately unregistered.
 - Still required before `PASS`: a corrected pinned Qingshan release whose registry
-  integrity and complete registered tests pass, durable paid-transaction binding and
-  authorized sandbox evidence.
+  integrity and complete registered tests pass, plus authorized real-provider sandbox
+  task/result/receipt evidence. Offline authority and transport doubles are not a paid
+  generation claim.
 
 ## SOP-08 · Production jobs, progress, cancellation and recovery — IN_PROGRESS
 
@@ -561,10 +568,19 @@ Current evidence:
   regressions, Runtime/OpenAPI checks, full application build, bundled-Runtime smoke, ZIP
   and artifact upload all passed. This is automated state/interaction evidence and does
   not replace a signed-app long-running human production session.
-- Still required before `PASS`: bind the imported durable submitter as the only writer,
-  run authorized provider crash tests at every network/charge boundary, reconcile real
-  ambiguous charges against the real provider and validate the stage explanations in a
-  signed-app long-running production QA session.
+- Commits `700c239`, `1654b76` and `1a2582a`, GitHub CI runs `33326751267` and
+  `33326931637`: direct public Repository mutation entry points were removed; one
+  application-wide submitter owns the guarded write authority and paid transport call.
+  Offline doubles prove provider acceptance followed by a pre-commit crash reuses the
+  exact provider idempotency key after restart and records one charge, while an ambiguous
+  timeout is quarantined and never automatically reposted. Changed requests, fabricated
+  authority, duplicate binding, missing package approval, package tampering, provider
+  mismatch and transports without idempotency fail before I/O. All 77 Runtime tests,
+  real HTTP smoke, OpenAPI gates, Swift tests, full macOS build, bundled-Runtime smoke,
+  release verification and artifact upload passed. No provider network call occurred.
+- Still required before `PASS`: run authorized provider crash tests at every real
+  network/charge/ledger boundary, reconcile real ambiguous charges against the provider
+  and validate the stage explanations in a signed-app long-running production QA session.
 
 ## SOP-09 · Postproduction and release-blocking QA — IN_PROGRESS
 
@@ -758,6 +774,16 @@ Current evidence:
   migration v14, privacy/project export v9, v1-v8 restore compatibility, project deletion,
   OpenAPI and real HTTP smoke passed with all 69 Runtime tests and complete macOS CI.
   Preparing this bundle deliberately does not claim external export or remediation.
+- Commit `f044d0b`, GitHub CI run `33326390348`: after the user explicitly enables
+  redacted local review, the native client prepares expected behavior, observed behavior
+  and reproduction steps from the conversation so an older adult or child does not fill
+  a professional form. It reports that media was not attached, no network export occurred
+  and no code changed automatically; full Swift, Runtime, application and bundle CI passed.
+- Commits `d0edf7c` and `1654b76`, GitHub CI run `33326751267`: the completion SOP is
+  machine-audited in CI for all 14 unique sections, valid states, evidence-bearing PASS,
+  regression evidence and remaining-work contradictions. The audit currently reports
+  `project_complete: false`; this prevents a green module or milestone from being
+  promoted to whole-product completion.
 - `docs/CONTROLLED_EVOLUTION.md` defines the trust boundary and release state machine.
 - Still required before `PASS`: administrator-authorized external issue export, agent
   triage integration, signed staged updater and end-to-end improvement/rollback QA.
