@@ -13,6 +13,8 @@ Versioning and the Keep a Changelog structure.
 - One-action family archive import: the main controls open the native file picker
   directly; Nalu safely infers local photo/document/audio/video evidence fields and
   conducts the missing memory-card questions by voice. The detailed manager is secondary.
+- Native project-library management for characters, scenes, props, voices and visual
+  styles, including a one-question-at-a-time voice draft and explicit spoken confirmation.
 - Project → Season → Episode domain hierarchy.
 - Versioned script revisions and spoken approval endpoint.
 - Consent-aware project asset registry.

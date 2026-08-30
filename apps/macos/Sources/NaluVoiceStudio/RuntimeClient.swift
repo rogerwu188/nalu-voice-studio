@@ -171,6 +171,28 @@ actor RuntimeClient {
         try await get("v1/projects/\(projectID)/documentary-readiness")
     }
 
+    func listLibraryEntities(projectID: String) async throws -> [LibraryEntity] {
+        try await get("v1/projects/\(projectID)/library-entities")
+    }
+
+    func createLibraryEntity(
+        projectID: String, draft: LibraryEntityCreateDraft
+    ) async throws -> LibraryEntity {
+        try await post("v1/projects/\(projectID)/library-entities", body: draft)
+    }
+
+    func createLibraryRevision(
+        entityID: String, draft: LibraryEntityRevisionDraft
+    ) async throws -> LibraryEntity {
+        try await post("v1/library-entities/\(entityID)/revisions", body: draft)
+    }
+
+    func confirmLibraryEntity(
+        entityID: String, draft: LibraryEntityConfirmationDraft
+    ) async throws -> LibraryEntityConfirmationRecord {
+        try await post("v1/library-entities/\(entityID)/confirmations", body: draft)
+    }
+
     func updateMemoryCard(id: String, draft: MemoryCardUpdateDraft) async throws -> MemoryCard {
         try await send("v1/memory-cards/\(id)", method: "PATCH", body: draft)
     }

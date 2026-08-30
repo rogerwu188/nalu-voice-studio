@@ -15,6 +15,7 @@ struct ContentView: View {
     @State private var exportDocument: ProjectBackupDocument?
     @State private var isScriptEditorExpanded = false
     @State private var isContinuityExpanded = false
+    @State private var isLibraryEditorExpanded = false
     @State private var isContinuityOverrideExpanded = false
     @State private var isPresentingAssetEditor = false
     @State private var isImportingAsset = false
@@ -503,6 +504,14 @@ struct ContentView: View {
                             && !model.guardianConfirmedForPlan)
                 )
             }
+            DisclosureGroup(
+                "项目人物、场景、道具和声音",
+                isExpanded: $isLibraryEditorExpanded
+            ) {
+                libraryEditor
+                    .padding(.top, 10)
+            }
+            .font(.headline)
             if let episode = selectedEpisode {
                 Divider()
                 Text("第 \(episode.episodeNumber) 集 · \(episode.title)")
@@ -559,6 +568,112 @@ struct ContentView: View {
         .padding(.horizontal, 24)
         .padding(.vertical, 14)
         .background(Color.secondary.opacity(0.04))
+    }
+
+    private var libraryEditor: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("这些是整个项目共用的设定。只有您明确确认的版本，才会进入后面的分集和制作。")
+                .font(.body)
+                .foregroundStyle(.secondary)
+            HStack(alignment: .top, spacing: 10) {
+                Picker(
+                    "类型",
+                    selection: Binding(
+                        get: { model.libraryDraftKind },
+                        set: { model.libraryDraftKind = $0 }
+                    )
+                ) {
+                    ForEach(libraryKindOptions, id: \.value) { option in
+                        Text(option.label).tag(option.value)
+                    }
+                }
+                .frame(width: 150)
+                TextField(
+                    "名称，例如：年轻时的父亲",
+                    text: Binding(
+                        get: { model.libraryDraftName },
+                        set: { model.libraryDraftName = $0 }
+                    )
+                )
+                TextField(
+                    "需要每一集保持一致的特点",
+                    text: Binding(
+                        get: { model.libraryDraftDescription },
+                        set: { model.libraryDraftDescription = $0 }
+                    ),
+                    axis: .vertical
+                )
+                .lineLimit(1...3)
+            }
+            .textFieldStyle(.roundedBorder)
+            HStack {
+                Button("保存为待确认草稿", systemImage: "square.and.arrow.down") {
+                    Task { await model.createLibraryEntity() }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(
+                    model.libraryDraftName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                        || model.libraryDraftDescription.trimmingCharacters(
+                            in: .whitespacesAndNewlines
+                        ).isEmpty
+                )
+                Menu("用语音添加", systemImage: "waveform.badge.mic") {
+                    ForEach(libraryKindOptions, id: \.value) { option in
+                        Button(option.label) {
+                            Task { await model.beginLibraryVoiceIntake(kind: option.value) }
+                        }
+                    }
+                }
+                .controlSize(.large)
+            }
+            if model.libraryEntities.isEmpty {
+                Label(
+                    "还没有项目级设定。可以先从主角、重要地点或旁白声音开始。",
+                    systemImage: "books.vertical"
+                )
+                .font(.body)
+                .foregroundStyle(.secondary)
+                .padding(.vertical, 8)
+            } else {
+                ForEach(model.libraryEntities) { entity in
+                    HStack(alignment: .top, spacing: 12) {
+                        Image(systemName: libraryKindIcon(entity.kind))
+                            .font(.title2)
+                            .foregroundStyle(.blue)
+                            .frame(width: 30)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("\(libraryKindLabel(entity.kind)) · \(entity.current.name)")
+                                .font(.headline)
+                            Text(entity.current.description)
+                                .font(.body)
+                            Label(
+                                entity.confirmedRevision == entity.currentRevision
+                                    ? "当前第 \(entity.currentRevision) 版已确认"
+                                    : "第 \(entity.currentRevision) 版等待确认，不会进入生产",
+                                systemImage: entity.confirmedRevision == entity.currentRevision
+                                    ? "checkmark.seal.fill" : "exclamationmark.shield.fill"
+                            )
+                            .font(.caption)
+                            .foregroundStyle(
+                                entity.confirmedRevision == entity.currentRevision ? .green : .orange
+                            )
+                        }
+                        Spacer()
+                        Button("朗读", systemImage: "speaker.wave.2.fill") {
+                            model.speakLibraryEntity(entity.id)
+                        }
+                        if entity.confirmedRevision != entity.currentRevision {
+                            Button("我确认当前版本", systemImage: "checkmark.seal") {
+                                Task { await model.confirmLibraryEntity(entity.id) }
+                            }
+                            .buttonStyle(.borderedProminent)
+                        }
+                    }
+                    .padding(12)
+                    .background(Color.secondary.opacity(0.06), in: RoundedRectangle(cornerRadius: 12))
+                }
+            }
+        }
     }
 
     private var scriptEditor: some View {
@@ -1709,6 +1824,31 @@ struct ContentView: View {
     private var privacyExportFilename: String {
         let title = selectedProject?.title ?? "Nalu项目"
         return "\(title)-Nalu隐私包.zip"
+    }
+
+    private var libraryKindOptions: [(value: String, label: String)] {
+        [
+            ("character", "人物"),
+            ("scene", "场景"),
+            ("prop", "道具"),
+            ("voice", "声音"),
+            ("style", "画面风格"),
+        ]
+    }
+
+    private func libraryKindLabel(_ kind: String) -> String {
+        libraryKindOptions.first(where: { $0.value == kind })?.label ?? "项目设定"
+    }
+
+    private func libraryKindIcon(_ kind: String) -> String {
+        switch kind {
+        case "character": return "person.crop.rectangle.stack"
+        case "scene": return "mountain.2"
+        case "prop": return "shippingbox"
+        case "voice": return "waveform"
+        case "style": return "paintpalette"
+        default: return "books.vertical"
+        }
     }
 
     private var assetKindOptions: [(value: String, label: String)] {

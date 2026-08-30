@@ -8,6 +8,12 @@ private enum MemoryIntakeStep {
     case storyRelevance
 }
 
+private enum LibraryIntakeStep {
+    case name
+    case description
+    case confirmation
+}
+
 @MainActor
 @Observable
 final class VoiceInterviewViewModel {
@@ -51,11 +57,17 @@ final class VoiceInterviewViewModel {
     var assets: [NaluAsset] = []
     var memoryCards: [MemoryCard] = []
     var documentaryReadiness: DocumentaryReadinessReport?
+    var libraryEntities: [LibraryEntity] = []
+    var libraryDraftKind = "character"
+    var libraryDraftName = ""
+    var libraryDraftDescription = ""
     var reviewedMemoryCardIDs: Set<String> = []
     var memoryCorrectionCardID: String?
     var memoryConfirmationCardID: String?
     private var memoryIntakeCardID: String?
     private var memoryIntakeStep: MemoryIntakeStep?
+    private var libraryIntakeStep: LibraryIntakeStep?
+    private var libraryIntakeEntityID: String?
     var draftProjectID: String?
     var feedbackDraftText = ""
     var isCapturingFeedback = false
@@ -120,6 +132,10 @@ final class VoiceInterviewViewModel {
         transcript = ""
         transcriptConfidence = 0
         if applyComfortCommand(spoken) { return }
+        if let libraryIntakeStep {
+            handleLibraryIntakeAnswer(spoken, step: libraryIntakeStep)
+            return
+        }
         if let memoryIntakeCardID, let memoryIntakeStep {
             handleMemoryIntakeAnswer(
                 spoken,
@@ -252,11 +268,134 @@ final class VoiceInterviewViewModel {
         }
     }
 
+    func beginLibraryVoiceIntake(kind: String) async {
+        guard selectedProjectID != nil else { return }
+        libraryDraftKind = kind
+        libraryDraftName = ""
+        libraryDraftDescription = ""
+        libraryIntakeEntityID = nil
+        libraryIntakeStep = .name
+        let prompt = "我们来添加一份项目级\(libraryKindLabel(kind))设定。请先告诉我，它叫什么名字？"
+        messages.append(.init(speaker: .nalu, text: prompt))
+        speechPlayback.speak(prompt, rate: comfortPreferences.speechRate)
+        if !isListening { await toggleListening() }
+    }
+
+    @discardableResult
+    func createLibraryEntity(sourceChannel: String = "visual") async -> LibraryEntity? {
+        guard let projectID = selectedProjectID else { return nil }
+        let name = libraryDraftName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let description = libraryDraftDescription.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty, !description.isEmpty else {
+            errorMessage = "请先填写名称，并用一句话说明这份设定。"
+            return nil
+        }
+        do {
+            let created = try await runtime.createLibraryEntity(
+                projectID: projectID,
+                draft: LibraryEntityCreateDraft(
+                    kind: libraryDraftKind,
+                    name: name,
+                    description: description,
+                    attributes: [:],
+                    sourceAssetIDs: [],
+                    sourceMemoryIDs: [],
+                    sourceChannel: sourceChannel,
+                    changeSummary: sourceChannel == "voice" ? "用户语音建立草稿" : "用户在本机建立草稿"
+                )
+            )
+            libraryEntities = try await runtime.listLibraryEntities(projectID: projectID)
+            return created
+        } catch {
+            errorMessage = error.localizedDescription
+            return nil
+        }
+    }
+
+    func confirmLibraryEntity(_ entityID: String, reviewChannel: String = "visual") async {
+        guard let projectID = selectedProjectID,
+              let entity = libraryEntities.first(where: { $0.id == entityID }) else { return }
+        do {
+            _ = try await runtime.confirmLibraryEntity(
+                entityID: entityID,
+                draft: LibraryEntityConfirmationDraft(
+                    confirmedBy: "local-user",
+                    reviewedRevision: entity.currentRevision,
+                    reviewChannel: reviewChannel,
+                    spokenConfirmation: "我确认这份项目设定"
+                )
+            )
+            libraryEntities = try await runtime.listLibraryEntities(projectID: projectID)
+            let response = "已确认\(entity.current.name)。以后每一集都会继承这个版本，修改时会另存新版本。"
+            messages.append(.init(speaker: .nalu, text: response))
+            speechPlayback.speak(response, rate: comfortPreferences.speechRate)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func speakLibraryEntity(_ entityID: String) {
+        guard let entity = libraryEntities.first(where: { $0.id == entityID }) else { return }
+        let status = entity.confirmedRevision == entity.currentRevision
+            ? "当前版本已经确认。" : "当前版本还没有确认，不会进入生产。"
+        speechPlayback.speak(
+            "\(libraryKindLabel(entity.kind))，\(entity.current.name)。\(entity.current.description)。\(status)",
+            rate: comfortPreferences.speechRate
+        )
+    }
+
+    private func handleLibraryIntakeAnswer(_ spoken: String, step: LibraryIntakeStep) {
+        switch step {
+        case .name:
+            libraryDraftName = spoken
+            libraryIntakeStep = .description
+            let prompt = "好的，\(spoken)。请用一两句话说明它的样子、作用，或者需要一直保持的特点。"
+            messages.append(.init(speaker: .nalu, text: prompt))
+            speechPlayback.speak(prompt, rate: comfortPreferences.speechRate)
+        case .description:
+            libraryDraftDescription = spoken
+            Task {
+                guard let created = await createLibraryEntity(sourceChannel: "voice") else {
+                    libraryIntakeStep = nil
+                    return
+                }
+                libraryIntakeEntityID = created.id
+                libraryIntakeStep = .confirmation
+                let prompt = "我整理的是：\(created.current.name)，\(created.current.description)。正确请说“我确认这份项目设定”；不正确可以说“不要确认”。"
+                messages.append(.init(speaker: .nalu, text: prompt))
+                speechPlayback.speak(prompt, rate: comfortPreferences.speechRate)
+            }
+        case .confirmation:
+            let entityID = libraryIntakeEntityID
+            libraryIntakeEntityID = nil
+            libraryIntakeStep = nil
+            guard spoken.contains("我确认") || spoken.contains("我同意") else {
+                let response = "没有听到明确确认，所以这份设定仍是草稿，不会进入生产。"
+                messages.append(.init(speaker: .nalu, text: response))
+                speechPlayback.speak(response, rate: comfortPreferences.speechRate)
+                return
+            }
+            if let entityID { Task { await confirmLibraryEntity(entityID, reviewChannel: "voice") } }
+        }
+    }
+
+    private func libraryKindLabel(_ kind: String) -> String {
+        switch kind {
+        case "character": return "人物"
+        case "scene": return "场景"
+        case "prop": return "道具"
+        case "voice": return "声音"
+        case "style": return "画面风格"
+        default: return "项目"
+        }
+    }
+
     func selectProject(_ projectID: String) async {
         selectedProjectID = projectID
         do {
             assets = try await runtime.listAssets(projectID: projectID)
             memoryCards = try await runtime.listMemoryCards(projectID: projectID)
+            libraryEntities = try await runtime.listLibraryEntities(projectID: projectID)
             if selectedProject?.creativeFormat == "documentary_series" {
                 documentaryReadiness = try await runtime.documentaryReadiness(
                     projectID: projectID
@@ -679,6 +818,7 @@ final class VoiceInterviewViewModel {
                 viewedScriptRevision = nil
                 assets = []
                 memoryCards = []
+                libraryEntities = []
             }
         } catch {
             errorMessage = error.localizedDescription

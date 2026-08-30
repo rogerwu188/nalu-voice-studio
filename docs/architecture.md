@@ -89,6 +89,12 @@ confirmation language. Source asset IDs must belong to the same project and
 biometric sources must retain active consent; source memory cards must be
 confirmed and authorized for story or visual use.
 
+The native client lists the five project-library kinds in the project planning
+surface. A typed entry or a two-question voice interview creates only a draft.
+Nalu reads the name and description back; production authority is granted only
+after a separate explicit “我确认/我同意” turn bound to the current revision.
+Negative or ambiguous speech leaves the entry visible as an unconfirmed draft.
+
 Confirmed entities may declare plain-language aliases. Resolution normalizes a
 spoken mention and searches only confirmed revisions. Confirmation fails if a
 name or alias collides with another confirmed entity of the same kind; unknown

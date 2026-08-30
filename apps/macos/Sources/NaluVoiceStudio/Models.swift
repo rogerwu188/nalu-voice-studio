@@ -934,6 +934,122 @@ struct DocumentaryReadinessReport: Codable, Sendable {
     }
 }
 
+struct LibraryEntityRevisionDraft: Codable, Sendable {
+    let name: String
+    let description: String
+    let attributes: [String: JSONValue]
+    let sourceAssetIDs: [String]
+    let sourceMemoryIDs: [String]
+    let sourceChannel: String
+    let changeSummary: String
+
+    enum CodingKeys: String, CodingKey {
+        case name, description, attributes
+        case sourceAssetIDs = "source_asset_ids"
+        case sourceMemoryIDs = "source_memory_ids"
+        case sourceChannel = "source_channel"
+        case changeSummary = "change_summary"
+    }
+}
+
+struct LibraryEntityCreateDraft: Codable, Sendable {
+    let kind: String
+    let name: String
+    let description: String
+    let attributes: [String: JSONValue]
+    let sourceAssetIDs: [String]
+    let sourceMemoryIDs: [String]
+    let sourceChannel: String
+    let changeSummary: String
+
+    enum CodingKeys: String, CodingKey {
+        case kind, name, description, attributes
+        case sourceAssetIDs = "source_asset_ids"
+        case sourceMemoryIDs = "source_memory_ids"
+        case sourceChannel = "source_channel"
+        case changeSummary = "change_summary"
+    }
+}
+
+struct LibraryEntityRevision: Codable, Sendable {
+    let entityID: String
+    let revision: Int
+    let name: String
+    let description: String
+    let attributes: [String: JSONValue]
+    let sourceAssetIDs: [String]
+    let sourceMemoryIDs: [String]
+    let sourceChannel: String
+    let changeSummary: String
+    let createdAt: String
+
+    enum CodingKeys: String, CodingKey {
+        case revision, name, description, attributes
+        case entityID = "entity_id"
+        case sourceAssetIDs = "source_asset_ids"
+        case sourceMemoryIDs = "source_memory_ids"
+        case sourceChannel = "source_channel"
+        case changeSummary = "change_summary"
+        case createdAt = "created_at"
+    }
+}
+
+struct LibraryEntity: Codable, Identifiable, Sendable {
+    let id: String
+    let projectID: String
+    let kind: String
+    let stableName: String
+    let currentRevision: Int
+    let confirmedRevision: Int?
+    let current: LibraryEntityRevision
+    let createdAt: String
+    let updatedAt: String
+
+    enum CodingKeys: String, CodingKey {
+        case id, kind, current
+        case projectID = "project_id"
+        case stableName = "stable_name"
+        case currentRevision = "current_revision"
+        case confirmedRevision = "confirmed_revision"
+        case createdAt = "created_at"
+        case updatedAt = "updated_at"
+    }
+}
+
+struct LibraryEntityConfirmationDraft: Codable, Sendable {
+    let confirmedBy: String
+    let reviewedRevision: Int
+    let reviewChannel: String
+    let spokenConfirmation: String
+
+    enum CodingKeys: String, CodingKey {
+        case confirmedBy = "confirmed_by"
+        case reviewedRevision = "reviewed_revision"
+        case reviewChannel = "review_channel"
+        case spokenConfirmation = "spoken_confirmation"
+    }
+}
+
+struct LibraryEntityConfirmationRecord: Codable, Sendable {
+    let id: String
+    let entityID: String
+    let confirmedBy: String
+    let reviewedRevision: Int
+    let reviewChannel: String
+    let spokenConfirmation: String
+    let createdAt: String
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case entityID = "entity_id"
+        case confirmedBy = "confirmed_by"
+        case reviewedRevision = "reviewed_revision"
+        case reviewChannel = "review_channel"
+        case spokenConfirmation = "spoken_confirmation"
+        case createdAt = "created_at"
+    }
+}
+
 struct ProjectPlanDraft: Codable, Sendable {
     let projectID: String?
     let project: ProjectDraft
