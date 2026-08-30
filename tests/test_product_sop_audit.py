@@ -1,6 +1,7 @@
 from pathlib import Path
+from runpy import run_path
 
-from scripts.audit_product_sop import audit_sop
+audit_sop = run_path("scripts/audit_product_sop.py")["audit_sop"]
 
 
 def section(number: int, state: str, body: str = "") -> str:
