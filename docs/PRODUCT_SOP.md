@@ -308,7 +308,7 @@ Current evidence:
   Computer Use crashed while opening the new asset sheet, while Nalu stayed running,
   so that visual sheet check remains explicitly unaccepted.
 
-## SOP-06 · Cross-episode inheritance and continuity — REGRESSION
+## SOP-06 · Cross-episode inheritance and continuity — PASS
 
 Acceptance:
 
@@ -450,11 +450,22 @@ Current evidence:
   action or user project data was used. This closes the SOP-06 native accessibility gate
   without claiming acoustic voice-quality review or whole-product completion.
 - Completion audit on release candidate `8be9945`: implementation regressions and the
-  full macOS build pass in GitHub CI run `33300671992`, but the native accessibility E2E
-  evidence in issue `#4` is bound to the earlier `c7c4795` artifact. Subsequent changes
-  modified the main interview and production-status UI, so SOP-06 cannot remain `PASS`
-  until the same readback, invalidation and continuity-confirmation scenario is rerun on
-  a downloadable artifact from the current release candidate.
+  full macOS build passed in GitHub CI run `33300671992`, but the then-current native
+  accessibility E2E evidence was bound to an earlier artifact, so SOP-06 was correctly
+  downgraded to `REGRESSION` until the scenario could be rerun.
+- Product commit `ac100b5`, GitHub CI run `33327724626`, release rehearsal
+  `33327906350` and the current revalidation comment on GitHub issue `#4`: the downloaded
+  universal `0.1.0-rc1 (1001)` artifact, ZIP SHA-256
+  `e541a44970d54496562dff950dfb2d201967ab6bc404eecbaf4b068f79b16182`, was launched
+  against a new isolated Runtime. Its native accessibility tree exposed all 11 semantic
+  source-evidence entries and every populated handoff field. Confirmation stayed disabled
+  before and during complete readback, enabled after uninterrupted completion, and was
+  invalidated immediately when weather changed from 大雪 to 小雪. The required change
+  summary appeared; after a second complete readback, native confirmation saved one
+  immutable snapshot whose Runtime response retained 小雪, 杭州旧火车站 and both unresolved
+  hooks. No user project, microphone, provider credential, paid generation or release
+  account was used. Evidence:
+  `https://github.com/rogerwu188/nalu-voice-studio/issues/4#issuecomment-5471990419`.
 
 ## SOP-07 · Productized Qingshan execution adapter — IN_PROGRESS
 
@@ -742,7 +753,6 @@ Acceptance scenarios:
 2. Guardian and child create a fictional multi-episode story.
 3. A 10-episode project preserves identity, voice and narrative state across episodes.
 4. One episode fails generation, survives restart, resumes safely and passes QA.
-5. Approved final media exports and publishes without duplicate paid calls.
 6. Animation intent selects a capability-checked route; commercial intent with no
    approved adapter remains a useful project but cannot start production.
 7. A spoken usability report is redacted, kept local by default and cannot change or

@@ -16,7 +16,8 @@ def test_repository_product_sop_is_internally_consistent() -> None:
     result = audit_sop(Path("docs/PRODUCT_SOP.md").read_text(encoding="utf-8"))
     assert result["status"] == "PASS", result["failures"]
     assert result["project_complete"] is False
-    assert result["counts"]["PASS"] == 2
+    assert result["counts"]["PASS"] == 3
+    assert result["counts"]["REGRESSION"] == 0
 
 
 def test_pass_with_remaining_work_is_rejected() -> None:

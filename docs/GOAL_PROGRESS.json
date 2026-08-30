@@ -1,0 +1,80 @@
+{
+  "schema_version": "nalu.goal-progress/v1",
+  "objective_id": "nalu-voice-studio-product-completion",
+  "objective": "Complete SOP-00 through SOP-13 on one signed, notarized, end-to-end validated release candidate.",
+  "project_complete": false,
+  "sop_source": "docs/PRODUCT_SOP.md",
+  "sop_counts": {
+    "IN_PROGRESS": 10,
+    "PASS": 3,
+    "REGRESSION": 0,
+    "TODO": 1,
+    "WAITING_AUTHORIZATION": 0
+  },
+  "observed_head": "da685d5ffd2990e1d7da7fa974a2c318a610203d",
+  "last_advanced_at": "2026-08-30T23:42:00Z",
+  "last_closed_checkpoint": {
+    "id": "sop-06-current-universal-native-e2e",
+    "sop": "SOP-06",
+    "product_commit": "ac100b512c25e9c180b6607f3f6ae95bbf8d9980",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33327724626",
+    "release_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33327906350",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/issues/4#issuecomment-5471990419",
+    "result": "PASS"
+  },
+  "current_checkpoint": {
+    "sop": "SOP-09",
+    "status": "READY",
+    "summary": "Implement decoded playable golden-media QA gates before human audiovisual acceptance."
+  },
+  "next_action": {
+    "sop": "SOP-09",
+    "id": "decoded-golden-media-gates",
+    "summary": "Add deterministic decoded frame-repeat, adjacent-shot boundary, ASR/VAD and media normalization fixtures without claiming human review.",
+    "requires_user_authorization": false
+  },
+  "blocking_conditions": [
+    {
+      "id": "paid-realtime-and-provider-qa",
+      "sops": ["SOP-02", "SOP-08"],
+      "requires_user_authorization": true,
+      "continue_other_work": true
+    },
+    {
+      "id": "developer-id-notarization",
+      "sops": ["SOP-11", "SOP-12", "SOP-13"],
+      "requires_user_authorization": true,
+      "continue_other_work": true
+    },
+    {
+      "id": "real-publication-accounts",
+      "sops": ["SOP-10", "SOP-12"],
+      "requires_user_authorization": true,
+      "continue_other_work": true
+    },
+    {
+      "id": "human-accessibility-and-family-qa",
+      "sops": ["SOP-02", "SOP-03", "SOP-04", "SOP-05", "SOP-09", "SOP-12"],
+      "requires_user_authorization": true,
+      "continue_other_work": true
+    },
+    {
+      "id": "corrected-qingshan-upstream",
+      "sops": ["SOP-07", "SOP-12"],
+      "requires_user_authorization": false,
+      "continue_other_work": true
+    }
+  ],
+  "execution_policy": {
+    "checkpoint_requires_implementation_tests_native_qa_docs_commit_push_ci_evidence": true,
+    "pause_allowed_only_when_all_remaining_items_are_blocked": true,
+    "paused": false,
+    "chat_context_is_not_authoritative_progress_storage": true
+  },
+  "external_write_policy": {
+    "fail_closed_without_explicit_authorization": true,
+    "stable_idempotency_key_required": true,
+    "ambiguous_outcomes_are_quarantined": true,
+    "automatic_retry_after_ambiguous_charge_or_publication": false
+  }
+}
