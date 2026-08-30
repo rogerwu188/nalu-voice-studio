@@ -405,10 +405,11 @@ struct ContinuityExtractionProposal: Codable, Sendable {
     let state: ContinuityState
     let unresolvedHooks: [String]
     let extractedPaths: [String]
+    let evidence: [ContinuityExtractionEvidence]?
     let spokenSummary: String
 
     enum CodingKeys: String, CodingKey {
-        case source, state
+        case source, state, evidence
         case schemaVersion = "schema_version"
         case episodeID = "episode_id"
         case scriptRevision = "script_revision"
@@ -417,6 +418,15 @@ struct ContinuityExtractionProposal: Codable, Sendable {
         case extractedPaths = "extracted_paths"
         case spokenSummary = "spoken_summary"
     }
+}
+
+struct ContinuityExtractionEvidence: Codable, Identifiable, Sendable {
+    let path: String
+    let excerpt: String
+    let rule: String
+    let confidence: String
+
+    var id: String { "\(path)|\(rule)|\(excerpt)" }
 }
 
 struct ContinuityExtractionConfirmationDraft: Codable, Sendable {

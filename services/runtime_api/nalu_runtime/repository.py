@@ -8,6 +8,7 @@ from typing import Any
 from uuid import uuid4
 
 from .continuity import ending_hooks_match_review
+from .continuity_extraction import extract_semantic_ending_continuity
 from .database import Database
 from .models import (
     ApprovalCreate,
@@ -2322,6 +2323,7 @@ class Repository:
         metadata_state = script.narrative_metadata.get("ending_continuity")
         metadata_hooks = script.narrative_metadata.get("ending_unresolved_hooks", [])
         source = "approved_script_metadata"
+        evidence = []
         if metadata_state is not None:
             if not isinstance(metadata_state, dict) or not isinstance(metadata_hooks, list):
                 raise ConflictError("approved script ending continuity metadata is invalid")
@@ -2353,11 +2355,22 @@ class Repository:
                     ),
                     unresolved_hooks=hooks,
                 )
-            except Exception as exc:
-                raise ConflictError(
-                    "approved script has no extractable ending continuity; add an ending "
-                    "state or explicit ending markers, then approve a new revision"
-                ) from exc
+            except ValueError:
+                semantic = extract_semantic_ending_continuity(script.content)
+                source = "approved_script_semantic"
+                evidence = semantic.evidence
+                try:
+                    candidate = ContinuitySnapshotCreate(
+                        state=semantic.state,
+                        unresolved_hooks=semantic.unresolved_hooks,
+                    )
+                except Exception as exc:
+                    raise ConflictError(
+                        "approved script has no extractable ending continuity that is "
+                        "safe to propose; "
+                        "add ending facts in the final scene, explicit ending markers, "
+                        "or an ending state, then approve a new revision"
+                    ) from exc
         state = candidate.state
         hooks = candidate.unresolved_hooks
         extracted_paths = self._continuity_extracted_paths(state, hooks)
@@ -2378,6 +2391,7 @@ class Repository:
             state=state,
             unresolved_hooks=hooks,
             extracted_paths=extracted_paths,
+            evidence=evidence,
             spoken_summary=self._continuity_proposal_summary(state, hooks),
         )
 

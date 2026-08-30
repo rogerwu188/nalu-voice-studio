@@ -654,6 +654,15 @@ class ContinuitySnapshot(ContinuitySnapshotCreate):
     created_at: str
 
 
+class ContinuityExtractionEvidence(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    path: str = Field(min_length=1, max_length=500)
+    excerpt: str = Field(min_length=1, max_length=300)
+    rule: str = Field(min_length=1, max_length=100)
+    confidence: Literal["high", "medium"]
+
+
 class ContinuityExtractionProposal(BaseModel):
     schema_version: Literal["nalu.continuity-extraction/v1"] = (
         "nalu.continuity-extraction/v1"
@@ -661,10 +670,15 @@ class ContinuityExtractionProposal(BaseModel):
     episode_id: str
     script_revision: int
     proposal_sha256: str
-    source: Literal["approved_script_metadata", "approved_script_markers"]
+    source: Literal[
+        "approved_script_metadata",
+        "approved_script_markers",
+        "approved_script_semantic",
+    ]
     state: ContinuityState
     unresolved_hooks: list[str] = Field(default_factory=list)
     extracted_paths: list[str] = Field(default_factory=list)
+    evidence: list[ContinuityExtractionEvidence] = Field(default_factory=list)
     spoken_summary: str
 
 

@@ -68,10 +68,14 @@ form starts from the latest earlier-episode snapshot and the ending form creates
 a new immutable handoff snapshot. Both use typed character, prop, scene, time and
 weather fields; the ending form also records unresolved hooks. For an approved
 script, the Runtime can prepare a non-authoritative ending proposal from locked
-`ending_continuity` metadata or explicit `【结尾地点】`, `【结尾时间】`,
-`【结尾天气】` and `【未解悬念】` markers. It deliberately does not infer facts from
-unstructured prose. The proposal hash binds its script revision and extracted
-content. The native client reads every typed field aloud; confirmation stays locked
+`ending_continuity` metadata, explicit `【结尾地点】`, `【结尾时间】`,
+`【结尾天气】` and `【未解悬念】` markers, or a conservative deterministic reading
+of the bounded final scene in an unstructured legacy script. Semantic proposals
+only accept explicit grammatical cues and bind every result to an exact source
+excerpt, rule and confidence level; uncertain prose and ordinary dialogue questions
+remain excluded. The proposal hash binds its script revision and extracted
+content. The native client can show the evidence, then reads every typed field aloud;
+confirmation stays locked
 until the speech synthesizer reports that the complete readback finished. Cancellation,
 another utterance or any edit invalidates the review state and requires another
 readback plus a change summary. The complex manual form stays behind an advanced
@@ -79,6 +83,8 @@ disclosure until a proposal exists. Only a separate explicit visual or spoken
 confirmation creates the immutable handoff snapshot and an approval audit record.
 Child projects require guardian presence. Export/restore preserves both the snapshot
 and its script-bound confirmation record.
+See [continuity extraction and review](CONTINUITY_REVIEW.md) for the source
+priority, fail-closed rules and test boundary.
 
 Before a later episode script can be saved for production, its opening state is
 audited against the inherited snapshot. Missing or changed wardrobe, location,

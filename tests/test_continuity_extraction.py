@@ -234,6 +234,90 @@ def test_explicit_script_markers_are_extracted_without_free_form_inference(
     assert proposal["unresolved_hooks"] == ["父亲的信没有打开", "姐姐是否会回来"]
 
 
+def test_unstructured_legacy_final_scene_becomes_evidence_bound_proposal(
+    tmp_path: Path,
+) -> None:
+    api = client(tmp_path)
+    episode = create_plan(api)["episodes"][0]
+    approve_script(
+        api,
+        episode["id"],
+        content="""第一幕：1980年夏天，林叔站在北京车站，窗外下着大雨。
+尾声
+1986年冬夜，夜里下起大雪。
+林叔站在杭州旧火车站。林叔穿着蓝色外套，林叔提着旧皮箱。
+林叔的左手缠着绷带。林叔终于知道了父亲留下了一封信。
+姐姐是否会回来？信里的秘密仍是个谜。""",
+    )
+
+    response = api.get(
+        f"/v1/episodes/{episode['id']}/continuity-extraction-proposal"
+    )
+    assert response.status_code == 200
+    proposal = response.json()
+    assert proposal["source"] == "approved_script_semantic"
+    assert proposal["state"]["scene_location"] == "杭州旧火车站"
+    assert proposal["state"]["story_time"] == "1986年冬夜"
+    assert proposal["state"]["weather"] == "大雪"
+    character = proposal["state"]["characters"]["林叔"]
+    assert character["location"] == "杭州旧火车站"
+    assert character["wardrobe"] == ["蓝色外套"]
+    assert character["held_props"] == ["旧皮箱"]
+    assert character["injuries"] == ["左手缠着绷带"]
+    assert character["revealed_facts"] == ["父亲留下了一封信"]
+    assert proposal["state"]["props"]["旧皮箱"] == {
+        "owner": "林叔",
+        "location": "杭州旧火车站",
+        "condition": None,
+    }
+    assert proposal["unresolved_hooks"] == [
+        "姐姐是否会回来",
+        "信里的秘密仍是个谜",
+    ]
+    evidence_paths = {item["path"] for item in proposal["evidence"]}
+    assert {
+        "scene_location",
+        "story_time",
+        "weather",
+        "characters.林叔.location",
+        "characters.林叔.wardrobe",
+        "characters.林叔.held_props",
+        "characters.林叔.injuries",
+        "characters.林叔.revealed_facts",
+        "props.旧皮箱.owner",
+        "unresolved_hooks",
+    } <= evidence_paths
+    assert all(item["excerpt"] for item in proposal["evidence"])
+    assert "北京车站" not in str(proposal["state"])
+    assert "大雨" not in str(proposal["state"])
+
+    confirmed = api.post(
+        f"/v1/episodes/{episode['id']}/continuity-extraction-confirmations",
+        json=confirmation_payload(proposal),
+    )
+    assert confirmed.status_code == 201
+    assert confirmed.json()["snapshot"]["state"] == proposal["state"]
+
+
+def test_semantic_extraction_rejects_ambiguous_mentions_and_dialogue_questions(
+    tmp_path: Path,
+) -> None:
+    api = client(tmp_path)
+    episode = create_plan(api)["episodes"][0]
+    approve_script(
+        api,
+        episode["id"],
+        content="""尾声
+林叔说：“我们也许在旧火车站，也许已经回家。你吃饭了吗？”
+镜头慢慢变黑。""",
+    )
+    response = api.get(
+        f"/v1/episodes/{episode['id']}/continuity-extraction-proposal"
+    )
+    assert response.status_code == 409
+    assert "safe to propose" in response.text
+
+
 def test_user_edits_require_explanation_and_child_confirmation_requires_guardian(
     tmp_path: Path,
 ) -> None:

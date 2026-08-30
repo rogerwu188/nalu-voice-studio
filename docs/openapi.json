@@ -612,11 +612,57 @@
         "title": "ContinuityExtractionConfirmationResult",
         "type": "object"
       },
+      "ContinuityExtractionEvidence": {
+        "additionalProperties": false,
+        "properties": {
+          "confidence": {
+            "enum": [
+              "high",
+              "medium"
+            ],
+            "title": "Confidence",
+            "type": "string"
+          },
+          "excerpt": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Excerpt",
+            "type": "string"
+          },
+          "path": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Path",
+            "type": "string"
+          },
+          "rule": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Rule",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "excerpt",
+          "rule",
+          "confidence"
+        ],
+        "title": "ContinuityExtractionEvidence",
+        "type": "object"
+      },
       "ContinuityExtractionProposal": {
         "properties": {
           "episode_id": {
             "title": "Episode Id",
             "type": "string"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/ContinuityExtractionEvidence"
+            },
+            "title": "Evidence",
+            "type": "array"
           },
           "extracted_paths": {
             "items": {
@@ -642,7 +688,8 @@
           "source": {
             "enum": [
               "approved_script_metadata",
-              "approved_script_markers"
+              "approved_script_markers",
+              "approved_script_semantic"
             ],
             "title": "Source",
             "type": "string"

@@ -19,7 +19,9 @@ production until an approved advertising adapter is installed. See
 [Realtime voice architecture](docs/REALTIME_VOICE_ARCHITECTURE.md), and
 [controlled product evolution](docs/CONTROLLED_EVOLUTION.md). Photos and scanned
 handwriting become traceable, user-confirmed knowledge through the
-[family memory library](docs/FAMILY_MEMORY_LIBRARY.md).
+[family memory library](docs/FAMILY_MEMORY_LIBRARY.md). Approved legacy scripts
+use an evidence-bound, user-confirmed [continuity review](docs/CONTINUITY_REVIEW.md)
+instead of asking the creator to complete a professional end-state form.
 
 ## Product hierarchy
 

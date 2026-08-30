@@ -32,6 +32,36 @@ struct ContinuityExtractionModelTests {
         #expect(proposal.state.characters["林叔"]?.location == "旧火车站")
         #expect(proposal.unresolvedHooks == ["父亲的信没有打开"])
         #expect(proposal.extractedPaths.count == 5)
+        #expect(proposal.evidence == nil)
+    }
+
+    @Test func decodesSemanticProposalEvidenceWithoutTrustingItAsConfirmation() throws {
+        let data = Data(
+            #"""
+            {
+              "schema_version":"nalu.continuity-extraction/v1",
+              "episode_id":"ep_legacy",
+              "script_revision":4,
+              "proposal_sha256":"dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+              "source":"approved_script_semantic",
+              "state":{"characters":{},"props":{},"scene_location":"杭州旧火车站"},
+              "unresolved_hooks":[],
+              "extracted_paths":["scene_location"],
+              "evidence":[{
+                "path":"scene_location",
+                "excerpt":"林叔站在杭州旧火车站。",
+                "rule":"explicit_final_scene_location",
+                "confidence":"high"
+              }],
+              "spoken_summary":"请核对本集结尾。"
+            }
+            """#.utf8
+        )
+
+        let proposal = try JSONDecoder().decode(ContinuityExtractionProposal.self, from: data)
+
+        #expect(proposal.source == "approved_script_semantic")
+        #expect(proposal.evidence?.first?.excerpt == "林叔站在杭州旧火车站。")
     }
 
     @Test @MainActor func confirmationRequiresReviewAndExplainedEdits() {
@@ -44,6 +74,7 @@ struct ContinuityExtractionModelTests {
             state: ContinuityState(sceneLocation: "旧火车站", weather: "大雪"),
             unresolvedHooks: ["信还没有打开"],
             extractedPaths: ["scene_location", "weather", "unresolved_hooks"],
+            evidence: nil,
             spokenSummary: "请核对"
         )
         let model = VoiceInterviewViewModel()
@@ -76,6 +107,7 @@ struct ContinuityExtractionModelTests {
             state: ContinuityState(sceneLocation: "旧火车站", weather: "大雪"),
             unresolvedHooks: ["信还没有打开"],
             extractedPaths: ["scene_location", "weather", "unresolved_hooks"],
+            evidence: nil,
             spokenSummary: "请核对"
         )
         let model = VoiceInterviewViewModel()
