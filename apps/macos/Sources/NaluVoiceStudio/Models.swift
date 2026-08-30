@@ -963,6 +963,39 @@ struct FeedbackItem: Codable, Identifiable, Sendable {
     }
 }
 
+struct FeedbackReviewBundleDraft: Codable, Sendable {
+    let preparedBy: String
+    let expectedBehavior: String
+    let actualBehavior: String
+    let reproductionSteps: [String]
+    let confirmationText: String
+
+    enum CodingKeys: String, CodingKey {
+        case preparedBy = "prepared_by"
+        case expectedBehavior = "expected_behavior"
+        case actualBehavior = "actual_behavior"
+        case reproductionSteps = "reproduction_steps"
+        case confirmationText = "confirmation_text"
+    }
+}
+
+struct FeedbackReviewBundle: Codable, Sendable {
+    let feedbackID: String
+    let redactedMessage: String
+    let diagnostics: [String: String]
+    let attachments: [String]
+    let networkCallPerformed: Bool
+    let bundleSHA256: String
+
+    enum CodingKeys: String, CodingKey {
+        case diagnostics, attachments
+        case feedbackID = "feedback_id"
+        case redactedMessage = "redacted_message"
+        case networkCallPerformed = "network_call_performed"
+        case bundleSHA256 = "bundle_sha256"
+    }
+}
+
 struct MemoryPersonDraft: Codable, Sendable {
     let name: String
     let relationship: String

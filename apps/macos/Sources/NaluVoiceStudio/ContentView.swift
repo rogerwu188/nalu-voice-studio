@@ -1712,8 +1712,8 @@ struct ContentView: View {
             .tint(model.isListening ? .red : .blue)
             .controlSize(.large)
 
-            Toggle("允许把脱敏后的文字加入待审核改进队列", isOn: $feedbackShareAuthorized)
-            Text("默认只保存在本机；不会上传照片、视频、声音、密钥，也不会未经审核自动修改程序。")
+            Toggle("允许脱敏并由 Nalu 自动整理本地审核资料", isOn: $feedbackShareAuthorized)
+            Text("Nalu 会替您填写专业审核资料。默认只保存在本机；不会上传照片、视频、声音、密钥，也不会未经审核自动修改程序。")
                 .font(.callout)
                 .foregroundStyle(.secondary)
             if selectedProject?.audienceMode == "child", feedbackShareAuthorized {

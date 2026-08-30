@@ -309,12 +309,46 @@ final class VoiceInterviewViewModel {
             )
             feedbackDraftText = ""
             feedbackWasDictated = false
+            var reviewBundlePrepared = false
+            var reviewBundlePreparationFailed = false
+            if saved.status == "ready_for_review" {
+                let preparation = FeedbackReviewPreparation.infer(
+                    category: category,
+                    message: saved.message,
+                    screen: "interview"
+                )
+                do {
+                    let bundle = try await runtime.createFeedbackReviewBundle(
+                        feedbackID: saved.id,
+                        draft: FeedbackReviewBundleDraft(
+                            preparedBy: "local-user",
+                            expectedBehavior: preparation.expectedBehavior,
+                            actualBehavior: preparation.actualBehavior,
+                            reproductionSteps: preparation.reproductionSteps,
+                            confirmationText: "我确认生成审核包"
+                        )
+                    )
+                    reviewBundlePrepared = !bundle.networkCallPerformed
+                        && bundle.attachments.isEmpty
+                } catch {
+                    reviewBundlePreparationFailed = true
+                    errorMessage = error.localizedDescription
+                }
+            }
+            let responseText: String
+            if reviewBundlePrepared {
+                responseText = "意见已脱敏，Nalu 也替您整理好了本地审核资料。没有上传声音、照片或项目内容；任何程序改动仍需测试和人工审核。"
+            } else if reviewBundlePreparationFailed {
+                responseText = "意见已经安全保存在本机，但审核资料还没有整理好。以后可以重试，不需要您重新说一遍。"
+            } else if saved.status == "ready_for_review" {
+                responseText = "意见已脱敏并进入待审核改进队列。任何程序改动仍需测试和审核。"
+            } else {
+                responseText = "意见只保存在这台 Mac 上，不会自动上传。"
+            }
             messages.append(
                 .init(
                     speaker: .nalu,
-                    text: saved.status == "ready_for_review"
-                        ? "意见已脱敏并进入待审核改进队列。任何程序改动仍需测试和审核。"
-                        : "意见只保存在这台 Mac 上，不会自动上传。"
+                    text: responseText
                 )
             )
             return true
