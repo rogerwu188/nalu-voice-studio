@@ -466,6 +466,12 @@ Current evidence:
   hooks. No user project, microphone, provider credential, paid generation or release
   account was used. Evidence:
   `https://github.com/rogerwu188/nalu-voice-studio/issues/4#issuecomment-5471990419`.
+- Evidence commit `8be5bdb`, GitHub CI run `33342602904`: the repository now persists
+  the `/goal` checkpoint and next safe action in `docs/GOAL_PROGRESS.json`, audits that
+  state against this SOP in CI, rejects false completion and unsafe pause/idempotency
+  policy changes, and passed 81 Runtime tests, real HTTP smoke, both native Swift suites,
+  both architecture builds/smokes and the universal merge/smoke. This records the closed
+  regression without promoting the whole product to complete.
 
 ## SOP-07 · Productized Qingshan execution adapter — IN_PROGRESS
 
