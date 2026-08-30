@@ -168,5 +168,10 @@ QA pass. Paid execution remains disabled throughout automated upgrade work.
 - Paid calls and publishing are separate approval scopes.
 - Paid production requires a persisted, payload-bound idempotency key before any
   external transaction may be opened.
+- The Runtime binds one durable submitter authority. Only that source may invoke a paid
+  provider transport, and it revalidates immutable package approval and integrity at the
+  action boundary.
+- A paid transport without a provider idempotency guarantee is rejected before I/O;
+  ambiguous responses are quarantined and never automatically reposted.
 - The default adapter is dry-run and produces no paid POST.
 - Secrets are never stored in project JSON or source control.

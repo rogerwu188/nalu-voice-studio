@@ -5,6 +5,19 @@ leave the Mac. The record is bound to the production run, task key, provider, re
 model, submission fingerprint and exact request SHA-256. Reusing a task key with changed
 generation inputs fails closed.
 
+`DurableRemoteTaskSubmitter` is bound exactly once when the Runtime starts. The repository
+has no public prepare/transition mutation methods; its internal mutations require the
+unforgeable, per-Repository authority held by that one submitter. The production service
+and application state reference the same instance. A second binding, a fabricated
+authority, or an alternate Runtime source that invokes `post_paid_task` fails automated
+regression checks.
+
+Immediately before its paid transport boundary, the submitter reopens the immutable
+production package and verifies its canonical SHA-256, explicit paid-generation approval,
+approver identity and requested model. It then requires a transport that declares provider
+idempotency support. The package hash, run, task key, provider, model and request hash form
+the provider idempotency key; a changed request cannot reuse the durable task identity.
+
 The durable state machine is:
 
 `prepared → submitted → completed`
@@ -32,8 +45,14 @@ particular, an ambiguous response is shown as “正在核对是否扣费”, di
 and states that Nalu will not submit again automatically. A verified zero-charge failure
 is distinct from an ambiguous charge and still waits for renewed approval before retry.
 
-This is a persistence and recovery boundary, not a provider submission feature. The
-current Qingshan gate-registry quarantine keeps all paid execution disabled. Before paid
-production can be enabled, the imported durable submitter must be the only caller of this
-contract and authorized sandbox QA must prove prepare/request/response/ledger crash
-boundaries against the real provider.
+An offline provider double proves the highest-risk local crash window: the provider
+accepts the task, the Runtime crashes before response evidence commits, and restart sends
+the identical idempotency key. The double returns the same task ID and records one charge.
+Timeout-with-unknown-charge is instead persisted as `ambiguous_charge`; replay reads that
+state without invoking the transport again. These tests make no network call and are not
+evidence about a real provider's idempotency or ledger behavior.
+
+The current Qingshan gate-registry quarantine keeps all concrete paid transports
+unregistered and paid execution disabled. Before paid production can be enabled,
+authorized sandbox QA must prove prepare/request/response/ledger crash boundaries and
+ambiguous-charge reconciliation against each real provider.
