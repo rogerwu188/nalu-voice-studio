@@ -72,7 +72,9 @@ struct RealtimeSessionConfiguration {
             "name": interviewToolName,
             "description": """
             Record a direct answer to Nalu's current unfinished interview or reversible planning
-            task, or apply an explicit pause, resume, repeat-question, or go-back command.
+            task, apply an explicit interview pause/resume/repeat/go-back command, or pass the exact
+            phrases “暂停本集制作”, “确认暂停本集制作”, “不暂停”, or “恢复本集制作” to the local
+            safety controller. Production pause requires the controller's second verbal confirmation.
             A season or script approval may be recorded only when the visible app has armed that
             exact approval task. Do not call this for questions, complaints, unrelated corrections,
             small talk, deletion, paid generation, biometric consent, or publishing requests.

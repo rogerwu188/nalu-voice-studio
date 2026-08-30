@@ -31,6 +31,7 @@ final class VoiceInterviewViewModel {
     var productionProgressLastRefreshedAt: Date?
     var productionProgressRefreshWarning: String?
     var productionRunActionInProgress: String?
+    private var pendingVoiceRunCancellationID: String?
     var selectedEpisodeID: String?
     var messages: [InterviewMessage] = [
         InterviewMessage(
@@ -166,6 +167,11 @@ final class VoiceInterviewViewModel {
         transcript = ""
         transcriptConfidence = 0
         if applyComfortCommand(spoken) { return }
+        if let response = handleProductionVoiceCommand(spoken) {
+            messages.append(.init(speaker: .nalu, text: response))
+            speechPlayback.speak(response, rate: comfortPreferences.speechRate)
+            return
+        }
         if let hookReviewVoiceStep {
             handleHookReviewVoiceAnswer(spoken, step: hookReviewVoiceStep)
             return
@@ -431,6 +437,7 @@ final class VoiceInterviewViewModel {
 
     func selectProject(_ projectID: String) async {
         selectedProjectID = projectID
+        pendingVoiceRunCancellationID = nil
         memoryConflictReports = [:]
         do {
             assets = try await runtime.listAssets(projectID: projectID)
@@ -1801,6 +1808,14 @@ final class VoiceInterviewViewModel {
     }
 
     func recordRealtimeFlowAnswer(_ answer: String) -> RealtimeInterviewToolResult {
+        if let response = handleProductionVoiceCommand(answer) {
+            return RealtimeInterviewToolResult(
+                accepted: true,
+                message: response,
+                nextPrompt: currentInterviewPrompt,
+                requiresVisibleConfirmation: false
+            )
+        }
         if planningVoiceFlow.mode != nil {
             return recordRealtimePlanningAnswer(answer)
         }
@@ -1915,6 +1930,53 @@ final class VoiceInterviewViewModel {
 
     var currentInterviewPrompt: String {
         planningVoiceFlow.mode?.prompt ?? interviewFlow.prompt
+    }
+
+    private func handleProductionVoiceCommand(_ spoken: String) -> String? {
+        guard let command = ProductionVoiceCommandParser.parse(
+            spoken,
+            awaitingPauseConfirmation: pendingVoiceRunCancellationID != nil
+        ) else { return nil }
+
+        switch command {
+        case .requestPause:
+            guard let progress = selectedEpisodeProductionProgress else {
+                return "这一集还没有正在运行的制作任务。采访进度没有改变。"
+            }
+            guard progress.canCancel, let runID = progress.runID else {
+                if progress.stage == "charge_reconciliation" {
+                    return "现在正在核对是否扣费，不能暂停，也绝不会自动重复提交。核对清楚后我会告诉您。"
+                }
+                return "当前步骤不能安全暂停。我没有改动制作状态。"
+            }
+            pendingVoiceRunCancellationID = runID
+            return "可以暂停，已有进度会保留。请再明确说一次“确认暂停本集制作”；如果不想暂停，请说“不暂停”。"
+        case .confirmPause:
+            guard let runID = pendingVoiceRunCancellationID else {
+                return "现在没有等待确认的暂停操作。"
+            }
+            pendingVoiceRunCancellationID = nil
+            Task { await cancelProductionRun(runID: runID) }
+            return "收到明确确认，正在安全暂停；请以界面状态变为“已安全暂停”为准。"
+        case .cancelPause:
+            pendingVoiceRunCancellationID = nil
+            return "好的，不暂停，制作继续。"
+        case .clarifyPause:
+            return "我还没有暂停。要暂停请说“确认暂停本集制作”；不暂停请说“不暂停”。"
+        case .requestResume:
+            guard let progress = selectedEpisodeProductionProgress,
+                  progress.canResume,
+                  let runID = progress.runID else {
+                return "这一集现在没有可以恢复的制作任务。我没有提交任何付费操作。"
+            }
+            Task { await resumeProductionRun(runID: runID) }
+            return "正在从安全检查恢复；任何可能产生费用的提交仍要等您再次确认。"
+        }
+    }
+
+    private var selectedEpisodeProductionProgress: EpisodeProductionProgress? {
+        guard let selectedEpisodeID else { return nil }
+        return episodeProgressByID[selectedEpisodeID]
     }
 
     func makeTextLarger() {
