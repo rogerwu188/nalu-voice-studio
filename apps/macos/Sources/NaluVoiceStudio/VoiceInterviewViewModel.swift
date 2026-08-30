@@ -56,6 +56,7 @@ final class VoiceInterviewViewModel {
     var continuityStatus = "尚未检查跨集连续性"
     var assets: [NaluAsset] = []
     var memoryCards: [MemoryCard] = []
+    var memoryConflictReports: [String: MemoryGraphConflictReport] = [:]
     var documentaryReadiness: DocumentaryReadinessReport?
     var libraryEntities: [LibraryEntity] = []
     var libraryDraftKind = "character"
@@ -392,6 +393,7 @@ final class VoiceInterviewViewModel {
 
     func selectProject(_ projectID: String) async {
         selectedProjectID = projectID
+        memoryConflictReports = [:]
         do {
             assets = try await runtime.listAssets(projectID: projectID)
             memoryCards = try await runtime.listMemoryCards(projectID: projectID)
@@ -818,6 +820,7 @@ final class VoiceInterviewViewModel {
                 viewedScriptRevision = nil
                 assets = []
                 memoryCards = []
+                memoryConflictReports = [:]
                 libraryEntities = []
             }
         } catch {
@@ -948,6 +951,12 @@ final class VoiceInterviewViewModel {
         reviewedMemoryCardIDs.insert(memoryID)
     }
 
+    func speakMemoryConflict(_ memoryID: String) {
+        guard let report = memoryConflictReports[memoryID], report.blocking else { return }
+        messages.append(.init(speaker: .nalu, text: report.spokenSummary))
+        speechPlayback.speak(report.spokenSummary, rate: comfortPreferences.speechRate)
+    }
+
     func beginMemoryCorrection(_ memoryID: String) async {
         memoryIntakeCardID = nil
         memoryIntakeStep = nil
@@ -984,8 +993,16 @@ final class VoiceInterviewViewModel {
         }
         guard let card = memoryCards.first(where: { $0.id == memoryID }) else { return }
         do {
+            let report = try await runtime.memoryGraphConflicts(memoryID: memoryID)
+            memoryConflictReports[memoryID] = report
+            if report.blocking {
+                messages.append(.init(speaker: .nalu, text: report.spokenSummary))
+                speechPlayback.speak(report.spokenSummary, rate: comfortPreferences.speechRate)
+                return
+            }
             _ = try await runtime.confirmMemoryCard(id: memoryID, revision: card.currentRevision)
             memoryCards = try await runtime.listMemoryCards(projectID: projectID)
+            memoryConflictReports.removeValue(forKey: memoryID)
             await refreshDocumentaryReadiness()
             reviewedMemoryCardIDs.remove(memoryID)
             let response = "这张记忆卡已经由您确认归档，可以作为剧本事实来源。"
@@ -1024,6 +1041,7 @@ final class VoiceInterviewViewModel {
                 )
             )
             memoryCards = try await runtime.listMemoryCards(projectID: projectID)
+            memoryConflictReports.removeValue(forKey: id)
             await refreshDocumentaryReadiness()
             reviewedMemoryCardIDs.remove(id)
             if announceReview {

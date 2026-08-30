@@ -864,6 +864,49 @@ struct MemoryCardUpdateDraft: Codable, Sendable {
     }
 }
 
+struct MemoryGraphConflict: Codable, Sendable {
+    let kind: String
+    let subject: String
+    let candidateValue: String
+    let existingValue: String
+    let candidateMemoryID: String
+    let candidateRevision: Int
+    let candidateAssetID: String
+    let existingMemoryID: String
+    let existingRevision: Int
+    let existingAssetID: String
+    let explanation: String
+
+    enum CodingKeys: String, CodingKey {
+        case kind, subject, explanation
+        case candidateValue = "candidate_value"
+        case existingValue = "existing_value"
+        case candidateMemoryID = "candidate_memory_id"
+        case candidateRevision = "candidate_revision"
+        case candidateAssetID = "candidate_asset_id"
+        case existingMemoryID = "existing_memory_id"
+        case existingRevision = "existing_revision"
+        case existingAssetID = "existing_asset_id"
+    }
+}
+
+struct MemoryGraphConflictReport: Codable, Sendable {
+    let projectID: String
+    let candidateMemoryID: String
+    let checkedAgainstConfirmedCards: Int
+    let blocking: Bool
+    let conflicts: [MemoryGraphConflict]
+    let spokenSummary: String
+
+    enum CodingKeys: String, CodingKey {
+        case blocking, conflicts
+        case projectID = "project_id"
+        case candidateMemoryID = "candidate_memory_id"
+        case checkedAgainstConfirmedCards = "checked_against_confirmed_cards"
+        case spokenSummary = "spoken_summary"
+    }
+}
+
 struct DocumentaryEvidenceItem: Codable, Identifiable, Sendable {
     var id: String { assetID }
     let assetID: String

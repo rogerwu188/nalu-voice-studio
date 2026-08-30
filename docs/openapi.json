@@ -2310,6 +2310,114 @@
         "title": "MemoryCardUpdate",
         "type": "object"
       },
+      "MemoryGraphConflict": {
+        "properties": {
+          "candidate_asset_id": {
+            "title": "Candidate Asset Id",
+            "type": "string"
+          },
+          "candidate_memory_id": {
+            "title": "Candidate Memory Id",
+            "type": "string"
+          },
+          "candidate_revision": {
+            "title": "Candidate Revision",
+            "type": "integer"
+          },
+          "candidate_value": {
+            "title": "Candidate Value",
+            "type": "string"
+          },
+          "existing_asset_id": {
+            "title": "Existing Asset Id",
+            "type": "string"
+          },
+          "existing_memory_id": {
+            "title": "Existing Memory Id",
+            "type": "string"
+          },
+          "existing_revision": {
+            "title": "Existing Revision",
+            "type": "integer"
+          },
+          "existing_value": {
+            "title": "Existing Value",
+            "type": "string"
+          },
+          "explanation": {
+            "title": "Explanation",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "relationship",
+              "event_date",
+              "event_place"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "subject": {
+            "title": "Subject",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "subject",
+          "candidate_value",
+          "existing_value",
+          "candidate_memory_id",
+          "candidate_revision",
+          "candidate_asset_id",
+          "existing_memory_id",
+          "existing_revision",
+          "existing_asset_id",
+          "explanation"
+        ],
+        "title": "MemoryGraphConflict",
+        "type": "object"
+      },
+      "MemoryGraphConflictReport": {
+        "properties": {
+          "blocking": {
+            "title": "Blocking",
+            "type": "boolean"
+          },
+          "candidate_memory_id": {
+            "title": "Candidate Memory Id",
+            "type": "string"
+          },
+          "checked_against_confirmed_cards": {
+            "title": "Checked Against Confirmed Cards",
+            "type": "integer"
+          },
+          "conflicts": {
+            "items": {
+              "$ref": "#/components/schemas/MemoryGraphConflict"
+            },
+            "title": "Conflicts",
+            "type": "array"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "spoken_summary": {
+            "title": "Spoken Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project_id",
+          "candidate_memory_id",
+          "checked_against_confirmed_cards",
+          "blocking",
+          "spoken_summary"
+        ],
+        "title": "MemoryGraphConflictReport",
+        "type": "object"
+      },
       "MemoryPerson": {
         "properties": {
           "name": {
@@ -4663,6 +4771,45 @@
           }
         },
         "summary": "List Memory Card Confirmations"
+      }
+    },
+    "/v1/memory-cards/{memory_id}/conflicts": {
+      "get": {
+        "operationId": "memory_graph_conflicts_v1_memory_cards__memory_id__conflicts_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "memory_id",
+            "required": true,
+            "schema": {
+              "title": "Memory Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemoryGraphConflictReport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Memory Graph Conflicts"
       }
     },
     "/v1/memory-cards/{memory_id}/revisions": {

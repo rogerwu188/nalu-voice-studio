@@ -373,6 +373,29 @@ class MemoryCardRevision(BaseModel):
     created_at: str
 
 
+class MemoryGraphConflict(BaseModel):
+    kind: Literal["relationship", "event_date", "event_place"]
+    subject: str
+    candidate_value: str
+    existing_value: str
+    candidate_memory_id: str
+    candidate_revision: int
+    candidate_asset_id: str
+    existing_memory_id: str
+    existing_revision: int
+    existing_asset_id: str
+    explanation: str
+
+
+class MemoryGraphConflictReport(BaseModel):
+    project_id: str
+    candidate_memory_id: str
+    checked_against_confirmed_cards: int
+    blocking: bool
+    conflicts: list[MemoryGraphConflict] = Field(default_factory=list)
+    spoken_summary: str
+
+
 class DocumentaryEvidenceItem(BaseModel):
     asset_id: str
     memory_id: str | None = None

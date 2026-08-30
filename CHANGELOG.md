@@ -15,6 +15,8 @@ Versioning and the Keep a Changelog structure.
   conducts the missing memory-card questions by voice. The detailed manager is secondary.
 - Native project-library management for characters, scenes, props, voices and visual
   styles, including a one-question-at-a-time voice draft and explicit spoken confirmation.
+- A fail-closed family-memory contradiction gate with source-linked relationship,
+  event-date and event-place explanations in both text and spoken native UI.
 - Project → Season → Episode domain hierarchy.
 - Versioned script revisions and spoken approval endpoint.
 - Consent-aware project asset registry.

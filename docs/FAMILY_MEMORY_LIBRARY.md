@@ -54,15 +54,27 @@ Example readback:
 
 ## Knowledge relationships
 
-Confirmed people, places, events, objects, organizations, and dates will be resolved
-into a project knowledge graph. A proposed merge such as “这是前面提到的王阿姨
-吗？” requires user confirmation. Every relationship retains its source memory card
-and revision. Conflicting confirmed claims block automatic script authority and cause
-Nalu to ask a clarification question.
+The local contradiction gate compares a draft only with confirmed cards that are
+permitted for story development or visual generation. It currently rejects three
+structured conflicts before confirmation:
 
-The first implementation persists versioned memory cards and structured people,
-date, place, and evidence links. General entity resolution and contradiction handling
-remain an incomplete SOP-06 item.
+- the same named person has two incompatible relationships to the storyteller;
+- the same specifically named event has incompatible explicit year, month, day or
+  season components;
+- the same specifically named event has two incompatible places.
+
+Every conflict returns both memory-card IDs, exact revisions, and both managed asset
+IDs. The native app keeps the candidate as a draft, shows a red plain-language status,
+and reads the two claims aloud. The user corrects one card and reviews its new immutable
+revision before trying again. Draft cards and `reference_only` cards never become
+comparison authority.
+Compatible levels of precision, such as “1982 年秋天” and “大约 1982 年”, are not
+treated as a contradiction. Generic labels such as “全家福” or “老照片” are not
+assumed to identify one unique event.
+
+General entity resolution and automatic extraction of reviewed event/end-state facts
+remain incomplete SOP-06 items. A proposed merge such as “这是前面提到的王阿姨吗？”
+will continue to require explicit user confirmation rather than model inference.
 
 ## Permissions
 
@@ -93,6 +105,9 @@ confirmation turn bound to the reviewed revision.
 - Long pause, repetition, interruption, correction, stale confirmation, and backtracking.
 - Visual-only, voice-only, and combined review paths.
 - Cross-project evidence is rejected.
+- Relationship, event-date and event-place conflicts retain both evidence links and
+  block confirmation; drafts, reference-only evidence and compatible approximate dates
+  do not create false authority.
 - Unauthorized visual generation and child biometric use fail closed.
 - Export/restore and complete deletion preserve or remove the exact revision graph.
 - A script citation resolves to the confirmed memory card revision used.

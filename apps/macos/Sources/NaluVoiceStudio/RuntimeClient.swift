@@ -167,6 +167,10 @@ actor RuntimeClient {
         try await get("v1/projects/\(projectID)/memory-cards")
     }
 
+    func memoryGraphConflicts(memoryID: String) async throws -> MemoryGraphConflictReport {
+        try await get("v1/memory-cards/\(memoryID)/conflicts")
+    }
+
     func documentaryReadiness(projectID: String) async throws -> DocumentaryReadinessReport {
         try await get("v1/projects/\(projectID)/documentary-readiness")
     }

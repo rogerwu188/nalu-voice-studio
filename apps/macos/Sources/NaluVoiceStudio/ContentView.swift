@@ -1035,6 +1035,15 @@ struct ContentView: View {
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                                     .lineLimit(2)
+                                if let report = model.memoryConflictReports[card.id], report.blocking {
+                                    Label(
+                                        "发现 \(report.conflicts.count) 处资料对不上，尚未归档",
+                                        systemImage: "exclamationmark.triangle.fill"
+                                    )
+                                    .font(.caption.bold())
+                                    .foregroundStyle(.red)
+                                    .accessibilityHint("按右侧朗读矛盾，可听取两份资料哪里不同")
+                                }
                             }
                         }
                         Spacer()
@@ -1059,10 +1068,16 @@ struct ContentView: View {
                                     }
                                 }
                                 if card.confirmationStatus != "confirmed" {
-                                Button("确认归档", systemImage: "checkmark.seal") {
-                                    Task { await model.confirmMemoryCard(card.id) }
-                                }
-                                .buttonStyle(.borderedProminent)
+                                    Button("确认归档", systemImage: "checkmark.seal") {
+                                        Task { await model.confirmMemoryCard(card.id) }
+                                    }
+                                    .buttonStyle(.borderedProminent)
+                                    if model.memoryConflictReports[card.id]?.blocking == true {
+                                        Button("朗读矛盾", systemImage: "speaker.wave.2.fill") {
+                                            model.speakMemoryConflict(card.id)
+                                        }
+                                        .accessibilityHint("朗读冲突内容，并告诉您需要修改哪张记忆卡")
+                                    }
                                 }
                             }
                             HStack {

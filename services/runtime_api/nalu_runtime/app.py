@@ -49,6 +49,7 @@ from .models import (
     MemoryCardCreate,
     MemoryCardRevision,
     MemoryCardUpdate,
+    MemoryGraphConflictReport,
     ProductionRun,
     ProductionRunCreate,
     Project,
@@ -151,6 +152,13 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
     @app.get("/v1/projects/{project_id}/memory-cards", response_model=list[MemoryCard])
     def list_memory_cards(project_id: str, confirmed_only: bool = False) -> list[MemoryCard]:
         return repository.list_memory_cards(project_id, confirmed_only)
+
+    @app.get(
+        "/v1/memory-cards/{memory_id}/conflicts",
+        response_model=MemoryGraphConflictReport,
+    )
+    def memory_graph_conflicts(memory_id: str) -> MemoryGraphConflictReport:
+        return repository.memory_graph_conflicts(memory_id)
 
     @app.get(
         "/v1/projects/{project_id}/documentary-readiness",

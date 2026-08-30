@@ -42,6 +42,8 @@ from .models import (
     MemoryCardCreate,
     MemoryCardRevision,
     MemoryCardUpdate,
+    MemoryGraphConflict,
+    MemoryGraphConflictReport,
     ProductionRun,
     Project,
     ProjectArchiveRequest,
@@ -1104,6 +1106,9 @@ class Repository:
         card = self.get_memory_card(memory_id)
         if request.reviewed_revision != card.current_revision:
             raise ConflictError("memory card changed after it was reviewed")
+        conflict_report = self.memory_graph_conflicts(memory_id)
+        if conflict_report.blocking:
+            raise ConflictError(conflict_report.spoken_summary)
         record_id, now = new_id("mcr"), utc_now()
         with self.db.connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
@@ -1143,6 +1148,195 @@ class Repository:
                 (memory_id,),
             ).fetchall()
         return [MemoryCardConfirmationRecord.model_validate(dict(row)) for row in rows]
+
+    @staticmethod
+    def _memory_fact_text(value: str) -> str:
+        return re.sub(r"[\W_]+", "", value.casefold(), flags=re.UNICODE)
+
+    @classmethod
+    def _canonical_relationship(cls, value: str) -> str:
+        normalized = cls._memory_fact_text(value)
+        aliases = {
+            "妻子": "spouse",
+            "老婆": "spouse",
+            "太太": "spouse",
+            "爱人": "spouse",
+            "丈夫": "spouse",
+            "老公": "spouse",
+            "母亲": "mother",
+            "妈妈": "mother",
+            "母亲大人": "mother",
+            "父亲": "father",
+            "爸爸": "father",
+            "儿子": "son",
+            "女儿": "daughter",
+            "哥哥": "older_brother",
+            "姐姐": "older_sister",
+            "弟弟": "younger_brother",
+            "妹妹": "younger_sister",
+            "朋友": "friend",
+            "同学": "classmate",
+            "同事": "colleague",
+        }
+        return aliases.get(normalized, normalized)
+
+    @staticmethod
+    def _date_components(value: str) -> dict[str, str]:
+        normalized = value.casefold()
+        components: dict[str, str] = {}
+        if match := re.search(r"(?<!\d)(18|19|20)\d{2}(?!\d)", normalized):
+            components["year"] = match.group(0)
+        if match := re.search(r"(?:年|[-/.])\s*(1[0-2]|0?[1-9])\s*(?:月|[-/.])", normalized):
+            components["month"] = str(int(match.group(1)))
+        if match := re.search(r"(?:月|[-/.])\s*(3[01]|[12]\d|0?[1-9])\s*(?:日|号)?", normalized):
+            components["day"] = str(int(match.group(1)))
+        seasons = {
+            "春天": "spring", "春季": "spring", "春": "spring",
+            "夏天": "summer", "夏季": "summer", "夏": "summer",
+            "秋天": "autumn", "秋季": "autumn", "秋": "autumn",
+            "冬天": "winter", "冬季": "winter", "冬": "winter",
+        }
+        for label, canonical in seasons.items():
+            if label in normalized:
+                components["season"] = canonical
+                break
+        return components
+
+    @classmethod
+    def _dates_provably_conflict(cls, left: str, right: str) -> bool:
+        left_parts = cls._date_components(left)
+        right_parts = cls._date_components(right)
+        shared = set(left_parts) & set(right_parts)
+        return any(left_parts[key] != right_parts[key] for key in shared)
+
+    def memory_graph_conflicts(self, memory_id: str) -> MemoryGraphConflictReport:
+        candidate = self.get_memory_card(memory_id)
+        confirmed = [
+            card
+            for card in self.list_memory_cards(candidate.project_id, confirmed_only=True)
+            if card.id != candidate.id
+            and card.allowed_use in {"story_development", "visual_generation"}
+        ]
+        if candidate.allowed_use == "reference_only":
+            return MemoryGraphConflictReport(
+                project_id=candidate.project_id,
+                candidate_memory_id=candidate.id,
+                checked_against_confirmed_cards=len(confirmed),
+                blocking=False,
+                conflicts=[],
+                spoken_summary=(
+                    "这张记忆卡只供理解和核对，不会成为剧本事实，因此不参与叙事矛盾阻断。"
+                ),
+            )
+        conflicts: list[MemoryGraphConflict] = []
+        candidate_people = {
+            self._memory_fact_text(person.name): person
+            for person in candidate.people
+            if self._memory_fact_text(person.name) and self._canonical_relationship(person.relationship)
+        }
+        candidate_event = self._memory_fact_text(candidate.title)
+        generic_event_titles = {"照片", "老照片", "全家福", "家庭照片", "资料", "手稿"}
+        for existing in confirmed:
+            for person in existing.people:
+                person_key = self._memory_fact_text(person.name)
+                candidate_person = candidate_people.get(person_key)
+                if candidate_person is None:
+                    continue
+                left = self._canonical_relationship(candidate_person.relationship)
+                right = self._canonical_relationship(person.relationship)
+                if left and right and left != right:
+                    conflicts.append(
+                        MemoryGraphConflict(
+                            kind="relationship",
+                            subject=candidate_person.name,
+                            candidate_value=candidate_person.relationship,
+                            existing_value=person.relationship,
+                            candidate_memory_id=candidate.id,
+                            candidate_revision=candidate.current_revision,
+                            candidate_asset_id=candidate.asset_id,
+                            existing_memory_id=existing.id,
+                            existing_revision=existing.current_revision,
+                            existing_asset_id=existing.asset_id,
+                            explanation=(
+                                f"{candidate_person.name} 在这张资料中是“{candidate_person.relationship}”，"
+                                f"但已确认资料中是“{person.relationship}”。"
+                            ),
+                        )
+                    )
+            if (
+                not candidate_event
+                or candidate_event in generic_event_titles
+                or candidate_event != self._memory_fact_text(existing.title)
+            ):
+                continue
+            if (
+                candidate.approximate_date
+                and existing.approximate_date
+                and self._dates_provably_conflict(
+                    candidate.approximate_date, existing.approximate_date
+                )
+            ):
+                conflicts.append(
+                    MemoryGraphConflict(
+                        kind="event_date",
+                        subject=candidate.title,
+                        candidate_value=candidate.approximate_date,
+                        existing_value=existing.approximate_date,
+                        candidate_memory_id=candidate.id,
+                        candidate_revision=candidate.current_revision,
+                        candidate_asset_id=candidate.asset_id,
+                        existing_memory_id=existing.id,
+                        existing_revision=existing.current_revision,
+                        existing_asset_id=existing.asset_id,
+                        explanation=(
+                            f"事件“{candidate.title}”的时间在这张资料中是“{candidate.approximate_date}”，"
+                            f"但已确认资料中是“{existing.approximate_date}”。"
+                        ),
+                    )
+                )
+            candidate_place = self._memory_fact_text(candidate.place)
+            existing_place = self._memory_fact_text(existing.place)
+            if (
+                candidate_place
+                and existing_place
+                and candidate_place != existing_place
+                and candidate_place not in existing_place
+                and existing_place not in candidate_place
+            ):
+                conflicts.append(
+                    MemoryGraphConflict(
+                        kind="event_place",
+                        subject=candidate.title,
+                        candidate_value=candidate.place,
+                        existing_value=existing.place,
+                        candidate_memory_id=candidate.id,
+                        candidate_revision=candidate.current_revision,
+                        candidate_asset_id=candidate.asset_id,
+                        existing_memory_id=existing.id,
+                        existing_revision=existing.current_revision,
+                        existing_asset_id=existing.asset_id,
+                        explanation=(
+                            f"事件“{candidate.title}”的地点在这张资料中是“{candidate.place}”，"
+                            f"但已确认资料中是“{existing.place}”。"
+                        ),
+                    )
+                )
+        if conflicts:
+            spoken_summary = (
+                f"我发现 {len(conflicts)} 处资料对不上，暂时不能归档。"
+                + " ".join(conflict.explanation for conflict in conflicts)
+                + " 请修改其中一张记忆卡，再重新确认。"
+            )
+        else:
+            spoken_summary = "没有发现与已确认家庭资料相冲突的关系、时间或事件地点。"
+        return MemoryGraphConflictReport(
+            project_id=candidate.project_id,
+            candidate_memory_id=candidate.id,
+            checked_against_confirmed_cards=len(confirmed),
+            blocking=bool(conflicts),
+            conflicts=conflicts,
+            spoken_summary=spoken_summary,
+        )
 
     def documentary_readiness(self, project_id: str) -> DocumentaryReadinessReport:
         project = self.get_project(project_id)
