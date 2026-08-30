@@ -353,6 +353,20 @@ struct ContentView: View {
                 .padding(.vertical, 12)
                 Divider()
             }
+            if selectedProject != nil {
+                DisclosureGroup(
+                    "项目人物、场景、道具和声音",
+                    isExpanded: $isLibraryEditorExpanded
+                ) {
+                    libraryEditor
+                        .padding(.top, 10)
+                }
+                .font(.headline)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 14)
+                .background(Color.secondary.opacity(0.04))
+                Divider()
+            }
             if !model.episodes.isEmpty {
                 ScrollView(.horizontal) {
                     HStack(spacing: 10) {
@@ -504,14 +518,6 @@ struct ContentView: View {
                             && !model.guardianConfirmedForPlan)
                 )
             }
-            DisclosureGroup(
-                "项目人物、场景、道具和声音",
-                isExpanded: $isLibraryEditorExpanded
-            ) {
-                libraryEditor
-                    .padding(.top, 10)
-            }
-            .font(.headline)
             if let episode = selectedEpisode {
                 Divider()
                 Text("第 \(episode.episodeNumber) 集 · \(episode.title)")
