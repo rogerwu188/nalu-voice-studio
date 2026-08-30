@@ -29,6 +29,24 @@ def _load_validator(path: Path) -> ModuleType:
     return module
 
 
+def _nonportable_registry_failures(registry: dict[str, Any]) -> list[str]:
+    failures: list[str] = []
+    for gate in registry.get("gates") or []:
+        gate_id = str(gate.get("gate_id") or "UNKNOWN")
+        candidates = [
+            *(gate.get("code_paths") or []),
+            *(gate.get("test_paths") or []),
+            *(gate.get("stage_runner_paths") or []),
+        ]
+        if gate.get("manual_checklist_path"):
+            candidates.append(gate["manual_checklist_path"])
+        for value in candidates:
+            path = Path(str(value))
+            if path.is_absolute():
+                failures.append(f"nonportable_absolute_path:{gate_id}:{path}")
+    return failures
+
+
 def _audit_gate_registry_uncached(
     repository_root: Path,
     vendor_root: Path,
@@ -63,7 +81,23 @@ def _audit_gate_registry_uncached(
     )
     registry = json.loads(registry_path.read_text(encoding="utf-8"))
     upstream_report = _load_validator(validator_path).validate(registry, vendor_root)
-    actual_failures = sorted(str(value) for value in upstream_report.get("failures") or [])
+    validator_failures = [
+        str(value) for value in upstream_report.get("failures") or []
+    ]
+    # Qingshan's validator treats an absolute test path as available on the original
+    # developer Mac and missing elsewhere. Normalize that host-dependent result into one
+    # deterministic portability failure on every machine.
+    validator_failures = [
+        value
+        for value in validator_failures
+        if not (
+            value.startswith("missing_path:")
+            and Path(value.split(":", 2)[-1]).is_absolute()
+        )
+    ]
+    actual_failures = sorted(
+        {*validator_failures, *_nonportable_registry_failures(registry)}
+    )
     known_failures = sorted(str(value) for value in quarantine.get("known_failures") or [])
     new_failures = sorted(set(actual_failures) - set(known_failures))
     resolved_failures = sorted(set(known_failures) - set(actual_failures))

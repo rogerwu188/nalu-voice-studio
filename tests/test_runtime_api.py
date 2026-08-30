@@ -831,7 +831,7 @@ def test_database_migration_preserves_existing_database(tmp_path: Path) -> None:
         connection.execute("INSERT INTO legacy_marker VALUES ('preserve-me')")
 
     api = create_app(database_path, tmp_path / "data")
-    assert api.state.repository.db.schema_version() == 12
+    assert api.state.repository.db.schema_version() == 13
     with sqlite3.connect(database_path) as connection:
         marker = connection.execute("SELECT value FROM legacy_marker").fetchone()[0]
         approval_table = connection.execute(
@@ -883,7 +883,7 @@ def test_populated_v1_database_upgrades_without_project_loss(tmp_path: Path) -> 
         connection.execute("DELETE FROM schema_migrations WHERE version >= 2")
 
     after = TestClient(create_app(database_path, data_root))
-    assert after.app.state.repository.db.schema_version() == 12
+    assert after.app.state.repository.db.schema_version() == 13
     assert after.get(f"/v1/projects/{project['id']}").json()["title"] == "我的一生"
     assert after.get(f"/v1/episodes/{episode['id']}").json()["approved_script_revision"] == 1
     approvals = after.get(f"/v1/episodes/{episode['id']}/script-approvals").json()
@@ -1228,7 +1228,7 @@ def test_dry_run_writes_immutable_package(tmp_path: Path) -> None:
     assert gate_audit["status"] == "QUARANTINED_KNOWN_UPSTREAM_DEFECT"
     assert gate_audit["gate_count"] == 68
     assert gate_audit["coded_gate_count"] == gate_audit["runtime_bound_count"] == 65
-    assert len(gate_audit["known_failures"]) == 8
+    assert len(gate_audit["known_failures"]) == 9
     assert gate_audit["new_failures"] == []
     assert gate_audit["quarantine_binding_valid"] is True
     assert gate_audit["registered_tests_executed"] is False

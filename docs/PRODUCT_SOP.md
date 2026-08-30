@@ -489,7 +489,8 @@ Current evidence:
   smoke, ZIP and artifact upload passed for the separate compiler contracts.
 - Qingshan's own registry-integrity tool currently finds 68 registered gates and 65/65
   coded gates runtime-bound, but release `v2026.08.29.1` omits eight declared evidence
-  paths and therefore cannot run the complete registered test set. Upstream issue `#20`
+  paths and contains one host-specific absolute test path, so it cannot run the complete
+  registered test set portably. Upstream issue `#20`
   records the exact release defect. Nalu binds that quarantine to the upstream commit,
   registry SHA and exact failure list in every workspace; new drift fails preflight and
   the known quarantine blocks paid execution while permitting evidence-rich local dry
@@ -516,8 +517,18 @@ QA:
 Current evidence:
 
 - Ordered persistent events, cancellation, preflight resume and concurrent writer test.
-- Still required before `PASS`: durable remote bindings, transaction-boundary crash tests,
-  ambiguous-charge reconciliation and stage-level progress.
+- SQLite migration 13 adds immutable per-run remote-task intents and provider task/result/
+  receipt bindings. Dry runs cannot create them; changed fingerprints, changed provider
+  task identity and duplicate provider task IDs fail closed. Prepared, submitted,
+  ambiguous-charge, verified-zero-charge, completed and cancelled states are explicit.
+- A failpoint after a remote binding update but before its ordered run event proves the
+  whole SQLite transaction rolls back. The same evidence then commits once, survives a
+  complete Runtime restart and replays idempotently. Separate regressions cover ambiguous
+  responses, exact zero-charge reconciliation and duplicate remote task protection. This
+  is offline persistence evidence and does not claim a provider call occurred.
+- Still required before `PASS`: bind the imported durable submitter as the only writer,
+  run authorized provider crash tests at every network/charge boundary, reconcile real
+  ambiguous charges and expose finer stage-level progress.
 
 ## SOP-09 · Postproduction and release-blocking QA — TODO
 

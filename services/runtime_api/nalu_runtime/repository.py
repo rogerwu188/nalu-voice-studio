@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import sqlite3
 from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
@@ -61,6 +62,8 @@ from .models import (
     ProjectPlan,
     ProjectPlanCreate,
     ProjectRename,
+    RemoteTaskBinding,
+    RemoteTaskState,
     RunEvent,
     RunStatus,
     ScriptRevision,
@@ -2970,6 +2973,275 @@ class Repository:
                 (episode_id,),
             ).fetchone()
         return self.get_run(row["id"]) if row else None
+
+    @staticmethod
+    def _remote_task_from_row(row: Any) -> RemoteTaskBinding:
+        data = dict(row)
+        data["receipt"] = decode(data.pop("receipt_json"))
+        return RemoteTaskBinding.model_validate(data)
+
+    def get_remote_task_binding(self, binding_id: str) -> RemoteTaskBinding:
+        with self.db.connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM remote_task_bindings WHERE id = ?", (binding_id,)
+            ).fetchone()
+        if row is None:
+            raise NotFoundError("remote task binding not found")
+        return self._remote_task_from_row(row)
+
+    def list_remote_task_bindings(self, run_id: str) -> list[RemoteTaskBinding]:
+        self.get_run(run_id)
+        with self.db.connect() as connection:
+            rows = connection.execute(
+                """SELECT * FROM remote_task_bindings
+                   WHERE run_id = ? ORDER BY created_at, id""",
+                (run_id,),
+            ).fetchall()
+        return [self._remote_task_from_row(row) for row in rows]
+
+    def _record_remote_task_event(
+        self,
+        connection: Any,
+        binding: RemoteTaskBinding,
+        event_type: str,
+        message: str,
+    ) -> None:
+        row = connection.execute(
+            "SELECT COALESCE(MAX(sequence), 0) + 1 AS sequence FROM run_events WHERE run_id = ?",
+            (binding.run_id,),
+        ).fetchone()
+        connection.execute(
+            "INSERT INTO run_events VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                new_id("evt"),
+                binding.run_id,
+                int(row["sequence"]),
+                event_type,
+                None,
+                None,
+                message,
+                encode(
+                    {
+                        "binding_id": binding.id,
+                        "task_key": binding.task_key,
+                        "provider": binding.provider,
+                        "state": binding.state,
+                        "provider_task_id": binding.provider_task_id,
+                        "response_sha256": binding.response_sha256,
+                        "charge_classification": binding.charge_classification,
+                    }
+                ),
+                binding.updated_at,
+            ),
+        )
+
+    def prepare_remote_task_binding(
+        self,
+        run_id: str,
+        *,
+        task_key: str,
+        provider: str,
+        model: str,
+        submission_fingerprint: str,
+        request_sha256: str,
+    ) -> RemoteTaskBinding:
+        run = self.get_run(run_id)
+        if run.dry_run:
+            raise ConflictError("dry runs cannot prepare remote paid task bindings")
+        if model != run.requested_model:
+            raise ConflictError("remote task model does not match its production run")
+        if run.status not in {
+            RunStatus.WAITING_FOR_APPROVAL,
+            RunStatus.QUEUED,
+            RunStatus.RUNNING,
+        }:
+            raise ConflictError("production run state cannot prepare a remote task")
+        values = {
+            "task_key": task_key.strip(),
+            "provider": provider.strip(),
+            "model": model.strip(),
+        }
+        if not all(values.values()):
+            raise ConflictError("remote task key, provider and model are required")
+        for name, digest in (
+            ("submission fingerprint", submission_fingerprint),
+            ("request SHA", request_sha256),
+        ):
+            if re.fullmatch(r"[a-f0-9]{64}", digest) is None:
+                raise ConflictError(f"{name} must be a SHA-256 digest")
+
+        now, binding_id = utc_now(), new_id("remote")
+        with self.db.connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            existing = connection.execute(
+                """SELECT * FROM remote_task_bindings
+                   WHERE run_id = ? AND task_key = ?""",
+                (run_id, values["task_key"]),
+            ).fetchone()
+            if existing is not None:
+                binding = self._remote_task_from_row(existing)
+                if (
+                    binding.provider == values["provider"]
+                    and binding.model == values["model"]
+                    and binding.submission_fingerprint == submission_fingerprint
+                    and binding.request_sha256 == request_sha256
+                ):
+                    return binding
+                raise ConflictError(
+                    "remote task key is already bound to different submission inputs"
+                )
+            connection.execute(
+                """INSERT INTO remote_task_bindings
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    binding_id,
+                    run_id,
+                    values["task_key"],
+                    values["provider"],
+                    values["model"],
+                    submission_fingerprint,
+                    request_sha256,
+                    RemoteTaskState.PREPARED,
+                    None,
+                    None,
+                    None,
+                    encode({}),
+                    "",
+                    None,
+                    now,
+                    now,
+                ),
+            )
+            row = connection.execute(
+                "SELECT * FROM remote_task_bindings WHERE id = ?", (binding_id,)
+            ).fetchone()
+            binding = self._remote_task_from_row(row)
+            self._record_remote_task_event(
+                connection,
+                binding,
+                "remote_task_prepared",
+                "Durable remote task intent recorded before provider submission.",
+            )
+        return self.get_remote_task_binding(binding_id)
+
+    def transition_remote_task_binding(
+        self,
+        binding_id: str,
+        *,
+        target_state: RemoteTaskState,
+        response_sha256: str,
+        provider_task_id: str | None = None,
+        result_uri: str | None = None,
+        receipt: dict[str, Any] | None = None,
+        charge_classification: str,
+        actual_charged_credits: int | None = None,
+    ) -> RemoteTaskBinding:
+        if re.fullmatch(r"[a-f0-9]{64}", response_sha256) is None:
+            raise ConflictError("provider response SHA must be a SHA-256 digest")
+        if actual_charged_credits is not None and actual_charged_credits < 0:
+            raise ConflictError("actual charged credits cannot be negative")
+        if target_state in {
+            RemoteTaskState.SUBMITTED,
+            RemoteTaskState.COMPLETED,
+        } and (not provider_task_id or not provider_task_id.strip()):
+            raise ConflictError("submitted and completed tasks require a provider task ID")
+        if target_state == RemoteTaskState.COMPLETED and not result_uri:
+            raise ConflictError("completed remote tasks require a result URI")
+        if target_state == RemoteTaskState.COMPLETED and (
+            actual_charged_credits is None or not receipt
+        ):
+            raise ConflictError("completed remote tasks require a credit receipt")
+        if (
+            target_state == RemoteTaskState.ZERO_CHARGE_FAILED
+            and actual_charged_credits != 0
+        ):
+            raise ConflictError("zero-charge failures require an exact zero-credit receipt")
+        if target_state == RemoteTaskState.AMBIGUOUS_CHARGE and actual_charged_credits is not None:
+            raise ConflictError("ambiguous-charge tasks cannot claim a reconciled credit total")
+        if target_state in {
+            RemoteTaskState.AMBIGUOUS_CHARGE,
+            RemoteTaskState.ZERO_CHARGE_FAILED,
+        } and not charge_classification.strip():
+            raise ConflictError("failed or ambiguous provider responses require classification")
+
+        allowed = {
+            RemoteTaskState.PREPARED: {
+                RemoteTaskState.SUBMITTED,
+                RemoteTaskState.AMBIGUOUS_CHARGE,
+                RemoteTaskState.ZERO_CHARGE_FAILED,
+                RemoteTaskState.CANCELLED,
+            },
+            RemoteTaskState.AMBIGUOUS_CHARGE: {
+                RemoteTaskState.SUBMITTED,
+                RemoteTaskState.ZERO_CHARGE_FAILED,
+            },
+            RemoteTaskState.SUBMITTED: {
+                RemoteTaskState.COMPLETED,
+                RemoteTaskState.AMBIGUOUS_CHARGE,
+                RemoteTaskState.CANCELLED,
+            },
+        }
+        now = utc_now()
+        receipt = receipt or {}
+        with self.db.connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            row = connection.execute(
+                "SELECT * FROM remote_task_bindings WHERE id = ?", (binding_id,)
+            ).fetchone()
+            if row is None:
+                raise NotFoundError("remote task binding not found")
+            current = self._remote_task_from_row(row)
+            if current.provider_task_id and provider_task_id != current.provider_task_id:
+                raise ConflictError("provider task identity cannot be changed or discarded")
+            expected = {
+                "state": target_state,
+                "provider_task_id": provider_task_id,
+                "response_sha256": response_sha256,
+                "result_uri": result_uri,
+                "receipt": receipt,
+                "charge_classification": charge_classification,
+                "actual_charged_credits": actual_charged_credits,
+            }
+            if current.state == target_state:
+                if all(getattr(current, key) == value for key, value in expected.items()):
+                    return current
+                raise ConflictError("remote task state is already bound to different evidence")
+            if target_state not in allowed.get(current.state, set()):
+                raise ConflictError(
+                    f"remote task cannot transition from {current.state} to {target_state}"
+                )
+            try:
+                connection.execute(
+                    """UPDATE remote_task_bindings
+                       SET state = ?, provider_task_id = ?, response_sha256 = ?,
+                           result_uri = ?, receipt_json = ?, charge_classification = ?,
+                           actual_charged_credits = ?, updated_at = ?
+                       WHERE id = ?""",
+                    (
+                        target_state,
+                        provider_task_id,
+                        response_sha256,
+                        result_uri,
+                        encode(receipt),
+                        charge_classification,
+                        actual_charged_credits,
+                        now,
+                        binding_id,
+                    ),
+                )
+            except sqlite3.IntegrityError as exc:
+                raise ConflictError("provider task ID is already bound to another task") from exc
+            updated_row = connection.execute(
+                "SELECT * FROM remote_task_bindings WHERE id = ?", (binding_id,)
+            ).fetchone()
+            updated = self._remote_task_from_row(updated_row)
+            self._record_remote_task_event(
+                connection,
+                updated,
+                f"remote_task_{target_state}",
+                "Remote task state and provider evidence committed atomically.",
+            )
+        return self.get_remote_task_binding(binding_id)
 
     def append_run_event(
         self,

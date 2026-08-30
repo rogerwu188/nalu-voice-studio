@@ -39,6 +39,15 @@ class RunStatus(StrEnum):
     CANCELLED = "cancelled"
 
 
+class RemoteTaskState(StrEnum):
+    PREPARED = "prepared"
+    SUBMITTED = "submitted"
+    AMBIGUOUS_CHARGE = "ambiguous_charge"
+    ZERO_CHARGE_FAILED = "zero_charge_failed"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
+
+
 class AssetKind(StrEnum):
     CHARACTER_IMAGE = "character_image"
     VOICE_REFERENCE = "voice_reference"
@@ -840,6 +849,25 @@ class RunEvent(BaseModel):
     message: str = ""
     payload: dict[str, Any] = Field(default_factory=dict)
     created_at: str
+
+
+class RemoteTaskBinding(BaseModel):
+    id: str
+    run_id: str
+    task_key: str
+    provider: str
+    model: str
+    submission_fingerprint: str = Field(pattern=r"^[a-f0-9]{64}$")
+    request_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    state: RemoteTaskState
+    provider_task_id: str | None = None
+    response_sha256: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
+    result_uri: str | None = None
+    receipt: dict[str, Any] = Field(default_factory=dict)
+    charge_classification: str = ""
+    actual_charged_credits: int | None = Field(default=None, ge=0)
+    created_at: str
+    updated_at: str
 
 
 class RunActionRequest(BaseModel):

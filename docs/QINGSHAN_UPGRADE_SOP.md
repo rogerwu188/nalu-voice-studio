@@ -28,7 +28,8 @@ An upstream release is not a Nalu release. If any gate fails, the current pin
 remains authoritative and the candidate stays quarantined.
 
 The current `v2026.08.29.1` pin predates this stronger promotion rule and has eight
-missing paths declared by its own gate registry. The exact exception is commit- and
+missing paths plus one host-specific absolute test path declared by its own gate registry.
+The exact exception is commit- and
 registry-hash-bound in `configs/qingshan-gate-registry-quarantine.json` and tracked in
 [Qingshan issue #20](https://github.com/rogerwu188/qingshan-short-drama-production-line/issues/20).
 It may support local contract work, but cannot authorize a paid request. Any added or

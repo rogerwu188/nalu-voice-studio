@@ -403,6 +403,33 @@ MIGRATIONS = (
           ON continuity_extraction_confirmation_records(episode_id, created_at);
         """,
     ),
+    (
+        13,
+        "durable_remote_task_bindings",
+        """
+        CREATE TABLE IF NOT EXISTS remote_task_bindings (
+          id TEXT PRIMARY KEY,
+          run_id TEXT NOT NULL REFERENCES production_runs(id) ON DELETE CASCADE,
+          task_key TEXT NOT NULL,
+          provider TEXT NOT NULL,
+          model TEXT NOT NULL,
+          submission_fingerprint TEXT NOT NULL,
+          request_sha256 TEXT NOT NULL,
+          state TEXT NOT NULL,
+          provider_task_id TEXT UNIQUE,
+          response_sha256 TEXT,
+          result_uri TEXT,
+          receipt_json TEXT NOT NULL,
+          charge_classification TEXT NOT NULL,
+          actual_charged_credits INTEGER,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          UNIQUE(run_id, task_key)
+        );
+        CREATE INDEX IF NOT EXISTS remote_task_bindings_run_state_idx
+          ON remote_task_bindings(run_id, state, updated_at);
+        """,
+    ),
 )
 
 
