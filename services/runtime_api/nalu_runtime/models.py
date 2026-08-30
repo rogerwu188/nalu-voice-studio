@@ -621,6 +621,15 @@ class LibraryEntityConfirmationRecord(LibraryEntityConfirmation):
     created_at: str
 
 
+class LibraryEntityResolution(BaseModel):
+    mention: str
+    normalized_mention: str
+    entity_id: str
+    kind: LibraryEntityKind
+    confirmed_revision: int
+    matched_by: Literal["stable_name", "alias"]
+
+
 class ProductionRunCreate(BaseModel):
     dry_run: bool = True
     requested_model: str = "seedance-2.0-pro"

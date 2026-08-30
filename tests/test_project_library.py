@@ -190,3 +190,44 @@ def test_production_packages_freeze_confirmed_library_revision(tmp_path: Path) -
     assert character_index["schema_version"] == "nalu.qingshan-resolved-library/v1"
     assert character_index["confirmed_entities"][0]["confirmed_revision"] == 2
     assert first_path.read_bytes() == first_package_before
+
+
+def test_confirmed_aliases_resolve_and_collisions_fail_closed(tmp_path: Path) -> None:
+    api = client(tmp_path)
+    project = api.post("/v1/projects", json={"title": "家人称呼消歧"}).json()
+    mother_payload = library_payload("character", "李小梅")
+    mother_payload["attributes"] = {"aliases": ["妈妈", "照片左边的人"]}
+    mother = api.post(
+        f"/v1/projects/{project['id']}/library-entities", json=mother_payload
+    ).json()
+    confirm(api, mother["id"], 1)
+
+    resolved = api.get(
+        f"/v1/projects/{project['id']}/library-entity-resolution",
+        params={"kind": "character", "mention": "  妈妈  "},
+    )
+    assert resolved.status_code == 200
+    assert resolved.json()["entity_id"] == mother["id"]
+    assert resolved.json()["matched_by"] == "alias"
+
+    aunt_payload = library_payload("character", "王阿姨")
+    aunt_payload["attributes"] = {"aliases": ["妈妈"]}
+    aunt = api.post(
+        f"/v1/projects/{project['id']}/library-entities", json=aunt_payload
+    ).json()
+    collision = api.post(
+        f"/v1/library-entities/{aunt['id']}/confirmations",
+        json={
+            "confirmed_by": "local-user",
+            "reviewed_revision": 1,
+            "review_channel": "voice",
+            "spoken_confirmation": "我确认这份项目设定",
+        },
+    )
+    assert collision.status_code == 409
+
+    unresolved = api.get(
+        f"/v1/projects/{project['id']}/library-entity-resolution",
+        params={"kind": "character", "mention": "没出现过的人"},
+    )
+    assert unresolved.status_code == 404

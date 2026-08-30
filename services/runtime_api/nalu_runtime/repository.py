@@ -31,6 +31,7 @@ from .models import (
     LibraryEntityConfirmation,
     LibraryEntityConfirmationRecord,
     LibraryEntityCreate,
+    LibraryEntityResolution,
     LibraryEntityRevision,
     LibraryEntityRevisionCreate,
     MemoryCard,
@@ -1982,6 +1983,20 @@ class Repository:
         entity = self.get_library_entity(entity_id)
         if request.reviewed_revision != entity.current_revision:
             raise ConflictError("only the current library revision can be confirmed")
+        candidate = self.get_library_revision(entity_id, request.reviewed_revision)
+        candidate_names = self._library_resolution_names(entity.stable_name, candidate)
+        for other in self.list_library_entities(entity.project_id):
+            if other.id == entity_id or other.kind != entity.kind or other.confirmed_revision is None:
+                continue
+            other_revision = self.get_library_revision(other.id, other.confirmed_revision)
+            overlap = candidate_names & self._library_resolution_names(
+                other.stable_name, other_revision
+            )
+            if overlap:
+                raise ConflictError(
+                    "library alias conflicts with another confirmed entity: "
+                    + ", ".join(sorted(overlap))
+                )
         record_id, now = new_id("lcf"), utc_now()
         try:
             with self.db.connect() as connection:
@@ -2009,6 +2024,52 @@ class Repository:
             raise
         return LibraryEntityConfirmationRecord(
             id=record_id, entity_id=entity_id, created_at=now, **request.model_dump()
+        )
+
+    @staticmethod
+    def _normalized_library_mention(value: str) -> str:
+        return re.sub(r"\s+", " ", value.strip()).casefold()
+
+    def _library_resolution_names(
+        self, stable_name: str, revision: LibraryEntityRevision
+    ) -> set[str]:
+        names = {stable_name, self._normalized_library_mention(revision.name)}
+        aliases = revision.attributes.get("aliases", [])
+        if isinstance(aliases, list):
+            names.update(
+                self._normalized_library_mention(alias)
+                for alias in aliases
+                if isinstance(alias, str) and alias.strip()
+            )
+        return names
+
+    def resolve_library_entity(
+        self, project_id: str, kind: str, mention: str
+    ) -> LibraryEntityResolution:
+        normalized = self._normalized_library_mention(mention)
+        if not normalized:
+            raise NotFoundError("library mention is empty")
+        matches: list[tuple[LibraryEntity, str]] = []
+        for entity in self.list_library_entities(project_id):
+            if str(entity.kind) != kind or entity.confirmed_revision is None:
+                continue
+            revision = self.get_library_revision(entity.id, entity.confirmed_revision)
+            names = self._library_resolution_names(entity.stable_name, revision)
+            if normalized in names:
+                matched_by = "stable_name" if normalized == entity.stable_name else "alias"
+                matches.append((entity, matched_by))
+        if not matches:
+            raise NotFoundError("no confirmed library entity matches this mention")
+        if len(matches) > 1:
+            raise ConflictError("library mention is ambiguous across confirmed entities")
+        entity, matched_by = matches[0]
+        return LibraryEntityResolution(
+            mention=mention,
+            normalized_mention=normalized,
+            entity_id=entity.id,
+            kind=entity.kind,
+            confirmed_revision=entity.confirmed_revision or 0,
+            matched_by=matched_by,
         )
 
     def resolved_project_library(self, project_id: str) -> list[dict[str, Any]]:

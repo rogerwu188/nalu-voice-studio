@@ -39,6 +39,7 @@ from .models import (
     LibraryEntityConfirmation,
     LibraryEntityConfirmationRecord,
     LibraryEntityCreate,
+    LibraryEntityResolution,
     LibraryEntityRevision,
     LibraryEntityRevisionCreate,
     MemoryCard,
@@ -445,6 +446,17 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
     )
     def list_library_entities(project_id: str) -> list[LibraryEntity]:
         return repository.list_library_entities(project_id)
+
+    @app.get(
+        "/v1/projects/{project_id}/library-entity-resolution",
+        response_model=LibraryEntityResolution,
+    )
+    def resolve_library_entity(
+        project_id: str,
+        kind: str = Query(..., pattern="^(character|scene|prop|voice|style)$"),
+        mention: str = Query(..., min_length=1, max_length=160),
+    ) -> LibraryEntityResolution:
+        return repository.resolve_library_entity(project_id, kind, mention)
 
     @app.get(
         "/v1/library-entities/{entity_id}/revisions",

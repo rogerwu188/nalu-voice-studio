@@ -89,6 +89,13 @@ confirmation language. Source asset IDs must belong to the same project and
 biometric sources must retain active consent; source memory cards must be
 confirmed and authorized for story or visual use.
 
+Confirmed entities may declare plain-language aliases. Resolution normalizes a
+spoken mention and searches only confirmed revisions. Confirmation fails if a
+name or alias collides with another confirmed entity of the same kind; unknown
+mentions return not-found instead of inventing a match. This is the first
+fail-closed entity-resolution gate. Relationship/date/event contradiction
+reasoning across memory cards remains an explicit SOP-06 gap.
+
 At production-package creation, the Runtime resolves only confirmed library
 revisions. That resolved set is hashed into the package and emitted into the
 corresponding Qingshan character, scene, prop, audio and visual-style indexes.

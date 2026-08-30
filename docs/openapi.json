@@ -1513,6 +1513,47 @@
         "title": "LibraryEntityKind",
         "type": "string"
       },
+      "LibraryEntityResolution": {
+        "properties": {
+          "confirmed_revision": {
+            "title": "Confirmed Revision",
+            "type": "integer"
+          },
+          "entity_id": {
+            "title": "Entity Id",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/LibraryEntityKind"
+          },
+          "matched_by": {
+            "enum": [
+              "stable_name",
+              "alias"
+            ],
+            "title": "Matched By",
+            "type": "string"
+          },
+          "mention": {
+            "title": "Mention",
+            "type": "string"
+          },
+          "normalized_mention": {
+            "title": "Normalized Mention",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mention",
+          "normalized_mention",
+          "entity_id",
+          "kind",
+          "confirmed_revision",
+          "matched_by"
+        ],
+        "title": "LibraryEntityResolution",
+        "type": "object"
+      },
       "LibraryEntityRevision": {
         "properties": {
           "attributes": {
@@ -5514,6 +5555,66 @@
           }
         },
         "summary": "Create Library Entity"
+      }
+    },
+    "/v1/projects/{project_id}/library-entity-resolution": {
+      "get": {
+        "operationId": "resolve_library_entity_v1_projects__project_id__library_entity_resolution_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "pattern": "^(character|scene|prop|voice|style)$",
+              "title": "Kind",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "mention",
+            "required": true,
+            "schema": {
+              "maxLength": 160,
+              "minLength": 1,
+              "title": "Mention",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibraryEntityResolution"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Resolve Library Entity"
       }
     },
     "/v1/projects/{project_id}/memory-cards": {

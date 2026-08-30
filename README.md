@@ -122,6 +122,7 @@ backup boundaries and deletion behavior.
 - `DELETE /v1/assets/{asset_id}`
 - `POST /v1/projects/{project_id}/library-entities`
 - `GET /v1/projects/{project_id}/library-entities`
+- `GET /v1/projects/{project_id}/library-entity-resolution`
 - `GET /v1/library-entities/{entity_id}/revisions`
 - `POST /v1/library-entities/{entity_id}/revisions`
 - `POST /v1/library-entities/{entity_id}/confirmations`
