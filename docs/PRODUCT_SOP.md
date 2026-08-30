@@ -423,9 +423,21 @@ Current evidence:
   false with the exact failed path. All 55 Runtime tests, OpenAPI compatibility, real HTTP
   smoke, Swift tests, full app build, bundled-Runtime smoke, ZIP and downloadable artifact
   passed. The seal deliberately does not make an episode publishable by itself.
-- Still required before `PASS`: bind a verified output seal into the crash-safe QA-to-
-  completed transition, rerun the library-edit regression on that completed episode, and
-  perform human/accessibility QA of the native workflow on the same release candidate.
+- Commit `c7c4795`, GitHub CI run `33297985886`: production completion now requires a
+  still-valid output seal with one master and captions plus one sealed structured human
+  QA report bound to that run and master hash. Original-resolution picture, audio sync,
+  captions, continuity and safety checks must all pass; completion requires explicit
+  confirmation and child projects require guardian approval. The run `qa_review →
+  completed` and episode `qa_review → ready_to_publish` updates and both audit events share
+  one SQLite transaction. A failpoint after all updates but before commit proves complete
+  rollback, followed by a safe same-seal retry and duplicate-event protection. The
+  regression then changes the project character library after the episode is completed
+  and verifies the earlier master, package and seal remain unchanged. All 57 Runtime
+  tests, OpenAPI compatibility, real HTTP smoke, Swift tests, full app build, bundled-
+  Runtime smoke, ZIP and downloadable artifact passed. The automated human-QA JSON is a
+  format fixture and is not claimed as actual human review.
+- Still required before `PASS`: human/accessibility QA of the native continuity workflow
+  on the same release candidate.
 
 ## SOP-07 · Productized Qingshan execution adapter — IN_PROGRESS
 
