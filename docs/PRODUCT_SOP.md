@@ -478,8 +478,14 @@ Current evidence:
   upstream results without following a moving branch.
 - Commit `fb7be81`, GitHub CI run `33273732021`: complete upstream file-set and
   changed-area Qingshan contract tests passed alongside Nalu Runtime and macOS QA.
-- Still required before `PASS`: separate SD2 Pro/H3 compilers, full registered gate
-  execution, durable paid-transaction binding and authorized sandbox evidence.
+- SD2 Pro and MiniMax-H3 now compile through separate versioned local adapters. Each
+  produces a model-specific, digest-bound contract with its actual native resolution,
+  duration, reference-transport and identity constraints; package, compilation and
+  workspace bindings are revalidated during preflight. Local compilation explicitly
+  remains unable to authorize a paid submission. Runtime regressions cover both routes,
+  compiler separation, package tampering and compilation tampering.
+- Still required before `PASS`: full registered gate execution, durable paid-transaction
+  binding and authorized sandbox evidence.
 
 ## SOP-08 · Production jobs, progress, cancellation and recovery — IN_PROGRESS
 

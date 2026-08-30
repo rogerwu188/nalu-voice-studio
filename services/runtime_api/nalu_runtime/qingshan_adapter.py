@@ -5,6 +5,12 @@ import json
 import shutil
 from pathlib import Path
 
+from .qingshan_compilers import (
+    ModelCompilationError,
+    ModelCompilerRegistry,
+    verify_compilation,
+)
+
 
 class QingshanAdapterError(RuntimeError):
     pass
@@ -24,6 +30,7 @@ class QingshanAdapter:
         self.required_capabilities = {
             name: contract["path"] for name, contract in self.capability_contracts.items()
         }
+        self.model_compilers = ModelCompilerRegistry()
 
     @staticmethod
     def _write_json(path: Path, value: dict | list) -> None:
@@ -133,6 +140,10 @@ class QingshanAdapter:
             workspace / "configs" / f"{episode_code}_PRODUCTION_POLICY.json",
             package["production_policy"],
         )
+        try:
+            model_compilation = self.model_compilers.compile(package, workspace)
+        except ModelCompilationError as exc:
+            raise QingshanAdapterError(str(exc)) from exc
 
         tracked_files = sorted(path for path in workspace.rglob("*") if path.is_file())
         manifest = {
@@ -141,6 +152,8 @@ class QingshanAdapter:
             "upstream_commit": self.upstream_commit,
             "episode": episode_code,
             "production_package_sha256": package["package_sha256"],
+            "model_compilation": str(model_compilation.relative_to(workspace)),
+            "model_compilation_sha256": self._sha256(model_compilation),
             "files": [
                 {
                     "path": str(path.relative_to(workspace)),
@@ -167,17 +180,61 @@ class QingshanAdapter:
             and self._sha256(self.vendor_root / contract["path"]) != contract["sha256"]
         ]
         failures: list[str] = []
+        model_registry_failures = self.model_compilers.validate_upstream_registry(
+            self.vendor_root / "configs" / "VIDEO_MODEL_CAPABILITY_REGISTRY_v1.json"
+        )
         if package.get("schema_version") != "nalu.production-package/v1":
             failures.append("unsupported production package schema")
         if not package.get("package_sha256"):
             failures.append("package digest is absent")
+        else:
+            canonical_package = {
+                key: value for key, value in package.items() if key != "package_sha256"
+            }
+            encoded = json.dumps(
+                canonical_package,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8")
+            if hashlib.sha256(encoded).hexdigest() != package["package_sha256"]:
+                failures.append("production package digest mismatch")
         if missing:
             failures.append("missing imported capabilities: " + ", ".join(missing))
         if changed:
             failures.append("unreviewed capability changes: " + ", ".join(changed))
+        failures.extend(model_registry_failures)
         workspace_manifest = workspace / "workspace-manifest.json"
         if not workspace_manifest.is_file():
             failures.append("standard Qingshan workspace manifest is absent")
+            manifest = {}
+        else:
+            try:
+                manifest = json.loads(workspace_manifest.read_text(encoding="utf-8"))
+            except json.JSONDecodeError:
+                manifest = {}
+                failures.append("standard Qingshan workspace manifest is invalid JSON")
+
+        compilation_relative = manifest.get("model_compilation")
+        compilation_path: Path | None = None
+        if compilation_relative:
+            relative_path = Path(str(compilation_relative))
+            candidate = workspace / relative_path
+            try:
+                resolved_workspace = workspace.resolve(strict=True)
+                resolved_candidate = candidate.resolve(strict=True)
+                resolved_candidate.relative_to(resolved_workspace)
+                if relative_path.is_absolute() or candidate.is_symlink():
+                    raise ValueError
+                compilation_path = candidate
+            except (OSError, ValueError):
+                failures.append("registered model compilation path is unsafe")
+        if compilation_path is None or not compilation_path.is_file():
+            failures.append("registered model compilation is absent")
+        else:
+            failures.extend(verify_compilation(compilation_path, package))
+            if self._sha256(compilation_path) != manifest.get("model_compilation_sha256"):
+                failures.append("workspace model compilation SHA mismatch")
 
         report = {
             "schema_version": "nalu.qingshan-preflight/v1",
@@ -189,6 +246,10 @@ class QingshanAdapter:
                 self._sha256(workspace_manifest) if workspace_manifest.is_file() else None
             ),
             "package_sha256": package.get("package_sha256"),
+            "model_compilation": compilation_relative,
+            "model_compilation_sha256": manifest.get("model_compilation_sha256"),
+            "registered_compilers": self.model_compilers.supported_models,
+            "model_registry_failures": model_registry_failures,
             "capabilities": self.required_capabilities,
             "capability_contracts": self.capability_contracts,
             "missing_capabilities": missing,

@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nalu.studio/contracts/qingshan-model-compilation-v1.schema.json",
+  "title": "Nalu Qingshan model compilation",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "adapter_id",
+    "adapter_version",
+    "profile_id",
+    "model",
+    "episode",
+    "episode_id",
+    "production_package_sha256",
+    "prompt_source",
+    "asset_bindings",
+    "provider_contract",
+    "planning_defaults",
+    "execution_state",
+    "paid_submission_enabled",
+    "compilation_sha256"
+  ],
+  "properties": {
+    "schema_version": { "const": "nalu.qingshan-model-compilation/v1" },
+    "adapter_id": {
+      "enum": ["nalu.qingshan.seedance2-pro", "nalu.qingshan.minimax-h3"]
+    },
+    "adapter_version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+    "profile_id": {
+      "enum": ["SEEDANCE_2_STANDARD_GIGGLE", "MINIMAX_H3_GIGGLE"]
+    },
+    "model": { "enum": ["seedance-2.0-pro", "MiniMax-H3"] },
+    "episode": { "type": "string", "pattern": "^E[0-9]{2,}$" },
+    "episode_id": { "type": "string", "minLength": 1 },
+    "production_package_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "prompt_source": {
+      "type": "object",
+      "required": [
+        "approved_script_revision",
+        "approved_script_sha256",
+        "continuity_snapshot_id",
+        "resolved_library_count"
+      ],
+      "properties": {
+        "approved_script_revision": { "type": "integer", "minimum": 1 },
+        "approved_script_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "continuity_snapshot_id": { "type": ["string", "null"] },
+        "resolved_library_count": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "asset_bindings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["asset_id", "kind", "sha256", "transport_state"],
+        "properties": {
+          "asset_id": { "type": "string", "minLength": 1 },
+          "kind": { "type": "string", "minLength": 1 },
+          "sha256": { "type": "string", "pattern": "^$|^[a-f0-9]{64}$" },
+          "transport_state": {
+            "enum": ["LOCAL_MANAGED_SOURCE", "LOCAL_SOURCE_DIGEST_MISSING"]
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "provider_contract": { "type": "object" },
+    "planning_defaults": {
+      "type": "object",
+      "required": [
+        "aspect_ratio",
+        "native_resolution",
+        "minimum_duration_seconds",
+        "maximum_duration_seconds"
+      ],
+      "properties": {
+        "aspect_ratio": { "const": "9:16" },
+        "native_resolution": { "enum": ["720p", "768p"] },
+        "minimum_duration_seconds": { "enum": [3, 4] },
+        "maximum_duration_seconds": { "const": 15 }
+      },
+      "additionalProperties": false
+    },
+    "execution_state": { "const": "LOCAL_COMPILED_AWAITING_SHOT_PLAN" },
+    "paid_submission_enabled": { "const": false },
+    "compilation_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+  },
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": { "properties": { "model": { "const": "seedance-2.0-pro" } } },
+      "then": {
+        "properties": {
+          "adapter_id": { "const": "nalu.qingshan.seedance2-pro" },
+          "profile_id": { "const": "SEEDANCE_2_STANDARD_GIGGLE" },
+          "planning_defaults": {
+            "properties": {
+              "native_resolution": { "const": "720p" },
+              "minimum_duration_seconds": { "const": 4 }
+            }
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "adapter_id": { "const": "nalu.qingshan.minimax-h3" },
+          "profile_id": { "const": "MINIMAX_H3_GIGGLE" },
+          "planning_defaults": {
+            "properties": {
+              "native_resolution": { "const": "768p" },
+              "minimum_duration_seconds": { "const": 3 }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

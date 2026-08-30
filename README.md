@@ -154,7 +154,8 @@ an unreviewed stale contract.
 
 The production-line import is pinned to Qingshan release `v2026.08.29.1`.
 See [NOTICE.md](NOTICE.md) for provenance and [docs/architecture.md](docs/architecture.md)
-for the productization boundary.
+for the productization boundary. The provider-specific local contracts are documented in
+[the Qingshan model compiler boundary](docs/QINGSHAN_MODEL_COMPILERS.md).
 
 ## License
 

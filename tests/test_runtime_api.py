@@ -9,8 +9,10 @@ from copy import deepcopy
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
+import pytest
 from fastapi.testclient import TestClient
 from nalu_runtime.app import create_app
+from nalu_runtime.qingshan_adapter import QingshanAdapterError
 
 
 def client(tmp_path: Path) -> TestClient:
@@ -1218,6 +1220,129 @@ def test_dry_run_writes_immutable_package(tmp_path: Path) -> None:
     assert (workspace / "workspace-manifest.json").exists()
     assert (workspace / "source" / "E01_APPROVED_SCRIPT.md").exists()
     assert (workspace / "workflow" / "work_queue.json").exists()
+
+
+def test_qingshan_models_use_distinct_versioned_compilers(tmp_path: Path) -> None:
+    compilations: dict[str, dict] = {}
+    for requested_model in ("seedance-2.0-pro", "MiniMax-H3"):
+        api = client(tmp_path / requested_model)
+        _, _, episode = create_approved_episode(api)
+        response = api.post(
+            f"/v1/episodes/{episode['id']}/production-runs",
+            json={"dry_run": True, "requested_model": requested_model},
+        )
+        assert response.status_code == 201
+        package_path = Path(response.json()["package_path"])
+        workspace = package_path.with_name("qingshan-workspace")
+        manifest = json.loads(
+            (workspace / "workspace-manifest.json").read_text(encoding="utf-8")
+        )
+        compilation_path = workspace / manifest["model_compilation"]
+        assert hashlib.sha256(compilation_path.read_bytes()).hexdigest() == (
+            manifest["model_compilation_sha256"]
+        )
+        compilations[requested_model] = json.loads(
+            compilation_path.read_text(encoding="utf-8")
+        )
+
+    seedance = compilations["seedance-2.0-pro"]
+    h3 = compilations["MiniMax-H3"]
+    assert seedance["adapter_id"] == "nalu.qingshan.seedance2-pro"
+    assert seedance["profile_id"] == "SEEDANCE_2_STANDARD_GIGGLE"
+    assert seedance["planning_defaults"]["native_resolution"] == "720p"
+    assert seedance["planning_defaults"]["minimum_duration_seconds"] == 4
+    assert seedance["provider_contract"]["exact_end_frame"] is False
+    assert h3["adapter_id"] == "nalu.qingshan.minimax-h3"
+    assert h3["profile_id"] == "MINIMAX_H3_GIGGLE"
+    assert h3["planning_defaults"]["native_resolution"] == "768p"
+    assert h3["planning_defaults"]["minimum_duration_seconds"] == 3
+    assert h3["provider_contract"]["exact_end_frame"] is True
+    assert h3["provider_contract"]["maximum_image_references"] == 9
+    assert seedance["compilation_sha256"] != h3["compilation_sha256"]
+    assert seedance["paid_submission_enabled"] is False
+    assert h3["paid_submission_enabled"] is False
+
+
+def test_qingshan_preflight_rejects_tampered_compilation_and_package(tmp_path: Path) -> None:
+    api = client(tmp_path)
+    _, _, episode = create_approved_episode(api)
+    run = api.post(
+        f"/v1/episodes/{episode['id']}/production-runs",
+        json={"dry_run": True, "requested_model": "MiniMax-H3"},
+    ).json()
+    package_path = Path(run["package_path"])
+    workspace = package_path.with_name("qingshan-workspace")
+    manifest = json.loads(
+        (workspace / "workspace-manifest.json").read_text(encoding="utf-8")
+    )
+    compilation_path = workspace / manifest["model_compilation"]
+    compilation = json.loads(compilation_path.read_text(encoding="utf-8"))
+    compilation["paid_submission_enabled"] = True
+    compilation_path.write_text(
+        json.dumps(compilation, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(QingshanAdapterError, match="model compilation"):
+        api.app.state.production.adapter.preflight(package_path, workspace)
+
+    package = json.loads(package_path.read_text(encoding="utf-8"))
+    package["approved_script"]["content"] = "被静默替换的剧本"
+    package_path.write_text(
+        json.dumps(package, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    clean_workspace = api.app.state.production.adapter.materialize_workspace(package_path)
+    with pytest.raises(QingshanAdapterError, match="production package digest mismatch"):
+        api.app.state.production.adapter.preflight(package_path, clean_workspace)
+
+
+def test_qingshan_compilers_fail_closed_when_upstream_model_registry_drifts(
+    tmp_path: Path,
+) -> None:
+    api = client(tmp_path)
+    adapter = api.app.state.production.adapter
+    registry_path = (
+        adapter.vendor_root / "configs" / "VIDEO_MODEL_CAPABILITY_REGISTRY_v1.json"
+    )
+    assert adapter.model_compilers.validate_upstream_registry(registry_path) == []
+
+    registry = json.loads(registry_path.read_text(encoding="utf-8"))
+    h3 = next(
+        profile
+        for profile in registry["profiles"]
+        if profile["profile_id"] == "MINIMAX_H3_GIGGLE"
+    )
+    h3["provider_limits"]["omni_image_reference_max"] = 10
+    drifted = tmp_path / "drifted-model-registry.json"
+    drifted.write_text(
+        json.dumps(registry, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    failures = adapter.model_compilers.validate_upstream_registry(drifted)
+    assert failures == [
+        "MINIMAX_H3_GIGGLE: maximum image reference count changed"
+    ]
+
+
+def test_qingshan_preflight_rejects_compilation_path_escape(tmp_path: Path) -> None:
+    api = client(tmp_path)
+    _, _, episode = create_approved_episode(api)
+    run = api.post(
+        f"/v1/episodes/{episode['id']}/production-runs",
+        json={"dry_run": True},
+    ).json()
+    package_path = Path(run["package_path"])
+    workspace = package_path.with_name("qingshan-workspace")
+    manifest_path = workspace / "workspace-manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["model_compilation"] = "../../production-package.json"
+    manifest_path.write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(QingshanAdapterError, match="compilation path is unsafe"):
+        api.app.state.production.adapter.preflight(package_path, workspace)
 
 
 def test_production_run_idempotency_and_paid_key_requirement(tmp_path: Path) -> None:
