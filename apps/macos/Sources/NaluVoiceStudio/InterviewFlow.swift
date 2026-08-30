@@ -99,7 +99,11 @@ struct InterviewFlow {
                 step = .premise
                 return .respond("好的，我们来做动画系列。请告诉我主要角色和故事想法。")
             }
-            if spoken.contains("纪录") || spoken.contains("口述史") || spoken.contains("真实资料") {
+            let documentarySignals = [
+                "纪录", "口述史", "真实资料", "真实照片", "老照片",
+                "家庭视频", "画外音", "旁白", "真实经历"
+            ]
+            if documentarySignals.contains(where: spoken.contains) {
                 draft.creativeFormat = "documentary_series"
                 draft.productionPipeline = "unassigned"
                 let hybrid = spoken.contains("重现") || spoken.contains("混合")
