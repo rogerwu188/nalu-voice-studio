@@ -72,7 +72,7 @@ struct InterviewFlow {
                 draft.audienceMode = "general"
             }
             step = .creativeFormat
-            return .respond("明白了。您想做连续短剧、动画片，还是广告片？")
+            return .respond("明白了。您想做剧情化自传、真实资料纪录片、动画片，还是广告片？")
         case .guardianName:
             draft.projectBible["guardian_name"] = spoken
             step = .guardianConsent
@@ -84,7 +84,7 @@ struct InterviewFlow {
             }
             draft.projectBible["guardian_setup_approved"] = "true"
             step = .creativeFormat
-            return .respond("谢谢您的确认。小朋友想做连续动画、短剧，还是一条广告片？")
+            return .respond("谢谢您的确认。小朋友想做连续动画、故事短剧、纪录片，还是一条广告片？")
         case .creativeFormat:
             if spoken.contains("广告") || spoken.contains("宣传片") {
                 draft.creativeFormat = "commercial_campaign"
@@ -98,6 +98,21 @@ struct InterviewFlow {
                 draft.productionPipeline = "qingshan-short-drama"
                 step = .premise
                 return .respond("好的，我们来做动画系列。请告诉我主要角色和故事想法。")
+            }
+            if spoken.contains("纪录") || spoken.contains("口述史") || spoken.contains("真实资料") {
+                draft.creativeFormat = "documentary_series"
+                draft.productionPipeline = "unassigned"
+                let hybrid = spoken.contains("重现") || spoken.contains("混合")
+                    || spoken.contains("纪实剧情")
+                draft.projectBible["documentary_mode"] = hybrid
+                    ? "archival_with_reenactment" : "archival_voiceover"
+                draft.projectBible["generated_reenactment_label_required"] = "true"
+                step = .premise
+                return .respond(
+                    hybrid
+                        ? "好的，我们做真实资料加少量剧情重现的纪实系列。请先说最想保存的真实经历，以及手上有哪些照片、录音、手稿或家庭视频。"
+                        : "好的，我们做照片、家庭视频和画外音为主的纪录片系列。请先说最想保存的真实经历，以及手上有哪些资料。"
+                )
             }
             draft.creativeFormat = "short_drama_series"
             draft.productionPipeline = "qingshan-short-drama"
@@ -138,7 +153,7 @@ struct InterviewFlow {
         case .audience: "是您自己使用、家里长辈使用，还是小朋友和监护人一起使用？"
         case .guardianName: "请监护人告诉我您的称呼。"
         case .guardianConsent: "请监护人明确说是否同意陪同孩子创作。"
-        case .creativeFormat: "您想做连续短剧、动画片，还是广告片？"
+        case .creativeFormat: "您想做剧情化自传、真实资料纪录片、动画片，还是广告片？"
         case .premise: "请告诉我，这个故事主要讲什么？"
         case .title: "您想给这个项目取什么名字？"
         case .episodeCount:

@@ -764,7 +764,8 @@
         "enum": [
           "short_drama_series",
           "animation_series",
-          "commercial_campaign"
+          "commercial_campaign",
+          "documentary_series"
         ],
         "title": "CreativeFormat",
         "type": "string"

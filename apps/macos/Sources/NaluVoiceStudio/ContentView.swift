@@ -1925,6 +1925,8 @@ struct ContentView: View {
 
     private func projectSummary(_ project: NaluProject) -> String {
         switch project.creativeFormat {
+        case "documentary_series":
+            return "纪录片系列 · 计划 \(project.plannedEpisodeCount) 章"
         case "animation_series":
             return "动画系列 · 计划 \(project.plannedEpisodeCount) 集"
         case "commercial_campaign":

@@ -58,6 +58,7 @@ class CreativeFormat(StrEnum):
     SHORT_DRAMA_SERIES = "short_drama_series"
     ANIMATION_SERIES = "animation_series"
     COMMERCIAL_CAMPAIGN = "commercial_campaign"
+    DOCUMENTARY_SERIES = "documentary_series"
 
 
 class FeedbackCategory(StrEnum):
@@ -89,6 +90,18 @@ class ProjectCreate(BaseModel):
     production_pipeline: str = Field(
         default="qingshan-short-drama", min_length=1, max_length=120
     )
+
+    @model_validator(mode="after")
+    def fail_closed_for_documentary_route(self) -> ProjectCreate:
+        if (
+            self.creative_format == CreativeFormat.DOCUMENTARY_SERIES
+            and self.production_pipeline != "unassigned"
+        ):
+            raise ValueError(
+                "documentary projects require the unassigned route until a documentary "
+                "adapter passes capability and authenticity QA"
+            )
+        return self
 
 
 class Project(ProjectCreate):

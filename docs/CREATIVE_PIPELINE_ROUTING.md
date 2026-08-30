@@ -8,8 +8,8 @@ Nalu's voice entrance is independent from any single media production line.
 
 The project records two versioned routing fields:
 
-- `creative_format`: `short_drama_series`, `animation_series`, or
-  `commercial_campaign`.
+- `creative_format`: `short_drama_series`, `documentary_series`,
+  `animation_series`, or `commercial_campaign`.
 - `production_pipeline`: the selected adapter identifier.
 
 The current UI continues to use the stable Project → Season → Episode storage model,
@@ -18,6 +18,7 @@ while presenting audience-appropriate labels:
 | Creative format | Group label | Unit label |
 | --- | --- | --- |
 | Short drama | Season | Episode |
+| Documentary | Series | Chapter |
 | Animation | Season | Episode |
 | Commercial | Campaign | Master/cutdown deliverable |
 
@@ -33,6 +34,12 @@ A later domain migration may introduce generic `deliverable_groups` and
 - Commercial projects are captured and planned, but default to `unassigned`.
   Production fails closed until an approved advertising adapter is installed or a
   verified capability profile explicitly promotes Qingshan for that format.
+- Documentary projects are captured and planned, but default to `unassigned`.
+  Qingshan contributes useful generation, voiceover, layered-audio, selective-BGM,
+  subtitle, assembly and QA components, but its pinned contract is still film/short-
+  drama oriented. Nalu must not route a documentary to it until a documentary adapter
+  adds archive-first editing, source provenance, reconstruction labels, factual review,
+  chapter pacing and documentary-specific release evidence.
 
 The application must never relabel a short-drama output as a completed advertisement
 when campaign, product-claim, brand-safety, aspect-ratio, duration, or deliverable
@@ -56,13 +63,18 @@ adapter match means `blocked`, not a best-effort paid call.
 
 ## Voice interview
 
-After audience and guardian setup, Nalu asks whether the user wants a short drama,
-animation, or advertisement. Follow-up questions come from a format-specific brief:
+After audience and guardian setup, Nalu asks whether the user wants a dramatized
+memoir, archive-led documentary, animation, or advertisement. Follow-up questions
+come from a format-specific brief:
 
 - Drama/animation: premise, characters, world, style, season arc, episode count.
+- Documentary: subject, intended audience, chapter arc, confirmed people/timeline,
+  available photos/video/audio/handwriting, missing evidence, narrator choice,
+  archive-led versus archive-plus-reenactment mode, factual reviewer and desired BGM
+  restraint. Generated reenactments must be visibly labeled and cannot silently replace
+  a missing historical source.
 - Commercial: product, audience, promise, evidence, mandatory claims, prohibited
   claims, brand assets, call to action, channels, master duration, and cutdowns.
 
 The user reviews the plain-language brief before any professional production route
 is selected.
-

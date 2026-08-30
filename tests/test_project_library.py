@@ -231,3 +231,31 @@ def test_confirmed_aliases_resolve_and_collisions_fail_closed(tmp_path: Path) ->
         params={"kind": "character", "mention": "没出现过的人"},
     )
     assert unresolved.status_code == 404
+
+
+def test_documentary_projects_cannot_silently_use_short_drama_adapter(tmp_path: Path) -> None:
+    api = client(tmp_path)
+    blocked = api.post(
+        "/v1/projects",
+        json={
+            "title": "父亲的照片",
+            "creative_format": "documentary_series",
+            "production_pipeline": "qingshan-short-drama",
+        },
+    )
+    assert blocked.status_code == 422
+
+    planned = api.post(
+        "/v1/projects",
+        json={
+            "title": "父亲的照片",
+            "creative_format": "documentary_series",
+            "production_pipeline": "unassigned",
+            "project_bible": {
+                "documentary_mode": "archival_voiceover",
+                "generated_reenactment_label_required": True,
+            },
+        },
+    )
+    assert planned.status_code == 201
+    assert planned.json()["production_pipeline"] == "unassigned"

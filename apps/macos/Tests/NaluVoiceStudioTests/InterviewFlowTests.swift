@@ -91,6 +91,27 @@ final class InterviewFlowTests: XCTestCase {
         XCTAssertEqual(flow.draft.productionPipeline, "unassigned")
     }
 
+    func testDocumentaryIntentCapturesArchivalAndHybridModesFailClosed() {
+        var archival = InterviewFlow()
+        _ = archival.begin()
+        _ = archival.consume("家里老人使用")
+        assertResponse(archival.consume("我要做真实资料纪录片"), contains: "照片")
+        XCTAssertEqual(archival.draft.creativeFormat, "documentary_series")
+        XCTAssertEqual(archival.draft.productionPipeline, "unassigned")
+        XCTAssertEqual(archival.draft.projectBible["documentary_mode"], "archival_voiceover")
+
+        var hybrid = InterviewFlow()
+        _ = hybrid.begin()
+        _ = hybrid.consume("我自己使用")
+        assertResponse(hybrid.consume("真实照片加少量剧情重现"), contains: "少量剧情重现")
+        XCTAssertEqual(
+            hybrid.draft.projectBible["documentary_mode"], "archival_with_reenactment"
+        )
+        XCTAssertEqual(
+            hybrid.draft.projectBible["generated_reenactment_label_required"], "true"
+        )
+    }
+
     func testConversationInterruptionIsAnsweredWithoutAdvancingOrPollutingDraft() {
         var flow = InterviewFlow()
         _ = flow.begin()

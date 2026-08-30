@@ -4,7 +4,7 @@
 
 Nalu Voice Studio is an open-source, voice-first macOS studio for ordinary
 creators, older adults, and children. A user speaks naturally to create a
-project, choose short drama, animation, or commercial intent, approve scripts,
+project, choose short drama, documentary, animation, or commercial intent, approve scripts,
 provide authorized media, and route each approved deliverable through a compatible
 professional production line.
 
