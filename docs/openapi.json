@@ -1725,6 +1725,171 @@
         "title": "FeedbackItem",
         "type": "object"
       },
+      "FeedbackReviewBundle": {
+        "properties": {
+          "actual_behavior": {
+            "title": "Actual Behavior",
+            "type": "string"
+          },
+          "attachments": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 0,
+            "title": "Attachments",
+            "type": "array"
+          },
+          "bundle_sha256": {
+            "title": "Bundle Sha256",
+            "type": "string"
+          },
+          "category": {
+            "$ref": "#/components/schemas/FeedbackCategory"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "diagnostics": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Diagnostics",
+            "type": "object"
+          },
+          "expected_behavior": {
+            "title": "Expected Behavior",
+            "type": "string"
+          },
+          "feedback_id": {
+            "title": "Feedback Id",
+            "type": "string"
+          },
+          "network_call_performed": {
+            "const": false,
+            "default": false,
+            "title": "Network Call Performed",
+            "type": "boolean"
+          },
+          "prepared_by": {
+            "title": "Prepared By",
+            "type": "string"
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Id"
+          },
+          "redacted_message": {
+            "title": "Redacted Message",
+            "type": "string"
+          },
+          "redaction_applied": {
+            "title": "Redaction Applied",
+            "type": "boolean"
+          },
+          "reproduction_steps": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Reproduction Steps",
+            "type": "array"
+          },
+          "request_sha256": {
+            "title": "Request Sha256",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "nalu.feedback-review-bundle/v1",
+            "default": "nalu.feedback-review-bundle/v1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "screen": {
+            "title": "Screen",
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "voice",
+              "text"
+            ],
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "feedback_id",
+          "project_id",
+          "category",
+          "redacted_message",
+          "source",
+          "screen",
+          "expected_behavior",
+          "actual_behavior",
+          "reproduction_steps",
+          "diagnostics",
+          "prepared_by",
+          "created_at",
+          "redaction_applied",
+          "request_sha256",
+          "bundle_sha256"
+        ],
+        "title": "FeedbackReviewBundle",
+        "type": "object"
+      },
+      "FeedbackReviewBundleCreate": {
+        "properties": {
+          "actual_behavior": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Actual Behavior",
+            "type": "string"
+          },
+          "confirmation_text": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Confirmation Text",
+            "type": "string"
+          },
+          "expected_behavior": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Expected Behavior",
+            "type": "string"
+          },
+          "prepared_by": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Prepared By",
+            "type": "string"
+          },
+          "reproduction_steps": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 12,
+            "minItems": 1,
+            "title": "Reproduction Steps",
+            "type": "array"
+          }
+        },
+        "required": [
+          "prepared_by",
+          "expected_behavior",
+          "actual_behavior",
+          "reproduction_steps",
+          "confirmation_text"
+        ],
+        "title": "FeedbackReviewBundleCreate",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -3445,7 +3610,7 @@
             "type": "string"
           },
           "schema_version": {
-            "default": "nalu.project-export/v8",
+            "default": "nalu.project-export/v9",
             "enum": [
               "nalu.project-export/v1",
               "nalu.project-export/v2",
@@ -3454,7 +3619,8 @@
               "nalu.project-export/v5",
               "nalu.project-export/v6",
               "nalu.project-export/v7",
-              "nalu.project-export/v8"
+              "nalu.project-export/v8",
+              "nalu.project-export/v9"
             ],
             "title": "Schema Version",
             "type": "string"
@@ -5729,6 +5895,92 @@
           }
         },
         "summary": "Create Feedback"
+      }
+    },
+    "/v1/feedback/{feedback_id}/review-bundle": {
+      "get": {
+        "operationId": "get_feedback_review_bundle_v1_feedback__feedback_id__review_bundle_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "feedback_id",
+            "required": true,
+            "schema": {
+              "title": "Feedback Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackReviewBundle"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Feedback Review Bundle"
+      },
+      "post": {
+        "operationId": "create_feedback_review_bundle_v1_feedback__feedback_id__review_bundle_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "feedback_id",
+            "required": true,
+            "schema": {
+              "title": "Feedback Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedbackReviewBundleCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackReviewBundle"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Feedback Review Bundle"
       }
     },
     "/v1/library-entities/{entity_id}/confirmations": {

@@ -38,4 +38,4 @@ if ! swift package --package-path "$repo_root/apps/macos" describe >"$manifest_l
 fi
 rm -f "$manifest_log"
 
-echo "macOS 构建环境可用（Python：$python_path）"
+echo "macOS 构建环境可用（Python：${python_path}）"

@@ -21,9 +21,11 @@ or change story facts from usage analytics.
    usernames in paths are redacted.
 4. Local-only is the default. An item enters `ready_for_review` only after the user
    authorizes sharing; a child project additionally requires guardian approval.
-5. A future exporter creates a deterministic, reviewable issue bundle containing
+5. The local Runtime creates a deterministic, reviewable issue bundle containing
    redacted text, app version, screen name, expected/actual behavior, reproduction
-   steps, and user-approved diagnostics.
+   steps, and allowlisted diagnostics. The bundle contains no attachments and records
+   that no network call occurred. Sending it to an issue tracker remains a separate,
+   administrator-authorized operation.
 6. A maintainer or authorized development agent triages the bundle. The agent may
    propose a branch and tests but cannot merge, sign, notarize, or publish alone.
 7. CI, security review, accessibility regression, human review, signing,
@@ -37,8 +39,10 @@ Any step may move to `rejected`, `duplicate`, or `needs_information`. The local 
 must not claim a request is fixed until it can verify a signed release containing the
 linked change.
 
-The current implementation supports `local_only` and `ready_for_review`. Later
-states require an explicitly configured issue tracker and release service.
+The current implementation supports `local_only`, `ready_for_review` and an immutable
+local review bundle while deliberately leaving the item in `ready_for_review`. Later
+states require an explicitly configured issue tracker and release service; preparing a
+bundle is not reported as an export.
 
 ## Trust rules
 
@@ -59,4 +63,3 @@ states require an explicitly configured issue tracker and release service.
 - Malicious feedback cannot execute tools or alter release configuration.
 - A released fix links report → test → reviewed change → CI → signed build → rollout.
 - Rollback restores the previous signed build without losing local projects.
-

@@ -37,6 +37,8 @@ from .models import (
     EpisodeTransitionRequest,
     FeedbackCreate,
     FeedbackItem,
+    FeedbackReviewBundle,
+    FeedbackReviewBundleCreate,
     LibraryEntity,
     LibraryEntityConfirmation,
     LibraryEntityConfirmationRecord,
@@ -473,6 +475,12 @@ class Repository:
                 "SELECT * FROM feedback_items WHERE project_id = ?",
                 (project_id,),
             ),
+            "feedback_review_bundles": (
+                """SELECT b.* FROM feedback_review_bundles b
+                   JOIN feedback_items f ON f.id = b.feedback_id
+                   WHERE f.project_id = ?""",
+                (project_id,),
+            ),
             "memory_cards": (
                 "SELECT * FROM memory_cards WHERE project_id = ?",
                 (project_id,),
@@ -658,6 +666,13 @@ class Repository:
                 "redaction_applied",
                 "created_at",
             ),
+            "feedback_review_bundles": (
+                "feedback_id",
+                "request_sha256",
+                "bundle_json",
+                "bundle_sha256",
+                "created_at",
+            ),
             "memory_cards": (
                 "id",
                 "project_id",
@@ -746,6 +761,17 @@ class Repository:
                 if column not in {"creative_format", "production_pipeline"}
             )
             allowed_columns.pop("feedback_items")
+        if backup.schema_version in {
+            "nalu.project-export/v1",
+            "nalu.project-export/v2",
+            "nalu.project-export/v3",
+            "nalu.project-export/v4",
+            "nalu.project-export/v5",
+            "nalu.project-export/v6",
+            "nalu.project-export/v7",
+            "nalu.project-export/v8",
+        }:
+            allowed_columns.pop("feedback_review_bundles")
         if backup.schema_version in {
             "nalu.project-export/v1",
             "nalu.project-export/v2",
@@ -867,6 +893,24 @@ class Repository:
             row.get("project_id") != project_id for row in backup.payload.get("feedback_items", [])
         ):
             raise ConflictError("project export contains feedback from another project")
+        feedback_ids = {row.get("id") for row in backup.payload.get("feedback_items", [])}
+        if any(
+            row.get("feedback_id") not in feedback_ids
+            for row in backup.payload.get("feedback_review_bundles", [])
+        ):
+            raise ConflictError("project export contains a feedback bundle from another project")
+        for row in backup.payload.get("feedback_review_bundles", []):
+            try:
+                bundle_body = decode(row.get("bundle_json", ""))
+            except (TypeError, json.JSONDecodeError) as exc:
+                raise ConflictError("project export contains an unreadable feedback bundle") from exc
+            if (
+                bundle_body.get("feedback_id") != row.get("feedback_id")
+                or bundle_body.get("request_sha256") != row.get("request_sha256")
+                or hashlib.sha256(encode(bundle_body).encode()).hexdigest()
+                != row.get("bundle_sha256")
+            ):
+                raise ConflictError("project export contains a tampered feedback bundle")
         if any(
             row.get("project_id") != project_id or row.get("asset_id") not in asset_ids
             for row in backup.payload.get("memory_cards", [])
@@ -996,6 +1040,112 @@ class Repository:
         with self.db.connect() as connection:
             ids = [row["id"] for row in connection.execute(query, params)]
         return [self.get_feedback(feedback_id) for feedback_id in ids]
+
+    @staticmethod
+    def _explicit_feedback_bundle_confirmation(value: str) -> bool:
+        normalized = "".join(value.lower().split())
+        return any(
+            phrase in normalized
+            for phrase in ("我确认生成审核包", "我同意生成审核包", "确认准备审核资料")
+        )
+
+    def create_feedback_review_bundle(
+        self, feedback_id: str, request: FeedbackReviewBundleCreate
+    ) -> FeedbackReviewBundle:
+        feedback = self.get_feedback(feedback_id)
+        if not feedback.share_authorized or feedback.status != "ready_for_review":
+            raise ConflictError("local-only feedback cannot create a review bundle")
+        if not self._explicit_feedback_bundle_confirmation(request.confirmation_text):
+            raise ConflictError("feedback review bundle requires explicit confirmation")
+
+        expected, expected_redacted = self._redact_feedback_message(request.expected_behavior)
+        actual, actual_redacted = self._redact_feedback_message(request.actual_behavior)
+        steps: list[str] = []
+        step_redacted = False
+        for step in request.reproduction_steps:
+            cleaned, changed = self._redact_feedback_message(step)
+            steps.append(cleaned)
+            step_redacted = step_redacted or changed
+        prepared_by, preparer_redacted = self._redact_feedback_message(request.prepared_by)
+        request_body = {
+            "prepared_by": prepared_by,
+            "expected_behavior": expected,
+            "actual_behavior": actual,
+            "reproduction_steps": steps,
+            "confirmation_text": request.confirmation_text.strip(),
+        }
+        request_sha256 = hashlib.sha256(encode(request_body).encode()).hexdigest()
+
+        with self.db.connect() as connection:
+            existing = connection.execute(
+                "SELECT * FROM feedback_review_bundles WHERE feedback_id = ?",
+                (feedback_id,),
+            ).fetchone()
+        if existing is not None:
+            if existing["request_sha256"] != request_sha256:
+                raise ConflictError("feedback already has a different immutable review bundle")
+            stored = decode(existing["bundle_json"])
+            if hashlib.sha256(encode(stored).encode()).hexdigest() != existing["bundle_sha256"]:
+                raise ConflictError("stored feedback review bundle digest mismatch")
+            stored["bundle_sha256"] = existing["bundle_sha256"]
+            return FeedbackReviewBundle.model_validate(stored)
+
+        now = utc_now()
+        bundle_body = {
+            "schema_version": "nalu.feedback-review-bundle/v1",
+            "feedback_id": feedback.id,
+            "project_id": feedback.project_id,
+            "category": feedback.category,
+            "redacted_message": feedback.message,
+            "source": feedback.source,
+            "screen": feedback.screen,
+            "expected_behavior": expected,
+            "actual_behavior": actual,
+            "reproduction_steps": steps,
+            "diagnostics": {
+                "runtime_version": "0.1.0",
+                "schema_version": str(self.db.schema_version()),
+                "screen": feedback.screen,
+            },
+            "prepared_by": prepared_by,
+            "created_at": now,
+            "redaction_applied": bool(
+                feedback.redaction_applied
+                or expected_redacted
+                or actual_redacted
+                or step_redacted
+                or preparer_redacted
+            ),
+            "attachments": [],
+            "network_call_performed": False,
+            "request_sha256": request_sha256,
+        }
+        bundle_sha256 = hashlib.sha256(encode(bundle_body).encode()).hexdigest()
+        with self.db.connect() as connection:
+            try:
+                connection.execute(
+                    "INSERT INTO feedback_review_bundles VALUES (?, ?, ?, ?, ?)",
+                    (feedback_id, request_sha256, encode(bundle_body), bundle_sha256, now),
+                )
+            except sqlite3.IntegrityError as exc:
+                raise ConflictError("feedback review bundle was created concurrently") from exc
+        bundle_body["bundle_sha256"] = bundle_sha256
+        return FeedbackReviewBundle.model_validate(bundle_body)
+
+    def get_feedback_review_bundle(self, feedback_id: str) -> FeedbackReviewBundle:
+        self.get_feedback(feedback_id)
+        with self.db.connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM feedback_review_bundles WHERE feedback_id = ?",
+                (feedback_id,),
+            ).fetchone()
+        if row is None:
+            raise NotFoundError("feedback review bundle not found")
+        stored = decode(row["bundle_json"])
+        if hashlib.sha256(encode(stored).encode()).hexdigest() != row["bundle_sha256"]:
+            raise ConflictError("stored feedback review bundle digest mismatch")
+        stored["bundle_sha256"] = row["bundle_sha256"]
+        return FeedbackReviewBundle.model_validate(stored)
 
     def create_memory_card(self, project_id: str, request: MemoryCardCreate) -> MemoryCard:
         project = self.get_project(project_id)

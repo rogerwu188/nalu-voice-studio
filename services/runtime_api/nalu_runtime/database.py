@@ -430,6 +430,19 @@ MIGRATIONS = (
           ON remote_task_bindings(run_id, state, updated_at);
         """,
     ),
+    (
+        14,
+        "feedback_review_bundles",
+        """
+        CREATE TABLE IF NOT EXISTS feedback_review_bundles (
+          feedback_id TEXT PRIMARY KEY REFERENCES feedback_items(id) ON DELETE CASCADE,
+          request_sha256 TEXT NOT NULL,
+          bundle_json TEXT NOT NULL,
+          bundle_sha256 TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        );
+        """,
+    ),
 )
 
 

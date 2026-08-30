@@ -3,7 +3,7 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class AudienceMode(StrEnum):
@@ -149,7 +149,8 @@ class ProjectExport(BaseModel):
         "nalu.project-export/v6",
         "nalu.project-export/v7",
         "nalu.project-export/v8",
-    ] = "nalu.project-export/v8"
+        "nalu.project-export/v9",
+    ] = "nalu.project-export/v9"
     exported_at: str
     payload: dict[str, Any]
     payload_sha256: str
@@ -308,6 +309,45 @@ class FeedbackItem(FeedbackCreate):
     status: Literal["local_only", "ready_for_review"]
     redaction_applied: bool
     created_at: str
+
+
+class FeedbackReviewBundleCreate(BaseModel):
+    prepared_by: str = Field(min_length=1, max_length=160)
+    expected_behavior: str = Field(min_length=1, max_length=2000)
+    actual_behavior: str = Field(min_length=1, max_length=2000)
+    reproduction_steps: list[str] = Field(min_length=1, max_length=12)
+    confirmation_text: str = Field(min_length=1, max_length=300)
+
+    @field_validator("reproduction_steps")
+    @classmethod
+    def validate_reproduction_steps(cls, steps: list[str]) -> list[str]:
+        cleaned = [step.strip() for step in steps]
+        if any(not step or len(step) > 1000 for step in cleaned):
+            raise ValueError("reproduction steps must contain 1-1000 characters")
+        return cleaned
+
+
+class FeedbackReviewBundle(BaseModel):
+    schema_version: Literal["nalu.feedback-review-bundle/v1"] = (
+        "nalu.feedback-review-bundle/v1"
+    )
+    feedback_id: str
+    project_id: str | None
+    category: FeedbackCategory
+    redacted_message: str
+    source: Literal["voice", "text"]
+    screen: str
+    expected_behavior: str
+    actual_behavior: str
+    reproduction_steps: list[str]
+    diagnostics: dict[str, str]
+    prepared_by: str
+    created_at: str
+    redaction_applied: bool
+    attachments: list[str] = Field(default_factory=list, max_length=0)
+    network_call_performed: Literal[False] = False
+    request_sha256: str
+    bundle_sha256: str
 
 
 class MemoryPerson(BaseModel):

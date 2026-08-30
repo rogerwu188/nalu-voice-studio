@@ -102,6 +102,8 @@ backup boundaries and deletion behavior.
 
 - `POST /v1/projects`
 - `POST /v1/feedback` / `GET /v1/feedback`
+- `POST /v1/feedback/{feedback_id}/review-bundle`
+- `GET /v1/feedback/{feedback_id}/review-bundle`
 - `POST /v1/projects/{project_id}/memory-cards`
 - `PATCH /v1/memory-cards/{memory_id}`
 - `POST /v1/memory-cards/{memory_id}/confirm`

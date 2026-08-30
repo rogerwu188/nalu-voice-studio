@@ -38,6 +38,8 @@ from .models import (
     EpisodeTransitionRequest,
     FeedbackCreate,
     FeedbackItem,
+    FeedbackReviewBundle,
+    FeedbackReviewBundleCreate,
     InheritedContinuityResult,
     LibraryEntity,
     LibraryEntityConfirmation,
@@ -160,6 +162,23 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
     @app.get("/v1/feedback", response_model=list[FeedbackItem])
     def list_feedback(project_id: str | None = None) -> list[FeedbackItem]:
         return repository.list_feedback(project_id)
+
+    @app.post(
+        "/v1/feedback/{feedback_id}/review-bundle",
+        response_model=FeedbackReviewBundle,
+        status_code=201,
+    )
+    def create_feedback_review_bundle(
+        feedback_id: str, request: FeedbackReviewBundleCreate
+    ) -> FeedbackReviewBundle:
+        return repository.create_feedback_review_bundle(feedback_id, request)
+
+    @app.get(
+        "/v1/feedback/{feedback_id}/review-bundle",
+        response_model=FeedbackReviewBundle,
+    )
+    def get_feedback_review_bundle(feedback_id: str) -> FeedbackReviewBundle:
+        return repository.get_feedback_review_bundle(feedback_id)
 
     @app.post(
         "/v1/projects/{project_id}/memory-cards",
