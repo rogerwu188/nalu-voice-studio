@@ -799,10 +799,44 @@ Current evidence:
   SHA-256 `7b972eb2202e588ef8be838141e81ed2bb81c6fc92fb4dbd8fb7dc1c20422d45`.
   No provider, credential, paid generation, non-loopback network or publication call was
   used; no perceptual recognition or human visual acceptance is claimed.
-- This closes bounded-chunk Python audio execution and visual-analyzer input authority,
-  not SOP-09. Still required before `PASS`: a full-duration device RSS/throughput soak;
-  a real local perceptual analyzer and the on-device recognition path against an actual
-  final master; native-window/accessibility repetition after the Mac is unlocked; and
+- Commits `e7297b0` and `1da3e63` add and package the first real local perceptual
+  executor. The Runtime rehashes the exact confirmed character/prop references and
+  materialized master, decodes each authored shot midpoint with PyAV, and invokes a
+  separately hashed universal Swift executable. That executable uses Apple Vision image
+  feature prints, body pose, face and attention saliency plus Core Image area colour to
+  derive machine measurements for identity, wardrobe, screen axis, pose and props. The
+  Runtime maps those measurements into the immutable five-domain manifest; malformed,
+  non-finite, low-confidence, drifted or producer-uploaded evidence fails closed. Exact
+  replay and the filesystem/SQLite recovery boundary retain one visual-analysis event.
+- GitHub CI run `33357165343` passed all 92 Runtime tests, real HTTP smoke,
+  OpenAPI/SOP/progress gates, both Swift test suites, independent arm64 job
+  `99381420096`, x86_64 job `99381420120`, and universal job `99382271354`. The exact
+  universal artifact `9745587222` has GitHub digest
+  `400ed3436ac98cd8681d268e7e76f88522d2a5dfffc8e49a922db7eb716c3d82` and ZIP SHA-256
+  `c2d434ba76895903b1b46d1af06ab3deb84bdd10c0f4ec4bb633aea838b4bb45`.
+  The native app, bundled Runtime and bundled analyzer all contained arm64 and x86_64
+  slices. Their SHA-256 values were respectively
+  `750423b6b2cfa4051483f870524283b9b0db39f95f77634dcb6388de87d0e575`,
+  `84dba160da535df2c94ea945f68fb8ceb3d21af91a21c7082afc7fe7bcfa6242` and
+  `9b410061f53f0a990578de0de1bdae3e32a370147aae5fe202aed0e7833bc47c`;
+  the repository universal verifier and nested ad-hoc signature check passed.
+- `scripts/qa-packaged-postproduction.py` v2 then launched that exact packaged Runtime
+  on an isolated SQLite database and real loopback HTTP. It materialized two shots and
+  all five audio layers, sealed the exact master, deliberately changed the managed
+  character reference and received HTTP 409 before analysis, restored it, and executed
+  the packaged Apple Vision analyzer. The run recorded ten machine checks and exactly
+  one event, replayed byte-identically, bound the resulting manifest to the same seal,
+  performed no provider upload, and stopped the Runtime with port 8765 closed. The
+  synthetic colour fixture correctly produced perceptual `FAIL` and same-seal visual-QA
+  `FAIL` instead of fabricating actor/prop recognition; harness acceptance was `PASS`
+  because this is the required conservative result. The canonical report digest is
+  `52610d59feac33dfaaff49a6bc12129e3fcc352fe7063bb4eda9b6bd99e9c9f8` and the written
+  JSON file SHA-256 is
+  `97e8677f2a7c3bd36f36b0e20a1c08e19142d9310a7a99cfaa52841a9b274609`.
+- This closes the real local perceptual-executor checkpoint, not SOP-09. Still required
+  before `PASS`: a full-duration device RSS/throughput soak; on-device recognition and
+  calibrated acceptance against an actual final master and real consented references;
+  native-window/accessibility repetition after the Mac is unlocked; and
   original-resolution human audiovisual review on the same release candidate.
 
 ## SOP-10 · Controlled release and learning loop — IN_PROGRESS

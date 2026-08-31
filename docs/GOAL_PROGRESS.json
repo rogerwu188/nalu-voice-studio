@@ -11,26 +11,26 @@
     "TODO": 1,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "17b242ffa5c7a1c9274775d867242f01195276d2",
-  "last_advanced_at": "2026-08-31T03:54:19Z",
+  "observed_head": "1da3e63eb4ed2cf5888e2553856c7319e9c0fcd3",
+  "last_advanced_at": "2026-08-31T04:40:46Z",
   "last_closed_checkpoint": {
-    "id": "sop-09-production-visual-analyzer-input-contract",
+    "id": "sop-09-local-perceptual-visual-analyzer-executor",
     "sop": "SOP-09",
-    "product_commit": "17b242ffa5c7a1c9274775d867242f01195276d2",
-    "evidence_commit": "1485fa19d3010cdb4c6d058097e64ea93cab2e53",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33354670668",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33354670668/job/99374946162",
+    "product_commit": "1da3e63eb4ed2cf5888e2553856c7319e9c0fcd3",
+    "evidence_commit": "PENDING",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33357165343",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33357165343/job/99382271354",
     "result": "PASS"
   },
   "current_checkpoint": {
     "sop": "SOP-09",
     "status": "IN_PROGRESS",
-    "summary": "Structural, decoded, semantic, lineage, immutable five-domain evidence, Runtime-owned local assembly/mixing, bounded-chunk audio and local visual analyzer input authority are closed on universal artifacts. Full-duration device soak, perceptual visual execution, same-candidate native/human final-master acceptance and real media remain before SOP-09 can pass."
+    "summary": "Structural, decoded, semantic, lineage, immutable five-domain evidence, Runtime-owned local assembly/mixing, bounded-chunk audio, visual input authority and a packaged Apple Vision perceptual executor are closed on universal artifacts. Full-duration device soak, calibrated actual-final-master recognition and same-candidate native/human acceptance remain before SOP-09 can pass."
   },
   "next_action": {
     "sop": "SOP-09",
-    "id": "local-perceptual-visual-analyzer-executor",
-    "summary": "Execute a local analyzer that rehashes confirmed references, decodes sampled final-master frames and derives machine observations for identity, wardrobe, screen axis, pose and props instead of accepting producer-authored observations.",
+    "id": "full-duration-device-postproduction-soak",
+    "summary": "Run a release-bundle, device-level full-duration materialization soak that samples process RSS, throughput, disk growth, cancellation and restart recovery instead of inferring device behavior from Python heap tests.",
     "requires_user_authorization": false
   },
   "blocking_conditions": [
