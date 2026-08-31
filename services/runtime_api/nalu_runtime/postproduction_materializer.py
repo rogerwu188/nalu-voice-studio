@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import fcntl
 import hashlib
 import json
 import math
@@ -7,12 +8,14 @@ import os
 import secrets
 import shutil
 from array import array
-from collections.abc import Iterable, Iterator
+from collections.abc import Callable, Iterable, Iterator
+from contextlib import contextmanager
 from fractions import Fraction
 from pathlib import Path
 from typing import Any
 
 import av
+import numpy as np
 
 from .models import (
     PostproductionMaterializationCreate,
@@ -33,6 +36,35 @@ class PostproductionMaterializationError(RuntimeError):
 AUDIO_SAMPLE_RATE = 48000
 AUDIO_CHANNELS = 2
 AUDIO_CHUNK_SAMPLES = 8192
+CancellationProbe = Callable[[], bool]
+
+
+def _raise_if_cancelled(should_cancel: CancellationProbe | None) -> None:
+    if should_cancel is not None and should_cancel():
+        raise PostproductionMaterializationError("postproduction materialization was cancelled")
+
+
+@contextmanager
+def _exclusive_materialization(exports_root: Path) -> Iterator[None]:
+    """Serialize one workspace and remove only stages abandoned by a dead process."""
+
+    lock_path = exports_root / ".nalu-postproduction.lock"
+    if lock_path.is_symlink():
+        raise PostproductionMaterializationError("postproduction lock path is unsafe")
+    descriptor = os.open(lock_path, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
+    try:
+        with os.fdopen(descriptor, "a+b", closefd=False) as lock:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+            for candidate in exports_root.glob(".nalu-postproduction-*"):
+                if candidate.is_symlink() or not candidate.is_dir():
+                    raise PostproductionMaterializationError(
+                        "abandoned postproduction stage is unsafe"
+                    )
+                shutil.rmtree(candidate)
+            yield
+            fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
+    finally:
+        os.close(descriptor)
 
 
 def canonical_sha256(value: dict[str, Any] | list[Any]) -> str:
@@ -101,6 +133,7 @@ def _selected_frames(
     width: int,
     height: int,
     pixel_format: str,
+    should_cancel: CancellationProbe | None = None,
 ) -> Iterator[av.VideoFrame]:
     frame_count = max(1, round(duration_seconds * frame_rate))
     iterator = iter(_timed_video_frames(path))
@@ -111,6 +144,7 @@ def _selected_frames(
         raise PostproductionMaterializationError(f"video has no timed frames: {path.name}") from exc
 
     for index in range(frame_count):
+        _raise_if_cancelled(should_cancel)
         target = start_seconds + (index + 0.5) / frame_rate
         while current is not None and current[0] < target:
             previous = current
@@ -138,6 +172,7 @@ def _audio_chunks(
     start_seconds: float,
     sample_count: int,
     require_full_duration: bool,
+    should_cancel: CancellationProbe | None = None,
 ) -> Iterator[array]:
     """Yield an exact stereo segment without retaining the full source or result."""
 
@@ -169,6 +204,7 @@ def _audio_chunks(
                 stream = container.streams.audio[0]
                 resampler = av.AudioResampler(format="s16", layout="stereo", rate=AUDIO_SAMPLE_RATE)
                 for source_frame in container.decode(stream):
+                    _raise_if_cancelled(should_cancel)
                     for frame in resampler.resample(source_frame):
                         samples = array("h")
                         samples.frombytes(
@@ -184,6 +220,7 @@ def _audio_chunks(
                         break
                 if exhausted:
                     for frame in resampler.resample(None):
+                        _raise_if_cancelled(should_cancel)
                         samples = array("h")
                         samples.frombytes(
                             bytes(frame.planes[0])[
@@ -202,6 +239,7 @@ def _audio_chunks(
             f"audio source is shorter than the requested timeline: {path.name}"
         )
     while remaining_values:
+        _raise_if_cancelled(should_cancel)
         count = min(remaining_values, chunk_values - len(pending))
         pending.extend(array("h", [0]) * count)
         remaining_values -= count
@@ -216,9 +254,11 @@ def _encode_audio_packets(
     container: av.container.OutputContainer,
     stream: av.AudioStream,
     chunks: Iterable[array],
+    should_cancel: CancellationProbe | None = None,
 ) -> None:
     sample_cursor = 0
     for samples in chunks:
+        _raise_if_cancelled(should_cancel)
         if len(samples) % AUDIO_CHANNELS:
             raise PostproductionMaterializationError("stereo audio chunk is misaligned")
         chunk_cursor = 0
@@ -248,6 +288,7 @@ def _encode_mp4(
     height: int,
     frame_rate: int,
     pixel_format: str,
+    should_cancel: CancellationProbe | None = None,
 ) -> int:
     path.parent.mkdir(parents=True, exist_ok=True)
     frame_count = 0
@@ -263,13 +304,16 @@ def _encode_mp4(
             audio.layout = "stereo"
             audio.bit_rate = 192000
             for frame_count, frame in enumerate(frames, start=1):
+                _raise_if_cancelled(should_cancel)
                 frame.pts = frame_count - 1
                 frame.time_base = Fraction(1, frame_rate)
                 for packet in video.encode(frame):
                     container.mux(packet)
             for packet in video.encode(None):
                 container.mux(packet)
-            _encode_audio_packets(container, audio, audio_chunks)
+            _encode_audio_packets(
+                container, audio, audio_chunks, should_cancel=should_cancel
+            )
     except (av.FFmpegError, OSError, ValueError) as exc:
         raise PostproductionMaterializationError(
             f"media encoding failed for {path.name}: {type(exc).__name__}"
@@ -279,20 +323,32 @@ def _encode_mp4(
     return frame_count
 
 
-def _write_wav(path: Path, chunks: Iterable[array]) -> None:
+def _write_wav(
+    path: Path,
+    chunks: Iterable[array],
+    *,
+    should_cancel: CancellationProbe | None = None,
+) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     try:
         with av.open(str(path), mode="w", format="wav") as container:
             stream = container.add_stream("pcm_s16le", rate=AUDIO_SAMPLE_RATE)
             stream.layout = "stereo"
-            _encode_audio_packets(container, stream, chunks)
+            _encode_audio_packets(
+                container, stream, chunks, should_cancel=should_cancel
+            )
     except (av.FFmpegError, OSError, ValueError) as exc:
         raise PostproductionMaterializationError(
             f"audio encoding failed for {path.name}: {type(exc).__name__}"
         ) from exc
 
 
-def _mixed_audio_chunks(stems: list[tuple[Path, float]], *, sample_count: int) -> Iterator[array]:
+def _mixed_audio_chunks(
+    stems: list[tuple[Path, float]],
+    *,
+    sample_count: int,
+    should_cancel: CancellationProbe | None = None,
+) -> Iterator[array]:
     total_gain = sum(gain for _path, gain in stems)
     if total_gain <= 0:
         raise PostproductionMaterializationError("audio mix has no positive gain")
@@ -302,20 +358,24 @@ def _mixed_audio_chunks(stems: list[tuple[Path, float]], *, sample_count: int) -
             start_seconds=0,
             sample_count=sample_count,
             require_full_duration=True,
+            should_cancel=should_cancel,
         )
         for path, _gain in stems
     ]
     for chunks in zip(*iterators, strict=True):
+        _raise_if_cancelled(should_cancel)
         if len({len(chunk) for chunk in chunks}) != 1:
             raise PostproductionMaterializationError("audio stem chunks are not aligned")
-        accumulator = array("f", [0.0]) * len(chunks[0])
+        accumulator = np.zeros(len(chunks[0]), dtype=np.float64)
         for chunk, (_path, gain) in zip(chunks, stems, strict=True):
-            for index, sample in enumerate(chunk):
-                accumulator[index] += sample * gain
-        yield array(
-            "h",
-            (max(-32768, min(32767, round(value / total_gain * 0.9))) for value in accumulator),
+            accumulator += np.frombuffer(chunk, dtype=np.int16) * gain
+        encoded = array("h")
+        encoded.frombytes(
+            np.clip(np.rint(accumulator / total_gain * 0.9), -32768, 32767)
+            .astype(np.int16)
+            .tobytes()
         )
+        yield encoded
 
 
 def _artifact(relative_path: str, path: Path, *, kind: str, media_type: str) -> dict[str, Any]:
@@ -416,7 +476,7 @@ def _existing_result(
     )
 
 
-def materialize_postproduction(
+def _materialize_postproduction_locked(
     *,
     run_id: str,
     project_id: str,
@@ -427,8 +487,10 @@ def materialize_postproduction(
     exports_root: Path,
     request: PostproductionMaterializationCreate,
     created_at: str,
+    should_cancel: CancellationProbe | None,
 ) -> PostproductionMaterializationResult:
     exports_root = exports_root.resolve(strict=True)
+    _raise_if_cancelled(should_cancel)
     plan_body = {
         "schema_version": "nalu.postproduction-materialization-plan/v1",
         "run_id": run_id,
@@ -445,10 +507,12 @@ def materialize_postproduction(
 
     source_files: dict[str, Path] = {}
     for shot in request.shots:
+        _raise_if_cancelled(should_cancel)
         source_files[shot.source_relative_path] = _safe_input(
             exports_root, shot.source_relative_path, shot.source_sha256
         )
     for layer in request.audio_layers:
+        _raise_if_cancelled(should_cancel)
         source_files[layer.source_relative_path] = _safe_input(
             exports_root, layer.source_relative_path, layer.source_sha256
         )
@@ -478,6 +542,7 @@ def materialize_postproduction(
 
         normalized_specs: list[tuple[PostproductionShotSource, Path, float]] = []
         for shot in request.shots:
+            _raise_if_cancelled(should_cancel)
             raw_duration = shot.source_out_seconds - shot.source_in_seconds
             frame_count = max(1, round(raw_duration * request.frame_rate))
             duration = frame_count / request.frame_rate
@@ -494,17 +559,20 @@ def materialize_postproduction(
                     width=request.width,
                     height=request.height,
                     pixel_format=request.pixel_format,
+                    should_cancel=should_cancel,
                 ),
                 audio_chunks=_audio_chunks(
                     source_path,
                     start_seconds=shot.source_in_seconds,
                     sample_count=sample_count,
                     require_full_duration=False,
+                    should_cancel=should_cancel,
                 ),
                 width=request.width,
                 height=request.height,
                 frame_rate=request.frame_rate,
                 pixel_format=request.pixel_format,
+                should_cancel=should_cancel,
             )
             if encoded_frames != frame_count:
                 raise PostproductionMaterializationError(
@@ -527,6 +595,7 @@ def materialize_postproduction(
         total_sample_count = round(total_duration * AUDIO_SAMPLE_RATE)
         stem_mix_sources: list[tuple[Path, float]] = []
         for layer in request.audio_layers:
+            _raise_if_cancelled(should_cancel)
             source_path = source_files[layer.source_relative_path]
             stem_path = stage / "audio" / f"{episode_code}_{layer.layer.upper()}.wav"
             _write_wav(
@@ -536,7 +605,9 @@ def materialize_postproduction(
                     start_seconds=layer.source_in_seconds,
                     sample_count=total_sample_count,
                     require_full_duration=True,
+                    should_cancel=should_cancel,
                 ),
+                should_cancel=should_cancel,
             )
             gain = math.pow(10.0, layer.gain_db / 20.0)
             stem_mix_sources.append((stem_path, gain))
@@ -557,7 +628,12 @@ def materialize_postproduction(
         published_mix_path = stage / "audio" / f"{episode_code}_PUBLISHED_MIX.wav"
         _write_wav(
             published_mix_path,
-            _mixed_audio_chunks(stem_mix_sources, sample_count=total_sample_count),
+            _mixed_audio_chunks(
+                stem_mix_sources,
+                sample_count=total_sample_count,
+                should_cancel=should_cancel,
+            ),
+            should_cancel=should_cancel,
         )
 
         def master_frames() -> Iterator[av.VideoFrame]:
@@ -570,6 +646,7 @@ def materialize_postproduction(
                     width=request.width,
                     height=request.height,
                     pixel_format=request.pixel_format,
+                    should_cancel=should_cancel,
                 )
 
         master_path = stage / f"{episode_code}_MASTER.mp4"
@@ -581,11 +658,13 @@ def materialize_postproduction(
                 start_seconds=0,
                 sample_count=total_sample_count,
                 require_full_duration=True,
+                should_cancel=should_cancel,
             ),
             width=request.width,
             height=request.height,
             frame_rate=request.frame_rate,
             pixel_format=request.pixel_format,
+            should_cancel=should_cancel,
         )
         captions_path = stage / f"{episode_code}_zh-CN.vtt"
         shutil.copyfile(captions_source, captions_path)
@@ -714,11 +793,14 @@ def materialize_postproduction(
         for relative_path, expected_sha256 in (
             (shot.source_relative_path, shot.source_sha256) for shot in request.shots
         ):
+            _raise_if_cancelled(should_cancel)
             _safe_input(exports_root, relative_path, expected_sha256)
         for relative_path, expected_sha256 in (
             (layer.source_relative_path, layer.source_sha256) for layer in request.audio_layers
         ):
+            _raise_if_cancelled(should_cancel)
             _safe_input(exports_root, relative_path, expected_sha256)
+        _raise_if_cancelled(should_cancel)
         _safe_input(
             exports_root,
             request.captions_source_relative_path,
@@ -726,6 +808,7 @@ def materialize_postproduction(
         )
 
         harden_tree(stage)
+        _raise_if_cancelled(should_cancel)
         try:
             os.rename(stage, final_root)
         except OSError:
@@ -734,6 +817,7 @@ def materialize_postproduction(
                 raise
             return existing
         harden_tree(final_root)
+        _raise_if_cancelled(should_cancel)
         inspected = inspect_postproduction_lineage(
             final_root / manifest_path.name,
             exports_root=exports_root,
@@ -760,3 +844,32 @@ def materialize_postproduction(
     finally:
         if stage.exists():
             shutil.rmtree(stage, ignore_errors=True)
+
+
+def materialize_postproduction(
+    *,
+    run_id: str,
+    project_id: str,
+    episode_id: str,
+    episode_number: int,
+    production_package_sha256: str,
+    workspace_manifest_sha256: str,
+    exports_root: Path,
+    request: PostproductionMaterializationCreate,
+    created_at: str,
+    should_cancel: CancellationProbe | None = None,
+) -> PostproductionMaterializationResult:
+    resolved_exports = exports_root.resolve(strict=True)
+    with _exclusive_materialization(resolved_exports):
+        return _materialize_postproduction_locked(
+            run_id=run_id,
+            project_id=project_id,
+            episode_id=episode_id,
+            episode_number=episode_number,
+            production_package_sha256=production_package_sha256,
+            workspace_manifest_sha256=workspace_manifest_sha256,
+            exports_root=resolved_exports,
+            request=request,
+            created_at=created_at,
+            should_cancel=should_cancel,
+        )

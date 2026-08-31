@@ -116,11 +116,15 @@ Audio decoding, normalization, five-layer mixing and final-master audio encoding
 fixed 8,192-sample stereo chunks. The Runtime never retains a whole source, stem, mix or
 episode-length floating-point accumulator in Python memory. Every stem is normalized to
 an intermediate digest-bound WAV; the mixer then reopens the five stems in aligned
-chunks, applies gain and clipping protection per chunk, writes the published mix, and
-streams that file into the final MP4 encoder. A 90-second PCM resource-bound fixture
-consumes the entire source while asserting the fixed chunk ceiling and a Python heap
-peak below 4 MiB. This is a deterministic implementation bound, not a claim about total
-FFmpeg process RSS or device performance on a 30-minute final master.
+chunks, applies gain and clipping protection with a fixed-size NumPy vector per chunk,
+writes the published mix, and streams that file into the final MP4 encoder. Automated
+fixtures consume the entire source while asserting the fixed chunk ceiling, a Python
+heap peak below 4 MiB and numerical equivalence with the original scalar five-stem mix.
+The release QA harness can additionally materialize the full allowed 1,800-second
+timeline through the bundled Runtime while sampling the complete PyInstaller process
+tree RSS, allocated disk, free disk and throughput. It rejects a result above the
+explicit RSS ceiling or below the explicit realtime factor; source-code heap tests are
+not substituted for that device evidence.
 
 All outputs and the immutable result record are built in a private staging directory and
 renamed together into `exports/materialized/{plan_sha256}`. Sources are rehashed after
@@ -130,6 +134,17 @@ SQLite state transaction, replaying the identical request verifies and adopts th
 result. A changed plan, a changed source, multiple finalized results, artifact drift or
 an existing output seal fails closed. The run and episode enter `qa_review` with one
 ordered event and one episode transition in the same SQLite transaction.
+
+One filesystem lock serializes materialization for a run workspace across Runtime
+threads and process restarts. After the owning process dies, the next lock holder removes
+only private `.nalu-postproduction-*` stages abandoned under that exact export root;
+symlink or non-directory lookalikes fail closed. A live cancellation is polled from
+SQLite at a bounded interval throughout frame selection, audio decoding, stem/mix writes
+and final encoding. Cancellation aborts the generators and removes the private stage
+without recording a materialization event. Resume revalidates the existing Qingshan
+workspace instead of rebuilding it, so already downloaded digest-bound provider results
+survive. The exact retry then completes once and records one event; it never silently
+restarts a paid provider call.
 
 The executor performs no network call and grants no paid authority. It executes an
 already-reviewed edit/mix plan; it does not decide which creative take is best, prove

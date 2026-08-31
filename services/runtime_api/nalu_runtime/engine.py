@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import time
 from pathlib import Path
 
 from .continuity import audit_continuity
@@ -364,6 +365,19 @@ class ProductionService:
         workspace_manifest = workspace / "workspace-manifest.json"
         if not exports_root.is_dir() or not workspace_manifest.is_file():
             raise ConflictError("Qingshan workspace is incomplete before materialization")
+        last_cancel_check = 0.0
+        cancelled = False
+
+        def cancellation_requested() -> bool:
+            nonlocal last_cancel_check, cancelled
+            if cancelled:
+                return True
+            now = time.monotonic()
+            if now - last_cancel_check >= 0.25:
+                cancelled = self.repository.get_run(run.id).status == RunStatus.CANCELLED
+                last_cancel_check = now
+            return cancelled
+
         try:
             result = materialize_postproduction(
                 run_id=run.id,
@@ -375,6 +389,7 @@ class ProductionService:
                 exports_root=exports_root,
                 request=request,
                 created_at=utc_now(),
+                should_cancel=cancellation_requested,
             )
         except (KeyError, TypeError, ValueError, PostproductionMaterializationError) as exc:
             raise ConflictError(str(exc)) from exc
@@ -2074,7 +2089,9 @@ class ProductionService:
         if target == RunStatus.QUEUED and not run.dry_run:
             raise ConflictError("paid runs must resume through preflight")
         package_path = Path(run.package_path)
-        workspace = self.adapter.materialize_workspace(package_path)
+        workspace = package_path.parent / "qingshan-workspace"
+        if not workspace.is_dir():
+            workspace = self.adapter.materialize_workspace(package_path)
         self.adapter.preflight(package_path, workspace)
         updated = self.repository.update_run_status(run_id, target, error=None)
         self.repository.append_run_event(

@@ -12,6 +12,7 @@ license = "MIT"
 dependencies = [
   "av>=18,<19",
   "fastapi>=0.116,<1",
+  "numpy>=2.2,<3",
   "pydantic>=2.11,<3",
   "uvicorn[standard]>=0.35,<1",
 ]

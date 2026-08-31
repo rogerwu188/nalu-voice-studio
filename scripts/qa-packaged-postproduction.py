@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Exercise postproduction through the Runtime embedded in a macOS release bundle.
 
-This is a release-candidate QA tool, not a provider simulator. It creates tiny local
-media fixtures, sends the execution plan over real loopback HTTP, and verifies that
-the bundled Runtime itself normalizes, mixes, assembles, seals, and reopens the result.
-No provider, paid model, publication account, or non-loopback network call is used.
+This is a release-candidate QA tool, not a provider simulator. It can create either a
+tiny contract fixture or a full 30-minute local soak, sends the execution plan over real
+loopback HTTP, and verifies that the bundled Runtime itself normalizes, mixes, assembles,
+seals, restarts, and reopens the result. No provider, paid model, publication account, or
+non-loopback network call is used.
 """
 
 from __future__ import annotations
@@ -14,6 +15,7 @@ import hashlib
 import json
 import math
 import os
+import shutil
 import socket
 import sqlite3
 import struct
@@ -25,6 +27,7 @@ import urllib.parse
 import urllib.request
 import zlib
 from array import array
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from fractions import Fraction
 from pathlib import Path
@@ -124,19 +127,141 @@ def wait_for_health(process: subprocess.Popen[bytes]) -> float:
     raise RuntimeError("bundled Runtime did not become healthy")
 
 
-def create_video(path: Path) -> bytes:
+def process_tree_rss_bytes(root_pid: int) -> int:
+    completed = subprocess.run(
+        ["ps", "-axo", "pid=,ppid=,rss="],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    rows: dict[int, tuple[int, int]] = {}
+    for line in completed.stdout.splitlines():
+        fields = line.split()
+        if len(fields) != 3:
+            continue
+        pid, parent, rss_kib = (int(field) for field in fields)
+        rows[pid] = (parent, rss_kib)
+    included = {root_pid}
+    changed = True
+    while changed:
+        changed = False
+        for pid, (parent, _rss_kib) in rows.items():
+            if parent in included and pid not in included:
+                included.add(pid)
+                changed = True
+    return sum(rows.get(pid, (0, 0))[1] for pid in included) * 1024
+
+
+def allocated_tree_bytes(root: Path) -> int:
+    total = 0
+    for current, directories, files in os.walk(root, followlinks=False):
+        current_path = Path(current)
+        directories[:] = [
+            name for name in directories if not (current_path / name).is_symlink()
+        ]
+        for name in files:
+            candidate = current_path / name
+            if not candidate.is_symlink():
+                total += candidate.stat().st_blocks * 512
+    return total
+
+
+def sample_materialization(
+    *,
+    endpoint: str,
+    plan: dict[str, Any],
+    runtime_pid: int,
+    work_dir: Path,
+    duration_seconds: int,
+    sample_interval_seconds: float,
+    max_rss_mib: int,
+    min_realtime_factor: float,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    baseline_rss = process_tree_rss_bytes(runtime_pid)
+    samples: list[dict[str, Any]] = []
+    started_at = time.monotonic()
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        future = pool.submit(
+            request,
+            endpoint,
+            plan,
+            expected=201,
+            timeout=max(1800, duration_seconds * 8),
+        )
+        while not future.done():
+            elapsed = time.monotonic() - started_at
+            samples.append(
+                {
+                    "elapsed_seconds": round(elapsed, 3),
+                    "rss_bytes": process_tree_rss_bytes(runtime_pid),
+                    "allocated_bytes": allocated_tree_bytes(work_dir),
+                    "free_disk_bytes": shutil.disk_usage(work_dir).free,
+                    "stage_count": len(list(work_dir.rglob(".nalu-postproduction-*"))),
+                }
+            )
+            time.sleep(sample_interval_seconds)
+        result = future.result()
+    elapsed = time.monotonic() - started_at
+    samples.append(
+        {
+            "elapsed_seconds": round(elapsed, 3),
+            "rss_bytes": process_tree_rss_bytes(runtime_pid),
+            "allocated_bytes": allocated_tree_bytes(work_dir),
+            "free_disk_bytes": shutil.disk_usage(work_dir).free,
+            "stage_count": len(list(work_dir.rglob(".nalu-postproduction-*"))),
+        }
+    )
+    max_rss = max(sample["rss_bytes"] for sample in samples)
+    realtime_factor = duration_seconds / elapsed
+    if max_rss > max_rss_mib * 1024 * 1024:
+        raise RuntimeError(
+            f"full-duration Runtime RSS {max_rss / 1024 / 1024:.1f} MiB exceeds "
+            f"{max_rss_mib} MiB"
+        )
+    if realtime_factor < min_realtime_factor:
+        raise RuntimeError(
+            f"full-duration throughput {realtime_factor:.3f}x is below "
+            f"{min_realtime_factor:.3f}x realtime"
+        )
+    metrics = {
+        "timeline_duration_seconds": duration_seconds,
+        "elapsed_seconds": round(elapsed, 3),
+        "realtime_factor": round(realtime_factor, 4),
+        "sample_interval_seconds": sample_interval_seconds,
+        "sample_count": len(samples),
+        "baseline_rss_bytes": baseline_rss,
+        "maximum_process_tree_rss_bytes": max_rss,
+        "maximum_rss_growth_bytes": max_rss - baseline_rss,
+        "maximum_allocated_bytes": max(sample["allocated_bytes"] for sample in samples),
+        "minimum_free_disk_bytes": min(sample["free_disk_bytes"] for sample in samples),
+        "working_stage_observed": any(sample["stage_count"] > 0 for sample in samples),
+        "samples_sha256": canonical_sha256(samples),
+        "rss_limit_mib": max_rss_mib,
+        "minimum_realtime_factor": min_realtime_factor,
+    }
+    return result, metrics
+
+
+def create_video(
+    path: Path,
+    *,
+    duration_seconds: int = 2,
+    width: int = 64,
+    height: int = 64,
+    fps: int = 10,
+    include_audio: bool = True,
+) -> bytes:
     path.parent.mkdir(parents=True, exist_ok=True)
-    width = height = 64
-    fps = 10
-    sample_rate = 48000
     with av.open(str(path), mode="w", format="mp4", options={"movflags": "+faststart"}) as output:
         video = output.add_stream("mpeg4", rate=fps)
         video.width = width
         video.height = height
         video.pix_fmt = "yuv420p"
-        audio = output.add_stream("aac", rate=sample_rate)
-        audio.layout = "stereo"
-        for index in range(fps * 2):
+        audio = None
+        if include_audio:
+            audio = output.add_stream("aac", rate=48000)
+            audio.layout = "stereo"
+        for index in range(fps * duration_seconds):
             frame = av.VideoFrame(width, height, format="rgb24")
             value = 40 + (index * 9) % 180
             row = bytes((value, 255 - value, (value * 3) % 255)) * width
@@ -148,7 +273,13 @@ def create_video(path: Path) -> bytes:
                 output.mux(packet)
         for packet in video.encode(None):
             output.mux(packet)
-        write_audio_frames(output, audio, frequency=440)
+        if audio is not None:
+            write_audio_frames(
+                output,
+                audio,
+                frequency=440,
+                duration_seconds=duration_seconds,
+            )
     return path.read_bytes()
 
 
@@ -174,21 +305,26 @@ def create_reference_png() -> bytes:
 
 
 def write_audio_frames(
-    output: av.container.OutputContainer, stream: Any, *, frequency: int
+    output: av.container.OutputContainer,
+    stream: Any,
+    *,
+    frequency: int,
+    duration_seconds: int = 2,
 ) -> None:
     sample_rate = 48000
     cursor = 0
-    while cursor < sample_rate * 2:
-        samples = min(1024, sample_rate * 2 - cursor)
+    total_samples = sample_rate * duration_seconds
+    template = array("h")
+    for offset in range(1024):
+        sample = int(7000 * math.sin(2 * math.pi * frequency * offset / sample_rate))
+        template.extend((sample, sample))
+    while cursor < total_samples:
+        samples = min(1024, total_samples - cursor)
         frame = av.AudioFrame(format="s16", layout="stereo", samples=samples)
         frame.sample_rate = sample_rate
         frame.pts = cursor
         frame.time_base = Fraction(1, sample_rate)
-        pcm = array("h")
-        for offset in range(samples):
-            sample = int(7000 * math.sin(2 * math.pi * frequency * (cursor + offset) / sample_rate))
-            pcm.extend((sample, sample))
-        frame.planes[0].update(pcm.tobytes())
+        frame.planes[0].update(template[: samples * 2].tobytes())
         for packet in stream.encode(frame):
             output.mux(packet)
         cursor += samples
@@ -196,12 +332,25 @@ def write_audio_frames(
         output.mux(packet)
 
 
-def create_audio(path: Path, *, frequency: int) -> bytes:
+def create_audio(
+    path: Path,
+    *,
+    frequency: int,
+    duration_seconds: int = 2,
+    lossless_compressed: bool = False,
+) -> bytes:
     path.parent.mkdir(parents=True, exist_ok=True)
-    with av.open(str(path), mode="w", format="wav") as output:
-        stream = output.add_stream("pcm_s16le", rate=48000)
+    container_format = "flac" if lossless_compressed else "wav"
+    codec = "flac" if lossless_compressed else "pcm_s16le"
+    with av.open(str(path), mode="w", format=container_format) as output:
+        stream = output.add_stream(codec, rate=48000)
         stream.layout = "stereo"
-        write_audio_frames(output, stream, frequency=frequency)
+        write_audio_frames(
+            output,
+            stream,
+            frequency=frequency,
+            duration_seconds=duration_seconds,
+        )
     return path.read_bytes()
 
 
@@ -303,56 +452,95 @@ def enter_postproduction(database: Path, episode_id: str, run_id: str) -> None:
         )
 
 
-def make_plan(exports: Path) -> dict[str, Any]:
+def webvtt_timestamp(seconds: float) -> str:
+    milliseconds = round(seconds * 1000)
+    hours, remainder = divmod(milliseconds, 3_600_000)
+    minutes, remainder = divmod(remainder, 60_000)
+    whole_seconds, milliseconds = divmod(remainder, 1000)
+    return f"{hours:02d}:{minutes:02d}:{whole_seconds:02d}.{milliseconds:03d}"
+
+
+def make_plan(exports: Path, *, duration_seconds: int = 2) -> dict[str, Any]:
     provider = exports / "provider-results"
     video_path = provider / "provider-shot.mp4"
-    video = create_video(video_path)
+    long_soak = duration_seconds > 2
+    source_video_seconds = min(300, duration_seconds)
+    video = create_video(
+        video_path,
+        duration_seconds=source_video_seconds,
+        width=64,
+        height=64,
+        fps=1 if long_soak else 10,
+        include_audio=not long_soak,
+    )
     audio_layers = []
+    shared_audio_path = provider / "shared-lossless-audio.flac"
+    if long_soak:
+        create_audio(
+            shared_audio_path,
+            frequency=330,
+            duration_seconds=duration_seconds,
+            lossless_compressed=True,
+        )
+        shared_audio_sha = sha256_file(shared_audio_path)
     for index, layer in enumerate(LAYERS):
-        audio_path = provider / f"{layer}.wav"
-        audio = create_audio(audio_path, frequency=330 + index * 55)
+        audio_path = shared_audio_path if long_soak else provider / f"{layer}.wav"
+        if long_soak:
+            audio_sha = shared_audio_sha
+        else:
+            create_audio(audio_path, frequency=330 + index * 55)
+            audio_sha = sha256_file(audio_path)
         audio_layers.append(
             {
                 "layer": layer,
                 "source_relative_path": str(audio_path.relative_to(exports)),
-                "source_sha256": hashlib.sha256(audio).hexdigest(),
+                "source_sha256": audio_sha,
                 "source_cue_sha256s": [hashlib.sha256(f"cue-{layer}".encode()).hexdigest()],
                 "gain_db": -3 if layer == "music" else 0,
             }
         )
     captions = provider / "captions.vtt"
-    captions.write_text("WEBVTT\n\n00:00.100 --> 00:01.800\n回家\n", encoding="utf-8")
+    captions.write_text(
+        "WEBVTT\n\n"
+        f"00:00:00.100 --> {webvtt_timestamp(duration_seconds - 0.1)}\n"
+        "回家\n",
+        encoding="utf-8",
+    )
     relative_video = str(video_path.relative_to(exports))
     video_sha = hashlib.sha256(video).hexdigest()
+    shots = []
+    source_ranges = (
+        [(0, 1), (1, 2)]
+        if not long_soak
+        else [
+            (0, min(300, duration_seconds - offset))
+            for offset in range(0, duration_seconds, 300)
+        ]
+    )
+    for shot_number, (source_in, source_out) in enumerate(source_ranges, start=1):
+        shots.append(
+            {
+                "shot_id": f"S{shot_number:02d}",
+                "source_relative_path": relative_video,
+                "source_sha256": video_sha,
+                "source_task_id": f"provider-task-{shot_number}",
+                "source_receipt_sha256": hashlib.sha256(
+                    f"provider-receipt-{shot_number}".encode()
+                ).hexdigest(),
+                "source_in_seconds": source_in,
+                "source_out_seconds": source_out,
+            }
+        )
     return {
         "requested_by": "packaged-runtime-qa",
-        "shots": [
-            {
-                "shot_id": "S01",
-                "source_relative_path": relative_video,
-                "source_sha256": video_sha,
-                "source_task_id": "provider-task-1",
-                "source_receipt_sha256": hashlib.sha256(b"provider-receipt-1").hexdigest(),
-                "source_in_seconds": 0,
-                "source_out_seconds": 1,
-            },
-            {
-                "shot_id": "S02",
-                "source_relative_path": relative_video,
-                "source_sha256": video_sha,
-                "source_task_id": "provider-task-2",
-                "source_receipt_sha256": hashlib.sha256(b"provider-receipt-2").hexdigest(),
-                "source_in_seconds": 1,
-                "source_out_seconds": 2,
-            },
-        ],
+        "shots": shots,
         "audio_layers": audio_layers,
         "captions_source_relative_path": str(captions.relative_to(exports)),
         "captions_source_sha256": sha256_file(captions),
         "subtitle_contract_sha256": hashlib.sha256(b"subtitle-contract").hexdigest(),
         "width": 64,
         "height": 64,
-        "frame_rate": 10,
+        "frame_rate": 1 if long_soak else 10,
     }
 
 
@@ -364,17 +552,41 @@ def assert_regular_artifact(exports: Path, artifact: dict[str, Any]) -> None:
         raise RuntimeError(f"materialized artifact digest changed: {artifact['relative_path']}")
 
 
-def run_positive_case(database: Path, analyzer: Path) -> dict[str, Any]:
+def run_positive_case(
+    database: Path,
+    analyzer: Path,
+    *,
+    duration_seconds: int,
+    runtime_pid: int,
+    work_dir: Path,
+    sample_interval_seconds: float,
+    max_rss_mib: int,
+    min_realtime_factor: float,
+) -> tuple[dict[str, Any], dict[str, Any]]:
     episode, run = create_approved_episode("发布包后期制作闭环")
     enter_postproduction(database, episode["id"], run["id"])
     exports = Path(run["package_path"]).parent / "qingshan-workspace" / "exports"
-    plan = make_plan(exports)
+    plan = make_plan(exports, duration_seconds=duration_seconds)
     endpoint = f"/v1/production-runs/{run['id']}/postproduction-materializations"
-    result = request(endpoint, plan, expected=201)
+    soak_metrics = None
+    if duration_seconds > 2:
+        result, soak_metrics = sample_materialization(
+            endpoint=endpoint,
+            plan=plan,
+            runtime_pid=runtime_pid,
+            work_dir=work_dir,
+            duration_seconds=duration_seconds,
+            sample_interval_seconds=sample_interval_seconds,
+            max_rss_mib=max_rss_mib,
+            min_realtime_factor=min_realtime_factor,
+        )
+    else:
+        result = request(endpoint, plan, expected=201)
     if result["schema_version"] != "nalu.postproduction-materialization/v1":
         raise RuntimeError("unexpected materialization result schema")
-    if [item["shot_id"] for item in result["normalized_segments"]] != ["S01", "S02"]:
-        raise RuntimeError("bundled Runtime did not preserve the two-shot order")
+    expected_shot_ids = [shot["shot_id"] for shot in plan["shots"]]
+    if [item["shot_id"] for item in result["normalized_segments"]] != expected_shot_ids:
+        raise RuntimeError("bundled Runtime did not preserve the authored shot order")
     if {item["layer"] for item in result["audio_stems"]} != set(LAYERS):
         raise RuntimeError("bundled Runtime did not materialize all five audio layers")
     for artifact in (
@@ -415,7 +627,10 @@ def run_positive_case(database: Path, analyzer: Path) -> dict[str, Any]:
     request(visual_endpoint, {}, expected=409)
     reference_path.write_bytes(reference_bytes)
     visual = request(visual_endpoint, {}, expected=201)
-    if visual["provider_upload_performed"] or visual["analyzed_shot_count"] != 2:
+    if (
+        visual["provider_upload_performed"]
+        or visual["analyzed_shot_count"] != len(expected_shot_ids)
+    ):
         raise RuntimeError("local visual execution privacy or shot-count evidence is invalid")
     if visual["analyzer_model_sha256"] != sha256_file(analyzer):
         raise RuntimeError("visual result is not bound to the packaged analyzer binary")
@@ -464,15 +679,21 @@ def run_positive_case(database: Path, analyzer: Path) -> dict[str, Any]:
         expected=201,
     )
     lineage = request(f"/v1/production-runs/{run['id']}/postproduction-lineage-qa", {})
-    if lineage["status"] != "PASS" or lineage["shot_selection"]["shot_count"] != 2:
+    if (
+        lineage["status"] != "PASS"
+        or lineage["shot_selection"]["shot_count"] != len(expected_shot_ids)
+    ):
         raise RuntimeError("decoded postproduction lineage QA did not pass")
     if {item["layer"] for item in lineage["audio_mix"]["stems"]} != set(LAYERS):
         raise RuntimeError("lineage QA did not decode all five materialized stems")
     visual_qa = request(f"/v1/production-runs/{run['id']}/visual-continuity-qa", {})
-    if visual_qa["status"] != visual["status"] or visual_qa["shot_count"] != 2:
+    if (
+        visual_qa["status"] != visual["status"]
+        or visual_qa["shot_count"] != len(expected_shot_ids)
+    ):
         raise RuntimeError("same-seal visual QA disagrees with machine observations")
     request(endpoint, plan, expected=409)
-    return {
+    summary = {
         "run_id": run["id"],
         "episode_id": episode["id"],
         "plan_sha256": result["plan_sha256"],
@@ -496,6 +717,27 @@ def run_positive_case(database: Path, analyzer: Path) -> dict[str, Any]:
         "visual_qa_status": visual_qa["status"],
         "reference_digest_drift_rejected": True,
         "provider_upload_performed": False,
+    }
+    if soak_metrics is not None:
+        summary["full_duration_soak"] = soak_metrics
+    return summary, {
+        "result_sha256": result["result_sha256"],
+        "event_count": event_count,
+        "artifacts": [
+            {
+                "relative_path": artifact["relative_path"],
+                "sha256": artifact["sha256"],
+                "byte_size": artifact["byte_size"],
+            }
+            for artifact in (
+                result["master"],
+                result["captions"],
+                result["postproduction_manifest"],
+                result["published_mix"],
+                *result["normalized_segments"],
+                *result["audio_stems"],
+            )
+        ],
     }
 
 
@@ -536,6 +778,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--ci-artifact-digest", required=True)
     parser.add_argument("--release-zip-sha256", required=True)
     parser.add_argument("--source-commit", required=True)
+    parser.add_argument("--duration-seconds", type=int, default=2)
+    parser.add_argument("--sample-interval-seconds", type=float, default=1.0)
+    parser.add_argument("--max-rss-mib", type=int, default=1024)
+    parser.add_argument("--min-realtime-factor", type=float, default=0.25)
+    parser.add_argument("--min-free-after-gib", type=float, default=2.0)
     return parser.parse_args()
 
 
@@ -544,6 +791,12 @@ def main() -> int:
     app = args.app.resolve()
     work_dir = args.work_dir.resolve()
     evidence = args.evidence.resolve()
+    if not 2 <= args.duration_seconds <= 1800:
+        raise RuntimeError("duration-seconds must be between 2 and 1800")
+    if args.sample_interval_seconds <= 0 or args.max_rss_mib <= 0:
+        raise RuntimeError("sampling interval and RSS limit must be positive")
+    if not 0 < args.min_realtime_factor <= 10:
+        raise RuntimeError("minimum realtime factor must be positive and bounded")
     runtime = app / "Contents/Resources/runtime/nalu-runtime"
     runtime_resources = app / "Contents/Resources/runtime-resources"
     executable = app / "Contents/MacOS/NaluVoiceStudio"
@@ -558,6 +811,14 @@ def main() -> int:
     ):
         if not required.exists():
             raise RuntimeError(f"release bundle is missing {required}")
+    predicted_pcm_outputs = args.duration_seconds * 48000 * 2 * 2 * 6
+    free_before = shutil.disk_usage(work_dir.parent).free
+    required_free = predicted_pcm_outputs + round(args.min_free_after_gib * 1024**3)
+    if free_before < required_free:
+        raise RuntimeError(
+            f"full-duration soak requires {required_free / 1024**3:.2f} GiB free but "
+            f"only {free_before / 1024**3:.2f} GiB is available"
+        )
     work_dir.mkdir(parents=True, exist_ok=False)
     database = work_dir / "runtime.sqlite3"
     environment = os.environ.copy()
@@ -583,7 +844,16 @@ def main() -> int:
             visual_route = "/v1/production-runs/{run_id}/local-visual-analysis"
             if visual_route not in openapi["paths"]:
                 raise RuntimeError("packaged OpenAPI omits the local visual-analysis route")
-            positive = run_positive_case(database, analyzer)
+            positive, replay_context = run_positive_case(
+                database,
+                analyzer,
+                duration_seconds=args.duration_seconds,
+                runtime_pid=process.pid,
+                work_dir=work_dir,
+                sample_interval_seconds=args.sample_interval_seconds,
+                max_rss_mib=args.max_rss_mib,
+                min_realtime_factor=args.min_realtime_factor,
+            )
             negative = run_negative_case(database)
         finally:
             process.terminate()
@@ -598,6 +868,49 @@ def main() -> int:
         time.sleep(0.1)
     else:
         raise RuntimeError("bundled Runtime left loopback port open after termination")
+    restart_replay = {"performed": False}
+    if args.duration_seconds > 2:
+        with log_path.open("ab") as log:
+            restarted = subprocess.Popen(
+                [str(runtime)], stdout=log, stderr=subprocess.STDOUT, env=environment
+            )
+            try:
+                restart_startup_seconds = wait_for_health(restarted)
+                run_state = request(f"/v1/production-runs/{positive['run_id']}")
+                if run_state["status"] != "qa_review":
+                    raise RuntimeError("restart did not preserve the sealed QA-review run")
+                exports = (
+                    Path(run_state["package_path"]).parent / "qingshan-workspace" / "exports"
+                )
+                for artifact in replay_context["artifacts"]:
+                    assert_regular_artifact(exports, artifact)
+                events = request(f"/v1/production-runs/{positive['run_id']}/events")
+                event_count = sum(
+                    item["event_type"] == "postproduction_materialized" for item in events
+                )
+                if event_count != replay_context["event_count"]:
+                    raise RuntimeError("restart replay duplicated the materialization event")
+                restart_replay = {
+                    "performed": True,
+                    "startup_seconds": round(restart_startup_seconds, 3),
+                    "sealed_run_state_replayed": True,
+                    "all_materialized_artifacts_rehashed": True,
+                    "result_sha256": replay_context["result_sha256"],
+                    "materialization_event_count": event_count,
+                }
+            finally:
+                restarted.terminate()
+                try:
+                    restarted.wait(timeout=10)
+                except subprocess.TimeoutExpired:
+                    restarted.kill()
+                    restarted.wait(timeout=10)
+        for _ in range(50):
+            if not port_is_open():
+                break
+            time.sleep(0.1)
+        else:
+            raise RuntimeError("restarted bundled Runtime left loopback port open")
     report = {
         "schema_version": "nalu.packaged-postproduction-qa/v2",
         "status": "PASS",
@@ -617,6 +930,13 @@ def main() -> int:
         },
         "positive_case": positive,
         "negative_case": negative,
+        "restart_replay": restart_replay,
+        "device_soak": {
+            "requested_duration_seconds": args.duration_seconds,
+            "free_disk_before_bytes": free_before,
+            "predicted_pcm_output_bytes": predicted_pcm_outputs,
+            "minimum_free_after_bytes": round(args.min_free_after_gib * 1024**3),
+        },
         "network_scope": "loopback HTTP only; no provider, paid model, or publication call",
         "runtime_stopped_and_port_closed": True,
         "runtime_startup_seconds": round(startup_seconds, 3),

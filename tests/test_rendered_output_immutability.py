@@ -2,8 +2,10 @@ import hashlib
 import json
 import math
 import struct
+import threading
 import urllib.parse
 from array import array
+from concurrent.futures import ThreadPoolExecutor
 from fractions import Fraction
 from pathlib import Path
 from unittest.mock import patch
@@ -1209,7 +1211,7 @@ def test_runtime_materializes_postproduction_and_recovers_after_state_commit_cra
         f"/v1/production-runs/{run['id']}/postproduction-materializations",
         json=request,
     )
-    assert completed.status_code == 201
+    assert completed.status_code == 201, completed.text
     result = completed.json()
     assert result["schema_version"] == "nalu.postproduction-materialization/v1"
     assert result["master"]["kind"] == "master_video"
@@ -1280,6 +1282,103 @@ def test_runtime_materializes_postproduction_and_recovers_after_state_commit_cra
     )
     assert after_seal.status_code == 409
     assert "sealed outputs cannot be rematerialized" in after_seal.text
+
+
+def test_running_materialization_cancels_cooperatively_and_reaps_abandoned_stage(
+    tmp_path: Path,
+) -> None:
+    api = client(tmp_path)
+    _, episode, _ = approved_episode_with_library(api)
+    run = api.post(f"/v1/episodes/{episode['id']}/production-runs", json={"dry_run": True}).json()
+    repository = api.app.state.repository
+    repository.update_run_status(run["id"], RunStatus.RUNNING)
+    for target in ("generating", "postproduction"):
+        assert (
+            api.post(
+                f"/v1/episodes/{episode['id']}/transition",
+                json={
+                    "target_status": target,
+                    "requested_by": "local-production-worker",
+                    "reason": f"fixture entered {target}",
+                },
+            ).status_code
+            == 200
+        )
+    exports = Path(run["package_path"]).parent / "qingshan-workspace" / "exports"
+    request = postproduction_materialization_fixture(run, exports)
+
+    from nalu_runtime import postproduction_materializer
+
+    reached_probe = threading.Event()
+    permit_probe = threading.Event()
+    original_check = postproduction_materializer._raise_if_cancelled
+
+    def controlled_check(probe):
+        if probe is not None and not reached_probe.is_set():
+            reached_probe.set()
+            if not permit_probe.wait(timeout=5):
+                raise AssertionError("cancellation test did not release materialization")
+        original_check(probe)
+
+    with (
+        patch.object(
+            postproduction_materializer,
+            "_raise_if_cancelled",
+            side_effect=controlled_check,
+        ),
+        ThreadPoolExecutor(max_workers=1) as pool,
+    ):
+        future = pool.submit(
+            api.post,
+            f"/v1/production-runs/{run['id']}/postproduction-materializations",
+            json=request,
+        )
+        assert reached_probe.wait(timeout=5)
+        cancelled = api.post(
+            f"/v1/production-runs/{run['id']}/cancel",
+            json={
+                "requested_by": "local-user",
+                "reason": "用户在长时后期中要求暂停",
+            },
+        )
+        assert cancelled.status_code == 200
+        assert cancelled.json()["status"] == "cancelled"
+        permit_probe.set()
+        response = future.result(timeout=10)
+
+    assert response.status_code == 409
+    assert "materialization was cancelled" in response.text
+    assert api.get(f"/v1/production-runs/{run['id']}").json()["status"] == "cancelled"
+    assert not list(exports.glob(".nalu-postproduction-*"))
+    assert not list((exports / "materialized").glob("*/materialization-result.json"))
+    events = api.get(f"/v1/production-runs/{run['id']}/events").json()
+    assert sum(event["event_type"] == "run_cancelled" for event in events) == 1
+    assert not any(event["event_type"] == "postproduction_materialized" for event in events)
+
+    resumed = api.post(
+        f"/v1/production-runs/{run['id']}/resume",
+        json={
+            "requested_by": "local-user",
+            "reason": "继续未完成的后期制作",
+            "resume_from_preflight": False,
+        },
+    )
+    assert resumed.status_code == 200
+    assert resumed.json()["status"] == "queued"
+    repository.update_run_status(run["id"], RunStatus.RUNNING)
+    abandoned = exports / ".nalu-postproduction-abandoned"
+    abandoned.mkdir()
+    (abandoned / "partial.wav").write_bytes(b"incomplete")
+
+    completed = api.post(
+        f"/v1/production-runs/{run['id']}/postproduction-materializations",
+        json=request,
+    )
+    assert completed.status_code == 201, completed.text
+    assert not abandoned.exists()
+    assert api.get(f"/v1/production-runs/{run['id']}").json()["status"] == "qa_review"
+    events = api.get(f"/v1/production-runs/{run['id']}/events").json()
+    assert sum(event["event_type"] == "postproduction_materialized" for event in events) == 1
 
 
 def test_local_visual_analysis_rehashes_references_decodes_master_and_recovers(
