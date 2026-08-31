@@ -11,26 +11,26 @@
     "TODO": 1,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "d285aa943f55656a221b32270d7275220a58a6b6",
-  "last_advanced_at": "2026-08-31T02:12:17Z",
+  "observed_head": "9b7bd45d38b445bdcd55396f0317301b86525f1f",
+  "last_advanced_at": "2026-08-31T02:38:13Z",
   "last_closed_checkpoint": {
-    "id": "sop-09-postproduction-lineage-artifact-gate",
+    "id": "sop-09-production-bound-visual-continuity-gate",
     "sop": "SOP-09",
-    "product_commit": "d285aa943f55656a221b32270d7275220a58a6b6",
-    "evidence_commit": "47e9bcfff7de5e3f2f180525f04648088fb7851b",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33349286197",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33349286197/job/99360207521",
+    "product_commit": "9b7bd45d38b445bdcd55396f0317301b86525f1f",
+    "evidence_commit": "9b7bd45d38b445bdcd55396f0317301b86525f1f",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33350559526",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33350559526/job/99363729575",
     "result": "PASS"
   },
   "current_checkpoint": {
     "sop": "SOP-09",
     "status": "IN_PROGRESS",
-    "summary": "Automated shot selection, decoded normalization, five-layer stem accounting, published-mix/master binding and subtitle lineage are closed on a universal artifact; production-bound identity, wardrobe, space/axis, pose and prop evidence remain before SOP-09 can pass."
+    "summary": "Structural, decoded, semantic, lineage and immutable five-domain visual evidence gates are closed on universal artifacts. Actual production-owned assembly/mixing, perceptual visual analysis, same-candidate native/human final-master acceptance and real media remain before SOP-09 can pass."
   },
   "next_action": {
     "sop": "SOP-09",
-    "id": "production-bound-visual-continuity-gate",
-    "summary": "Add an immutable same-seal QA contract for production-bound identity, wardrobe, space/axis, pose and prop evidence, with specific repair tasks and decoded pass/fail fixtures; do not infer human audiovisual acceptance.",
+    "id": "runtime-owned-postproduction-materializer",
+    "summary": "Implement a deterministic local postproduction executor that consumes admitted source segments, normalizes and assembles their timeline, renders the five declared audio layers and emits lineage from execution instead of accepting an externally authored manifest; keep provider and human claims fail-closed.",
     "requires_user_authorization": false
   },
   "blocking_conditions": [

@@ -693,9 +693,37 @@ Current evidence:
   credential, paid generation or publication was used. The unchanged Runtime suite was
   revalidated in release-candidate CI run `33349286197` after the native supervisor
   lifecycle repairs. This closes the automated lineage checkpoint, not SOP-09.
-- Still required before `PASS`: real shot selection/normalization and mix pipeline; the
-  on-device recognition path against an actual final master; and original-resolution
-  human audiovisual review on the same release candidate.
+- Commit `9b7bd45` adds an immutable same-seal visual-continuity gate. The Runtime
+  re-decodes the exact sealed master and independently verifies evidence-frame digests,
+  shot time ranges, the frozen production package and the confirmed library revision.
+  Identity, wardrobe, space/axis, pose and props have fixed confidence thresholds and
+  separate release-blocking repair codes; a producer-authored `PASS` flag is not trusted.
+  Completion and offline release packaging now require this report to pass against the
+  same output seal. GitHub CI run `33350559526` passed 86 Runtime tests, OpenAPI and
+  progress audits, real HTTP smoke, Swift tests, independent arm64/x86_64 builds and
+  smokes, and universal job `99363729575`.
+- The exact universal artifact `9743544705`, ZIP SHA-256
+  `eeb917b9cb0931d2ea0dfd6fbd1f7998fe6bf215e04c73f3e0fd9bf04ea0fc30`, passed the
+  repository's universal release verifier; both the native executable and bundled
+  Runtime contained arm64 and x86_64 slices. On macOS, the bundled Runtime SHA-256
+  `c0b143c9247e4aabfd4f78a1b47cb164681cf900211537d83e06669bcc704961` ran against an
+  isolated temporary SQLite database. A real HTTP pass fixture decoded 20 frames and
+  passed all five domains. A wardrobe mismatch produced only `visual_wardrobe`; a
+  fabricated evidence-frame digest failed every domain and produced the manifest plus
+  five domain-specific repair tasks. Stored GET reports exactly replayed their initial
+  results, the temporary Runtime stopped cleanly, and port 8765 disappeared. No provider,
+  credential, paid generation or publication was used. The Mac was locked when the
+  native-window startup/quit repetition was attempted, so no new GUI or accessibility
+  acceptance is inferred from this checkpoint. The prior universal lifecycle evidence
+  remains valid only for commit `d285aa9`.
+- This gate validates immutable analyzer provenance and its claims against package,
+  library, timeline and decoded-frame evidence. It does not yet execute a perceptual
+  vision model and is not evidence that an actual actor, garment or prop looks correct.
+- Still required before `PASS`: a production-owned shot selection/normalization and
+  five-layer mix execution path; a real visual analyzer and the on-device recognition
+  path against an actual final master; native-window/accessibility repetition after the
+  Mac is unlocked; and original-resolution human audiovisual review on the same release
+  candidate.
 
 ## SOP-10 · Controlled release and learning loop — IN_PROGRESS
 
