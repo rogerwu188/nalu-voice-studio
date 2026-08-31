@@ -42,6 +42,13 @@ class QingshanAdapter:
     def _sha256(path: Path) -> str:
         return hashlib.sha256(path.read_bytes()).hexdigest()
 
+    @staticmethod
+    def _canonical_sha256(value: dict | list) -> str:
+        encoded = json.dumps(
+            value, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+        ).encode("utf-8")
+        return hashlib.sha256(encoded).hexdigest()
+
     def materialize_workspace(self, package_path: Path) -> Path:
         """Create a clean, episode-agnostic Qingshan workspace from a Nalu package."""
         package = json.loads(package_path.read_text(encoding="utf-8"))
@@ -113,6 +120,15 @@ class QingshanAdapter:
                             f"configs/{episode_code}_POSTPRODUCTION_LINEAGE_CONTRACT.json"
                         ),
                     },
+                    "visual_continuity_manifest": {
+                        "artifact_kind": "visual_continuity_manifest",
+                        "relative_path": (
+                            f"exports/{episode_code}_VISUAL_CONTINUITY.json"
+                        ),
+                        "contract_path": (
+                            f"configs/{episode_code}_VISUAL_CONTINUITY_CONTRACT.json"
+                        ),
+                    },
                 },
             },
         )
@@ -162,6 +178,32 @@ class QingshanAdapter:
                 ],
                 "published_mix_must_bind_final_master_audio": True,
                 "subtitles_must_bind_sealed_captions": True,
+                "fail_closed": True,
+            },
+        )
+        self._write_json(
+            workspace / "configs" / f"{episode_code}_VISUAL_CONTINUITY_CONTRACT.json",
+            {
+                "schema_version": "nalu.visual-continuity-output-contract/v1",
+                "manifest_schema_version": "nalu.visual-continuity-manifest/v1",
+                "artifact_kind": "visual_continuity_manifest",
+                "output_relative_path": (
+                    f"exports/{episode_code}_VISUAL_CONTINUITY.json"
+                ),
+                "production_package_sha256": package["package_sha256"],
+                "resolved_library_sha256": self._canonical_sha256(
+                    package.get("resolved_library") or []
+                ),
+                "required_domains": [
+                    "identity",
+                    "wardrobe",
+                    "space_axis",
+                    "pose",
+                    "props",
+                ],
+                "evidence_frame_must_decode_from_final_master": True,
+                "local_analyzer_required": True,
+                "human_original_resolution_review_still_required": True,
                 "fail_closed": True,
             },
         )

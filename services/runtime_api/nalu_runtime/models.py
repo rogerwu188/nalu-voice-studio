@@ -950,6 +950,7 @@ class RenderedOutputCandidate(BaseModel):
         "release_metadata",
         "shot_manifest",
         "postproduction_manifest",
+        "visual_continuity_manifest",
     ]
     relative_path: str = Field(min_length=1, max_length=500)
     media_type: str = Field(min_length=1, max_length=160)
@@ -1145,6 +1146,27 @@ class PostproductionLineageQAReport(BaseModel):
     report_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
 
 
+class VisualContinuityQAReport(BaseModel):
+    schema_version: Literal["nalu.visual-continuity-qa/v1"] = (
+        "nalu.visual-continuity-qa/v1"
+    )
+    run_id: str
+    output_seal_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    master_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    resolved_library_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    visual_continuity_manifest_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    analyzer: dict[str, Any]
+    decoded_frame_count: int = Field(ge=0)
+    shot_count: int = Field(ge=0)
+    passed_shot_count: int = Field(ge=0)
+    domain_results: dict[str, Any]
+    shots: list[dict[str, Any]]
+    status: Literal["PASS", "FAIL"]
+    failures: list[str] = Field(default_factory=list)
+    created_at: str
+    report_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+
+
 class ReleasePackageCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -1163,6 +1185,9 @@ class ReleasePackage(BaseModel):
     decoded_media_qa_report_sha256: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
     semantic_media_qa_report_sha256: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
     postproduction_lineage_qa_report_sha256: str | None = Field(
+        default=None, pattern=r"^[a-f0-9]{64}$"
+    )
+    visual_continuity_qa_report_sha256: str | None = Field(
         default=None, pattern=r"^[a-f0-9]{64}$"
     )
     title: str

@@ -94,6 +94,7 @@ from .models import (
     SemanticMediaQAReport,
     SemanticMediaQARequest,
     StorageDiagnostics,
+    VisualContinuityQAReport,
 )
 from .privacy_service import ProjectPrivacyService
 from .remote_submitter import DurableRemoteTaskSubmitter
@@ -673,6 +674,20 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
         run_id: str,
     ) -> PostproductionLineageQAReport:
         return production.stored_postproduction_lineage_qa(run_id)
+
+    @app.post(
+        "/v1/production-runs/{run_id}/visual-continuity-qa",
+        response_model=VisualContinuityQAReport,
+    )
+    def visual_continuity_qa(run_id: str) -> VisualContinuityQAReport:
+        return production.visual_continuity_qa(run_id)
+
+    @app.get(
+        "/v1/production-runs/{run_id}/visual-continuity-qa",
+        response_model=VisualContinuityQAReport,
+    )
+    def stored_visual_continuity_qa(run_id: str) -> VisualContinuityQAReport:
+        return production.stored_visual_continuity_qa(run_id)
 
     @app.get(
         "/v1/production-runs/{run_id}/sealed-master",

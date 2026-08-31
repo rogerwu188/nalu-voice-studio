@@ -4192,6 +4192,18 @@
           "title": {
             "title": "Title",
             "type": "string"
+          },
+          "visual_continuity_qa_report_sha256": {
+            "anyOf": [
+              {
+                "pattern": "^[a-f0-9]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Visual Continuity Qa Report Sha256"
           }
         },
         "required": [
@@ -4257,7 +4269,8 @@
               "qa_report",
               "release_metadata",
               "shot_manifest",
-              "postproduction_manifest"
+              "postproduction_manifest",
+              "visual_continuity_manifest"
             ],
             "title": "Kind",
             "type": "string"
@@ -4302,7 +4315,8 @@
               "qa_report",
               "release_metadata",
               "shot_manifest",
-              "postproduction_manifest"
+              "postproduction_manifest",
+              "visual_continuity_manifest"
             ],
             "title": "Kind",
             "type": "string"
@@ -5212,6 +5226,115 @@
           "type"
         ],
         "title": "ValidationError",
+        "type": "object"
+      },
+      "VisualContinuityQAReport": {
+        "properties": {
+          "analyzer": {
+            "additionalProperties": true,
+            "title": "Analyzer",
+            "type": "object"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "decoded_frame_count": {
+            "minimum": 0.0,
+            "title": "Decoded Frame Count",
+            "type": "integer"
+          },
+          "domain_results": {
+            "additionalProperties": true,
+            "title": "Domain Results",
+            "type": "object"
+          },
+          "failures": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Failures",
+            "type": "array"
+          },
+          "master_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Master Sha256",
+            "type": "string"
+          },
+          "output_seal_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Output Seal Sha256",
+            "type": "string"
+          },
+          "passed_shot_count": {
+            "minimum": 0.0,
+            "title": "Passed Shot Count",
+            "type": "integer"
+          },
+          "report_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Report Sha256",
+            "type": "string"
+          },
+          "resolved_library_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Resolved Library Sha256",
+            "type": "string"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "nalu.visual-continuity-qa/v1",
+            "default": "nalu.visual-continuity-qa/v1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "shot_count": {
+            "minimum": 0.0,
+            "title": "Shot Count",
+            "type": "integer"
+          },
+          "shots": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Shots",
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "PASS",
+              "FAIL"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "visual_continuity_manifest_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Visual Continuity Manifest Sha256",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_id",
+          "output_seal_sha256",
+          "master_sha256",
+          "resolved_library_sha256",
+          "visual_continuity_manifest_sha256",
+          "analyzer",
+          "decoded_frame_count",
+          "shot_count",
+          "passed_shot_count",
+          "domain_results",
+          "shots",
+          "status",
+          "created_at",
+          "report_sha256"
+        ],
+        "title": "VisualContinuityQAReport",
         "type": "object"
       }
     }
@@ -7603,6 +7726,82 @@
           }
         },
         "summary": "Semantic Media Qa"
+      }
+    },
+    "/v1/production-runs/{run_id}/visual-continuity-qa": {
+      "get": {
+        "operationId": "stored_visual_continuity_qa_v1_production_runs__run_id__visual_continuity_qa_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VisualContinuityQAReport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Stored Visual Continuity Qa"
+      },
+      "post": {
+        "operationId": "visual_continuity_qa_v1_production_runs__run_id__visual_continuity_qa_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VisualContinuityQAReport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Visual Continuity Qa"
       }
     },
     "/v1/project-imports": {

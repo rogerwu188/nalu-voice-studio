@@ -121,3 +121,32 @@ offline release packaging on the same output seal. Failures produce specific
 This gate proves artifact selection and technical lineage. It does not prove that the
 creative mix is tasteful, that dialogue is intelligible in a noisy room, or that picture,
 identity and continuity are acceptable to a human reviewer.
+
+## Production-bound visual continuity gate
+
+The Qingshan workspace now also declares
+`nalu.visual-continuity-output-contract/v1`. Its sealed manifest is bound to the
+production package, final master and confirmed project-library snapshot. It must declare
+one local analyzer identity, version and model digest, retain all five required domains
+(`identity`, `wardrobe`, `space_axis`, `pose` and `props`), and attach every observation
+to a decoded evidence-frame SHA from the authored shot interval.
+
+`POST /v1/production-runs/{run_id}/visual-continuity-qa` does not trust the manifest's
+PASS flags. It reopens the exact sealed master with PyAV/FFmpeg, decodes the cited frame,
+recomputes its grayscale pixel SHA-256 and then calculates every observation's result
+from the expected/observed value and a fixed per-domain confidence floor. Identity and
+wardrobe checks must reference the exact confirmed character revision frozen into the
+production package; a prop reference, when present, must bind the exact confirmed prop
+revision. Missing domains, stale authority, a lowered confidence, a fabricated frame,
+package/library drift or a declared/computed status disagreement fail closed.
+
+The resulting `nalu.visual-continuity-qa/v1` report is immutable, digest-bound and
+required on the same output seal before production completion or offline release
+packaging. Failures create one or more `visual_continuity_manifest`, `visual_identity`,
+`visual_wardrobe`, `visual_space_axis`, `visual_pose` and `visual_prop` repair tasks.
+Golden fixtures cover a five-domain decoded pass, wardrobe mismatch and a frame SHA that
+does not belong to the master.
+
+This gate verifies local analyzer lineage and objective contract consistency. It does
+not establish that the analyzer is perceptually correct, replace original-resolution
+human review, or turn a test-double analyzer into production model evidence.

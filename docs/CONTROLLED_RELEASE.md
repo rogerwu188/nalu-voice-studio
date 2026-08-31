@@ -5,13 +5,15 @@ only after the production run is completed, the episode is `ready_to_publish`, t
 outputs still pass integrity checks, and the sealed MP4/caption structure report is bound
 to the same output seal and has status `PASS`.
 
-`POST /v1/production-runs/{run_id}/release-package` requires a title, description and
-preparer identity. The seal must contain exactly one master video, captions file and
-cover. The immutable package binds:
+`POST /v1/production-runs/{run_id}/release-package` requires all same-seal structure,
+decoded, semantic-ASR, postproduction-lineage and visual-continuity QA reports to PASS,
+plus a title, description and preparer identity. The seal must contain exactly one master
+video, captions file and cover. The immutable package binds:
 
 - production run, project and episode IDs;
 - rendered-output seal SHA-256;
-- media-structure QA report SHA-256;
+- media-structure, decoded-media, semantic-media, postproduction-lineage and
+  visual-continuity QA report SHA-256 values;
 - every sealed artifact path, kind, media type, size and SHA-256; and
 - release title, description, preparer and timestamp.
 

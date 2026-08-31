@@ -67,6 +67,7 @@ def seal_payload(
     include_qa: bool = False,
     include_shot_manifest: bool = False,
     include_postproduction_manifest: bool = False,
+    include_visual_continuity_manifest: bool = False,
 ) -> dict:
     payload = {
         "sealed_by": "local-qa-worker",
@@ -104,6 +105,14 @@ def seal_payload(
             {
                 "kind": "postproduction_manifest",
                 "relative_path": "E01_POSTPRODUCTION_LINEAGE.json",
+                "media_type": "application/json",
+            }
+        )
+    if include_visual_continuity_manifest:
+        payload["artifacts"].append(
+            {
+                "kind": "visual_continuity_manifest",
+                "relative_path": "E01_VISUAL_CONTINUITY.json",
                 "media_type": "application/json",
             }
         )
@@ -320,6 +329,111 @@ def write_postproduction_lineage_manifest(
     )
 
 
+def decoded_gray_frame(path: Path, requested_time: float) -> tuple[float, str]:
+    frames: list[tuple[float, str]] = []
+    with av.open(str(path), mode="r") as container:
+        for frame in container.decode(container.streams.video[0]):
+            if frame.time is None:
+                continue
+            gray = frame.reformat(format="gray8")
+            plane = gray.planes[0]
+            raw = bytes(plane)
+            pixels = b"".join(
+                raw[row * plane.line_size : row * plane.line_size + gray.width]
+                for row in range(gray.height)
+            )
+            frames.append((float(frame.time), hashlib.sha256(pixels).hexdigest()))
+    return min(frames, key=lambda item: abs(item[0] - requested_time))
+
+
+def write_visual_continuity_manifest(
+    run: dict,
+    exports: Path,
+    *,
+    corrupt_domain: str | None = None,
+    corrupt_frame: bool = False,
+) -> None:
+    package = json.loads(Path(run["package_path"]).read_text(encoding="utf-8"))
+    master_path = exports / "E01_MASTER.mp4"
+    frame_time, frame_sha = decoded_gray_frame(master_path, 0.5)
+    character = next(
+        entity for entity in package["resolved_library"] if entity["kind"] == "character"
+    )
+    wardrobe = character["revision"]["attributes"]["wardrobe"][0]
+    expected_values = {
+        "identity": character["stable_name"],
+        "wardrobe": wardrobe,
+        "space_axis": "screen-left",
+        "pose": "standing",
+        "props": "none",
+    }
+    checks = []
+    for domain, expected in expected_values.items():
+        observed = "mismatch" if corrupt_domain == domain else expected
+        check = {
+            "domain": domain,
+            "expected": expected,
+            "observed": observed,
+            "confidence": 0.98,
+            "source_frame_sha256": frame_sha,
+            "status": "FAIL" if corrupt_domain == domain else "PASS",
+        }
+        if domain in {"identity", "wardrobe"}:
+            check["subject_id"] = character["entity_id"]
+            check["confirmed_revision"] = character["confirmed_revision"]
+        checks.append(check)
+    resolved_library_sha = hashlib.sha256(
+        json.dumps(
+            package["resolved_library"],
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()
+    body = {
+        "schema_version": "nalu.visual-continuity-manifest/v1",
+        "production_package_sha256": package["package_sha256"],
+        "final_master_sha256": hashlib.sha256(master_path.read_bytes()).hexdigest(),
+        "resolved_library_sha256": resolved_library_sha,
+        "analyzer": {
+            "analyzer_id": "qingshan-visual-continuity-local",
+            "version": "golden-fixture-v1",
+            "model_sha256": hashlib.sha256(b"fixture-visual-model").hexdigest(),
+            "local_analysis": True,
+            "generated_at": "2026-08-31T02:30:00Z",
+        },
+        "required_domains": [
+            "identity",
+            "wardrobe",
+            "space_axis",
+            "pose",
+            "props",
+        ],
+        "shots": [
+            {
+                "shot_id": "S01",
+                "start_seconds": 0.0,
+                "end_seconds": 2.0,
+                "evidence_frames": [
+                    {
+                        "time_seconds": frame_time,
+                        "frame_sha256": "0" * 64 if corrupt_frame else frame_sha,
+                    }
+                ],
+                "checks": checks,
+            }
+        ],
+    }
+    body["manifest_sha256"] = hashlib.sha256(
+        json.dumps(body, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode(
+            "utf-8"
+        )
+    ).hexdigest()
+    (exports / "E01_VISUAL_CONTINUITY.json").write_text(
+        json.dumps(body, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+
+
 def write_shot_manifest(run: dict, exports: Path, *, corrupt_contract: bool = False) -> None:
     package = json.loads(Path(run["package_path"]).read_text(encoding="utf-8"))
     contract = {
@@ -468,6 +582,7 @@ def test_verified_seal_and_human_qa_complete_atomically_and_retry_safely(
     )
     write_shot_manifest(run, exports)
     write_postproduction_lineage_manifest(run, exports)
+    write_visual_continuity_manifest(run, exports)
     (exports / "E01_FINAL_QA.json").write_text(
         json.dumps(
             {
@@ -495,6 +610,7 @@ def test_verified_seal_and_human_qa_complete_atomically_and_retry_safely(
             include_qa=True,
             include_shot_manifest=True,
             include_postproduction_manifest=True,
+            include_visual_continuity_manifest=True,
         ),
     ).json()
     assert (
@@ -527,6 +643,25 @@ def test_verified_seal_and_human_qa_complete_atomically_and_retry_safely(
         "output_seal_sha256": seal["manifest_sha256"],
         "completed_by": "local-user",
         "spoken_confirmation": "我确认这份成片和人工质量检查记录",
+    }
+    missing_visual = api.post(
+        f"/v1/production-runs/{run['id']}/complete",
+        json=completion_payload,
+    )
+    assert missing_visual.status_code == 409
+    repair = api.get(f"/v1/production-runs/{run['id']}/postproduction-repair-plan").json()
+    assert [task["code"] for task in repair["repair_tasks"]] == [
+        "visual_continuity_qa_presence"
+    ]
+    visual_qa = api.post(f"/v1/production-runs/{run['id']}/visual-continuity-qa").json()
+    assert visual_qa["status"] == "PASS"
+    assert visual_qa["passed_shot_count"] == 1
+    assert set(visual_qa["domain_results"]) == {
+        "identity",
+        "wardrobe",
+        "space_axis",
+        "pose",
+        "props",
     }
     repository = api.app.state.repository
     with (
@@ -869,6 +1004,73 @@ def test_postproduction_lineage_rejects_unadmitted_shot_and_blocks_release(
     assert repair["repair_tasks"][0]["release_blocking"] is True
 
 
+def test_visual_continuity_redecodes_frames_and_creates_domain_repair(
+    tmp_path: Path,
+) -> None:
+    api = client(tmp_path)
+    _, episode, _ = approved_episode_with_library(api)
+    run = api.post(
+        f"/v1/episodes/{episode['id']}/production-runs", json={"dry_run": True}
+    ).json()
+    api.app.state.repository.update_run_status(run["id"], RunStatus.QA_REVIEW)
+    exports = Path(run["package_path"]).parent / "qingshan-workspace" / "exports"
+    create_playable_mp4(exports / "E01_MASTER.mp4")
+    (exports / "E01_zh-CN.vtt").write_text(
+        "WEBVTT\n\n00:00.100 --> 00:01.800\n回家\n", encoding="utf-8"
+    )
+    write_visual_continuity_manifest(run, exports, corrupt_domain="wardrobe")
+    api.post(
+        f"/v1/production-runs/{run['id']}/rendered-output-seal",
+        json=seal_payload(include_visual_continuity_manifest=True),
+    )
+
+    response = api.post(f"/v1/production-runs/{run['id']}/visual-continuity-qa")
+    assert response.status_code == 200
+    report = response.json()
+    assert report["status"] == "FAIL"
+    assert report["decoded_frame_count"] == 20
+    assert "WARDROBE_VALUE_MISMATCH" in report["failures"]
+    assert report["domain_results"]["wardrobe"]["status"] == "FAIL"
+    assert report["domain_results"]["identity"]["status"] == "PASS"
+    assert api.get(f"/v1/production-runs/{run['id']}/visual-continuity-qa").json() == report
+    repair = api.get(f"/v1/production-runs/{run['id']}/postproduction-repair-plan").json()
+    assert [task["code"] for task in repair["repair_tasks"]] == ["visual_wardrobe"]
+    assert repair["repair_tasks"][0]["release_blocking"] is True
+
+    _, frame_episode, _ = approved_episode_with_library(api)
+    frame_run = api.post(
+        f"/v1/episodes/{frame_episode['id']}/production-runs", json={"dry_run": True}
+    ).json()
+    api.app.state.repository.update_run_status(frame_run["id"], RunStatus.QA_REVIEW)
+    frame_exports = (
+        Path(frame_run["package_path"]).parent / "qingshan-workspace" / "exports"
+    )
+    create_playable_mp4(frame_exports / "E01_MASTER.mp4")
+    (frame_exports / "E01_zh-CN.vtt").write_text("WEBVTT\n", encoding="utf-8")
+    write_visual_continuity_manifest(frame_run, frame_exports, corrupt_frame=True)
+    api.post(
+        f"/v1/production-runs/{frame_run['id']}/rendered-output-seal",
+        json=seal_payload(include_visual_continuity_manifest=True),
+    )
+    frame_report = api.post(
+        f"/v1/production-runs/{frame_run['id']}/visual-continuity-qa"
+    ).json()
+    assert frame_report["status"] == "FAIL"
+    assert "FRAME_SHA_MISMATCH" in frame_report["failures"]
+    assert "IDENTITY_FRAME_NOT_VERIFIED" in frame_report["failures"]
+    frame_repair = api.get(
+        f"/v1/production-runs/{frame_run['id']}/postproduction-repair-plan"
+    ).json()
+    assert {task["code"] for task in frame_repair["repair_tasks"]} == {
+        "visual_continuity_manifest",
+        "visual_identity",
+        "visual_wardrobe",
+        "visual_space_axis",
+        "visual_pose",
+        "visual_prop",
+    }
+
+
 def test_authored_boundary_requires_visual_change_when_contract_says_so(
     tmp_path: Path,
 ) -> None:
@@ -920,6 +1122,7 @@ def test_completed_media_qa_creates_offline_release_package_without_publishing(
     )
     write_shot_manifest(run, exports)
     write_postproduction_lineage_manifest(run, exports)
+    write_visual_continuity_manifest(run, exports)
     (exports / "E01_COVER.jpg").write_bytes(b"sealed-cover-fixture")
     (exports / "E01_FINAL_QA.json").write_text(
         json.dumps(
@@ -946,6 +1149,7 @@ def test_completed_media_qa_creates_offline_release_package_without_publishing(
         include_qa=True,
         include_shot_manifest=True,
         include_postproduction_manifest=True,
+        include_visual_continuity_manifest=True,
     )
     payload["artifacts"].append(
         {
@@ -969,6 +1173,8 @@ def test_completed_media_qa_creates_offline_release_package_without_publishing(
     assert semantic_qa["status"] == "PASS"
     lineage_qa = api.post(f"/v1/production-runs/{run['id']}/postproduction-lineage-qa").json()
     assert lineage_qa["status"] == "PASS"
+    visual_qa = api.post(f"/v1/production-runs/{run['id']}/visual-continuity-qa").json()
+    assert visual_qa["status"] == "PASS"
     too_early = api.post(
         f"/v1/production-runs/{run['id']}/release-package",
         json={
@@ -1006,6 +1212,7 @@ def test_completed_media_qa_creates_offline_release_package_without_publishing(
     assert package["decoded_media_qa_report_sha256"] == decoded_qa["report_sha256"]
     assert package["semantic_media_qa_report_sha256"] == semantic_qa["report_sha256"]
     assert package["postproduction_lineage_qa_report_sha256"] == lineage_qa["report_sha256"]
+    assert package["visual_continuity_qa_report_sha256"] == visual_qa["report_sha256"]
     assert {artifact["kind"] for artifact in package["artifacts"]} >= {
         "master_video",
         "captions",

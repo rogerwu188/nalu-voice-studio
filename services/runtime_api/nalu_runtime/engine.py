@@ -41,6 +41,7 @@ from .models import (
     RunStatus,
     SemanticMediaQAReport,
     SemanticMediaQARequest,
+    VisualContinuityQAReport,
 )
 from .postproduction_lineage_qa import inspect_postproduction_lineage
 from .publication_adapters import publication_adapter
@@ -49,6 +50,7 @@ from .remote_submitter import DurableRemoteTaskSubmitter
 from .repository import ConflictError, Repository, new_id, utc_now
 from .secure_files import harden_tree, secure_directory, secure_file
 from .semantic_media_qa import inspect_semantic_asr, inspect_shot_boundaries
+from .visual_continuity_qa import inspect_visual_continuity
 
 EPISODE_PROGRESS = {
     EpisodeStatus.PLANNED: ("planning", 0, "等待完善分集规划", "这一集还在规划中。"),
@@ -151,6 +153,41 @@ QA_REPAIR_CATALOG = {
         "postproduction lineage QA",
         "No immutable shot-selection, normalization and audio-mix report is bound to this seal.",
         "Validate the sealed postproduction manifest and every referenced media file.",
+    ),
+    "visual_continuity_qa_presence": (
+        "visual continuity QA",
+        "No immutable identity, wardrobe, space/axis, pose and prop report is bound to this seal.",
+        "Run decoded visual-continuity QA against the exact sealed master before completion.",
+    ),
+    "visual_continuity_manifest": (
+        "visual continuity manifest",
+        "The production-bound visual evidence manifest is missing, invalid or not bound to this master.",
+        "Regenerate local visual evidence from the exact sealed master and package authority.",
+    ),
+    "visual_identity": (
+        "character identity",
+        "A character identity observation is missing, stale, low-confidence or mismatched.",
+        "Repair the cited character shot and rerun identity analysis against the confirmed character revision.",
+    ),
+    "visual_wardrobe": (
+        "character wardrobe",
+        "A wardrobe observation is missing, stale, low-confidence or mismatched.",
+        "Restore the confirmed costume for the cited shot and rerun wardrobe analysis.",
+    ),
+    "visual_space_axis": (
+        "space and screen axis",
+        "A location, screen-side or axis observation is missing, low-confidence or mismatched.",
+        "Repair blocking, camera direction or the declared axis contract and rerun visual analysis.",
+    ),
+    "visual_pose": (
+        "character pose",
+        "A pose observation is missing, low-confidence or inconsistent with the shot contract.",
+        "Repair the cited pose or update the approved shot contract, then rerun analysis.",
+    ),
+    "visual_prop": (
+        "props",
+        "A prop presence, ownership or state observation is missing, low-confidence or mismatched.",
+        "Repair the cited prop continuity and rerun analysis against the confirmed prop authority.",
     ),
     "postproduction_manifest": (
         "postproduction manifest",
@@ -891,6 +928,148 @@ class ProductionService:
             raise ConflictError("postproduction lineage QA report belongs to another run")
         return report
 
+    def visual_continuity_qa(self, run_id: str) -> VisualContinuityQAReport:
+        integrity = self.rendered_output_integrity(run_id)
+        if not integrity.integrity_ok:
+            raise ConflictError("sealed output integrity failed before visual continuity QA")
+        run = self.repository.get_run(run_id)
+        seal = integrity.seal
+        masters = [artifact for artifact in seal.artifacts if artifact.kind == "master_video"]
+        manifests = [
+            artifact
+            for artifact in seal.artifacts
+            if artifact.kind == "visual_continuity_manifest"
+        ]
+        if len(masters) != 1 or len(manifests) != 1:
+            self._record_postproduction_repair_plan(
+                run,
+                output_seal_sha256=seal.manifest_sha256,
+                master_sha256=masters[0].sha256 if len(masters) == 1 else None,
+                codes=["visual_continuity_qa_presence"],
+            )
+            raise ConflictError(
+                "visual continuity QA requires exactly one master and evidence manifest"
+            )
+        try:
+            package = json.loads(Path(run.package_path).read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            raise ConflictError("production package is unreadable before visual QA") from exc
+        resolved_library = package.get("resolved_library") or []
+        exports = self._run_directory(run) / "qingshan-workspace" / "exports"
+        inspected = inspect_visual_continuity(
+            exports / manifests[0].relative_path,
+            production_package_sha256=seal.production_package_sha256,
+            master_path=exports / masters[0].relative_path,
+            master_sha256=masters[0].sha256,
+            resolved_library=resolved_library,
+            resolved_library_sha256=seal.resolved_library_sha256,
+        )
+        body = {
+            "schema_version": "nalu.visual-continuity-qa/v1",
+            "run_id": run.id,
+            "output_seal_sha256": seal.manifest_sha256,
+            "master_sha256": masters[0].sha256,
+            "resolved_library_sha256": seal.resolved_library_sha256,
+            "visual_continuity_manifest_sha256": manifests[0].sha256,
+            "analyzer": inspected["analyzer"],
+            "decoded_frame_count": inspected["decoded_frame_count"],
+            "shot_count": inspected["shot_count"],
+            "passed_shot_count": inspected["passed_shot_count"],
+            "domain_results": inspected["domain_results"],
+            "shots": inspected["shots"],
+            "status": inspected["status"],
+            "failures": inspected["failures"],
+            "created_at": utc_now(),
+        }
+        report = VisualContinuityQAReport(
+            **body,
+            report_sha256=self._canonical_sha256(body),
+        )
+        report_path = self._run_directory(run) / "visual-continuity-qa.json"
+        if report_path.is_file():
+            try:
+                existing = self.stored_visual_continuity_qa(run_id)
+                if (
+                    existing.output_seal_sha256 == report.output_seal_sha256
+                    and existing.visual_continuity_manifest_sha256
+                    == report.visual_continuity_manifest_sha256
+                    and existing.status == report.status
+                    and existing.failures == report.failures
+                ):
+                    return existing
+            except ConflictError:
+                pass
+            raise ConflictError("visual continuity QA already exists with different evidence")
+        temporary = report_path.with_name(f".{new_id('visual-continuity-qa')}.tmp")
+        temporary.write_text(report.model_dump_json(indent=2) + "\n", encoding="utf-8")
+        secure_file(temporary)
+        try:
+            os.link(temporary, report_path)
+        except FileExistsError as exc:
+            raise ConflictError("visual continuity QA was recorded concurrently") from exc
+        finally:
+            temporary.unlink(missing_ok=True)
+        secure_file(report_path)
+        self.repository.append_run_event(
+            run.id,
+            "visual_continuity_qa_completed",
+            from_status=run.status,
+            to_status=run.status,
+            message=(
+                "Decoded identity, wardrobe, space/axis, pose and prop evidence "
+                "was checked against the sealed master and confirmed library."
+            ),
+            payload={
+                "status": report.status,
+                "report_sha256": report.report_sha256,
+                "failure_count": len(report.failures),
+                "human_review_replaced": False,
+            },
+        )
+        if report.failures:
+            repair_codes: list[str] = []
+            if any(
+                failure.startswith(("MANIFEST_", "PACKAGE_", "ANALYZER_", "FRAME_", "SHOT_"))
+                for failure in report.failures
+            ):
+                repair_codes.append("visual_continuity_manifest")
+            domain_codes = {
+                "IDENTITY_": "visual_identity",
+                "WARDROBE_": "visual_wardrobe",
+                "SPACE_AXIS_": "visual_space_axis",
+                "POSE_": "visual_pose",
+                "PROP_": "visual_prop",
+            }
+            for prefix, code in domain_codes.items():
+                if any(failure.startswith(prefix) for failure in report.failures):
+                    repair_codes.append(code)
+            self._record_postproduction_repair_plan(
+                run,
+                output_seal_sha256=seal.manifest_sha256,
+                master_sha256=masters[0].sha256,
+                source_qa_sha256=manifests[0].sha256,
+                codes=repair_codes or ["visual_continuity_manifest"],
+            )
+        return report
+
+    def stored_visual_continuity_qa(self, run_id: str) -> VisualContinuityQAReport:
+        run = self.repository.get_run(run_id)
+        path = self._run_directory(run) / "visual-continuity-qa.json"
+        if not path.is_file() or path.is_symlink():
+            raise ConflictError("visual continuity QA has not been recorded for this run")
+        try:
+            report = VisualContinuityQAReport.model_validate_json(
+                path.read_text(encoding="utf-8")
+            )
+        except (OSError, ValueError) as exc:
+            raise ConflictError("visual continuity QA report is unreadable or invalid") from exc
+        body = report.model_dump(mode="json", exclude={"report_sha256"})
+        if self._canonical_sha256(body) != report.report_sha256:
+            raise ConflictError("visual continuity QA report digest mismatch")
+        if report.run_id != run.id:
+            raise ConflictError("visual continuity QA report belongs to another run")
+        return report
+
     def sealed_master_path(self, run_id: str) -> tuple[Path, RenderedOutputArtifact]:
         integrity = self.rendered_output_integrity(run_id)
         if not integrity.integrity_ok:
@@ -1076,6 +1255,11 @@ class ProductionService:
             raise ConflictError("postproduction lineage QA must pass before release packaging")
         if lineage_qa.output_seal_sha256 != integrity.seal.manifest_sha256:
             raise ConflictError("postproduction lineage QA reviewed a different output seal")
+        visual_qa = self.stored_visual_continuity_qa(run.id)
+        if visual_qa.status != "PASS":
+            raise ConflictError("visual continuity QA must pass before release packaging")
+        if visual_qa.output_seal_sha256 != integrity.seal.manifest_sha256:
+            raise ConflictError("visual continuity QA reviewed a different output seal")
 
         artifacts_by_kind: dict[str, list[RenderedOutputArtifact]] = {}
         for artifact in integrity.seal.artifacts:
@@ -1103,6 +1287,7 @@ class ProductionService:
                 and existing.decoded_media_qa_report_sha256 == decoded_qa.report_sha256
                 and existing.semantic_media_qa_report_sha256 == semantic_qa.report_sha256
                 and existing.postproduction_lineage_qa_report_sha256 == lineage_qa.report_sha256
+                and existing.visual_continuity_qa_report_sha256 == visual_qa.report_sha256
                 and existing.title == request.title
                 and existing.description == request.description
                 and existing.prepared_by == request.prepared_by
@@ -1120,6 +1305,7 @@ class ProductionService:
             "decoded_media_qa_report_sha256": decoded_qa.report_sha256,
             "semantic_media_qa_report_sha256": semantic_qa.report_sha256,
             "postproduction_lineage_qa_report_sha256": lineage_qa.report_sha256,
+            "visual_continuity_qa_report_sha256": visual_qa.report_sha256,
             "title": request.title,
             "description": request.description,
             "artifacts": [
@@ -1423,12 +1609,17 @@ class ProductionService:
                 self.stored_postproduction_lineage_qa,
                 "postproduction_lineage_qa_presence",
             ),
+            (
+                self.stored_visual_continuity_qa,
+                "visual_continuity_qa_presence",
+            ),
         )
         reports: list[
             MediaStructureQAReport
             | DecodedMediaQAReport
             | SemanticMediaQAReport
             | PostproductionLineageQAReport
+            | VisualContinuityQAReport
         ] = []
         for loader, repair_code in required_media_qa:
             try:
@@ -1441,15 +1632,16 @@ class ProductionService:
                     codes=[repair_code],
                 )
                 raise ConflictError(
-                    "production completion requires structure, decoded, semantic and "
-                    "postproduction lineage QA"
+                    "production completion requires structure, decoded, semantic, "
+                    "postproduction lineage and visual continuity QA"
                 ) from exc
-        structure_qa, decoded_qa, semantic_qa, lineage_qa = reports
+        structure_qa, decoded_qa, semantic_qa, lineage_qa, visual_qa = reports
         if (
             structure_qa.status != "PASS"
             or decoded_qa.status != "PASS"
             or semantic_qa.status != "PASS"
             or lineage_qa.status != "PASS"
+            or visual_qa.status != "PASS"
         ):
             raise ConflictError("production completion requires all automated media QA to pass")
         if (
@@ -1457,6 +1649,7 @@ class ProductionService:
             or decoded_qa.output_seal_sha256 != seal.manifest_sha256
             or semantic_qa.output_seal_sha256 != seal.manifest_sha256
             or lineage_qa.output_seal_sha256 != seal.manifest_sha256
+            or visual_qa.output_seal_sha256 != seal.manifest_sha256
         ):
             raise ConflictError("automated media QA reviewed a different output seal")
 

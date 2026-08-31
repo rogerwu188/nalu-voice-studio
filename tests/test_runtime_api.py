@@ -1356,6 +1356,26 @@ def test_dry_run_writes_immutable_package(tmp_path: Path) -> None:
         "sfx",
     }
     assert postproduction_contract["fail_closed"] is True
+    visual_output = task["required_outputs"]["visual_continuity_manifest"]
+    assert visual_output["artifact_kind"] == "visual_continuity_manifest"
+    assert visual_output["relative_path"] == "exports/E01_VISUAL_CONTINUITY.json"
+    visual_contract = json.loads(
+        (workspace / visual_output["contract_path"]).read_text(encoding="utf-8")
+    )
+    assert visual_contract["schema_version"] == "nalu.visual-continuity-output-contract/v1"
+    assert visual_contract["production_package_sha256"] == json.loads(
+        package.read_text(encoding="utf-8")
+    )["package_sha256"]
+    assert set(visual_contract["required_domains"]) == {
+        "identity",
+        "wardrobe",
+        "space_axis",
+        "pose",
+        "props",
+    }
+    assert visual_contract["evidence_frame_must_decode_from_final_master"] is True
+    assert visual_contract["human_original_resolution_review_still_required"] is True
+    assert visual_contract["fail_closed"] is True
     gate_audit = json.loads(
         (workspace / "workflow" / "qingshan-gate-registry-audit.json").read_text(encoding="utf-8")
     )
