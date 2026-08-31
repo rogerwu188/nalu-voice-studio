@@ -12,12 +12,12 @@
     "WAITING_AUTHORIZATION": 0
   },
   "observed_head": "bc1f844f877f28eece4bfc1937c2188536fa8930",
-  "last_advanced_at": "2026-08-31T21:20:00Z",
+  "last_advanced_at": "2026-08-31T21:23:57Z",
   "last_closed_checkpoint": {
     "id": "sop-11-packaged-upgrade-rollback-rehearsal",
     "sop": "SOP-11",
     "product_commit": "bc1f844f877f28eece4bfc1937c2188536fa8930",
-    "evidence_commit": "bc1f844f877f28eece4bfc1937c2188536fa8930",
+    "evidence_commit": "d60ae243bd4b4097e49ed87cec25c61b7c79c894",
     "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33439917162",
     "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33439917162/artifacts/9776013167",
     "result": "PASS"
