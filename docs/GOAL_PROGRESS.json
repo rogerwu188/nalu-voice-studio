@@ -17,7 +17,7 @@
     "id": "sop-09-full-duration-device-postproduction-soak",
     "sop": "SOP-09",
     "product_commit": "9b3e5c590bf4cf5f49719aa40428dc51cde31557",
-    "evidence_commit": "PENDING_BIND_AFTER_EVIDENCE_COMMIT",
+    "evidence_commit": "ebdecbdafa03862d020d338287bac1db25eff246",
     "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33363635917",
     "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33363635917/job/99400722978",
     "result": "PASS"
