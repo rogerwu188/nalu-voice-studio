@@ -772,11 +772,38 @@ Current evidence:
   `cd329277fa7e40235c364ce4f1988e1db4891d4ec778bd9dee801f0e9c969b18`.
   No provider, credential, paid generation, non-loopback network or publication call was
   used; the bundle remains ad-hoc signed.
-- This closes bounded-chunk Python audio execution, not SOP-09. Still required before
-  `PASS`: a full-duration device RSS/throughput soak; a real visual analyzer and the
-  on-device recognition path against an actual final master; native-window/accessibility
-  repetition after the Mac is unlocked; and original-resolution human audiovisual review
-  on the same release candidate.
+- Commit `17b242f` freezes the local visual analyzer's non-sensitive input authority.
+  Each workspace now maps consented character and prop references to confirmed stable
+  names or aliases, rebinds their managed-file SHA-256 and scope, and records the exact
+  confirmed entity revision plus expected identity, wardrobe, screen axis, pose and held
+  props. Unknown or ambiguous reference subjects, missing/invalid image digests, absent
+  character references, incomplete target fields, unconfirmed held props and missing prop
+  references make readiness `BLOCKED`. The contract is local-only, forbids provider
+  upload, requires source rehash before analysis and explicitly rejects authored
+  observations as perceptual evidence. GitHub CI run `33354670668` passed all 91 Runtime
+  tests, real HTTP smoke, OpenAPI/SOP/progress gates, both Swift suites, independent arm64
+  job `99374431315`, x86_64 job `99374431334` and universal job `99374946162`.
+- Exact universal artifact `9744795797` (GitHub artifact digest
+  `1fc99f6416d1ceb2470e6156d20e319cd31df7541225877d900a8e9179cd33b1`) had ZIP
+  SHA-256 `fd4d6ea8b5f9827441c2d91cb43d970e12e214cf727043d0795eb359b4ee1405`.
+  Its main executable SHA-256 was
+  `4cada116c85c8be0ff4c8add51c47ed960de156a5e6373b598e04944dfd834c2` and bundled
+  Runtime SHA-256 was `64aa3d43894cf63d35854c6cbf9b889f500086ef47ac846a29100d311146da07`;
+  both contained arm64 and x86_64 slices and the app's ad-hoc signature verified. The
+  reusable `scripts/qa-packaged-visual-inputs.py` harness started that exact bundled
+  Runtime on an isolated SQLite database and real loopback HTTP. Its positive project
+  bound one confirmed character, one confirmed prop and two rehashed managed references
+  to a `READY` input digest with provider upload disabled. Its negative project omitted
+  the held-prop authority and produced only `HELD_PROP_AUTHORITY_MISSING` with readiness
+  `BLOCKED`. The Runtime stopped and port 8765 closed. The evidence report file has
+  SHA-256 `7b972eb2202e588ef8be838141e81ed2bb81c6fc92fb4dbd8fb7dc1c20422d45`.
+  No provider, credential, paid generation, non-loopback network or publication call was
+  used; no perceptual recognition or human visual acceptance is claimed.
+- This closes bounded-chunk Python audio execution and visual-analyzer input authority,
+  not SOP-09. Still required before `PASS`: a full-duration device RSS/throughput soak;
+  a real local perceptual analyzer and the on-device recognition path against an actual
+  final master; native-window/accessibility repetition after the Mac is unlocked; and
+  original-resolution human audiovisual review on the same release candidate.
 
 ## SOP-10 · Controlled release and learning loop — IN_PROGRESS
 
