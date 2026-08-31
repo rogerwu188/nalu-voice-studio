@@ -750,13 +750,33 @@ Current evidence:
   No provider, credential, paid generation, non-loopback network or publication call was
   used. The bundle is still ad-hoc signed, so this is not Developer ID/notarization
   evidence.
-- This closes the production-owned local assembly/mix checkpoint, not SOP-09. The current
-  implementation keeps full decoded audio layers in memory, so long-form bounded-memory
-  execution still needs hardening before production-scale acceptance.
-- Still required before `PASS`: bounded-memory long-form postproduction; a real visual
-  analyzer and the on-device recognition path against an actual final master;
-  native-window/accessibility repetition after the Mac is unlocked; and
-  original-resolution human audiovisual review on the same release candidate.
+- Commit `3a31419` replaces whole-episode decoded arrays and the episode-length
+  floating-point mix accumulator with fixed 8,192-sample stereo generators. Source
+  trimming, normalized-segment audio, five stem writes, gain application, published-mix
+  rendering and final-master AAC input now remain chunked. A 90-second PCM fixture
+  consumes every sample while enforcing the fixed block ceiling and a Python heap peak
+  below 4 MiB. This makes Python memory independent of episode length; it does not claim
+  a full-process RSS or device-performance result for a 30-minute master. GitHub CI run
+  `33353565965` passed all 89 Runtime tests, real HTTP smoke, OpenAPI and progress audits,
+  arm64 job `99371350910`, x86_64 job `99371351101` and universal job `99371980750`.
+- The exact universal artifact `9744466324` (GitHub artifact digest
+  `8d14dae99b63d35531a6dfe85791d19dc0b06e61c3b72b86d8c8f71a2ac15c8e`) had ZIP SHA-256
+  `89106461a48380b06d740cf27519ad47f001aabbef5fac3e3df2856767372cf1`.
+  Its main executable SHA-256 was
+  `b374df73210e38a7900591a1a5abd06616eb01a98b7a729826fa9ce39d98c8ae` and bundled
+  Runtime SHA-256 was `7c4005b77de4565a8ef02cba45075fbccfac7271e01c7682bce1d1b985e88206`;
+  both were universal. The packaged-Runtime harness repeated the two-shot/five-stem
+  materialization, exact replay, changed-plan rejection, seal and decoded lineage PASS.
+  Its digest-drift case returned 409, retained `running`/`postproduction` and accepted no
+  result. The Runtime stopped and port 8765 closed. The evidence report has SHA-256
+  `cd329277fa7e40235c364ce4f1988e1db4891d4ec778bd9dee801f0e9c969b18`.
+  No provider, credential, paid generation, non-loopback network or publication call was
+  used; the bundle remains ad-hoc signed.
+- This closes bounded-chunk Python audio execution, not SOP-09. Still required before
+  `PASS`: a full-duration device RSS/throughput soak; a real visual analyzer and the
+  on-device recognition path against an actual final master; native-window/accessibility
+  repetition after the Mac is unlocked; and original-resolution human audiovisual review
+  on the same release candidate.
 
 ## SOP-10 · Controlled release and learning loop — IN_PROGRESS
 

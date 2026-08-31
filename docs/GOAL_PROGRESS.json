@@ -11,26 +11,26 @@
     "TODO": 1,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "eb69f270c6b605b3b49bcf240b0c7958998d69b5",
-  "last_advanced_at": "2026-08-31T03:13:25Z",
+  "observed_head": "3a314191f3b69549a659d82a4fca26def3e471d6",
+  "last_advanced_at": "2026-08-31T03:29:56Z",
   "last_closed_checkpoint": {
-    "id": "sop-09-runtime-owned-postproduction-materializer",
+    "id": "sop-09-bounded-memory-postproduction-audio-mixer",
     "sop": "SOP-09",
-    "product_commit": "eb69f270c6b605b3b49bcf240b0c7958998d69b5",
+    "product_commit": "3a314191f3b69549a659d82a4fca26def3e471d6",
     "evidence_commit": "280732c9f85b3c8bffe7823939674732331be673",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33352196081",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33352196081/job/99368323647",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33353565965",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33353565965/job/99371980750",
     "result": "PASS"
   },
   "current_checkpoint": {
     "sop": "SOP-09",
     "status": "IN_PROGRESS",
-    "summary": "Structural, decoded, semantic, lineage, immutable five-domain evidence and Runtime-owned local assembly/mixing are closed on universal artifacts. Bounded-memory long-form rendering, perceptual visual analysis, same-candidate native/human final-master acceptance and real media remain before SOP-09 can pass."
+    "summary": "Structural, decoded, semantic, lineage, immutable five-domain evidence, Runtime-owned local assembly/mixing and bounded-chunk Python audio execution are closed on universal artifacts. Full-duration device soak, perceptual visual analysis, same-candidate native/human final-master acceptance and real media remain before SOP-09 can pass."
   },
   "next_action": {
     "sop": "SOP-09",
-    "id": "bounded-memory-postproduction-audio-mixer",
-    "summary": "Replace whole-episode five-layer audio accumulation with a bounded-memory streaming mixer and add long-duration resource-bound tests, while preserving exact execution-derived digests, replay and fail-closed source rehashing.",
+    "id": "production-visual-analyzer-input-contract",
+    "summary": "Bind confirmed character reference images and expected wardrobe/prop/axis/pose targets into a local analyzer request, then execute a real perceptual baseline against decoded final-master frames instead of trusting authored observations.",
     "requires_user_authorization": false
   },
   "blocking_conditions": [
