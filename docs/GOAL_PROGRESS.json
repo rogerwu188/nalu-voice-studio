@@ -17,7 +17,7 @@
     "id": "sop-09-postproduction-lineage-artifact-gate",
     "sop": "SOP-09",
     "product_commit": "d285aa943f55656a221b32270d7275220a58a6b6",
-    "evidence_commit": "d285aa943f55656a221b32270d7275220a58a6b6",
+    "evidence_commit": "47e9bcfff7de5e3f2f180525f04648088fb7851b",
     "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33349286197",
     "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33349286197/job/99360207521",
     "result": "PASS"
