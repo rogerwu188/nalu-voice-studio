@@ -660,9 +660,19 @@ Current evidence:
   digest-verifies the sealed master, requires Apple on-device `zh-CN` recognition and
   never silently falls back to cloud recognition. Automated playable pass/fail fixtures
   cover semantic mismatch, corrupt transition evidence and immutable replay.
-- Still required before `PASS`: CI and packaged-native QA for the current semantic/
-  boundary checkpoint; real shot selection/normalization and mix pipeline; and actual
-  original-resolution human audiovisual review on the release candidate.
+- Commit `c3dbba1`, GitHub CI run `33345468515`: all 84 Runtime tests, OpenAPI backward
+  compatibility, SOP/progress audits and real HTTP smoke passed. The same exact commit
+  passed Swift tests and produced independently launched Apple Silicon and Intel bundles,
+  followed by a verified universal application and bundled Runtime. Packaged-artifact QA
+  on ZIP SHA-256 `8524df138c1dfaf3a9826cbe9087a45f2bc1c2126b676d3a8ce973b1b45e0153`
+  exposed “检查成片声音与转场” as a native accessibility action with the local-only and
+  human-review warning. A deliberately unsealed QA run failed before recognition and
+  visibly reported that no cloud recognition or release occurred; no microphone
+  permission, provider credential or paid call was used. The exact temporary project and
+  its one production run were then deleted with `verified_absent: true`.
+- Still required before `PASS`: real shot selection/normalization and mix pipeline; the
+  on-device recognition path against an actual final master; and original-resolution
+  human audiovisual review on the same release candidate.
 
 ## SOP-10 · Controlled release and learning loop — IN_PROGRESS
 

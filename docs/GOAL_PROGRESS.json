@@ -11,26 +11,26 @@
     "TODO": 1,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "d23c7b9d23cfa62e77fad1e387e6479e6ad95152",
-  "last_advanced_at": "2026-08-31T00:41:50Z",
+  "observed_head": "c3dbba19511a84ff57e7e223dcd35a58ada1ee38",
+  "last_advanced_at": "2026-08-31T01:09:21Z",
   "last_closed_checkpoint": {
-    "id": "sop-09-decoded-playable-media-gates",
+    "id": "sop-09-semantic-asr-shot-boundary-gates",
     "sop": "SOP-09",
-    "product_commit": "d23c7b9d23cfa62e77fad1e387e6479e6ad95152",
-    "evidence_commit": "d23c7b9d23cfa62e77fad1e387e6479e6ad95152",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33343613892",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33343613892/job/99343598246",
+    "product_commit": "c3dbba19511a84ff57e7e223dcd35a58ada1ee38",
+    "evidence_commit": "c3dbba19511a84ff57e7e223dcd35a58ada1ee38",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33345468515",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33345468515/job/99349446051",
     "result": "PASS"
   },
   "current_checkpoint": {
     "sop": "SOP-09",
     "status": "IN_PROGRESS",
-    "summary": "Semantic transcript and authored-boundary gates are implemented and locally tested; native compile, artifact QA and CI evidence remain."
+    "summary": "Semantic transcript and authored-boundary gates are closed on the universal CI artifact; real shot selection, normalization and audio-mix production evidence remains."
   },
   "next_action": {
     "sop": "SOP-09",
-    "id": "semantic-asr-shot-boundary-ci-native-qa",
-    "summary": "Compile the native on-device recognition flow in GitHub CI, inspect the packaged QA-stage action, and record immutable checkpoint evidence.",
+    "id": "shot-selection-normalization-audio-mix-contract",
+    "summary": "Implement a package-bound postproduction timeline that proves selected source shots, normalized video/audio, dialogue, ambience, foley, music and subtitle mix inputs before a master can be sealed.",
     "requires_user_authorization": false
   },
   "blocking_conditions": [

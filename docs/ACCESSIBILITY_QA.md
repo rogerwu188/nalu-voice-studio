@@ -48,3 +48,33 @@ exposes the type picker, name and description fields, disabled-until-valid draft
 plain-language authority warning and a “用语音添加” menu. The menu exposes 人物、场景、
 道具、声音 and 画面风格 as native actions. No library entry was created and no microphone
 permission was requested during this read-only pass.
+
+## 2026-08-31 · Packaged semantic-media QA action
+
+Release candidate:
+
+- product commit `c3dbba19511a84ff57e7e223dcd35a58ada1ee38`;
+- GitHub CI run `33345468515`, universal job `99349446051`;
+- downloaded universal ZIP SHA-256
+  `8524df138c1dfaf3a9826cbe9087a45f2bc1c2126b676d3a8ce973b1b45e0153`;
+- both the native application and bundled Runtime contained `arm64` and `x86_64` slices.
+
+The packaged application was launched with its own bundled Runtime. A temporary local
+project contained one approved episode and one dry-run production record placed in the
+`qa_review` presentation state. Its native accessibility tree exposed:
+
+- “第 1 集，正在质量检查，进度百分之 90。Nalu 正在工作，没有停”;
+- the secondary action “检查成片声音与转场”;
+- the help text “下载当前封存成片，在本机核对中文台词、字幕和镜头切点”;
+- visible button copy “只在这台 Mac 上识别；通过后仍需您观看确认”.
+
+Activating the action against the deliberately unsealed run failed before speech
+recognition and displayed: “成片自动检查没有完成：无法取得当前封存成片或其校验摘要。
+没有改用云端识别，也没有进入发行。” No microphone permission, provider credential,
+network speech service or paid production was used or approved. This verifies the
+packaged fail-closed presentation path, not acoustic recognition quality or human final-
+master acceptance.
+
+The only QA-created project, `prj_e0baa5d807fb4bf4aac0b8253932d2dc`, had zero assets
+and one dry-run production record. After an exact deletion preview, the Runtime removed
+the run and returned `verified_absent: true`; a subsequent project read returned 404.
