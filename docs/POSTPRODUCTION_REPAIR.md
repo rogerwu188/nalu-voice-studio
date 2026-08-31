@@ -172,6 +172,17 @@ one local analyzer identity, version and model digest, retain all five required 
 (`identity`, `wardrobe`, `space_axis`, `pose` and `props`), and attach every observation
 to a decoded evidence-frame SHA from the authored shot interval.
 
+The workspace also emits immutable `nalu.visual-analyzer-inputs/v1` before production.
+It resolves each consented local character photo or prop reference to one confirmed
+library entity by its stable name or confirmed alias, and binds the asset ID, managed
+local URI, content digest, consent scope and entity revision. Character rows carry the
+confirmed identity, wardrobe, space/axis, pose and held-prop targets. Missing characters,
+references, digests or explicit targets leave the contract `BLOCKED`; they are never
+filled with guessed defaults. The contract is local-only, forbids provider upload and
+requires both asset rehashing and final-master frame digests. Consent statements are not
+copied into the analysis workspace. `READY` means only that inputs are complete enough
+for a local analyzer; it is not evidence that perceptual analysis ran or passed.
+
 `POST /v1/production-runs/{run_id}/visual-continuity-qa` does not trust the manifest's
 PASS flags. It reopens the exact sealed master with PyAV/FFmpeg, decodes the cited frame,
 recomputes its grayscale pixel SHA-256 and then calculates every observation's result

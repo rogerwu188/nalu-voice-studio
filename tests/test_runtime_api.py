@@ -1378,9 +1378,10 @@ def test_dry_run_writes_immutable_package(tmp_path: Path) -> None:
         (workspace / visual_output["contract_path"]).read_text(encoding="utf-8")
     )
     assert visual_contract["schema_version"] == "nalu.visual-continuity-output-contract/v1"
-    assert visual_contract["production_package_sha256"] == json.loads(
-        package.read_text(encoding="utf-8")
-    )["package_sha256"]
+    assert (
+        visual_contract["production_package_sha256"]
+        == json.loads(package.read_text(encoding="utf-8"))["package_sha256"]
+    )
     assert set(visual_contract["required_domains"]) == {
         "identity",
         "wardrobe",
@@ -1389,6 +1390,19 @@ def test_dry_run_writes_immutable_package(tmp_path: Path) -> None:
         "props",
     }
     assert visual_contract["evidence_frame_must_decode_from_final_master"] is True
+    local_visual = task["local_visual_analysis"]
+    assert local_visual["inputs_schema_version"] == "nalu.visual-analyzer-inputs/v1"
+    assert local_visual["readiness"] == "BLOCKED"
+    assert local_visual["provider_upload_allowed"] is False
+    visual_inputs = json.loads(
+        (workspace / local_visual["inputs_path"]).read_text(encoding="utf-8")
+    )
+    assert visual_inputs["inputs_sha256"] == local_visual["inputs_sha256"]
+    assert visual_inputs["readiness"] == "BLOCKED"
+    assert visual_inputs["unresolved"] == [{"code": "CONFIRMED_CHARACTER_MISSING"}]
+    assert visual_contract["analyzer_inputs_sha256"] == visual_inputs["inputs_sha256"]
+    assert visual_contract["analyzer_inputs_readiness"] == "BLOCKED"
+    assert visual_contract["authored_observations_are_not_perceptual_evidence"] is True
     assert visual_contract["human_original_resolution_review_still_required"] is True
     assert visual_contract["fail_closed"] is True
     gate_audit = json.loads(
@@ -1406,6 +1420,157 @@ def test_dry_run_writes_immutable_package(tmp_path: Path) -> None:
         package.with_name("qingshan-preflight-report.json").read_text(encoding="utf-8")
     )
     assert preflight["gate_registry_status"] == ("QUARANTINED_KNOWN_UPSTREAM_DEFECT")
+
+
+def test_visual_analyzer_inputs_bind_confirmed_character_reference(tmp_path: Path) -> None:
+    api = client(tmp_path)
+    project, _, episode = create_approved_episode(api)
+    character = api.post(
+        f"/v1/projects/{project['id']}/library-entities",
+        json={
+            "kind": "character",
+            "name": "林叔",
+            "description": "穿蓝色外套回家",
+            "attributes": {
+                "aliases": ["照片里的人"],
+                "wardrobe": ["蓝色外套"],
+                "space_axis": "screen-left",
+                "pose": "standing",
+                "held_props": [],
+            },
+            "source_channel": "voice",
+            "change_summary": "确认本地视觉分析目标",
+        },
+    ).json()
+    assert (
+        api.post(
+            f"/v1/library-entities/{character['id']}/confirmations",
+            json={
+                "confirmed_by": "本人",
+                "reviewed_revision": 1,
+                "review_channel": "voice_and_visual",
+                "spoken_confirmation": "我确认这是林叔",
+            },
+        ).status_code
+        == 201
+    )
+    portrait_bytes = b"local-reference-image-fixture"
+    portrait = api.post(
+        f"/v1/projects/{project['id']}/asset-imports",
+        params={
+            "filename": "lin-shu.jpg",
+            "kind": "character_image",
+            "name": "林叔参考照",
+            "subject_name": "照片里的人",
+            "consent_granted": True,
+            "consent_scope": "project_only",
+            "consent_granted_by": "本人",
+            "consent_statement": "我同意仅在本项目本地分析",
+        },
+        content=portrait_bytes,
+        headers={"Content-Type": "image/jpeg"},
+    ).json()
+
+    run = api.post(f"/v1/episodes/{episode['id']}/production-runs", json={"dry_run": True}).json()
+    workspace = Path(run["package_path"]).parent / "qingshan-workspace"
+    task = json.loads(
+        (workspace / "workflow/tasks/E01_PRODUCTION_TASK.json").read_text(encoding="utf-8")
+    )
+    local_visual = task["local_visual_analysis"]
+    visual_inputs = json.loads(
+        (workspace / local_visual["inputs_path"]).read_text(encoding="utf-8")
+    )
+
+    assert local_visual["readiness"] == "READY"
+    assert visual_inputs["readiness"] == "READY"
+    assert visual_inputs["unresolved"] == []
+    assert visual_inputs["provider_upload_allowed"] is False
+    assert visual_inputs["asset_digest_recheck_required"] is True
+    subject = visual_inputs["subjects"][0]
+    assert subject["entity_id"] == character["id"]
+    assert subject["confirmed_revision"] == 1
+    assert subject["expected"] == {
+        "identity": "林叔",
+        "wardrobe": ["蓝色外套"],
+        "space_axis": "screen-left",
+        "pose": "standing",
+        "props": [],
+    }
+    assert subject["references"][0]["asset_id"] == portrait["id"]
+    assert subject["references"][0]["sha256"] == hashlib.sha256(portrait_bytes).hexdigest()
+    assert "consent_statement" not in subject["references"][0]
+    assert local_visual["inputs_sha256"] == visual_inputs["inputs_sha256"]
+
+
+def test_visual_analyzer_inputs_block_unconfirmed_held_prop_authority(tmp_path: Path) -> None:
+    api = client(tmp_path)
+    project, _, episode = create_approved_episode(api)
+    character = api.post(
+        f"/v1/projects/{project['id']}/library-entities",
+        json={
+            "kind": "character",
+            "name": "林叔",
+            "description": "穿蓝色外套，手提旧皮箱回家",
+            "attributes": {
+                "wardrobe": ["蓝色外套"],
+                "space_axis": "screen-left",
+                "pose": "standing",
+                "held_props": ["旧皮箱"],
+            },
+            "source_channel": "voice",
+            "change_summary": "确认人物和手持道具目标",
+        },
+    ).json()
+    assert (
+        api.post(
+            f"/v1/library-entities/{character['id']}/confirmations",
+            json={
+                "confirmed_by": "本人",
+                "reviewed_revision": 1,
+                "review_channel": "voice_and_visual",
+                "spoken_confirmation": "我确认这是林叔",
+            },
+        ).status_code
+        == 201
+    )
+    portrait_bytes = b"local-reference-image-fixture"
+    api.post(
+        f"/v1/projects/{project['id']}/asset-imports",
+        params={
+            "filename": "lin-shu.jpg",
+            "kind": "character_image",
+            "name": "林叔参考照",
+            "subject_name": "林叔",
+            "consent_granted": True,
+            "consent_scope": "project_only",
+            "consent_granted_by": "本人",
+            "consent_statement": "我同意仅在本项目本地分析",
+        },
+        content=portrait_bytes,
+        headers={"Content-Type": "image/jpeg"},
+    ).raise_for_status()
+
+    run = api.post(f"/v1/episodes/{episode['id']}/production-runs", json={"dry_run": True}).json()
+    workspace = Path(run["package_path"]).parent / "qingshan-workspace"
+    task = json.loads(
+        (workspace / "workflow/tasks/E01_PRODUCTION_TASK.json").read_text(encoding="utf-8")
+    )
+    local_visual = task["local_visual_analysis"]
+    visual_inputs = json.loads(
+        (workspace / local_visual["inputs_path"]).read_text(encoding="utf-8")
+    )
+
+    assert local_visual["readiness"] == "BLOCKED"
+    assert visual_inputs["readiness"] == "BLOCKED"
+    assert visual_inputs["unresolved"] == [
+        {
+            "code": "HELD_PROP_AUTHORITY_MISSING",
+            "entity_id": character["id"],
+            "held_prop": "旧皮箱",
+        }
+    ]
+    assert visual_inputs["subjects"][0]["expected"]["props"] == ["旧皮箱"]
+    assert visual_inputs["prop_references"] == []
 
 
 def test_qingshan_models_use_distinct_versioned_compilers(tmp_path: Path) -> None:
