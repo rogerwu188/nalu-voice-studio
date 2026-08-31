@@ -78,3 +78,37 @@ master acceptance.
 The only QA-created project, `prj_e0baa5d807fb4bf4aac0b8253932d2dc`, had zero assets
 and one dry-run production record. After an exact deletion preview, the Runtime removed
 the run and returned `verified_absent: true`; a subsequent project read returned 404.
+
+## 2026-08-31 · Universal Runtime cold-start and quit lifecycle
+
+Release candidate:
+
+- product commit `d285aa943f55656a221b32270d7275220a58a6b6`;
+- GitHub CI run `33349286197`, universal job `99360207521`;
+- universal artifact `9743140010`, ZIP SHA-256
+  `55f933f188234aff8c051c1a10104c307225134440e203d52f652025ddd1a08f`;
+- both the native application and bundled Runtime contained `arm64` and `x86_64` slices.
+
+The preceding `a99dcfc` artifact was deliberately treated as a regression candidate, not
+accepted evidence. Its visible state remained “本地制片厂正在启动 → 请稍等” beyond the
+old 30-second deadline and then became online at about 70 seconds, proving that a longer
+finite startup window was necessary. Cmd-Q then closed the native UI but left both the
+PyInstaller Runtime parent and child listening on port 8765. The cause was a termination
+notification that enqueued a main-actor Task after the application event loop had ended.
+The QA-owned orphan was terminated explicitly; SIGTERM removed both processes and the
+listener.
+
+The `d285aa9` artifact replaced that deferred cleanup with a synchronous main-thread
+termination signal and added a regression test requiring the callback to run before
+notification delivery returns. In a fresh native launch, the accessibility tree changed
+from “系统状态：本地制片厂正在启动 → 请稍等” to “本地制片厂在线 → 可以创作”
+at about 35 seconds, under the bounded 180-second policy. Process inspection confirmed
+that the Runtime belonged to the launched application, `/health` returned `status: ok`,
+schema version 14, and the bundled OpenAPI contained the postproduction-lineage QA route.
+After Cmd-Q, the native app list was empty in about 2.8 seconds; the exact app, Runtime
+parent and Runtime child PIDs, port 8765 listener and `/health` endpoint were all absent.
+
+This pass only read existing local project state. It did not click Realtime, request
+microphone or speech-recognition permission, enter credentials, start paid production,
+modify a project or publish anything. It verifies visible startup/liveness and owned-
+process cleanup, not human VoiceOver, clean-account installation or notarization.

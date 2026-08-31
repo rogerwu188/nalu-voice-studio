@@ -11,26 +11,26 @@
     "TODO": 1,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "b81bd6e43f3e43aae6478a6858a9cf097cfdf811",
-  "last_advanced_at": "2026-08-31T01:25:39Z",
+  "observed_head": "d285aa943f55656a221b32270d7275220a58a6b6",
+  "last_advanced_at": "2026-08-31T02:12:17Z",
   "last_closed_checkpoint": {
-    "id": "sop-09-semantic-asr-shot-boundary-gates",
+    "id": "sop-09-postproduction-lineage-artifact-gate",
     "sop": "SOP-09",
-    "product_commit": "c3dbba19511a84ff57e7e223dcd35a58ada1ee38",
-    "evidence_commit": "c3dbba19511a84ff57e7e223dcd35a58ada1ee38",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33345468515",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33345468515/job/99349446051",
+    "product_commit": "d285aa943f55656a221b32270d7275220a58a6b6",
+    "evidence_commit": "d285aa943f55656a221b32270d7275220a58a6b6",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33349286197",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33349286197/job/99360207521",
     "result": "PASS"
   },
   "current_checkpoint": {
     "sop": "SOP-09",
     "status": "IN_PROGRESS",
-    "summary": "Shot selection, decoded normalization, five-layer stem accounting, published-mix/master binding and subtitle lineage are implemented with local tests; CI and packaged macOS Runtime QA remain before checkpoint closure."
+    "summary": "Automated shot selection, decoded normalization, five-layer stem accounting, published-mix/master binding and subtitle lineage are closed on a universal artifact; production-bound identity, wardrobe, space/axis, pose and prop evidence remain before SOP-09 can pass."
   },
   "next_action": {
     "sop": "SOP-09",
-    "id": "shot-selection-normalization-audio-mix-artifact-qa",
-    "summary": "Verify commit b81bd6e in GitHub CI, download the same universal artifact, run the bundled Runtime against real decoded pass/fail lineage fixtures, and record the evidence without claiming human audiovisual acceptance.",
+    "id": "production-bound-visual-continuity-gate",
+    "summary": "Add an immutable same-seal QA contract for production-bound identity, wardrobe, space/axis, pose and prop evidence, with specific repair tasks and decoded pass/fail fixtures; do not infer human audiovisual acceptance.",
     "requires_user_authorization": false
   },
   "blocking_conditions": [

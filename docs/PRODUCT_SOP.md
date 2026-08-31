@@ -670,8 +670,8 @@ Current evidence:
   visibly reported that no cloud recognition or release occurred; no microphone
   permission, provider credential or paid call was used. The exact temporary project and
   its one production run were then deleted with `verified_absent: true`.
-- Commit `b81bd6e` implements the next postproduction checkpoint without claiming it is
-  closed yet. Every production workspace now declares an immutable, package-bound
+- Commit `b81bd6e` implements the next postproduction checkpoint. Every production
+  workspace now declares an immutable, package-bound
   `postproduction_manifest`. The local Runtime decodes the selected source and normalized
   segments, rejects unadmitted shots, unsafe paths, digest drift, non-contiguous edits,
   non-zero timestamps and mismatched frame/audio formats. It requires explicit dialogue,
@@ -682,8 +682,17 @@ Current evidence:
   subtitle repair tasks. Completion and offline release packaging now require the same-
   seal lineage report to PASS. Five real decoded WAV stems, source/normalized MP4 copies,
   published-mix/master binding and an unadmitted-shot negative fixture are covered by the
-  85-test local suite. GitHub CI and packaged-artifact QA are still required before this
-  checkpoint can be recorded as closed.
+  85-test suite. GitHub CI run `33347500981` passed Runtime, OpenAPI, Swift, independent
+  Apple Silicon and Intel application builds, both bundled smokes and the universal merge.
+  Packaged-Runtime QA used universal artifact `9742534531`, ZIP SHA-256
+  `7d5769acc5e3b6a7aaa8ec7cdebd02e76305d00afa3329af9150dc6d84c15d9d`, and
+  decoded the complete source/normalized/stem/mix/caption pass fixture through the
+  bundled executable. It emitted `nalu.postproduction-lineage-output-contract/v1` with
+  all five required audio layers and exact published-mix/subtitle binding. The unsealed
+  negative run returned HTTP 409 instead of manufacturing lineage evidence. No provider,
+  credential, paid generation or publication was used. The unchanged Runtime suite was
+  revalidated in release-candidate CI run `33349286197` after the native supervisor
+  lifecycle repairs. This closes the automated lineage checkpoint, not SOP-09.
 - Still required before `PASS`: real shot selection/normalization and mix pipeline; the
   on-device recognition path against an actual final master; and original-resolution
   human audiovisual review on the same release candidate.
@@ -794,6 +803,19 @@ Current evidence:
   `e541a44970d54496562dff950dfb2d201967ab6bc404eecbaf4b068f79b16182`.
   Signing/notarization was explicitly false, so this is release-workflow evidence but not
   Developer ID or Apple notarization evidence.
+- Commits `a99dcfc` and `d285aa9`, GitHub CI runs `33348618762` and `33349286197`:
+  the native supervisor now allows a finite 180-second cold universal-Runtime startup
+  window and synchronously terminates its owned Runtime when macOS quits the application.
+  Both CI runs passed Runtime tests, arm64 and x86_64 Swift tests/build/smoke, universal
+  merge verification and artifact upload. Native QA first reproduced the old 30-second
+  false-negative and then found that the first timeout repair orphaned the PyInstaller
+  parent/child after Cmd-Q. The final universal artifact `9743140010`, ZIP SHA-256
+  `55f933f188234aff8c051c1a10104c307225134440e203d52f652025ddd1a08f`, reached
+  the visible “本地制片厂在线 → 可以创作” state in about 35 seconds. Its Runtime was
+  the application's child, returned schema v14 health and exposed the postproduction
+  lineage route. After Cmd-Q the app, Runtime parent, Runtime child, port 8765 and health
+  endpoint were all absent within the observation window. This is ad-hoc-signed native
+  lifecycle evidence, not clean-install, Developer ID or notarization acceptance.
 - Still required before `PASS`: Developer ID signing, hardened runtime, notarized
   universal release evidence, update channel and clean-Mac upgrade/rollback QA with
   populated multi-episode data. The green universal build is still ad-hoc signed.
