@@ -11,8 +11,8 @@
     "TODO": 1,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "c3dbba19511a84ff57e7e223dcd35a58ada1ee38",
-  "last_advanced_at": "2026-08-31T01:09:21Z",
+  "observed_head": "b81bd6e43f3e43aae6478a6858a9cf097cfdf811",
+  "last_advanced_at": "2026-08-31T01:25:39Z",
   "last_closed_checkpoint": {
     "id": "sop-09-semantic-asr-shot-boundary-gates",
     "sop": "SOP-09",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-09",
     "status": "IN_PROGRESS",
-    "summary": "Semantic transcript and authored-boundary gates are closed on the universal CI artifact; real shot selection, normalization and audio-mix production evidence remains."
+    "summary": "Shot selection, decoded normalization, five-layer stem accounting, published-mix/master binding and subtitle lineage are implemented with local tests; CI and packaged macOS Runtime QA remain before checkpoint closure."
   },
   "next_action": {
     "sop": "SOP-09",
-    "id": "shot-selection-normalization-audio-mix-contract",
-    "summary": "Implement a package-bound postproduction timeline that proves selected source shots, normalized video/audio, dialogue, ambience, foley, music and subtitle mix inputs before a master can be sealed.",
+    "id": "shot-selection-normalization-audio-mix-artifact-qa",
+    "summary": "Verify commit b81bd6e in GitHub CI, download the same universal artifact, run the bundled Runtime against real decoded pass/fail lineage fixtures, and record the evidence without claiming human audiovisual acceptance.",
     "requires_user_authorization": false
   },
   "blocking_conditions": [

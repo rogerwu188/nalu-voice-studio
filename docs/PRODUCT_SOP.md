@@ -670,6 +670,20 @@ Current evidence:
   visibly reported that no cloud recognition or release occurred; no microphone
   permission, provider credential or paid call was used. The exact temporary project and
   its one production run were then deleted with `verified_absent: true`.
+- Commit `b81bd6e` implements the next postproduction checkpoint without claiming it is
+  closed yet. Every production workspace now declares an immutable, package-bound
+  `postproduction_manifest`. The local Runtime decodes the selected source and normalized
+  segments, rejects unadmitted shots, unsafe paths, digest drift, non-contiguous edits,
+  non-zero timestamps and mismatched frame/audio formats. It requires explicit dialogue,
+  ambience, foley, music and SFX dispositions, verifies included 48 kHz stereo stems and
+  their cue provenance, fingerprints the published mix, compares its decoded energy to
+  the sealed master's audio, and binds the exact WebVTT captions and source contract.
+  Failures create specific release-blocking shot-selection, normalization, stem, mix or
+  subtitle repair tasks. Completion and offline release packaging now require the same-
+  seal lineage report to PASS. Five real decoded WAV stems, source/normalized MP4 copies,
+  published-mix/master binding and an unadmitted-shot negative fixture are covered by the
+  85-test local suite. GitHub CI and packaged-artifact QA are still required before this
+  checkpoint can be recorded as closed.
 - Still required before `PASS`: real shot selection/normalization and mix pipeline; the
   on-device recognition path against an actual final master; and original-resolution
   human audiovisual review on the same release candidate.

@@ -93,3 +93,31 @@ required by both production completion and offline release packaging.
 This is automated release-blocking evidence only. It does not claim lip-sync quality,
 editorial taste, identity continuity or completion of the required original-resolution
 human audiovisual review.
+
+## Selected-shot, normalization, stem and published-mix lineage gate
+
+The Qingshan task also declares an episode-specific
+`nalu.postproduction-lineage-output-contract/v1`. Its resulting sealed manifest binds the
+immutable production package, final master and captions. Each selected shot must carry
+an `ADMITTED_FOR_ASSEMBLY` decision, provider task and receipt digest, original source
+file digest, normalized segment digest and contiguous source/final timeline coordinates.
+
+`POST /v1/production-runs/{run_id}/postproduction-lineage-qa` resolves files only inside
+the run's export directory and rejects symlinks or path traversal. It decodes each
+normalized segment instead of trusting declared metadata, checking target dimensions,
+frame rate, `yuv420p`, zero-based picture/audio timestamps, 48 kHz stereo audio and
+duration. Dialogue, ambience, foley, music and SFX must each be explicitly included or
+creatively omitted; dialogue cannot be omitted, included stems must be non-silent decoded
+48 kHz stereo files, and every included stem must bind one or more cue digests.
+
+The published mix is decoded, fingerprinted and checked for clipping, duration and 48 kHz
+stereo format. Its decoded energy envelope must match the exact sealed master's audio at
+or above the fixed threshold. The subtitle record must resolve to the exact sealed WebVTT
+file and bind its source contract. The immutable result is required by completion and
+offline release packaging on the same output seal. Failures produce specific
+`shot_selection`, `media_normalization`, `audio_stems`, `published_mix` or
+`subtitle_lineage` repair tasks and do not advance the run.
+
+This gate proves artifact selection and technical lineage. It does not prove that the
+creative mix is tasteful, that dialogue is intelligible in a noisy room, or that picture,
+identity and continuity are acceptable to a human reviewer.
