@@ -50,7 +50,7 @@ swiftc -parse-as-library \
   -framework WebKit \
   -o "$binary_path"
 
-swiftc \
+swiftc -parse-as-library \
   "$app_root/Sources/NaluVisualAnalyzer/main.swift" \
   -framework Vision \
   -framework CoreImage \
