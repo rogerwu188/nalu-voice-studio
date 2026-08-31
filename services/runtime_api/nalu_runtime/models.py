@@ -328,9 +328,7 @@ class FeedbackReviewBundleCreate(BaseModel):
 
 
 class FeedbackReviewBundle(BaseModel):
-    schema_version: Literal["nalu.feedback-review-bundle/v1"] = (
-        "nalu.feedback-review-bundle/v1"
-    )
+    schema_version: Literal["nalu.feedback-review-bundle/v1"] = "nalu.feedback-review-bundle/v1"
     feedback_id: str
     project_id: str | None
     category: FeedbackCategory
@@ -681,9 +679,9 @@ class ContinuityPreflightResult(BaseModel):
     inherited_snapshot_id: str | None = None
     can_proceed: bool
     conflicts: list[ContinuityConflict] = Field(default_factory=list)
-    hook_review_status: Literal[
-        "not_required", "missing", "stale", "incomplete", "accepted"
-    ] = "not_required"
+    hook_review_status: Literal["not_required", "missing", "stale", "incomplete", "accepted"] = (
+        "not_required"
+    )
     hook_resolutions: list[ContinuityHookResolution] = Field(default_factory=list)
     explanation: str
 
@@ -724,9 +722,7 @@ class ContinuityExtractionEvidence(BaseModel):
 
 
 class ContinuityExtractionProposal(BaseModel):
-    schema_version: Literal["nalu.continuity-extraction/v1"] = (
-        "nalu.continuity-extraction/v1"
-    )
+    schema_version: Literal["nalu.continuity-extraction/v1"] = "nalu.continuity-extraction/v1"
     episode_id: str
     script_revision: int
     proposal_sha256: str
@@ -755,9 +751,7 @@ class ContinuityExtractionConfirmation(BaseModel):
 
     @model_validator(mode="after")
     def require_explicit_review_and_content(self) -> ContinuityExtractionConfirmation:
-        if not any(
-            phrase in self.spoken_confirmation for phrase in ("我确认", "我同意")
-        ):
+        if not any(phrase in self.spoken_confirmation for phrase in ("我确认", "我同意")):
             raise ValueError("continuity extraction requires explicit confirmation language")
         snapshot = ContinuitySnapshotCreate(
             state=self.reviewed_state,
@@ -990,9 +984,7 @@ class RenderedOutputArtifact(RenderedOutputCandidate):
 
 
 class RenderedOutputSeal(BaseModel):
-    schema_version: Literal["nalu.rendered-output-seal/v1"] = (
-        "nalu.rendered-output-seal/v1"
-    )
+    schema_version: Literal["nalu.rendered-output-seal/v1"] = "nalu.rendered-output-seal/v1"
     run_id: str
     project_id: str
     episode_id: str
@@ -1078,6 +1070,21 @@ class MediaStructureQAReport(BaseModel):
     report_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
 
 
+class DecodedMediaQAReport(BaseModel):
+    schema_version: Literal["nalu.decoded-media-qa/v1"] = "nalu.decoded-media-qa/v1"
+    run_id: str
+    output_seal_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    master_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    captions_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    video: dict[str, Any]
+    audio: dict[str, Any]
+    caption_speech_alignment: dict[str, Any]
+    status: Literal["PASS", "FAIL"]
+    failures: list[str] = Field(default_factory=list)
+    created_at: str
+    report_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+
+
 class ReleasePackageCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -1093,6 +1100,7 @@ class ReleasePackage(BaseModel):
     episode_id: str
     output_seal_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     media_qa_report_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    decoded_media_qa_report_sha256: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
     title: str
     description: str
     artifacts: list[RenderedOutputArtifact]
@@ -1133,9 +1141,7 @@ class PlatformPublicationApproval(BaseModel):
 
 
 class PublicationDryRun(BaseModel):
-    schema_version: Literal["nalu.publication-dry-run/v1"] = (
-        "nalu.publication-dry-run/v1"
-    )
+    schema_version: Literal["nalu.publication-dry-run/v1"] = "nalu.publication-dry-run/v1"
     id: str
     run_id: str
     project_id: str

@@ -637,10 +637,20 @@ Current evidence:
 - Commit `5177fa5`, GitHub CI run `33299757668`: all 66 Runtime tests, OpenAPI
   compatibility, real HTTP smoke, Swift tests, full app build, bundled-Runtime smoke,
   ZIP and artifact upload passed for MP4/container and caption-timeline structural QA.
+- The current checkpoint decodes the exact sealed MP4 with PyAV/FFmpeg and measures every
+  picture frame plus normalized 16 kHz mono audio. It fails closed on undecodable or
+  missing streams, unstable dimensions/timestamps, excessive repeated or black frames,
+  insufficient voice activity, long silence, clipping and WebVTT cues that do not
+  overlap voiced intervals. Playable AAC/MP4 pass fixtures and frozen-picture/silent-
+  audio failure fixtures prove the release-blocking report, exact-seal binding,
+  idempotent replay and specific repair tasks. Production completion and offline release
+  packaging now require both structural and decoded reports to PASS.
+- This implementation intentionally records `semantic_asr_verified: false`: VAD and cue
+  overlap are not transcript correctness, lip sync, shot-aware adjacent-shot continuity
+  or human review.
 - Still required before `PASS`: real shot selection/normalization and mix pipeline,
-  ASR/VAD, decoded frame-repeat and adjacent-shot media-boundary gates, playable golden
-  media fixtures and actual original-resolution human audiovisual review on the release
-  candidate.
+  semantic ASR/transcript comparison, shot-aware adjacent-shot media-boundary evidence,
+  and actual original-resolution human audiovisual review on the release candidate.
 
 ## SOP-10 · Controlled release and learning loop — IN_PROGRESS
 
@@ -659,7 +669,8 @@ QA:
 
 Current evidence:
 
-- Completed runs with an intact output seal and matching PASS media-structure report can
+- Completed runs with an intact output seal and matching PASS structure and decoded-media
+  reports can
   create an immutable offline release package containing title, description, cover,
   captions, master and all sealed hashes. Exactly one cover/master/captions file is
   required; changed metadata cannot replace an existing package.

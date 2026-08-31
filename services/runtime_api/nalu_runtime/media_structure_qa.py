@@ -158,3 +158,24 @@ def inspect_webvtt(path: Path, *, media_duration_seconds: float | None) -> dict[
         "last_cue_seconds": cues[-1][1] if cues else None,
         "failures": sorted(set(failures)),
     }
+
+
+def webvtt_cues(path: Path) -> list[tuple[float, float]]:
+    """Return valid cue intervals for decoded-media alignment checks."""
+    try:
+        lines = path.read_text(encoding="utf-8-sig").splitlines()
+    except (OSError, UnicodeError):
+        return []
+    cues: list[tuple[float, float]] = []
+    for line in lines[1:]:
+        if "-->" not in line:
+            continue
+        left, right_with_settings = line.split("-->", 1)
+        right = right_with_settings.strip().split()[0] if right_with_settings.strip() else ""
+        try:
+            start, end = _seconds(left), _seconds(right)
+        except MediaStructureError:
+            continue
+        if end > start:
+            cues.append((start, end))
+    return cues

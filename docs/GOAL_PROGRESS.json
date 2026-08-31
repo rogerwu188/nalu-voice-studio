@@ -12,7 +12,7 @@
     "WAITING_AUTHORIZATION": 0
   },
   "observed_head": "8be5bdb47f4b34e5287858b068cd524641352253",
-  "last_advanced_at": "2026-08-30T23:51:00Z",
+  "last_advanced_at": "2026-08-31T00:03:03Z",
   "last_closed_checkpoint": {
     "id": "sop-06-current-universal-native-e2e",
     "sop": "SOP-06",
@@ -25,13 +25,13 @@
   },
   "current_checkpoint": {
     "sop": "SOP-09",
-    "status": "READY",
-    "summary": "Implement decoded playable golden-media QA gates before human audiovisual acceptance."
+    "status": "IN_PROGRESS",
+    "summary": "Decoded playable-media gates pass locally; awaiting pushed macOS CI evidence."
   },
   "next_action": {
     "sop": "SOP-09",
-    "id": "decoded-golden-media-gates",
-    "summary": "Add deterministic decoded frame-repeat, adjacent-shot boundary, ASR/VAD and media normalization fixtures without claiming human review.",
+    "id": "decoded-golden-media-ci",
+    "summary": "Commit and push decoded video, audio/VAD and caption-alignment gates; require both macOS architecture builds and packaged-Runtime smoke to pass.",
     "requires_user_authorization": false
   },
   "blocking_conditions": [

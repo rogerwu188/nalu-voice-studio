@@ -6,10 +6,12 @@ import os
 from pathlib import Path
 
 from .continuity import audit_continuity
+from .decoded_media_qa import inspect_decoded_media
 from .media_structure_qa import inspect_mp4, inspect_webvtt
 from .models import (
     AudienceMode,
     ContinuityPreflightRequest,
+    DecodedMediaQAReport,
     EpisodeProductionProgress,
     EpisodeStatus,
     EpisodeTransitionRequest,
@@ -50,7 +52,12 @@ EPISODE_PROGRESS = {
     EpisodeStatus.SCRIPT_APPROVED: ("ready", 20, "可以进入制作", "本集剧本已确认。"),
     EpisodeStatus.PREPRODUCTION: ("preproduction", 30, "正在准备制作", "素材和生产包正在预检。"),
     EpisodeStatus.GENERATING: ("generation", 60, "正在生成镜头", "专业生产线正在生成本集。"),
-    EpisodeStatus.POSTPRODUCTION: ("postproduction", 80, "正在后期制作", "画面、声音和字幕正在合成。"),
+    EpisodeStatus.POSTPRODUCTION: (
+        "postproduction",
+        80,
+        "正在后期制作",
+        "画面、声音和字幕正在合成。",
+    ),
     EpisodeStatus.QA_REVIEW: ("qa", 90, "正在质量检查", "本集正在通过发布前检查。"),
     EpisodeStatus.READY_TO_PUBLISH: ("ready_to_publish", 100, "成片待发行", "本集成片已经准备好。"),
     EpisodeStatus.PUBLISHED: ("published", 100, "已经发行", "本集已经完成发行。"),
@@ -120,6 +127,31 @@ QA_REPAIR_CATALOG = {
         "The WebVTT format, cue order or master-duration boundary failed QA.",
         "Correct caption format and timestamps against the normalized master, then reseal.",
     ),
+    "decoded_media_qa_presence": (
+        "decoded media QA",
+        "No immutable decoded-media QA report is bound to this output seal.",
+        "Decode the sealed master, run picture/audio/caption alignment gates and record the report.",
+    ),
+    "decoded_video": (
+        "decoded picture track",
+        "The picture track could not be decoded or failed frame/timeline normalization.",
+        "Repair or normalize the picture track, create a new seal and rerun decoded-media QA.",
+    ),
+    "frame_repeat": (
+        "decoded picture track",
+        "The decoded master contains an excessive identical-frame or black-frame run.",
+        "Repair frozen or black shots, create a new master and rerun decoded-media QA.",
+    ),
+    "audio_vad": (
+        "decoded audio track",
+        "The audio track could not be decoded or has insufficient voice activity or excessive silence/clipping.",
+        "Repair and normalize the final mix, then rerun decoded-media QA.",
+    ),
+    "caption_speech_alignment": (
+        "captions and dialogue",
+        "Too many caption cues do not overlap a decoded voiced-audio interval.",
+        "Retimestamp captions or repair dialogue audio, then rerun decoded-media QA.",
+    ),
     "original_resolution_reviewed": (
         "master video",
         "Original-resolution human review was not completed.",
@@ -182,9 +214,7 @@ class ProductionService:
 
     @staticmethod
     def _canonical_sha256(value: dict | list) -> str:
-        encoded = json.dumps(
-            value, ensure_ascii=False, sort_keys=True, separators=(",", ":")
-        )
+        encoded = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
         return hashlib.sha256(encoded.encode()).hexdigest()
 
     def _run_directory(self, run: ProductionRun) -> Path:
@@ -248,9 +278,7 @@ class ProductionService:
             "project_id": run.project_id,
             "episode_id": run.episode_id,
             "production_package_sha256": package_hash,
-            "resolved_library_sha256": self._canonical_sha256(
-                package.get("resolved_library", [])
-            ),
+            "resolved_library_sha256": self._canonical_sha256(package.get("resolved_library", [])),
             "workspace_manifest_sha256": self._sha256_file(workspace_manifest),
             "artifacts": [artifact.model_dump(mode="json") for artifact in artifacts],
             "sealed_by": request.sealed_by,
@@ -294,9 +322,7 @@ class ProductionService:
         if not seal_path.is_file():
             raise ConflictError("rendered outputs have not been sealed for this run")
         try:
-            seal = RenderedOutputSeal.model_validate_json(
-                seal_path.read_text(encoding="utf-8")
-            )
+            seal = RenderedOutputSeal.model_validate_json(seal_path.read_text(encoding="utf-8"))
         except (OSError, ValueError) as exc:
             raise ConflictError("rendered output seal is unreadable or invalid") from exc
         failures: list[str] = []
@@ -309,9 +335,7 @@ class ProductionService:
             failures.append("production package is missing")
         else:
             package = json.loads(package_path.read_text(encoding="utf-8"))
-            package_body = {
-                key: value for key, value in package.items() if key != "package_sha256"
-            }
+            package_body = {key: value for key, value in package.items() if key != "package_sha256"}
             if (
                 package.get("package_sha256") != seal.production_package_sha256
                 or self._canonical_sha256(package_body) != seal.production_package_sha256
@@ -444,8 +468,7 @@ class ProductionService:
         integrity = self.rendered_output_integrity(run_id)
         if not integrity.integrity_ok:
             raise ConflictError(
-                "rendered output integrity failed before media QA: "
-                + "; ".join(integrity.failures)
+                "rendered output integrity failed before media QA: " + "; ".join(integrity.failures)
             )
         run = self.repository.get_run(run_id)
         seal = integrity.seal
@@ -550,9 +573,120 @@ class ProductionService:
             raise ConflictError("media structure QA report belongs to another run")
         return report
 
-    def create_release_package(
-        self, run_id: str, request: ReleasePackageCreate
-    ) -> ReleasePackage:
+    def decoded_media_qa(self, run_id: str) -> DecodedMediaQAReport:
+        integrity = self.rendered_output_integrity(run_id)
+        if not integrity.integrity_ok:
+            raise ConflictError(
+                "rendered output integrity failed before decoded media QA: "
+                + "; ".join(integrity.failures)
+            )
+        run = self.repository.get_run(run_id)
+        seal = integrity.seal
+        masters = [artifact for artifact in seal.artifacts if artifact.kind == "master_video"]
+        captions = [artifact for artifact in seal.artifacts if artifact.kind == "captions"]
+        if len(masters) != 1 or len(captions) != 1:
+            raise ConflictError("decoded media QA requires exactly one master and captions file")
+        exports = self._run_directory(run) / "qingshan-workspace" / "exports"
+        decoded = inspect_decoded_media(
+            exports / masters[0].relative_path,
+            exports / captions[0].relative_path,
+        )
+        report_body = {
+            "schema_version": "nalu.decoded-media-qa/v1",
+            "run_id": run.id,
+            "output_seal_sha256": seal.manifest_sha256,
+            "master_sha256": masters[0].sha256,
+            "captions_sha256": captions[0].sha256,
+            "video": decoded["video"],
+            "audio": decoded["audio"],
+            "caption_speech_alignment": decoded["caption_speech_alignment"],
+            "status": decoded["status"],
+            "failures": decoded["failures"],
+            "created_at": utc_now(),
+        }
+        report = DecodedMediaQAReport(
+            **report_body,
+            report_sha256=self._canonical_sha256(report_body),
+        )
+        report_path = self._run_directory(run) / "decoded-media-qa.json"
+        if report_path.is_file():
+            try:
+                existing = DecodedMediaQAReport.model_validate_json(
+                    report_path.read_text(encoding="utf-8")
+                )
+                if (
+                    self._canonical_sha256(
+                        existing.model_dump(mode="json", exclude={"report_sha256"})
+                    )
+                    == existing.report_sha256
+                    and existing.output_seal_sha256 == seal.manifest_sha256
+                    and existing.master_sha256 == masters[0].sha256
+                    and existing.captions_sha256 == captions[0].sha256
+                    and existing.status == report.status
+                    and existing.failures == report.failures
+                ):
+                    return existing
+            except (OSError, ValueError):
+                pass
+        temporary = report_path.with_name(f".{new_id('decoded-media-qa')}.tmp")
+        temporary.write_text(report.model_dump_json(indent=2) + "\n", encoding="utf-8")
+        secure_file(temporary)
+        os.replace(temporary, report_path)
+        secure_file(report_path)
+        self.repository.append_run_event(
+            run.id,
+            "decoded_media_qa_completed",
+            from_status=run.status,
+            to_status=run.status,
+            message="Decoded picture, audio/VAD and caption-speech alignment gates completed.",
+            payload={
+                "status": report.status,
+                "report_sha256": report.report_sha256,
+                "failure_count": len(report.failures),
+                "semantic_asr_verified": False,
+            },
+        )
+        if report.failures:
+            repair_codes: list[str] = []
+            video_failures = report.video.get("failures") or []
+            if video_failures:
+                repair_codes.append("decoded_video")
+            if any(
+                "REPEAT" in failure or "IDENTICAL" in failure or "BLACK" in failure
+                for failure in video_failures
+            ):
+                repair_codes.append("frame_repeat")
+            if report.audio.get("status") != "PASS":
+                repair_codes.append("audio_vad")
+            if report.caption_speech_alignment.get("status") != "PASS":
+                repair_codes.append("caption_speech_alignment")
+            self._record_postproduction_repair_plan(
+                run,
+                output_seal_sha256=seal.manifest_sha256,
+                master_sha256=masters[0].sha256,
+                codes=repair_codes or ["decoded_video"],
+            )
+        return report
+
+    def stored_decoded_media_qa(self, run_id: str) -> DecodedMediaQAReport:
+        run = self.repository.get_run(run_id)
+        report_path = self._run_directory(run) / "decoded-media-qa.json"
+        if not report_path.is_file() or report_path.is_symlink():
+            raise ConflictError("decoded media QA has not been recorded for this run")
+        try:
+            report = DecodedMediaQAReport.model_validate_json(
+                report_path.read_text(encoding="utf-8")
+            )
+        except (OSError, ValueError) as exc:
+            raise ConflictError("decoded media QA report is unreadable or invalid") from exc
+        body = report.model_dump(mode="json", exclude={"report_sha256"})
+        if self._canonical_sha256(body) != report.report_sha256:
+            raise ConflictError("decoded media QA report digest mismatch")
+        if report.run_id != run.id:
+            raise ConflictError("decoded media QA report belongs to another run")
+        return report
+
+    def create_release_package(self, run_id: str, request: ReleasePackageCreate) -> ReleasePackage:
         run = self.repository.get_run(run_id)
         if run.status != RunStatus.COMPLETED:
             raise ConflictError("only a completed production run can create a release package")
@@ -567,6 +701,11 @@ class ProductionService:
             raise ConflictError("media structure QA must pass before release packaging")
         if media_qa.output_seal_sha256 != integrity.seal.manifest_sha256:
             raise ConflictError("media structure QA reviewed a different output seal")
+        decoded_qa = self.stored_decoded_media_qa(run.id)
+        if decoded_qa.status != "PASS":
+            raise ConflictError("decoded media QA must pass before release packaging")
+        if decoded_qa.output_seal_sha256 != integrity.seal.manifest_sha256:
+            raise ConflictError("decoded media QA reviewed a different output seal")
 
         artifacts_by_kind: dict[str, list[RenderedOutputArtifact]] = {}
         for artifact in integrity.seal.artifacts:
@@ -591,6 +730,7 @@ class ProductionService:
             if (
                 existing.output_seal_sha256 == integrity.seal.manifest_sha256
                 and existing.media_qa_report_sha256 == media_qa.report_sha256
+                and existing.decoded_media_qa_report_sha256 == decoded_qa.report_sha256
                 and existing.title == request.title
                 and existing.description == request.description
                 and existing.prepared_by == request.prepared_by
@@ -605,6 +745,7 @@ class ProductionService:
             "episode_id": run.episode_id,
             "output_seal_sha256": integrity.seal.manifest_sha256,
             "media_qa_report_sha256": media_qa.report_sha256,
+            "decoded_media_qa_report_sha256": decoded_qa.report_sha256,
             "title": request.title,
             "description": request.description,
             "artifacts": [
@@ -648,9 +789,7 @@ class ProductionService:
         if not release_path.is_file() or release_path.is_symlink():
             raise ConflictError("offline release package has not been created")
         try:
-            package = ReleasePackage.model_validate_json(
-                release_path.read_text(encoding="utf-8")
-            )
+            package = ReleasePackage.model_validate_json(release_path.read_text(encoding="utf-8"))
         except (OSError, ValueError) as exc:
             raise ConflictError("release package is unreadable or invalid") from exc
         body = package.model_dump(mode="json", exclude={"manifest_sha256"})
@@ -765,9 +904,7 @@ class ProductionService:
         )
         return dry_run
 
-    def stored_publication_dry_run(
-        self, run_id: str, platform: str
-    ) -> PublicationDryRun:
+    def stored_publication_dry_run(self, run_id: str, platform: str) -> PublicationDryRun:
         run = self.repository.get_run(run_id)
         try:
             publication_adapter(platform)
@@ -783,9 +920,7 @@ class ProductionService:
         body = dry_run.model_dump(mode="json", exclude={"plan_sha256"})
         if self._canonical_sha256(body) != dry_run.plan_sha256:
             raise ConflictError("publication dry-run digest mismatch")
-        approval_body = dry_run.approval.model_dump(
-            mode="json", exclude={"approval_sha256"}
-        )
+        approval_body = dry_run.approval.model_dump(mode="json", exclude={"approval_sha256"})
         if self._canonical_sha256(approval_body) != dry_run.approval.approval_sha256:
             raise ConflictError("publication approval digest mismatch")
         if dry_run.run_id != run.id or dry_run.platform != platform:
@@ -854,10 +989,7 @@ class ProductionService:
             raise ConflictError("production completion requires sealed captions")
         qa_artifact = qa_artifacts[0]
         qa_path = (
-            self._run_directory(run)
-            / "qingshan-workspace"
-            / "exports"
-            / qa_artifact.relative_path
+            self._run_directory(run) / "qingshan-workspace" / "exports" / qa_artifact.relative_path
         )
         qa_bytes: bytes | None = None
         qa_payload: dict | None = None
@@ -908,6 +1040,27 @@ class ProductionService:
                 codes=["qa_master_binding"],
             )
             raise ConflictError("final QA report reviewed a different master")
+
+        try:
+            structure_qa = self.stored_media_structure_qa(run_id)
+            decoded_qa = self.stored_decoded_media_qa(run_id)
+        except ConflictError as exc:
+            self._record_postproduction_repair_plan(
+                run,
+                output_seal_sha256=seal.manifest_sha256,
+                master_sha256=master_artifacts[0].sha256,
+                codes=["decoded_media_qa_presence"],
+            )
+            raise ConflictError(
+                "production completion requires recorded structure and decoded media QA"
+            ) from exc
+        if structure_qa.status != "PASS" or decoded_qa.status != "PASS":
+            raise ConflictError("production completion requires all automated media QA to pass")
+        if (
+            structure_qa.output_seal_sha256 != seal.manifest_sha256
+            or decoded_qa.output_seal_sha256 != seal.manifest_sha256
+        ):
+            raise ConflictError("automated media QA reviewed a different output seal")
 
         completed_run, episode = self.repository.complete_run_after_qa(
             run_id,
@@ -976,7 +1129,8 @@ class ProductionService:
             continuity_preflight = audit_continuity(continuity, preflight_request)
             if not continuity_preflight.can_proceed:
                 paths = ", ".join(
-                    conflict.path for conflict in continuity_preflight.conflicts
+                    conflict.path
+                    for conflict in continuity_preflight.conflicts
                     if not conflict.explanation and not conflict.overridden
                 )
                 detail = paths or continuity_preflight.explanation
@@ -990,8 +1144,7 @@ class ProductionService:
         revoked_biometrics = [
             asset.id
             for asset in assets
-            if asset.kind in {"character_image", "voice_reference"}
-            and not asset.consent_granted
+            if asset.kind in {"character_image", "voice_reference"} and not asset.consent_granted
         ]
         if revoked_biometrics:
             raise ConflictError(
@@ -1047,16 +1200,13 @@ class ProductionService:
             episode=episode.model_dump(mode="json"),
             approved_script=script.model_dump(mode="json"),
             inherited_assets=[
-                asset.model_dump(
-                    mode="json", exclude={"consent_granted_by", "consent_statement"}
-                )
+                asset.model_dump(mode="json", exclude={"consent_granted_by", "consent_statement"})
                 for asset in assets
             ],
             resolved_library=resolved_library,
             continuity=continuity.model_dump(mode="json") if continuity else None,
             continuity_preflight=(
-                continuity_preflight.model_dump(mode="json")
-                if continuity_preflight else None
+                continuity_preflight.model_dump(mode="json") if continuity_preflight else None
             ),
             production_policy={
                 "model_policy": policy,
@@ -1079,9 +1229,7 @@ class ProductionService:
         run_dir.mkdir(parents=True, exist_ok=False)
         secure_directory(run_dir)
         package_path = run_dir / "production-package.json"
-        package_path.write_text(
-            package.model_dump_json(indent=2) + "\n", encoding="utf-8"
-        )
+        package_path.write_text(package.model_dump_json(indent=2) + "\n", encoding="utf-8")
         secure_file(package_path)
 
         try:
@@ -1211,10 +1359,15 @@ class ProductionService:
                     "已确认没有扣费",
                     "本次失败已核对为零扣费；再次提交前仍需重新确认。",
                 )
-            elif remote_states and remote_states <= {
-                RemoteTaskState.COMPLETED,
-                RemoteTaskState.CANCELLED,
-            } and RemoteTaskState.COMPLETED in remote_states:
+            elif (
+                remote_states
+                and remote_states
+                <= {
+                    RemoteTaskState.COMPLETED,
+                    RemoteTaskState.CANCELLED,
+                }
+                and RemoteTaskState.COMPLETED in remote_states
+            ):
                 stage, percent, action, explanation = (
                     "remote_results_received",
                     72,
@@ -1245,9 +1398,7 @@ class ProductionService:
                 }
                 and RemoteTaskState.AMBIGUOUS_CHARGE not in remote_states
             ),
-            can_resume=bool(
-                run and run.status in {RunStatus.FAILED, RunStatus.CANCELLED}
-            ),
+            can_resume=bool(run and run.status in {RunStatus.FAILED, RunStatus.CANCELLED}),
             updated_at=run.updated_at if run else episode.updated_at,
         )
 

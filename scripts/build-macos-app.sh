@@ -26,6 +26,7 @@ if [[ -z "$runtime_binary" ]]; then
     --onefile \
     --name nalu-runtime \
     --hidden-import nalu_runtime.app \
+    --collect-all av \
     --collect-submodules uvicorn \
     --distpath "$build_root/runtime-dist" \
     --workpath "$build_root/pyinstaller-work" \

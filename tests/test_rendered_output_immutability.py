@@ -1,9 +1,13 @@
 import hashlib
 import json
+import math
 import struct
+from array import array
+from fractions import Fraction
 from pathlib import Path
 from unittest.mock import patch
 
+import av
 import pytest
 from fastapi.testclient import TestClient
 from nalu_runtime.app import create_app
@@ -115,6 +119,63 @@ def minimal_mp4(*, duration_milliseconds: int = 2000, include_media_data: bool =
     return ftyp + moov + mdat
 
 
+def create_playable_mp4(path: Path, *, frozen: bool = False, silent: bool = False) -> bytes:
+    width = height = 64
+    fps = 10
+    sample_rate = 48000
+    duration_seconds = 2
+    with av.open(
+        str(path),
+        mode="w",
+        format="mp4",
+        options={"movflags": "+faststart"},
+    ) as container:
+        video = container.add_stream("mpeg4", rate=fps)
+        video.width = width
+        video.height = height
+        video.pix_fmt = "yuv420p"
+        audio = container.add_stream("aac", rate=sample_rate)
+        audio.layout = "stereo"
+
+        for index in range(fps * duration_seconds):
+            frame = av.VideoFrame(width, height, format="rgb24")
+            value = 80 if frozen else 40 + (index * 9) % 180
+            pixel_row = bytes((value, 255 - value, (value * 3) % 255)) * width
+            padded_row = pixel_row + bytes(frame.planes[0].line_size - len(pixel_row))
+            frame.planes[0].update(padded_row * height)
+            frame.pts = index
+            frame.time_base = Fraction(1, fps)
+            for packet in video.encode(frame):
+                container.mux(packet)
+        for packet in video.encode(None):
+            container.mux(packet)
+
+        sample_cursor = 0
+        while sample_cursor < sample_rate * duration_seconds:
+            samples = min(1024, sample_rate * duration_seconds - sample_cursor)
+            frame = av.AudioFrame(format="s16", layout="stereo", samples=samples)
+            frame.sample_rate = sample_rate
+            frame.pts = sample_cursor
+            frame.time_base = Fraction(1, sample_rate)
+            pcm = array("h")
+            for offset in range(samples):
+                sample = (
+                    0
+                    if silent
+                    else int(
+                        7000 * math.sin(2 * math.pi * 440 * (sample_cursor + offset) / sample_rate)
+                    )
+                )
+                pcm.extend((sample, sample))
+            frame.planes[0].update(pcm.tobytes())
+            for packet in audio.encode(frame):
+                container.mux(packet)
+            sample_cursor += samples
+        for packet in audio.encode(None):
+            container.mux(packet)
+    return path.read_bytes()
+
+
 def test_sealed_outputs_survive_library_edits_and_detect_file_tampering(
     tmp_path: Path,
 ) -> None:
@@ -166,9 +227,7 @@ def test_sealed_outputs_survive_library_edits_and_detect_file_tampering(
     )
     assert confirmed.status_code == 201
 
-    intact = api.get(
-        f"/v1/production-runs/{run['id']}/rendered-output-integrity"
-    ).json()
+    intact = api.get(f"/v1/production-runs/{run['id']}/rendered-output-integrity").json()
     assert intact["integrity_ok"] is True
     assert intact["seal"] == seal
     assert (exports / "E01_MASTER.mp4").read_bytes() == master_bytes
@@ -184,9 +243,7 @@ def test_sealed_outputs_survive_library_edits_and_detect_file_tampering(
     assert "already sealed" in duplicate.text
 
     (exports / "E01_MASTER.mp4").write_bytes(b"tampered")
-    damaged = api.get(
-        f"/v1/production-runs/{run['id']}/rendered-output-integrity"
-    ).json()
+    damaged = api.get(f"/v1/production-runs/{run['id']}/rendered-output-integrity").json()
     assert damaged["integrity_ok"] is False
     assert damaged["failures"] == ["rendered output digest mismatch: E01_MASTER.mp4"]
 
@@ -203,10 +260,12 @@ def test_verified_seal_and_human_qa_complete_atomically_and_retry_safely(
     advance_episode_to_qa(api, episode["id"])
     api.app.state.repository.update_run_status(run["id"], RunStatus.QA_REVIEW)
     exports = Path(run["package_path"]).parent / "qingshan-workspace" / "exports"
-    master_bytes = b"original-resolution-completed-master"
+    master_path = exports / "E01_MASTER.mp4"
+    master_bytes = create_playable_mp4(master_path)
     master_sha = hashlib.sha256(master_bytes).hexdigest()
-    (exports / "E01_MASTER.mp4").write_bytes(master_bytes)
-    (exports / "E01_zh-CN.vtt").write_text("WEBVTT\n", encoding="utf-8")
+    (exports / "E01_zh-CN.vtt").write_text(
+        "WEBVTT\n\n00:00.100 --> 00:01.800\n回家\n", encoding="utf-8"
+    )
     (exports / "E01_FINAL_QA.json").write_text(
         json.dumps(
             {
@@ -232,17 +291,24 @@ def test_verified_seal_and_human_qa_complete_atomically_and_retry_safely(
         f"/v1/production-runs/{run['id']}/rendered-output-seal",
         json=seal_payload(include_qa=True),
     ).json()
+    assert (
+        api.post(f"/v1/production-runs/{run['id']}/media-structure-qa").json()["status"] == "PASS"
+    )
+    assert api.post(f"/v1/production-runs/{run['id']}/decoded-media-qa").json()["status"] == "PASS"
     completion_payload = {
         "output_seal_sha256": seal["manifest_sha256"],
         "completed_by": "local-user",
         "spoken_confirmation": "我确认这份成片和人工质量检查记录",
     }
     repository = api.app.state.repository
-    with patch.object(
-        repository,
-        "_record_episode_transition",
-        side_effect=RuntimeError("simulated crash before SQLite commit"),
-    ), pytest.raises(RuntimeError, match="simulated crash"):
+    with (
+        patch.object(
+            repository,
+            "_record_episode_transition",
+            side_effect=RuntimeError("simulated crash before SQLite commit"),
+        ),
+        pytest.raises(RuntimeError, match="simulated crash"),
+    ):
         api.post(
             f"/v1/production-runs/{run['id']}/complete",
             json=completion_payload,
@@ -283,9 +349,7 @@ def test_verified_seal_and_human_qa_complete_atomically_and_retry_safely(
         },
     ).json()
     assert revision["current_revision"] == 2
-    integrity = api.get(
-        f"/v1/production-runs/{run['id']}/rendered-output-integrity"
-    ).json()
+    integrity = api.get(f"/v1/production-runs/{run['id']}/rendered-output-integrity").json()
     assert integrity["integrity_ok"] is True
     assert (exports / "E01_MASTER.mp4").read_bytes() == master_bytes
 
@@ -317,9 +381,7 @@ def test_completion_rejects_missing_or_mismatched_final_qa(tmp_path: Path) -> No
     assert missing.status_code == 409
     assert "exactly one sealed QA report" in missing.text
     assert api.get(f"/v1/production-runs/{run['id']}").json()["status"] == "qa_review"
-    plan = api.get(
-        f"/v1/production-runs/{run['id']}/postproduction-repair-plan"
-    ).json()
+    plan = api.get(f"/v1/production-runs/{run['id']}/postproduction-repair-plan").json()
     assert [task["code"] for task in plan["repair_tasks"]] == ["qa_report_presence"]
     assert plan["repair_tasks"][0]["release_blocking"] is True
 
@@ -371,9 +433,7 @@ def test_failed_final_qa_creates_specific_idempotent_repair_tasks(tmp_path: Path
     first = api.post(f"/v1/production-runs/{run['id']}/complete", json=completion)
     second = api.post(f"/v1/production-runs/{run['id']}/complete", json=completion)
     assert first.status_code == second.status_code == 409
-    plan = api.get(
-        f"/v1/production-runs/{run['id']}/postproduction-repair-plan"
-    ).json()
+    plan = api.get(f"/v1/production-runs/{run['id']}/postproduction-repair-plan").json()
     assert plan["output_seal_sha256"] == seal["manifest_sha256"]
     assert plan["master_sha256"] == master_sha
     assert len(plan["plan_sha256"]) == 64
@@ -397,9 +457,7 @@ def test_failed_final_qa_creates_specific_idempotent_repair_tasks(tmp_path: Path
         json.dumps(tampered, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
-    rejected_plan = api.get(
-        f"/v1/production-runs/{run['id']}/postproduction-repair-plan"
-    )
+    rejected_plan = api.get(f"/v1/production-runs/{run['id']}/postproduction-repair-plan")
     assert rejected_plan.status_code == 409
     assert "digest mismatch" in rejected_plan.text
 
@@ -422,9 +480,7 @@ def test_media_structure_and_caption_timeline_golden_fixtures(tmp_path: Path) ->
         f"/v1/production-runs/{run['id']}/rendered-output-seal",
         json=seal_payload(),
     )
-    passed = api.post(
-        f"/v1/production-runs/{run['id']}/media-structure-qa"
-    ).json()
+    passed = api.post(f"/v1/production-runs/{run['id']}/media-structure-qa").json()
     assert passed["status"] == "PASS"
     assert passed["mp4"]["duration_seconds"] == 2.0
     assert passed["mp4"]["top_level_boxes"] == ["ftyp", "moov", "mdat"]
@@ -437,12 +493,8 @@ def test_media_structure_and_caption_timeline_golden_fixtures(tmp_path: Path) ->
         json={"dry_run": True},
     ).json()
     api.app.state.repository.update_run_status(failed_run["id"], RunStatus.QA_REVIEW)
-    failed_exports = (
-        Path(failed_run["package_path"]).parent / "qingshan-workspace" / "exports"
-    )
-    (failed_exports / "E01_MASTER.mp4").write_bytes(
-        minimal_mp4(include_media_data=False)
-    )
+    failed_exports = Path(failed_run["package_path"]).parent / "qingshan-workspace" / "exports"
+    (failed_exports / "E01_MASTER.mp4").write_bytes(minimal_mp4(include_media_data=False))
     (failed_exports / "E01_zh-CN.vtt").write_text(
         "WEBVTT\n\n00:00.000 --> 00:03.000\n超出成片\n",
         encoding="utf-8",
@@ -451,18 +503,68 @@ def test_media_structure_and_caption_timeline_golden_fixtures(tmp_path: Path) ->
         f"/v1/production-runs/{failed_run['id']}/rendered-output-seal",
         json=seal_payload(),
     )
-    failed = api.post(
-        f"/v1/production-runs/{failed_run['id']}/media-structure-qa"
-    ).json()
+    failed = api.post(f"/v1/production-runs/{failed_run['id']}/media-structure-qa").json()
     assert failed["status"] == "FAIL"
     assert "mp4:MP4_MDAT_MISSING" in failed["failures"]
     assert "captions:WEBVTT_CUE_EXCEEDS_MASTER_DURATION" in failed["failures"]
-    repair = api.get(
-        f"/v1/production-runs/{failed_run['id']}/postproduction-repair-plan"
-    ).json()
+    repair = api.get(f"/v1/production-runs/{failed_run['id']}/postproduction-repair-plan").json()
     assert [task["code"] for task in repair["repair_tasks"]] == [
         "caption_timeline",
         "mp4_structure",
+    ]
+
+
+def test_decoded_media_gates_playable_and_frozen_silent_golden_fixtures(
+    tmp_path: Path,
+) -> None:
+    api = client(tmp_path)
+    _, episode, _ = approved_episode_with_library(api)
+    run = api.post(f"/v1/episodes/{episode['id']}/production-runs", json={"dry_run": True}).json()
+    api.app.state.repository.update_run_status(run["id"], RunStatus.QA_REVIEW)
+    exports = Path(run["package_path"]).parent / "qingshan-workspace" / "exports"
+    create_playable_mp4(exports / "E01_MASTER.mp4")
+    (exports / "E01_zh-CN.vtt").write_text(
+        "WEBVTT\n\n00:00.100 --> 00:01.800\n回家\n", encoding="utf-8"
+    )
+    api.post(
+        f"/v1/production-runs/{run['id']}/rendered-output-seal",
+        json=seal_payload(),
+    )
+    passed = api.post(f"/v1/production-runs/{run['id']}/decoded-media-qa")
+    assert passed.status_code == 200
+    report = passed.json()
+    assert report["status"] == "PASS"
+    assert report["video"]["frame_count"] == 20
+    assert report["audio"]["voiced_ratio"] > 0.9
+    assert report["caption_speech_alignment"]["aligned_ratio"] == 1.0
+    assert report["caption_speech_alignment"]["semantic_asr_verified"] is False
+    assert api.get(f"/v1/production-runs/{run['id']}/decoded-media-qa").json() == report
+
+    _, failed_episode, _ = approved_episode_with_library(api)
+    failed_run = api.post(
+        f"/v1/episodes/{failed_episode['id']}/production-runs", json={"dry_run": True}
+    ).json()
+    api.app.state.repository.update_run_status(failed_run["id"], RunStatus.QA_REVIEW)
+    failed_exports = Path(failed_run["package_path"]).parent / "qingshan-workspace" / "exports"
+    create_playable_mp4(failed_exports / "E01_MASTER.mp4", frozen=True, silent=True)
+    (failed_exports / "E01_zh-CN.vtt").write_text(
+        "WEBVTT\n\n00:00.100 --> 00:01.800\n无人声字幕\n", encoding="utf-8"
+    )
+    api.post(
+        f"/v1/production-runs/{failed_run['id']}/rendered-output-seal",
+        json=seal_payload(),
+    )
+    failed = api.post(f"/v1/production-runs/{failed_run['id']}/decoded-media-qa").json()
+    assert failed["status"] == "FAIL"
+    assert "video:VIDEO_FRAME_REPEAT_EXCESSIVE" in failed["failures"]
+    assert "audio:AUDIO_VOICE_ACTIVITY_TOO_LOW" in failed["failures"]
+    assert "alignment:CAPTION_SPEECH_ALIGNMENT_TOO_LOW" in failed["failures"]
+    repair = api.get(f"/v1/production-runs/{failed_run['id']}/postproduction-repair-plan").json()
+    assert [task["code"] for task in repair["repair_tasks"]] == [
+        "audio_vad",
+        "caption_speech_alignment",
+        "decoded_video",
+        "frame_repeat",
     ]
 
 
@@ -478,9 +580,9 @@ def test_completed_media_qa_creates_offline_release_package_without_publishing(
     advance_episode_to_qa(api, episode["id"])
     api.app.state.repository.update_run_status(run["id"], RunStatus.QA_REVIEW)
     exports = Path(run["package_path"]).parent / "qingshan-workspace" / "exports"
-    master = minimal_mp4(duration_milliseconds=2000)
+    master_path = exports / "E01_MASTER.mp4"
+    master = create_playable_mp4(master_path)
     master_sha = hashlib.sha256(master).hexdigest()
-    (exports / "E01_MASTER.mp4").write_bytes(master)
     (exports / "E01_zh-CN.vtt").write_text(
         "WEBVTT\n\n00:00.000 --> 00:01.900\n回家\n",
         encoding="utf-8",
@@ -519,10 +621,10 @@ def test_completed_media_qa_creates_offline_release_package_without_publishing(
         f"/v1/production-runs/{run['id']}/rendered-output-seal",
         json=payload,
     ).json()
-    media_qa = api.post(
-        f"/v1/production-runs/{run['id']}/media-structure-qa"
-    ).json()
+    media_qa = api.post(f"/v1/production-runs/{run['id']}/media-structure-qa").json()
     assert media_qa["status"] == "PASS"
+    decoded_qa = api.post(f"/v1/production-runs/{run['id']}/decoded-media-qa").json()
+    assert decoded_qa["status"] == "PASS"
     too_early = api.post(
         f"/v1/production-runs/{run['id']}/release-package",
         json={
@@ -557,6 +659,7 @@ def test_completed_media_qa_creates_offline_release_package_without_publishing(
     assert package["platform_approvals"] == []
     assert package["output_seal_sha256"] == seal["manifest_sha256"]
     assert package["media_qa_report_sha256"] == media_qa["report_sha256"]
+    assert package["decoded_media_qa_report_sha256"] == decoded_qa["report_sha256"]
     assert {artifact["kind"] for artifact in package["artifacts"]} >= {
         "master_video",
         "captions",
@@ -609,13 +712,16 @@ def test_completed_media_qa_creates_offline_release_package_without_publishing(
     assert dry_run["compiled_plan"]["media"]["master"]["sha256"] == master_sha
     assert len(dry_run["duplicate_guard_sha256"]) == 64
     assert api.get(f"/v1/episodes/{episode['id']}").json()["status"] == "ready_to_publish"
-    assert api.get(
-        f"/v1/production-runs/{run['id']}/publication-dry-runs/youtube"
-    ).json() == dry_run
-    assert api.post(
-        f"/v1/production-runs/{run['id']}/publication-dry-runs",
-        json=dry_run_request,
-    ).json() == dry_run
+    assert (
+        api.get(f"/v1/production-runs/{run['id']}/publication-dry-runs/youtube").json() == dry_run
+    )
+    assert (
+        api.post(
+            f"/v1/production-runs/{run['id']}/publication-dry-runs",
+            json=dry_run_request,
+        ).json()
+        == dry_run
+    )
     changed_channel = api.post(
         f"/v1/production-runs/{run['id']}/publication-dry-runs",
         json={**dry_run_request, "channel_reference": "different-channel"},
@@ -660,9 +766,7 @@ def test_completed_media_qa_creates_offline_release_package_without_publishing(
     tampered = json.loads(dry_run_path.read_text(encoding="utf-8"))
     tampered["compiled_plan"]["channel_reference"] = "tampered-channel"
     dry_run_path.write_text(json.dumps(tampered), encoding="utf-8")
-    damaged_dry_run = api.get(
-        f"/v1/production-runs/{run['id']}/publication-dry-runs/youtube"
-    )
+    damaged_dry_run = api.get(f"/v1/production-runs/{run['id']}/publication-dry-runs/youtube")
     assert damaged_dry_run.status_code == 409
     assert "digest mismatch" in damaged_dry_run.text
 
@@ -684,9 +788,12 @@ def test_output_seal_fails_closed_for_state_paths_and_empty_files(tmp_path: Path
     api.app.state.repository.update_run_status(run["id"], RunStatus.QA_REVIEW)
     traversal = seal_payload()
     traversal["artifacts"][0]["relative_path"] = "../production-package.json"
-    assert api.post(
-        f"/v1/production-runs/{run['id']}/rendered-output-seal", json=traversal
-    ).status_code == 422
+    assert (
+        api.post(
+            f"/v1/production-runs/{run['id']}/rendered-output-seal", json=traversal
+        ).status_code
+        == 422
+    )
 
     exports = Path(run["package_path"]).parent / "qingshan-workspace" / "exports"
     (exports / "E01_MASTER.mp4").write_bytes(b"")
@@ -709,6 +816,9 @@ def test_output_seal_fails_closed_for_state_paths_and_empty_files(tmp_path: Path
 
     no_master = seal_payload()
     no_master["artifacts"] = no_master["artifacts"][1:]
-    assert api.post(
-        f"/v1/production-runs/{run['id']}/rendered-output-seal", json=no_master
-    ).status_code == 422
+    assert (
+        api.post(
+            f"/v1/production-runs/{run['id']}/rendered-output-seal", json=no_master
+        ).status_code
+        == 422
+    )

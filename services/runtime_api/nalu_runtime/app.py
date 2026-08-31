@@ -29,6 +29,7 @@ from .models import (
     ContinuityPreflightResult,
     ContinuitySnapshot,
     ContinuitySnapshotCreate,
+    DecodedMediaQAReport,
     DocumentaryReadinessReport,
     Episode,
     EpisodeCreate,
@@ -109,9 +110,7 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
     database.initialize()
     repository = Repository(database)
     remote_task_submitter = DurableRemoteTaskSubmitter(repository)
-    production = ProductionService(
-        repository, data_root, repository_root, remote_task_submitter
-    )
+    production = ProductionService(repository, data_root, repository_root, remote_task_submitter)
     asset_service = AssetService(repository, data_root)
     privacy_service = ProjectPrivacyService(repository, asset_service, data_root)
 
@@ -611,9 +610,7 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
         response_model=RenderedOutputSeal,
         status_code=201,
     )
-    def seal_rendered_outputs(
-        run_id: str, request: RenderedOutputSealCreate
-    ) -> RenderedOutputSeal:
+    def seal_rendered_outputs(run_id: str, request: RenderedOutputSealCreate) -> RenderedOutputSeal:
         return production.seal_rendered_outputs(run_id, request)
 
     @app.get(
@@ -645,13 +642,25 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
         return production.stored_media_structure_qa(run_id)
 
     @app.post(
+        "/v1/production-runs/{run_id}/decoded-media-qa",
+        response_model=DecodedMediaQAReport,
+    )
+    def decoded_media_qa(run_id: str) -> DecodedMediaQAReport:
+        return production.decoded_media_qa(run_id)
+
+    @app.get(
+        "/v1/production-runs/{run_id}/decoded-media-qa",
+        response_model=DecodedMediaQAReport,
+    )
+    def stored_decoded_media_qa(run_id: str) -> DecodedMediaQAReport:
+        return production.stored_decoded_media_qa(run_id)
+
+    @app.post(
         "/v1/production-runs/{run_id}/release-package",
         response_model=ReleasePackage,
         status_code=201,
     )
-    def create_release_package(
-        run_id: str, request: ReleasePackageCreate
-    ) -> ReleasePackage:
+    def create_release_package(run_id: str, request: ReleasePackageCreate) -> ReleasePackage:
         return production.create_release_package(run_id, request)
 
     @app.post(
