@@ -57,6 +57,7 @@ from .models import (
     MemoryCardRevision,
     MemoryCardUpdate,
     MemoryGraphConflictReport,
+    PostproductionLineageQAReport,
     PostproductionRepairPlan,
     ProductionCompletionRequest,
     ProductionCompletionResult,
@@ -657,6 +658,22 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
     def stored_decoded_media_qa(run_id: str) -> DecodedMediaQAReport:
         return production.stored_decoded_media_qa(run_id)
 
+    @app.post(
+        "/v1/production-runs/{run_id}/postproduction-lineage-qa",
+        response_model=PostproductionLineageQAReport,
+    )
+    def postproduction_lineage_qa(run_id: str) -> PostproductionLineageQAReport:
+        return production.postproduction_lineage_qa(run_id)
+
+    @app.get(
+        "/v1/production-runs/{run_id}/postproduction-lineage-qa",
+        response_model=PostproductionLineageQAReport,
+    )
+    def stored_postproduction_lineage_qa(
+        run_id: str,
+    ) -> PostproductionLineageQAReport:
+        return production.stored_postproduction_lineage_qa(run_id)
+
     @app.get(
         "/v1/production-runs/{run_id}/sealed-master",
         response_class=FileResponse,
@@ -674,9 +691,7 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
         "/v1/production-runs/{run_id}/semantic-media-qa",
         response_model=SemanticMediaQAReport,
     )
-    def semantic_media_qa(
-        run_id: str, request: SemanticMediaQARequest
-    ) -> SemanticMediaQAReport:
+    def semantic_media_qa(run_id: str, request: SemanticMediaQARequest) -> SemanticMediaQAReport:
         return production.semantic_media_qa(run_id, request)
 
     @app.get(

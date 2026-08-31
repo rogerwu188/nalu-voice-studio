@@ -3118,6 +3118,100 @@
         "title": "PlatformPublicationApproval",
         "type": "object"
       },
+      "PostproductionLineageQAReport": {
+        "properties": {
+          "audio_mix": {
+            "additionalProperties": true,
+            "title": "Audio Mix",
+            "type": "object"
+          },
+          "captions_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Captions Sha256",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "failures": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Failures",
+            "type": "array"
+          },
+          "master_media": {
+            "additionalProperties": true,
+            "title": "Master Media",
+            "type": "object"
+          },
+          "master_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Master Sha256",
+            "type": "string"
+          },
+          "output_seal_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Output Seal Sha256",
+            "type": "string"
+          },
+          "postproduction_manifest_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Postproduction Manifest Sha256",
+            "type": "string"
+          },
+          "report_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Report Sha256",
+            "type": "string"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "nalu.postproduction-lineage-qa/v1",
+            "default": "nalu.postproduction-lineage-qa/v1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "shot_selection": {
+            "additionalProperties": true,
+            "title": "Shot Selection",
+            "type": "object"
+          },
+          "status": {
+            "enum": [
+              "PASS",
+              "FAIL"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "subtitles": {
+            "additionalProperties": true,
+            "title": "Subtitles",
+            "type": "object"
+          }
+        },
+        "required": [
+          "run_id",
+          "output_seal_sha256",
+          "master_sha256",
+          "captions_sha256",
+          "postproduction_manifest_sha256",
+          "master_media",
+          "shot_selection",
+          "audio_mix",
+          "subtitles",
+          "status",
+          "created_at",
+          "report_sha256"
+        ],
+        "title": "PostproductionLineageQAReport",
+        "type": "object"
+      },
       "PostproductionRepairPlan": {
         "properties": {
           "created_at": {
@@ -4043,6 +4137,18 @@
             "title": "Platform Approvals",
             "type": "array"
           },
+          "postproduction_lineage_qa_report_sha256": {
+            "anyOf": [
+              {
+                "pattern": "^[a-f0-9]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Postproduction Lineage Qa Report Sha256"
+          },
           "prepared_at": {
             "title": "Prepared At",
             "type": "string"
@@ -4150,7 +4256,8 @@
               "cover",
               "qa_report",
               "release_metadata",
-              "shot_manifest"
+              "shot_manifest",
+              "postproduction_manifest"
             ],
             "title": "Kind",
             "type": "string"
@@ -4194,7 +4301,8 @@
               "cover",
               "qa_report",
               "release_metadata",
-              "shot_manifest"
+              "shot_manifest",
+              "postproduction_manifest"
             ],
             "title": "Kind",
             "type": "string"
@@ -6979,6 +7087,82 @@
           }
         },
         "summary": "Media Structure Qa"
+      }
+    },
+    "/v1/production-runs/{run_id}/postproduction-lineage-qa": {
+      "get": {
+        "operationId": "stored_postproduction_lineage_qa_v1_production_runs__run_id__postproduction_lineage_qa_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostproductionLineageQAReport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Stored Postproduction Lineage Qa"
+      },
+      "post": {
+        "operationId": "postproduction_lineage_qa_v1_production_runs__run_id__postproduction_lineage_qa_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostproductionLineageQAReport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Postproduction Lineage Qa"
       }
     },
     "/v1/production-runs/{run_id}/postproduction-repair-plan": {

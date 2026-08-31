@@ -206,33 +206,33 @@ def test_documentary_readiness_requires_confirmed_citable_sources(tmp_path: Path
             "allowed_use": "visual_generation",
         },
     ).json()
-    assert api.post(
-        f"/v1/memory-cards/{portrait_card['id']}/confirm",
-        json={
-            "confirmed_by": "本人",
-            "reviewed_revision": 1,
-            "review_channel": "voice",
-            "spoken_confirmation": "我确认这张记忆卡并归档",
-        },
-    ).status_code == 200
-    before_revocation = api.get(
-        f"/v1/projects/{project['id']}/documentary-readiness"
-    ).json()
+    assert (
+        api.post(
+            f"/v1/memory-cards/{portrait_card['id']}/confirm",
+            json={
+                "confirmed_by": "本人",
+                "reviewed_revision": 1,
+                "review_channel": "voice",
+                "spoken_confirmation": "我确认这张记忆卡并归档",
+            },
+        ).status_code
+        == 200
+    )
+    before_revocation = api.get(f"/v1/projects/{project['id']}/documentary-readiness").json()
     portrait_evidence = next(
-        item for item in before_revocation["evidence"]
-        if item["asset_id"] == portrait["id"]
+        item for item in before_revocation["evidence"] if item["asset_id"] == portrait["id"]
     )
     assert portrait_evidence["visual_generation_authorized"] is True
-    assert api.post(
-        f"/v1/assets/{portrait['id']}/consent-revocations",
-        json={"requested_by": "本人", "reason": "不再允许生成画面"},
-    ).status_code == 201
-    after_revocation = api.get(
-        f"/v1/projects/{project['id']}/documentary-readiness"
-    ).json()
+    assert (
+        api.post(
+            f"/v1/assets/{portrait['id']}/consent-revocations",
+            json={"requested_by": "本人", "reason": "不再允许生成画面"},
+        ).status_code
+        == 201
+    )
+    after_revocation = api.get(f"/v1/projects/{project['id']}/documentary-readiness").json()
     portrait_evidence = next(
-        item for item in after_revocation["evidence"]
-        if item["asset_id"] == portrait["id"]
+        item for item in after_revocation["evidence"] if item["asset_id"] == portrait["id"]
     )
     assert portrait_evidence["visual_generation_authorized"] is False
 
@@ -351,9 +351,7 @@ def test_feedback_review_bundle_is_local_redacted_immutable_and_exported(
         ],
         "confirmation_text": "我确认生成审核包",
     }
-    created = api.post(
-        f"/v1/feedback/{feedback['id']}/review-bundle", json=request
-    )
+    created = api.post(f"/v1/feedback/{feedback['id']}/review-bundle", json=request)
     assert created.status_code == 201
     bundle = created.json()
     assert bundle["network_call_performed"] is False
@@ -374,36 +372,30 @@ def test_feedback_review_bundle_is_local_redacted_immutable_and_exported(
     assert replay.status_code == 201
     assert replay.json() == bundle
     changed = dict(request, actual_behavior="另一个结果")
-    assert (
-        api.post(f"/v1/feedback/{feedback['id']}/review-bundle", json=changed).status_code
-        == 409
-    )
+    assert api.post(f"/v1/feedback/{feedback['id']}/review-bundle", json=changed).status_code == 409
     assert api.get(f"/v1/feedback/{feedback['id']}/review-bundle").json() == bundle
 
     backup = api.get(f"/v1/projects/{project['id']}/export").json()
     assert backup["schema_version"] == "nalu.project-export/v9"
-    assert backup["payload"]["feedback_review_bundles"][0]["bundle_sha256"] == bundle[
-        "bundle_sha256"
-    ]
+    assert (
+        backup["payload"]["feedback_review_bundles"][0]["bundle_sha256"] == bundle["bundle_sha256"]
+    )
 
     tampered = deepcopy(backup)
     tampered_bundle = tampered["payload"]["feedback_review_bundles"][0]
     tampered_body = json.loads(tampered_bundle["bundle_json"])
     tampered_body["actual_behavior"] = "被导出文件篡改"
-    tampered_bundle["bundle_json"] = json.dumps(
-        tampered_body, ensure_ascii=False, sort_keys=True
-    )
+    tampered_bundle["bundle_json"] = json.dumps(tampered_body, ensure_ascii=False, sort_keys=True)
     canonical = json.dumps(tampered["payload"], ensure_ascii=False, sort_keys=True)
     tampered["payload_sha256"] = hashlib.sha256(canonical.encode()).hexdigest()
-    assert client(tmp_path / "tampered-bundle").post(
-        "/v1/project-imports", json=tampered
-    ).status_code == 409
+    assert (
+        client(tmp_path / "tampered-bundle").post("/v1/project-imports", json=tampered).status_code
+        == 409
+    )
 
     restored_api = client(tmp_path / "restored")
     assert restored_api.post("/v1/project-imports", json=backup).status_code == 201
-    restored = restored_api.get(
-        f"/v1/feedback/{feedback['id']}/review-bundle"
-    ).json()
+    restored = restored_api.get(f"/v1/feedback/{feedback['id']}/review-bundle").json()
     assert restored == bundle
 
 
@@ -1328,9 +1320,7 @@ def test_dry_run_writes_immutable_package(tmp_path: Path) -> None:
     assert (workspace / "source" / "E01_APPROVED_SCRIPT.md").exists()
     assert (workspace / "workflow" / "work_queue.json").exists()
     task = json.loads(
-        (workspace / "workflow" / "tasks" / "E01_PRODUCTION_TASK.json").read_text(
-            encoding="utf-8"
-        )
+        (workspace / "workflow" / "tasks" / "E01_PRODUCTION_TASK.json").read_text(encoding="utf-8")
     )
     output_contract = task["required_outputs"]["shot_boundary_manifest"]
     assert output_contract["artifact_kind"] == "shot_manifest"
@@ -1339,14 +1329,35 @@ def test_dry_run_writes_immutable_package(tmp_path: Path) -> None:
         (workspace / output_contract["contract_path"]).read_text(encoding="utf-8")
     )
     assert shot_contract["schema_version"] == "nalu.shot-boundary-output-contract/v1"
-    assert shot_contract["production_package_sha256"] == json.loads(
-        package.read_text(encoding="utf-8")
-    )["package_sha256"]
+    assert (
+        shot_contract["production_package_sha256"]
+        == json.loads(package.read_text(encoding="utf-8"))["package_sha256"]
+    )
     assert shot_contract["fail_closed"] is True
+    postproduction_output = task["required_outputs"]["postproduction_lineage_manifest"]
+    assert postproduction_output["artifact_kind"] == "postproduction_manifest"
+    assert postproduction_output["relative_path"] == "exports/E01_POSTPRODUCTION_LINEAGE.json"
+    postproduction_contract = json.loads(
+        (workspace / postproduction_output["contract_path"]).read_text(encoding="utf-8")
+    )
+    assert (
+        postproduction_contract["schema_version"]
+        == "nalu.postproduction-lineage-output-contract/v1"
+    )
+    assert (
+        postproduction_contract["production_package_sha256"]
+        == json.loads(package.read_text(encoding="utf-8"))["package_sha256"]
+    )
+    assert set(postproduction_contract["required_audio_layers"]) == {
+        "dialogue",
+        "ambience",
+        "foley",
+        "music",
+        "sfx",
+    }
+    assert postproduction_contract["fail_closed"] is True
     gate_audit = json.loads(
-        (workspace / "workflow" / "qingshan-gate-registry-audit.json").read_text(
-            encoding="utf-8"
-        )
+        (workspace / "workflow" / "qingshan-gate-registry-audit.json").read_text(encoding="utf-8")
     )
     assert gate_audit["status"] == "QUARANTINED_KNOWN_UPSTREAM_DEFECT"
     assert gate_audit["gate_count"] == 68
@@ -1359,9 +1370,7 @@ def test_dry_run_writes_immutable_package(tmp_path: Path) -> None:
     preflight = json.loads(
         package.with_name("qingshan-preflight-report.json").read_text(encoding="utf-8")
     )
-    assert preflight["gate_registry_status"] == (
-        "QUARANTINED_KNOWN_UPSTREAM_DEFECT"
-    )
+    assert preflight["gate_registry_status"] == ("QUARANTINED_KNOWN_UPSTREAM_DEFECT")
 
 
 def test_qingshan_models_use_distinct_versioned_compilers(tmp_path: Path) -> None:
@@ -1376,16 +1385,13 @@ def test_qingshan_models_use_distinct_versioned_compilers(tmp_path: Path) -> Non
         assert response.status_code == 201
         package_path = Path(response.json()["package_path"])
         workspace = package_path.with_name("qingshan-workspace")
-        manifest = json.loads(
-            (workspace / "workspace-manifest.json").read_text(encoding="utf-8")
-        )
+        manifest = json.loads((workspace / "workspace-manifest.json").read_text(encoding="utf-8"))
         compilation_path = workspace / manifest["model_compilation"]
-        assert hashlib.sha256(compilation_path.read_bytes()).hexdigest() == (
-            manifest["model_compilation_sha256"]
+        assert (
+            hashlib.sha256(compilation_path.read_bytes()).hexdigest()
+            == (manifest["model_compilation_sha256"])
         )
-        compilations[requested_model] = json.loads(
-            compilation_path.read_text(encoding="utf-8")
-        )
+        compilations[requested_model] = json.loads(compilation_path.read_text(encoding="utf-8"))
 
     seedance = compilations["seedance-2.0-pro"]
     h3 = compilations["MiniMax-H3"]
@@ -1414,9 +1420,7 @@ def test_qingshan_preflight_rejects_tampered_compilation_and_package(tmp_path: P
     ).json()
     package_path = Path(run["package_path"])
     workspace = package_path.with_name("qingshan-workspace")
-    manifest = json.loads(
-        (workspace / "workspace-manifest.json").read_text(encoding="utf-8")
-    )
+    manifest = json.loads((workspace / "workspace-manifest.json").read_text(encoding="utf-8"))
     compilation_path = workspace / manifest["model_compilation"]
     compilation = json.loads(compilation_path.read_text(encoding="utf-8"))
     compilation["paid_submission_enabled"] = True
@@ -1443,16 +1447,12 @@ def test_qingshan_compilers_fail_closed_when_upstream_model_registry_drifts(
 ) -> None:
     api = client(tmp_path)
     adapter = api.app.state.production.adapter
-    registry_path = (
-        adapter.vendor_root / "configs" / "VIDEO_MODEL_CAPABILITY_REGISTRY_v1.json"
-    )
+    registry_path = adapter.vendor_root / "configs" / "VIDEO_MODEL_CAPABILITY_REGISTRY_v1.json"
     assert adapter.model_compilers.validate_upstream_registry(registry_path) == []
 
     registry = json.loads(registry_path.read_text(encoding="utf-8"))
     h3 = next(
-        profile
-        for profile in registry["profiles"]
-        if profile["profile_id"] == "MINIMAX_H3_GIGGLE"
+        profile for profile in registry["profiles"] if profile["profile_id"] == "MINIMAX_H3_GIGGLE"
     )
     h3["provider_limits"]["omni_image_reference_max"] = 10
     drifted = tmp_path / "drifted-model-registry.json"
@@ -1461,9 +1461,7 @@ def test_qingshan_compilers_fail_closed_when_upstream_model_registry_drifts(
         encoding="utf-8",
     )
     failures = adapter.model_compilers.validate_upstream_registry(drifted)
-    assert failures == [
-        "MINIMAX_H3_GIGGLE: maximum image reference count changed"
-    ]
+    assert failures == ["MINIMAX_H3_GIGGLE: maximum image reference count changed"]
 
 
 def test_qingshan_preflight_rejects_compilation_path_escape(tmp_path: Path) -> None:
@@ -1531,8 +1529,9 @@ def test_production_run_idempotency_and_paid_key_requirement(tmp_path: Path) -> 
         headers={"Idempotency-Key": "paid-gate-quarantine"},
     )
     assert quarantined.status_code == 409
-    assert "paid execution is blocked by Qingshan gate registry quarantine" in (
-        quarantined.json()["detail"]
+    assert (
+        "paid execution is blocked by Qingshan gate registry quarantine"
+        in (quarantined.json()["detail"])
     )
 
 

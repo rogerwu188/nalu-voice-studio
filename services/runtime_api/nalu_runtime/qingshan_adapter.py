@@ -104,10 +104,15 @@ class QingshanAdapter:
                     "shot_boundary_manifest": {
                         "artifact_kind": "shot_manifest",
                         "relative_path": f"exports/{episode_code}_SHOT_BOUNDARIES.json",
+                        "contract_path": (f"configs/{episode_code}_SHOT_BOUNDARY_CONTRACT.json"),
+                    },
+                    "postproduction_lineage_manifest": {
+                        "artifact_kind": "postproduction_manifest",
+                        "relative_path": (f"exports/{episode_code}_POSTPRODUCTION_LINEAGE.json"),
                         "contract_path": (
-                            f"configs/{episode_code}_SHOT_BOUNDARY_CONTRACT.json"
+                            f"configs/{episode_code}_POSTPRODUCTION_LINEAGE_CONTRACT.json"
                         ),
-                    }
+                    },
                 },
             },
         )
@@ -119,15 +124,44 @@ class QingshanAdapter:
                 "artifact_kind": "shot_manifest",
                 "output_relative_path": f"exports/{episode_code}_SHOT_BOUNDARIES.json",
                 "production_package_sha256": package["package_sha256"],
-                "digest_algorithm": (
-                    "sha256-canonical-json-excluding-manifest_sha256"
-                ),
+                "digest_algorithm": ("sha256-canonical-json-excluding-manifest_sha256"),
                 "required_unit_fields": ["unit_id", "start_seconds", "end_seconds"],
                 "required_incoming_transition_fields": [
                     "transition_type",
                     "visual_change_required",
                     "audio_bridge",
                 ],
+                "fail_closed": True,
+            },
+        )
+        self._write_json(
+            workspace / "configs" / f"{episode_code}_POSTPRODUCTION_LINEAGE_CONTRACT.json",
+            {
+                "schema_version": "nalu.postproduction-lineage-output-contract/v1",
+                "manifest_schema_version": "nalu.postproduction-lineage-manifest/v1",
+                "artifact_kind": "postproduction_manifest",
+                "output_relative_path": (f"exports/{episode_code}_POSTPRODUCTION_LINEAGE.json"),
+                "production_package_sha256": package["package_sha256"],
+                "required_picture_evidence": [
+                    "selected source SHA and provider task/receipt",
+                    "ADMITTED_FOR_ASSEMBLY status",
+                    "decoded normalized segment SHA and zero-based timeline",
+                ],
+                "normalized_media": {
+                    "audio_sample_rate_hz": 48000,
+                    "audio_channels": 2,
+                    "pixel_format": "yuv420p",
+                    "timestamps_zero_based": True,
+                },
+                "required_audio_layers": [
+                    "dialogue",
+                    "ambience",
+                    "foley",
+                    "music",
+                    "sfx",
+                ],
+                "published_mix_must_bind_final_master_audio": True,
+                "subtitles_must_bind_sealed_captions": True,
                 "fail_closed": True,
             },
         )
@@ -334,7 +368,9 @@ class QingshanAdapter:
             "paid_execution_enabled": False,
         }
         report_path = package_path.with_name("qingshan-preflight-report.json")
-        report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        report_path.write_text(
+            json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        )
         if failures:
             raise QingshanAdapterError("; ".join(failures))
         return report_path

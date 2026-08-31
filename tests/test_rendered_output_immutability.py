@@ -12,6 +12,7 @@ import pytest
 from fastapi.testclient import TestClient
 from nalu_runtime.app import create_app
 from nalu_runtime.models import RunStatus
+from nalu_runtime.postproduction_lineage_qa import audio_energy_fingerprint
 
 
 def client(tmp_path: Path) -> TestClient:
@@ -61,7 +62,12 @@ def approved_episode_with_library(api: TestClient) -> tuple[dict, dict, dict]:
     return project, episode, entity
 
 
-def seal_payload(*, include_qa: bool = False, include_shot_manifest: bool = False) -> dict:
+def seal_payload(
+    *,
+    include_qa: bool = False,
+    include_shot_manifest: bool = False,
+    include_postproduction_manifest: bool = False,
+) -> dict:
     payload = {
         "sealed_by": "local-qa-worker",
         "artifacts": [
@@ -90,6 +96,14 @@ def seal_payload(*, include_qa: bool = False, include_shot_manifest: bool = Fals
             {
                 "kind": "shot_manifest",
                 "relative_path": "E01_SHOT_BOUNDARIES.json",
+                "media_type": "application/json",
+            }
+        )
+    if include_postproduction_manifest:
+        payload["artifacts"].append(
+            {
+                "kind": "postproduction_manifest",
+                "relative_path": "E01_POSTPRODUCTION_LINEAGE.json",
                 "media_type": "application/json",
             }
         )
@@ -192,6 +206,120 @@ def create_playable_mp4(
     return path.read_bytes()
 
 
+def create_audio_stem(path: Path, *, frequency: int = 440) -> bytes:
+    sample_rate = 48000
+    duration_seconds = 2
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with av.open(str(path), mode="w", format="wav") as container:
+        audio = container.add_stream("pcm_s16le", rate=sample_rate)
+        audio.layout = "stereo"
+        sample_cursor = 0
+        while sample_cursor < sample_rate * duration_seconds:
+            samples = min(1024, sample_rate * duration_seconds - sample_cursor)
+            frame = av.AudioFrame(format="s16", layout="stereo", samples=samples)
+            frame.sample_rate = sample_rate
+            frame.pts = sample_cursor
+            frame.time_base = Fraction(1, sample_rate)
+            pcm = array("h")
+            for offset in range(samples):
+                sample = int(
+                    7000
+                    * math.sin(2 * math.pi * frequency * (sample_cursor + offset) / sample_rate)
+                )
+                pcm.extend((sample, sample))
+            frame.planes[0].update(pcm.tobytes())
+            for packet in audio.encode(frame):
+                container.mux(packet)
+            sample_cursor += samples
+        for packet in audio.encode(None):
+            container.mux(packet)
+    return path.read_bytes()
+
+
+def write_postproduction_lineage_manifest(
+    run: dict,
+    exports: Path,
+    *,
+    corrupt_admission: bool = False,
+) -> None:
+    package = json.loads(Path(run["package_path"]).read_text(encoding="utf-8"))
+    master_path = exports / "E01_MASTER.mp4"
+    captions_path = exports / "E01_zh-CN.vtt"
+    source_path = exports / "source-clips" / "S01.mp4"
+    normalized_path = exports / "normalized-segments" / "S01.mp4"
+    source_path.parent.mkdir(parents=True, exist_ok=True)
+    normalized_path.parent.mkdir(parents=True, exist_ok=True)
+    source_path.write_bytes(master_path.read_bytes())
+    normalized_path.write_bytes(master_path.read_bytes())
+
+    stem_entries = []
+    for index, layer in enumerate(("dialogue", "ambience", "foley", "music", "sfx")):
+        stem_path = exports / "audio" / f"E01_{layer.upper()}.wav"
+        stem_bytes = create_audio_stem(stem_path)
+        stem_entries.append(
+            {
+                "layer": layer,
+                "state": "included",
+                "relative_path": str(stem_path.relative_to(exports)),
+                "sha256": hashlib.sha256(stem_bytes).hexdigest(),
+                "source_cue_sha256s": [hashlib.sha256(f"cue-{index}".encode()).hexdigest()],
+            }
+        )
+    published_mix = exports / "audio" / "E01_PUBLISHED_MIX.wav"
+    published_bytes = create_audio_stem(published_mix)
+    body = {
+        "schema_version": "nalu.postproduction-lineage-manifest/v1",
+        "production_package_sha256": package["package_sha256"],
+        "final_master_sha256": hashlib.sha256(master_path.read_bytes()).hexdigest(),
+        "captions_sha256": hashlib.sha256(captions_path.read_bytes()).hexdigest(),
+        "timeline": {
+            "width": 64,
+            "height": 64,
+            "frame_rate": 10,
+            "pixel_format": "yuv420p",
+            "selected_shots": [
+                {
+                    "shot_id": "S01",
+                    "admission_status": (
+                        "REJECTED" if corrupt_admission else "ADMITTED_FOR_ASSEMBLY"
+                    ),
+                    "source_task_id": "fixture-provider-task-1",
+                    "source_receipt_sha256": hashlib.sha256(b"provider-receipt-1").hexdigest(),
+                    "source_relative_path": str(source_path.relative_to(exports)),
+                    "source_sha256": hashlib.sha256(source_path.read_bytes()).hexdigest(),
+                    "normalized_relative_path": str(normalized_path.relative_to(exports)),
+                    "normalized_sha256": hashlib.sha256(normalized_path.read_bytes()).hexdigest(),
+                    "timeline_start_seconds": 0.0,
+                    "duration_seconds": 2.0,
+                    "source_in_seconds": 0.0,
+                    "source_out_seconds": 2.0,
+                }
+            ],
+        },
+        "audio": {
+            "sample_rate_hz": 48000,
+            "channels": 2,
+            "stems": stem_entries,
+            "published_mix": {
+                "relative_path": str(published_mix.relative_to(exports)),
+                "sha256": hashlib.sha256(published_bytes).hexdigest(),
+                "audio_fingerprint": audio_energy_fingerprint(published_mix),
+            },
+        },
+        "subtitles": {
+            "relative_path": str(captions_path.relative_to(exports)),
+            "sha256": hashlib.sha256(captions_path.read_bytes()).hexdigest(),
+            "source_contract_sha256": hashlib.sha256(b"subtitle-contract").hexdigest(),
+        },
+    }
+    body["manifest_sha256"] = hashlib.sha256(
+        json.dumps(body, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    (exports / "E01_POSTPRODUCTION_LINEAGE.json").write_text(
+        json.dumps(body, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+
+
 def write_shot_manifest(run: dict, exports: Path, *, corrupt_contract: bool = False) -> None:
     package = json.loads(Path(run["package_path"]).read_text(encoding="utf-8"))
     contract = {
@@ -200,9 +328,9 @@ def write_shot_manifest(run: dict, exports: Path, *, corrupt_contract: bool = Fa
         "audio_bridge": "continuous-voice",
     }
     contract_sha = hashlib.sha256(
-        json.dumps(
-            contract, ensure_ascii=False, sort_keys=True, separators=(",", ":")
-        ).encode("utf-8")
+        json.dumps(contract, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode(
+            "utf-8"
+        )
     ).hexdigest()
     body = {
         "schema_version": "nalu.shot-boundary-manifest/v1",
@@ -221,9 +349,7 @@ def write_shot_manifest(run: dict, exports: Path, *, corrupt_contract: bool = Fa
         ],
     }
     body["manifest_sha256"] = hashlib.sha256(
-        json.dumps(body, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode(
-            "utf-8"
-        )
+        json.dumps(body, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
     ).hexdigest()
     (exports / "E01_SHOT_BOUNDARIES.json").write_text(
         json.dumps(body, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
@@ -341,6 +467,7 @@ def test_verified_seal_and_human_qa_complete_atomically_and_retry_safely(
         "WEBVTT\n\n00:00.100 --> 00:01.800\n回家\n", encoding="utf-8"
     )
     write_shot_manifest(run, exports)
+    write_postproduction_lineage_manifest(run, exports)
     (exports / "E01_FINAL_QA.json").write_text(
         json.dumps(
             {
@@ -364,7 +491,11 @@ def test_verified_seal_and_human_qa_complete_atomically_and_retry_safely(
     )
     seal = api.post(
         f"/v1/production-runs/{run['id']}/rendered-output-seal",
-        json=seal_payload(include_qa=True, include_shot_manifest=True),
+        json=seal_payload(
+            include_qa=True,
+            include_shot_manifest=True,
+            include_postproduction_manifest=True,
+        ),
     ).json()
     assert (
         api.post(f"/v1/production-runs/{run['id']}/media-structure-qa").json()["status"] == "PASS"
@@ -381,6 +512,17 @@ def test_verified_seal_and_human_qa_complete_atomically_and_retry_safely(
     assert semantic_qa["status"] == "PASS"
     assert semantic_qa["semantic_asr"]["recall"] == 1.0
     assert semantic_qa["shot_boundaries"]["passed_boundary_count"] == 1
+    lineage_qa = api.post(f"/v1/production-runs/{run['id']}/postproduction-lineage-qa").json()
+    assert lineage_qa["status"] == "PASS"
+    assert lineage_qa["shot_selection"]["shot_count"] == 1
+    assert {stem["layer"] for stem in lineage_qa["audio_mix"]["stems"]} == {
+        "dialogue",
+        "ambience",
+        "foley",
+        "music",
+        "sfx",
+    }
+    assert lineage_qa["audio_mix"]["published_mix"]["master_energy_similarity"] >= 0.98
     completion_payload = {
         "output_seal_sha256": seal["manifest_sha256"],
         "completed_by": "local-user",
@@ -660,9 +802,7 @@ def test_semantic_asr_and_authored_boundary_failures_are_release_blocking(
 ) -> None:
     api = client(tmp_path)
     _, episode, _ = approved_episode_with_library(api)
-    run = api.post(
-        f"/v1/episodes/{episode['id']}/production-runs", json={"dry_run": True}
-    ).json()
+    run = api.post(f"/v1/episodes/{episode['id']}/production-runs", json={"dry_run": True}).json()
     api.app.state.repository.update_run_status(run["id"], RunStatus.QA_REVIEW)
     exports = Path(run["package_path"]).parent / "qingshan-workspace" / "exports"
     master = create_playable_mp4(exports / "E01_MASTER.mp4")
@@ -675,12 +815,10 @@ def test_semantic_asr_and_authored_boundary_failures_are_release_blocking(
         f"/v1/production-runs/{run['id']}/rendered-output-seal",
         json=seal_payload(include_shot_manifest=True),
     )
-    assert api.post(
-        f"/v1/production-runs/{run['id']}/media-structure-qa"
-    ).json()["status"] == "PASS"
-    assert api.post(
-        f"/v1/production-runs/{run['id']}/decoded-media-qa"
-    ).json()["status"] == "PASS"
+    assert (
+        api.post(f"/v1/production-runs/{run['id']}/media-structure-qa").json()["status"] == "PASS"
+    )
+    assert api.post(f"/v1/production-runs/{run['id']}/decoded-media-qa").json()["status"] == "PASS"
     failed = api.post(
         f"/v1/production-runs/{run['id']}/semantic-media-qa",
         json=semantic_qa_payload(master_sha, transcript="天气不错"),
@@ -690,12 +828,8 @@ def test_semantic_asr_and_authored_boundary_failures_are_release_blocking(
     assert report["status"] == "FAIL"
     assert "asr:ASR_TRANSCRIPT_RECALL_BELOW_THRESHOLD" in report["failures"]
     assert "boundary:SHOT_TRANSITION_CONTRACT_DIGEST_MISMATCH" in report["failures"]
-    assert api.get(
-        f"/v1/production-runs/{run['id']}/semantic-media-qa"
-    ).json() == report
-    repair = api.get(
-        f"/v1/production-runs/{run['id']}/postproduction-repair-plan"
-    ).json()
+    assert api.get(f"/v1/production-runs/{run['id']}/semantic-media-qa").json() == report
+    repair = api.get(f"/v1/production-runs/{run['id']}/postproduction-repair-plan").json()
     assert [task["code"] for task in repair["repair_tasks"]] == [
         "semantic_asr",
         "shot_boundary",
@@ -708,19 +842,42 @@ def test_semantic_asr_and_authored_boundary_failures_are_release_blocking(
     assert "different evidence" in changed.text
 
 
+def test_postproduction_lineage_rejects_unadmitted_shot_and_blocks_release(
+    tmp_path: Path,
+) -> None:
+    api = client(tmp_path)
+    _, episode, _ = approved_episode_with_library(api)
+    run = api.post(f"/v1/episodes/{episode['id']}/production-runs", json={"dry_run": True}).json()
+    api.app.state.repository.update_run_status(run["id"], RunStatus.QA_REVIEW)
+    exports = Path(run["package_path"]).parent / "qingshan-workspace" / "exports"
+    create_playable_mp4(exports / "E01_MASTER.mp4")
+    (exports / "E01_zh-CN.vtt").write_text(
+        "WEBVTT\n\n00:00.100 --> 00:01.800\n回家\n", encoding="utf-8"
+    )
+    write_postproduction_lineage_manifest(run, exports, corrupt_admission=True)
+    api.post(
+        f"/v1/production-runs/{run['id']}/rendered-output-seal",
+        json=seal_payload(include_postproduction_manifest=True),
+    )
+    report = api.post(f"/v1/production-runs/{run['id']}/postproduction-lineage-qa").json()
+    assert report["status"] == "FAIL"
+    assert "SHOT_NOT_ADMITTED_FOR_ASSEMBLY" in report["failures"]
+    assert report["shot_selection"]["shots"][0]["status"] == "FAIL"
+    assert api.get(f"/v1/production-runs/{run['id']}/postproduction-lineage-qa").json() == report
+    repair = api.get(f"/v1/production-runs/{run['id']}/postproduction-repair-plan").json()
+    assert [task["code"] for task in repair["repair_tasks"]] == ["shot_selection"]
+    assert repair["repair_tasks"][0]["release_blocking"] is True
+
+
 def test_authored_boundary_requires_visual_change_when_contract_says_so(
     tmp_path: Path,
 ) -> None:
     api = client(tmp_path)
     _, episode, _ = approved_episode_with_library(api)
-    run = api.post(
-        f"/v1/episodes/{episode['id']}/production-runs", json={"dry_run": True}
-    ).json()
+    run = api.post(f"/v1/episodes/{episode['id']}/production-runs", json={"dry_run": True}).json()
     api.app.state.repository.update_run_status(run["id"], RunStatus.QA_REVIEW)
     exports = Path(run["package_path"]).parent / "qingshan-workspace" / "exports"
-    master = create_playable_mp4(
-        exports / "E01_MASTER.mp4", hold_across_boundary=True
-    )
+    master = create_playable_mp4(exports / "E01_MASTER.mp4", hold_across_boundary=True)
     master_sha = hashlib.sha256(master).hexdigest()
     (exports / "E01_zh-CN.vtt").write_text(
         "WEBVTT\n\n00:00.100 --> 00:01.800\n回家\n", encoding="utf-8"
@@ -730,12 +887,10 @@ def test_authored_boundary_requires_visual_change_when_contract_says_so(
         f"/v1/production-runs/{run['id']}/rendered-output-seal",
         json=seal_payload(include_shot_manifest=True),
     )
-    assert api.post(
-        f"/v1/production-runs/{run['id']}/media-structure-qa"
-    ).json()["status"] == "PASS"
-    assert api.post(
-        f"/v1/production-runs/{run['id']}/decoded-media-qa"
-    ).json()["status"] == "PASS"
+    assert (
+        api.post(f"/v1/production-runs/{run['id']}/media-structure-qa").json()["status"] == "PASS"
+    )
+    assert api.post(f"/v1/production-runs/{run['id']}/decoded-media-qa").json()["status"] == "PASS"
     report = api.post(
         f"/v1/production-runs/{run['id']}/semantic-media-qa",
         json=semantic_qa_payload(master_sha),
@@ -764,6 +919,7 @@ def test_completed_media_qa_creates_offline_release_package_without_publishing(
         encoding="utf-8",
     )
     write_shot_manifest(run, exports)
+    write_postproduction_lineage_manifest(run, exports)
     (exports / "E01_COVER.jpg").write_bytes(b"sealed-cover-fixture")
     (exports / "E01_FINAL_QA.json").write_text(
         json.dumps(
@@ -786,7 +942,11 @@ def test_completed_media_qa_creates_offline_release_package_without_publishing(
         ),
         encoding="utf-8",
     )
-    payload = seal_payload(include_qa=True, include_shot_manifest=True)
+    payload = seal_payload(
+        include_qa=True,
+        include_shot_manifest=True,
+        include_postproduction_manifest=True,
+    )
     payload["artifacts"].append(
         {
             "kind": "cover",
@@ -807,6 +967,8 @@ def test_completed_media_qa_creates_offline_release_package_without_publishing(
         json=semantic_qa_payload(master_sha),
     ).json()
     assert semantic_qa["status"] == "PASS"
+    lineage_qa = api.post(f"/v1/production-runs/{run['id']}/postproduction-lineage-qa").json()
+    assert lineage_qa["status"] == "PASS"
     too_early = api.post(
         f"/v1/production-runs/{run['id']}/release-package",
         json={
@@ -843,6 +1005,7 @@ def test_completed_media_qa_creates_offline_release_package_without_publishing(
     assert package["media_qa_report_sha256"] == media_qa["report_sha256"]
     assert package["decoded_media_qa_report_sha256"] == decoded_qa["report_sha256"]
     assert package["semantic_media_qa_report_sha256"] == semantic_qa["report_sha256"]
+    assert package["postproduction_lineage_qa_report_sha256"] == lineage_qa["report_sha256"]
     assert {artifact["kind"] for artifact in package["artifacts"]} >= {
         "master_video",
         "captions",

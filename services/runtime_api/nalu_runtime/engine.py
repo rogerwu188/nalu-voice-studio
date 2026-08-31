@@ -18,6 +18,7 @@ from .models import (
     FinalQAEvidence,
     MediaStructureQAReport,
     PlatformPublicationApproval,
+    PostproductionLineageQAReport,
     PostproductionRepairPlan,
     PostproductionRepairTask,
     ProductionCompletionRequest,
@@ -41,6 +42,7 @@ from .models import (
     SemanticMediaQAReport,
     SemanticMediaQARequest,
 )
+from .postproduction_lineage_qa import inspect_postproduction_lineage
 from .publication_adapters import publication_adapter
 from .qingshan_adapter import QingshanAdapter, QingshanAdapterError
 from .remote_submitter import DurableRemoteTaskSubmitter
@@ -144,6 +146,41 @@ QA_REPAIR_CATALOG = {
         "semantic media QA",
         "No immutable local semantic-ASR and authored-boundary report is bound to this seal.",
         "Run local final-master recognition and decoded authored-boundary QA before completion.",
+    ),
+    "postproduction_lineage_qa_presence": (
+        "postproduction lineage QA",
+        "No immutable shot-selection, normalization and audio-mix report is bound to this seal.",
+        "Validate the sealed postproduction manifest and every referenced media file.",
+    ),
+    "postproduction_manifest": (
+        "postproduction manifest",
+        "The postproduction manifest is missing, unreadable or bound to another package/master.",
+        "Rebuild the package-bound postproduction manifest and seal it with the repaired master.",
+    ),
+    "shot_selection": (
+        "selected shot timeline",
+        "A selected shot lacks admission, provider receipt, source digest or a contiguous edit range.",
+        "Select only admitted source shots, restore task/receipt evidence and rebuild the timeline.",
+    ),
+    "media_normalization": (
+        "normalized shot media",
+        "A normalized segment failed decode, format, duration or zero-based timestamp checks.",
+        "Normalize the cited segment to the declared picture contract and 48 kHz stereo audio.",
+    ),
+    "audio_stems": (
+        "dialogue, ambience, foley, music and SFX stems",
+        "An audio lane is missing, silent, undecodable or lacks cue provenance.",
+        "Repair the cited stem or record a specific creative omission, then rebuild the mix.",
+    ),
+    "published_mix": (
+        "published audio mix",
+        "The published mix is missing, malformed or does not match the final master's audio energy.",
+        "Re-export the 48 kHz stereo published mix and assemble the final master from that exact mix.",
+    ),
+    "subtitle_lineage": (
+        "subtitle lineage",
+        "The postproduction timeline does not bind the exact sealed captions and source contract.",
+        "Rebuild subtitle lineage against the exact captions file and source contract digest.",
     ),
     "decoded_video": (
         "decoded picture track",
@@ -709,6 +746,151 @@ class ProductionService:
             raise ConflictError("decoded media QA report belongs to another run")
         return report
 
+    def postproduction_lineage_qa(self, run_id: str) -> PostproductionLineageQAReport:
+        integrity = self.rendered_output_integrity(run_id)
+        if not integrity.integrity_ok:
+            raise ConflictError("sealed output integrity failed before postproduction lineage QA")
+        run = self.repository.get_run(run_id)
+        seal = integrity.seal
+        masters = [artifact for artifact in seal.artifacts if artifact.kind == "master_video"]
+        captions = [artifact for artifact in seal.artifacts if artifact.kind == "captions"]
+        manifests = [
+            artifact for artifact in seal.artifacts if artifact.kind == "postproduction_manifest"
+        ]
+        if len(masters) != 1 or len(captions) != 1 or len(manifests) != 1:
+            self._record_postproduction_repair_plan(
+                run,
+                output_seal_sha256=seal.manifest_sha256,
+                master_sha256=masters[0].sha256 if len(masters) == 1 else None,
+                codes=["postproduction_lineage_qa_presence"],
+            )
+            raise ConflictError(
+                "postproduction lineage QA requires exactly one master, captions and manifest"
+            )
+        exports = self._run_directory(run) / "qingshan-workspace" / "exports"
+        inspected = inspect_postproduction_lineage(
+            exports / manifests[0].relative_path,
+            exports_root=exports,
+            production_package_sha256=seal.production_package_sha256,
+            master_path=exports / masters[0].relative_path,
+            master_sha256=masters[0].sha256,
+            captions_path=exports / captions[0].relative_path,
+            captions_sha256=captions[0].sha256,
+        )
+        body = {
+            "schema_version": "nalu.postproduction-lineage-qa/v1",
+            "run_id": run.id,
+            "output_seal_sha256": seal.manifest_sha256,
+            "master_sha256": masters[0].sha256,
+            "captions_sha256": captions[0].sha256,
+            "postproduction_manifest_sha256": manifests[0].sha256,
+            "master_media": inspected["master_media"],
+            "shot_selection": inspected["shot_selection"],
+            "audio_mix": inspected["audio_mix"],
+            "subtitles": inspected["subtitles"],
+            "status": inspected["status"],
+            "failures": inspected["failures"],
+            "created_at": utc_now(),
+        }
+        report = PostproductionLineageQAReport(
+            **body,
+            report_sha256=self._canonical_sha256(body),
+        )
+        report_path = self._run_directory(run) / "postproduction-lineage-qa.json"
+        if report_path.is_file():
+            try:
+                existing = PostproductionLineageQAReport.model_validate_json(
+                    report_path.read_text(encoding="utf-8")
+                )
+                if (
+                    self._canonical_sha256(
+                        existing.model_dump(mode="json", exclude={"report_sha256"})
+                    )
+                    == existing.report_sha256
+                    and existing.output_seal_sha256 == report.output_seal_sha256
+                    and existing.postproduction_manifest_sha256
+                    == report.postproduction_manifest_sha256
+                    and existing.status == report.status
+                    and existing.failures == report.failures
+                ):
+                    return existing
+            except (OSError, ValueError):
+                pass
+            raise ConflictError("postproduction lineage QA already exists with different evidence")
+        temporary = report_path.with_name(f".{new_id('postproduction-lineage-qa')}.tmp")
+        temporary.write_text(report.model_dump_json(indent=2) + "\n", encoding="utf-8")
+        secure_file(temporary)
+        try:
+            os.link(temporary, report_path)
+        except FileExistsError as exc:
+            raise ConflictError("postproduction lineage QA was recorded concurrently") from exc
+        finally:
+            temporary.unlink(missing_ok=True)
+        secure_file(report_path)
+        self.repository.append_run_event(
+            run.id,
+            "postproduction_lineage_qa_completed",
+            from_status=run.status,
+            to_status=run.status,
+            message=(
+                "Selected shots, normalized segments, audio stems, published mix and "
+                "subtitle lineage were checked against decoded files."
+            ),
+            payload={
+                "status": report.status,
+                "report_sha256": report.report_sha256,
+                "failure_count": len(report.failures),
+            },
+        )
+        if report.failures:
+            repair_codes: list[str] = []
+            if any(failure.startswith("MANIFEST_") for failure in report.failures):
+                repair_codes.append("postproduction_manifest")
+            if any(failure.startswith(("SHOT_", "TIMELINE_")) for failure in report.failures):
+                repair_codes.append("shot_selection")
+            if any(
+                failure.startswith(("NORMALIZED_", "AUDIO_CONTRACT_"))
+                for failure in report.failures
+            ):
+                repair_codes.append("media_normalization")
+            if any(failure.startswith("STEM_") for failure in report.failures):
+                repair_codes.append("audio_stems")
+            if any(
+                failure.startswith(("PUBLISHED_MIX_", "FINAL_MASTER_AUDIO_"))
+                for failure in report.failures
+            ):
+                repair_codes.append("published_mix")
+            if any(failure.startswith("SUBTITLE_") for failure in report.failures):
+                repair_codes.append("subtitle_lineage")
+            self._record_postproduction_repair_plan(
+                run,
+                output_seal_sha256=seal.manifest_sha256,
+                master_sha256=masters[0].sha256,
+                source_qa_sha256=manifests[0].sha256,
+                codes=repair_codes or ["postproduction_manifest"],
+            )
+        return report
+
+    def stored_postproduction_lineage_qa(self, run_id: str) -> PostproductionLineageQAReport:
+        run = self.repository.get_run(run_id)
+        path = self._run_directory(run) / "postproduction-lineage-qa.json"
+        if not path.is_file() or path.is_symlink():
+            raise ConflictError("postproduction lineage QA has not been recorded for this run")
+        try:
+            report = PostproductionLineageQAReport.model_validate_json(
+                path.read_text(encoding="utf-8")
+            )
+        except (OSError, ValueError) as exc:
+            raise ConflictError(
+                "postproduction lineage QA report is unreadable or invalid"
+            ) from exc
+        body = report.model_dump(mode="json", exclude={"report_sha256"})
+        if self._canonical_sha256(body) != report.report_sha256:
+            raise ConflictError("postproduction lineage QA report digest mismatch")
+        if report.run_id != run.id:
+            raise ConflictError("postproduction lineage QA report belongs to another run")
+        return report
+
     def sealed_master_path(self, run_id: str) -> tuple[Path, RenderedOutputArtifact]:
         integrity = self.rendered_output_integrity(run_id)
         if not integrity.integrity_ok:
@@ -720,10 +902,7 @@ class ProductionService:
             raise ConflictError("exactly one sealed master is required")
         run = self.repository.get_run(run_id)
         path = (
-            self._run_directory(run)
-            / "qingshan-workspace"
-            / "exports"
-            / masters[0].relative_path
+            self._run_directory(run) / "qingshan-workspace" / "exports" / masters[0].relative_path
         )
         return path, masters[0]
 
@@ -892,6 +1071,11 @@ class ProductionService:
             raise ConflictError("semantic media QA must pass before release packaging")
         if semantic_qa.output_seal_sha256 != integrity.seal.manifest_sha256:
             raise ConflictError("semantic media QA reviewed a different output seal")
+        lineage_qa = self.stored_postproduction_lineage_qa(run.id)
+        if lineage_qa.status != "PASS":
+            raise ConflictError("postproduction lineage QA must pass before release packaging")
+        if lineage_qa.output_seal_sha256 != integrity.seal.manifest_sha256:
+            raise ConflictError("postproduction lineage QA reviewed a different output seal")
 
         artifacts_by_kind: dict[str, list[RenderedOutputArtifact]] = {}
         for artifact in integrity.seal.artifacts:
@@ -918,6 +1102,7 @@ class ProductionService:
                 and existing.media_qa_report_sha256 == media_qa.report_sha256
                 and existing.decoded_media_qa_report_sha256 == decoded_qa.report_sha256
                 and existing.semantic_media_qa_report_sha256 == semantic_qa.report_sha256
+                and existing.postproduction_lineage_qa_report_sha256 == lineage_qa.report_sha256
                 and existing.title == request.title
                 and existing.description == request.description
                 and existing.prepared_by == request.prepared_by
@@ -934,6 +1119,7 @@ class ProductionService:
             "media_qa_report_sha256": media_qa.report_sha256,
             "decoded_media_qa_report_sha256": decoded_qa.report_sha256,
             "semantic_media_qa_report_sha256": semantic_qa.report_sha256,
+            "postproduction_lineage_qa_report_sha256": lineage_qa.report_sha256,
             "title": request.title,
             "description": request.description,
             "artifacts": [
@@ -1233,8 +1419,17 @@ class ProductionService:
             (self.stored_media_structure_qa, "media_structure_qa_presence"),
             (self.stored_decoded_media_qa, "decoded_media_qa_presence"),
             (self.stored_semantic_media_qa, "semantic_media_qa_presence"),
+            (
+                self.stored_postproduction_lineage_qa,
+                "postproduction_lineage_qa_presence",
+            ),
         )
-        reports: list[MediaStructureQAReport | DecodedMediaQAReport | SemanticMediaQAReport] = []
+        reports: list[
+            MediaStructureQAReport
+            | DecodedMediaQAReport
+            | SemanticMediaQAReport
+            | PostproductionLineageQAReport
+        ] = []
         for loader, repair_code in required_media_qa:
             try:
                 reports.append(loader(run_id))
@@ -1246,19 +1441,22 @@ class ProductionService:
                     codes=[repair_code],
                 )
                 raise ConflictError(
-                    "production completion requires structure, decoded and semantic media QA"
+                    "production completion requires structure, decoded, semantic and "
+                    "postproduction lineage QA"
                 ) from exc
-        structure_qa, decoded_qa, semantic_qa = reports
+        structure_qa, decoded_qa, semantic_qa, lineage_qa = reports
         if (
             structure_qa.status != "PASS"
             or decoded_qa.status != "PASS"
             or semantic_qa.status != "PASS"
+            or lineage_qa.status != "PASS"
         ):
             raise ConflictError("production completion requires all automated media QA to pass")
         if (
             structure_qa.output_seal_sha256 != seal.manifest_sha256
             or decoded_qa.output_seal_sha256 != seal.manifest_sha256
             or semantic_qa.output_seal_sha256 != seal.manifest_sha256
+            or lineage_qa.output_seal_sha256 != seal.manifest_sha256
         ):
             raise ConflictError("automated media QA reviewed a different output seal")
 
