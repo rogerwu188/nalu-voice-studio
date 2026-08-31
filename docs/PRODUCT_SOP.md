@@ -648,6 +648,10 @@ Current evidence:
 - This implementation intentionally records `semantic_asr_verified: false`: VAD and cue
   overlap are not transcript correctness, lip sync, shot-aware adjacent-shot continuity
   or human review.
+- Commits `f224356` and `d23c7b9`, GitHub CI run `33343613892`: all 82 Runtime tests,
+  OpenAPI backward compatibility, SOP/progress audits and real HTTP smoke passed. The
+  same commit built, verified and launched the PyAV/FFmpeg-equipped packaged Runtime on
+  Apple Silicon and Intel, then merged, verified and launched the universal application.
 - Still required before `PASS`: real shot selection/normalization and mix pipeline,
   semantic ASR/transcript comparison, shot-aware adjacent-shot media-boundary evidence,
   and actual original-resolution human audiovisual review on the release candidate.
