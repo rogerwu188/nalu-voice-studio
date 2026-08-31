@@ -20,7 +20,8 @@ def test_repository_goal_progress_is_consistent_with_product_sop() -> None:
     assert result["status"] == "PASS", result["failures"]
     assert result["project_complete"] is False
     assert result["current_checkpoint"] == "SOP-09"
-    assert result["next_action"] == "decoded-golden-media-gates"
+    assert result["next_action"] == progress["next_action"]["id"]
+    assert progress["next_action"]["requires_user_authorization"] is False
 
 
 def test_sop_count_drift_and_false_completion_are_rejected() -> None:
