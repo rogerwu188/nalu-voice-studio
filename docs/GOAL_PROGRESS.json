@@ -11,26 +11,26 @@
     "TODO": 1,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "3a314191f3b69549a659d82a4fca26def3e471d6",
-  "last_advanced_at": "2026-08-31T03:29:56Z",
+  "observed_head": "17b242ffa5c7a1c9274775d867242f01195276d2",
+  "last_advanced_at": "2026-08-31T03:54:19Z",
   "last_closed_checkpoint": {
-    "id": "sop-09-bounded-memory-postproduction-audio-mixer",
+    "id": "sop-09-production-visual-analyzer-input-contract",
     "sop": "SOP-09",
-    "product_commit": "3a314191f3b69549a659d82a4fca26def3e471d6",
-    "evidence_commit": "b7df65b080625133af0f36f40c40c9058bd50790",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33353565965",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33353565965/job/99371980750",
+    "product_commit": "17b242ffa5c7a1c9274775d867242f01195276d2",
+    "evidence_commit": "1485fa19d3010cdb4c6d058097e64ea93cab2e53",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33354670668",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33354670668/job/99374946162",
     "result": "PASS"
   },
   "current_checkpoint": {
     "sop": "SOP-09",
     "status": "IN_PROGRESS",
-    "summary": "Structural, decoded, semantic, lineage, immutable five-domain evidence, Runtime-owned local assembly/mixing and bounded-chunk Python audio execution are closed on universal artifacts. Full-duration device soak, perceptual visual analysis, same-candidate native/human final-master acceptance and real media remain before SOP-09 can pass."
+    "summary": "Structural, decoded, semantic, lineage, immutable five-domain evidence, Runtime-owned local assembly/mixing, bounded-chunk audio and local visual analyzer input authority are closed on universal artifacts. Full-duration device soak, perceptual visual execution, same-candidate native/human final-master acceptance and real media remain before SOP-09 can pass."
   },
   "next_action": {
     "sop": "SOP-09",
-    "id": "production-visual-analyzer-input-contract",
-    "summary": "Bind confirmed character reference images and expected wardrobe/prop/axis/pose targets into a local analyzer request, then execute a real perceptual baseline against decoded final-master frames instead of trusting authored observations.",
+    "id": "local-perceptual-visual-analyzer-executor",
+    "summary": "Execute a local analyzer that rehashes confirmed references, decodes sampled final-master frames and derives machine observations for identity, wardrobe, screen axis, pose and props instead of accepting producer-authored observations.",
     "requires_user_authorization": false
   },
   "blocking_conditions": [
