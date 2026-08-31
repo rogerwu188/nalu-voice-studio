@@ -5,6 +5,7 @@ repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 bundle="$repo_root/dist/Nalu Voice Studio.app"
 runtime="$bundle/Contents/Resources/runtime/nalu-runtime"
 runtime_resources="$bundle/Contents/Resources/runtime-resources"
+visual_analyzer="$bundle/Contents/Resources/analyzers/nalu-visual-analyzer"
 smoke_root="$(mktemp -d)"
 runtime_pid=""
 
@@ -17,6 +18,7 @@ cleanup() {
 trap cleanup EXIT
 
 test -x "$runtime"
+test -x "$visual_analyzer"
 test -f "$runtime_resources/configs/qingshan-upstream.json"
 test -f "$runtime_resources/vendor/qingshan/LICENSE"
 "$repo_root/scripts/verify-macos-release.sh" "$bundle"
@@ -24,6 +26,7 @@ test -f "$runtime_resources/vendor/qingshan/LICENSE"
 NALU_DATA_ROOT="$smoke_root/data" \
 NALU_DATABASE_PATH="$smoke_root/nalu.sqlite3" \
 NALU_REPOSITORY_ROOT="$runtime_resources" \
+NALU_VISUAL_ANALYZER_BINARY="$visual_analyzer" \
   "$runtime" >"$smoke_root/runtime.log" 2>&1 &
 runtime_pid=$!
 

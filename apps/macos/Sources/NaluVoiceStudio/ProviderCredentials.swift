@@ -110,6 +110,8 @@ enum RuntimeEnvironmentBuilder {
             .appending(path: "nalu.sqlite3").path
         environment["NALU_REPOSITORY_ROOT"] = resources
             .appending(path: "runtime-resources").path
+        environment["NALU_VISUAL_ANALYZER_BINARY"] = resources
+            .appending(path: "analyzers/nalu-visual-analyzer").path
         return environment
     }
 }

@@ -12,6 +12,7 @@ build_number="${NALU_BUILD_NUMBER:-1}"
 
 build_root="$repo_root/.build/nalu-macos"
 binary_path="$build_root/NaluVoiceStudio"
+visual_analyzer_path="$build_root/NaluVisualAnalyzer"
 mkdir -p "$build_root"
 
 runtime_binary="${NALU_RUNTIME_BINARY:-}"
@@ -49,15 +50,25 @@ swiftc -parse-as-library \
   -framework WebKit \
   -o "$binary_path"
 
+swiftc \
+  "$app_root/Sources/NaluVisualAnalyzer/main.swift" \
+  -framework Vision \
+  -framework CoreImage \
+  -framework ImageIO \
+  -o "$visual_analyzer_path"
+
 if [[ -d "$bundle" && "$bundle" == "$output_root/"* ]]; then
   rm -rf "$bundle"
 fi
 mkdir -p \
   "$bundle/Contents/MacOS" \
+  "$bundle/Contents/Resources/analyzers" \
   "$bundle/Contents/Resources/runtime" \
   "$bundle/Contents/Resources/runtime-resources"
 cp "$binary_path" "$bundle/Contents/MacOS/NaluVoiceStudio"
 cp "$runtime_binary" "$bundle/Contents/Resources/runtime/nalu-runtime"
+cp "$visual_analyzer_path" \
+  "$bundle/Contents/Resources/analyzers/nalu-visual-analyzer"
 cp -R "$repo_root/configs" "$bundle/Contents/Resources/runtime-resources/configs"
 cp -R "$repo_root/vendor" "$bundle/Contents/Resources/runtime-resources/vendor"
 cp "$app_root/Info.plist" "$bundle/Contents/Info.plist"

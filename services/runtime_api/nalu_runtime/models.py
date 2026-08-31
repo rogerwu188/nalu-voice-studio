@@ -1063,6 +1063,26 @@ class PostproductionMaterializationResult(BaseModel):
     result_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
 
 
+class LocalVisualAnalysisResult(BaseModel):
+    schema_version: Literal["nalu.local-visual-analysis/v1"] = (
+        "nalu.local-visual-analysis/v1"
+    )
+    run_id: str
+    project_id: str
+    episode_id: str
+    production_package_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    inputs_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    master_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    analyzer_model_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    manifest: dict[str, Any]
+    status: Literal["PASS", "FAIL"]
+    failures: list[str] = Field(default_factory=list)
+    analyzed_shot_count: int = Field(ge=1)
+    provider_upload_performed: Literal[False] = False
+    created_at: str
+    result_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+
+
 class RenderedOutputCandidate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

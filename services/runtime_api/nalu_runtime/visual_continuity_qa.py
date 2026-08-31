@@ -16,7 +16,10 @@ MINIMUM_CONFIDENCE = {
     "pose": 0.75,
     "props": 0.80,
 }
-APPROVED_ANALYZERS = {"qingshan-visual-continuity-local"}
+APPROVED_ANALYZERS = {
+    "qingshan-visual-continuity-local",
+    "nalu-apple-vision-local",
+}
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 
 

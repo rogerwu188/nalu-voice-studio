@@ -183,6 +183,24 @@ requires both asset rehashing and final-master frame digests. Consent statements
 copied into the analysis workspace. `READY` means only that inputs are complete enough
 for a local analyzer; it is not evidence that perceptual analysis ran or passed.
 
+After Runtime-owned postproduction has materialized one final master,
+`POST /v1/production-runs/{run_id}/local-visual-analysis` rehashes every confirmed
+reference, decodes the midpoint frame for every authored shot and invokes the packaged
+`NaluVisualAnalyzer` executable. That helper uses Apple Vision feature prints for
+character/prop similarity, Core Image area-average color for wardrobe evidence, and
+Vision body-pose/face/saliency observations for pose and screen-axis evidence. It has no
+network transport, receives only managed local paths, and returns measurements rather
+than caller-selected PASS flags. Runtime binds those measurements to the analyzer binary
+SHA-256, exact frame SHA-256, production package and confirmed entity revision, then
+writes one immutable manifest and one idempotent run event. A restart between the file
+commit and SQLite event commit replays the same evidence without running Vision twice.
+
+This is deliberately a conservative baseline. Whole-frame feature-print similarity can
+fail when a character or prop occupies a small part of a complex shot; area-average color
+does not segment a garment; and body pose can be unknown when joints are occluded. Such
+uncertainty becomes a domain failure and repair task. It is never replaced with a guessed
+observation, and it does not replace original-resolution human audiovisual review.
+
 `POST /v1/production-runs/{run_id}/visual-continuity-qa` does not trust the manifest's
 PASS flags. It reopens the exact sealed master with PyAV/FFmpeg, decodes the cited frame,
 recomputes its grayscale pixel SHA-256 and then calculates every observation's result

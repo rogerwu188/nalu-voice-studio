@@ -7,6 +7,12 @@ from pathlib import Path
 
 from .continuity import audit_continuity
 from .decoded_media_qa import inspect_decoded_media
+from .local_visual_analyzer import (
+    AppleVisionAnalyzer,
+    LocalVisualAnalyzerError,
+    VisualAnalyzerRunner,
+    execute_local_visual_analysis,
+)
 from .media_structure_qa import inspect_mp4, inspect_webvtt
 from .models import (
     AudienceMode,
@@ -16,6 +22,7 @@ from .models import (
     EpisodeStatus,
     EpisodeTransitionRequest,
     FinalQAEvidence,
+    LocalVisualAnalysisResult,
     MediaStructureQAReport,
     PlatformPublicationApproval,
     PostproductionLineageQAReport,
@@ -295,6 +302,7 @@ class ProductionService:
         data_root: Path,
         repository_root: Path,
         remote_task_submitter: DurableRemoteTaskSubmitter,
+        visual_analyzer: VisualAnalyzerRunner | None = None,
     ):
         self.repository = repository
         self.remote_task_submitter = remote_task_submitter
@@ -302,6 +310,10 @@ class ProductionService:
         secure_directory(self.data_root)
         self.repository_root = repository_root
         self.adapter = QingshanAdapter(repository_root)
+        configured_analyzer = os.environ.get("NALU_VISUAL_ANALYZER_BINARY")
+        self.visual_analyzer = visual_analyzer or AppleVisionAnalyzer(
+            Path(configured_analyzer) if configured_analyzer else None
+        )
 
     def _model_policy(self) -> dict:
         policy_path = self.repository_root / "configs" / "model-policy.json"
@@ -371,6 +383,120 @@ class ProductionService:
             plan_sha256=result.plan_sha256,
             result_sha256=result.result_sha256,
             requested_by=request.requested_by,
+        )
+        return result
+
+    def run_local_visual_analysis(self, run_id: str) -> LocalVisualAnalysisResult:
+        run = self.repository.get_run(run_id)
+        if run.status != RunStatus.QA_REVIEW:
+            raise ConflictError("local visual analysis requires a materialized QA-review run")
+        run_directory = self._run_directory(run)
+        if (run_directory / "rendered-output-seal.json").exists():
+            raise ConflictError("sealed outputs cannot be replaced by a new visual analysis")
+        result_path = run_directory / "local-visual-analysis-result.json"
+        if result_path.is_file() and not result_path.is_symlink():
+            try:
+                existing = LocalVisualAnalysisResult.model_validate_json(
+                    result_path.read_text(encoding="utf-8")
+                )
+            except (OSError, ValueError) as exc:
+                raise ConflictError("stored local visual analysis is unreadable") from exc
+            body = existing.model_dump(mode="json", exclude={"result_sha256"})
+            if self._canonical_sha256(body) != existing.result_sha256:
+                raise ConflictError("stored local visual analysis digest mismatch")
+            workspace = run_directory / "qingshan-workspace"
+            exports = workspace / "exports"
+            materialization_paths = list(
+                (exports / "materialized").glob("*/materialization-result.json")
+            )
+            try:
+                if len(materialization_paths) != 1:
+                    raise ValueError("materialization result is missing or ambiguous")
+                materialization = PostproductionMaterializationResult.model_validate_json(
+                    materialization_paths[0].read_text(encoding="utf-8")
+                )
+                materialization_body = materialization.model_dump(
+                    mode="json", exclude={"result_sha256"}
+                )
+                if self._canonical_sha256(materialization_body) != materialization.result_sha256:
+                    raise ValueError("materialization result digest changed")
+                resolved_exports = exports.resolve(strict=True)
+                master_candidate = exports / materialization.master["relative_path"]
+                manifest_candidate = exports / str(existing.manifest.get("relative_path") or "")
+                if master_candidate.is_symlink() or manifest_candidate.is_symlink():
+                    raise ValueError("stored visual evidence uses a symbolic link")
+                master = master_candidate.resolve(strict=True)
+                manifest = manifest_candidate.resolve(strict=True)
+                if (
+                    not master.is_relative_to(resolved_exports)
+                    or not manifest.is_relative_to(resolved_exports)
+                ):
+                    raise ValueError("stored visual evidence escaped exports")
+                task_path = next((workspace / "workflow" / "tasks").glob("*_PRODUCTION_TASK.json"))
+                task = json.loads(task_path.read_text(encoding="utf-8"))
+                inputs_path = workspace / task["local_visual_analysis"]["inputs_path"]
+                inputs = json.loads(inputs_path.read_text(encoding="utf-8"))
+                inputs_body = {
+                    key: value for key, value in inputs.items() if key != "inputs_sha256"
+                }
+                if self._canonical_sha256(inputs_body) != inputs.get("inputs_sha256"):
+                    raise ValueError("visual analyzer input digest changed")
+                analyzer_model_sha256 = self.visual_analyzer.model_sha256
+            except (
+                StopIteration,
+                OSError,
+                KeyError,
+                TypeError,
+                ValueError,
+                LocalVisualAnalyzerError,
+            ) as exc:
+                raise ConflictError("stored local visual analysis inputs are unreadable") from exc
+            if (
+                existing.run_id != run.id
+                or existing.master_sha256 != materialization.master.get("sha256")
+                or not master.is_file()
+                or self._sha256_file(master) != existing.master_sha256
+                or inputs.get("inputs_sha256") != existing.inputs_sha256
+                or analyzer_model_sha256 != existing.analyzer_model_sha256
+                or not manifest.is_file()
+                or self._sha256_file(manifest) != existing.manifest.get("sha256")
+            ):
+                raise ConflictError("stored local visual analysis evidence changed")
+            self.repository.record_local_visual_analysis(
+                run.id,
+                result_sha256=existing.result_sha256,
+                manifest_sha256=existing.manifest["sha256"],
+                status=existing.status,
+                failure_count=len(existing.failures),
+            )
+            return existing
+        try:
+            result = execute_local_visual_analysis(
+                run_id=run.id,
+                project_id=run.project_id,
+                episode_id=run.episode_id,
+                data_root=self.data_root,
+                run_directory=run_directory,
+                analyzer=self.visual_analyzer,
+            )
+        except (KeyError, TypeError, ValueError, LocalVisualAnalyzerError) as exc:
+            raise ConflictError(str(exc)) from exc
+        temporary = result_path.with_name(f".{new_id('local-visual-analysis')}.tmp")
+        temporary.write_text(result.model_dump_json(indent=2) + "\n", encoding="utf-8")
+        secure_file(temporary)
+        try:
+            os.link(temporary, result_path)
+        except FileExistsError as exc:
+            raise ConflictError("local visual analysis was recorded concurrently") from exc
+        finally:
+            temporary.unlink(missing_ok=True)
+        secure_file(result_path)
+        self.repository.record_local_visual_analysis(
+            run.id,
+            result_sha256=result.result_sha256,
+            manifest_sha256=result.manifest["sha256"],
+            status=result.status,
+            failure_count=len(result.failures),
         )
         return result
 

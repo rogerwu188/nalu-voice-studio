@@ -16,11 +16,14 @@ import math
 import os
 import socket
 import sqlite3
+import struct
 import subprocess
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
+import zlib
 from array import array
 from datetime import UTC, datetime
 from fractions import Fraction
@@ -79,6 +82,27 @@ def request(
     return json.loads(raw)
 
 
+def upload(path: str, query: dict[str, Any], content: bytes, *, content_type: str) -> Any:
+    http_request = urllib.request.Request(
+        BASE_URL + path + "?" + urllib.parse.urlencode(query),
+        data=content,
+        headers={"Content-Type": content_type},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(http_request, timeout=120) as response:
+            status = response.status
+            raw = response.read()
+    except urllib.error.HTTPError as error:
+        status = error.code
+        raw = error.read()
+    if status != 201:
+        raise RuntimeError(
+            f"{path} returned HTTP {status}, expected 201: {raw.decode(errors='replace')}"
+        )
+    return json.loads(raw)
+
+
 def port_is_open() -> bool:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
         probe.settimeout(0.2)
@@ -126,6 +150,27 @@ def create_video(path: Path) -> bytes:
             output.mux(packet)
         write_audio_frames(output, audio, frequency=440)
     return path.read_bytes()
+
+
+def create_reference_png() -> bytes:
+    row = bytes((30, 80, 220)) * 64
+
+    def chunk(kind: bytes, payload: bytes) -> bytes:
+        return (
+            struct.pack(">I", len(payload))
+            + kind
+            + payload
+            + struct.pack(">I", zlib.crc32(kind + payload) & 0xFFFFFFFF)
+        )
+
+    header = struct.pack(">IIBBBBB", 64, 64, 8, 2, 0, 0, 0)
+    pixels = b"".join(b"\x00" + row for _ in range(64))
+    return (
+        b"\x89PNG\r\n\x1a\n"
+        + chunk(b"IHDR", header)
+        + chunk(b"IDAT", zlib.compress(pixels, 9))
+        + chunk(b"IEND", b"")
+    )
 
 
 def write_audio_frames(
@@ -181,7 +226,12 @@ def create_approved_episode(title: str) -> tuple[dict[str, Any], dict[str, Any]]
             "kind": "character",
             "name": "林叔",
             "description": "穿蓝色外套",
-            "attributes": {"wardrobe": ["蓝色外套"]},
+            "attributes": {
+                "wardrobe": ["蓝色外套"],
+                "space_axis": "screen-left",
+                "pose": "standing",
+                "held_props": [],
+            },
             "source_channel": "voice",
             "change_summary": "发布包验收人物",
         },
@@ -196,6 +246,22 @@ def create_approved_episode(title: str) -> tuple[dict[str, Any], dict[str, Any]]
             "spoken_confirmation": "我确认这份人物设定",
         },
         expected=201,
+    )
+    reference = create_reference_png()
+    upload(
+        f"/v1/projects/{project['id']}/asset-imports",
+        {
+            "filename": "lin-shu.png",
+            "kind": "character_image",
+            "name": "林叔本机视觉参考",
+            "subject_name": "林叔",
+            "consent_granted": True,
+            "consent_scope": "project_only",
+            "consent_granted_by": "本机 QA",
+            "consent_statement": "只允许这个隔离项目在本机进行视觉分析",
+        },
+        reference,
+        content_type="image/png",
     )
     script = request(
         f"/v1/episodes/{episode['id']}/scripts",
@@ -298,7 +364,7 @@ def assert_regular_artifact(exports: Path, artifact: dict[str, Any]) -> None:
         raise RuntimeError(f"materialized artifact digest changed: {artifact['relative_path']}")
 
 
-def run_positive_case(database: Path) -> dict[str, Any]:
+def run_positive_case(database: Path, analyzer: Path) -> dict[str, Any]:
     episode, run = create_approved_episode("发布包后期制作闭环")
     enter_postproduction(database, episode["id"], run["id"])
     exports = Path(run["package_path"]).parent / "qingshan-workspace" / "exports"
@@ -333,6 +399,50 @@ def run_positive_case(database: Path) -> dict[str, Any]:
     if event_count != 1:
         raise RuntimeError(f"materialization replay recorded {event_count} transition events")
     request(endpoint, {**plan, "requested_by": "different-worker"}, expected=409)
+
+    workspace = Path(run["package_path"]).parent / "qingshan-workspace"
+    task = json.loads(
+        (workspace / "workflow/tasks/E01_PRODUCTION_TASK.json").read_text(encoding="utf-8")
+    )
+    analyzer_inputs = json.loads(
+        (workspace / task["local_visual_analysis"]["inputs_path"]).read_text(encoding="utf-8")
+    )
+    reference_uri = analyzer_inputs["subjects"][0]["references"][0]["local_file_uri"]
+    reference_path = Path(urllib.parse.unquote(urllib.parse.urlparse(reference_uri).path))
+    reference_bytes = reference_path.read_bytes()
+    reference_path.write_bytes(reference_bytes + b"digest-drift")
+    visual_endpoint = f"/v1/production-runs/{run['id']}/local-visual-analysis"
+    request(visual_endpoint, {}, expected=409)
+    reference_path.write_bytes(reference_bytes)
+    visual = request(visual_endpoint, {}, expected=201)
+    if visual["provider_upload_performed"] or visual["analyzed_shot_count"] != 2:
+        raise RuntimeError("local visual execution privacy or shot-count evidence is invalid")
+    if visual["analyzer_model_sha256"] != sha256_file(analyzer):
+        raise RuntimeError("visual result is not bound to the packaged analyzer binary")
+    assert_regular_artifact(exports, visual["manifest"])
+    visual_manifest = json.loads(
+        (exports / visual["manifest"]["relative_path"]).read_text(encoding="utf-8")
+    )
+    analyzer_record = visual_manifest["analyzer"]
+    if (
+        analyzer_record["analyzer_id"] != "nalu-apple-vision-local"
+        or not analyzer_record["local_analysis"]
+        or analyzer_record["provider_upload_performed"]
+    ):
+        raise RuntimeError("visual manifest did not prove local-only Apple Vision execution")
+    checks = [
+        check
+        for shot in visual_manifest["shots"]
+        for check in shot["checks"]
+    ]
+    if not checks or any("machine_measurement" not in check for check in checks):
+        raise RuntimeError("visual manifest omitted machine-derived measurements")
+    visual_events = request(f"/v1/production-runs/{run['id']}/events")
+    visual_event_count = sum(
+        item["event_type"] == "local_visual_analysis_completed" for item in visual_events
+    )
+    if visual_event_count != 1 or request(visual_endpoint, {}, expected=201) != visual:
+        raise RuntimeError("local visual execution did not replay exactly once")
     seal = request(
         f"/v1/production-runs/{run['id']}/rendered-output-seal",
         {
@@ -347,6 +457,7 @@ def run_positive_case(database: Path) -> dict[str, Any]:
                     result["master"],
                     result["captions"],
                     result["postproduction_manifest"],
+                    visual["manifest"],
                 )
             ],
         },
@@ -357,6 +468,9 @@ def run_positive_case(database: Path) -> dict[str, Any]:
         raise RuntimeError("decoded postproduction lineage QA did not pass")
     if {item["layer"] for item in lineage["audio_mix"]["stems"]} != set(LAYERS):
         raise RuntimeError("lineage QA did not decode all five materialized stems")
+    visual_qa = request(f"/v1/production-runs/{run['id']}/visual-continuity-qa", {})
+    if visual_qa["status"] != visual["status"] or visual_qa["shot_count"] != 2:
+        raise RuntimeError("same-seal visual QA disagrees with machine observations")
     request(endpoint, plan, expected=409)
     return {
         "run_id": run["id"],
@@ -374,6 +488,14 @@ def run_positive_case(database: Path) -> dict[str, Any]:
         "materialization_event_count": event_count,
         "seal_sha256": seal["manifest_sha256"],
         "lineage_status": lineage["status"],
+        "visual_analysis_status": visual["status"],
+        "visual_analysis_result_sha256": visual["result_sha256"],
+        "visual_manifest_sha256": visual["manifest"]["sha256"],
+        "visual_check_count": len(checks),
+        "visual_event_count": visual_event_count,
+        "visual_qa_status": visual_qa["status"],
+        "reference_digest_drift_rejected": True,
+        "provider_upload_performed": False,
     }
 
 
@@ -425,9 +547,15 @@ def main() -> int:
     runtime = app / "Contents/Resources/runtime/nalu-runtime"
     runtime_resources = app / "Contents/Resources/runtime-resources"
     executable = app / "Contents/MacOS/NaluVoiceStudio"
+    analyzer = app / "Contents/Resources/analyzers/nalu-visual-analyzer"
     if port_is_open():
         raise RuntimeError(f"loopback port {PORT} is already occupied")
-    for required in (runtime, executable, runtime_resources / "configs/qingshan-upstream.json"):
+    for required in (
+        runtime,
+        executable,
+        analyzer,
+        runtime_resources / "configs/qingshan-upstream.json",
+    ):
         if not required.exists():
             raise RuntimeError(f"release bundle is missing {required}")
     work_dir.mkdir(parents=True, exist_ok=False)
@@ -438,6 +566,7 @@ def main() -> int:
             "NALU_DATA_ROOT": str(work_dir / "runtime-data"),
             "NALU_DATABASE_PATH": str(database),
             "NALU_REPOSITORY_ROOT": str(runtime_resources),
+            "NALU_VISUAL_ANALYZER_BINARY": str(analyzer),
         }
     )
     log_path = work_dir / "runtime.log"
@@ -451,7 +580,10 @@ def main() -> int:
             route = "/v1/production-runs/{run_id}/postproduction-materializations"
             if route not in openapi["paths"]:
                 raise RuntimeError("packaged OpenAPI omits the materialization route")
-            positive = run_positive_case(database)
+            visual_route = "/v1/production-runs/{run_id}/local-visual-analysis"
+            if visual_route not in openapi["paths"]:
+                raise RuntimeError("packaged OpenAPI omits the local visual-analysis route")
+            positive = run_positive_case(database, analyzer)
             negative = run_negative_case(database)
         finally:
             process.terminate()
@@ -467,7 +599,7 @@ def main() -> int:
     else:
         raise RuntimeError("bundled Runtime left loopback port open after termination")
     report = {
-        "schema_version": "nalu.packaged-postproduction-qa/v1",
+        "schema_version": "nalu.packaged-postproduction-qa/v2",
         "status": "PASS",
         "source_commit": args.source_commit,
         "ci_run": args.ci_run,
@@ -480,6 +612,7 @@ def main() -> int:
             "path": str(app),
             "main_executable_sha256": sha256_file(executable),
             "bundled_runtime_sha256": sha256_file(runtime),
+            "bundled_visual_analyzer_sha256": sha256_file(analyzer),
             "signature_scope": "ad-hoc; Developer ID and notarization are not claimed",
         },
         "positive_case": positive,

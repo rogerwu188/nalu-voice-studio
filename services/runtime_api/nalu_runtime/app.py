@@ -49,6 +49,7 @@ from .models import (
     LibraryEntityResolution,
     LibraryEntityRevision,
     LibraryEntityRevisionCreate,
+    LocalVisualAnalysisResult,
     MediaStructureQAReport,
     MemoryCard,
     MemoryCardConfirmation,
@@ -620,6 +621,14 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
         run_id: str, request: PostproductionMaterializationCreate
     ) -> PostproductionMaterializationResult:
         return production.materialize_postproduction(run_id, request)
+
+    @app.post(
+        "/v1/production-runs/{run_id}/local-visual-analysis",
+        response_model=LocalVisualAnalysisResult,
+        status_code=201,
+    )
+    def run_local_visual_analysis(run_id: str) -> LocalVisualAnalysisResult:
+        return production.run_local_visual_analysis(run_id)
 
     @app.post(
         "/v1/production-runs/{run_id}/rendered-output-seal",

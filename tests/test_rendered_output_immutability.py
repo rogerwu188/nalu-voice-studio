@@ -2,6 +2,7 @@ import hashlib
 import json
 import math
 import struct
+import urllib.parse
 from array import array
 from fractions import Fraction
 from pathlib import Path
@@ -32,7 +33,12 @@ def approved_episode_with_library(api: TestClient) -> tuple[dict, dict, dict]:
             "kind": "character",
             "name": "林叔",
             "description": "穿蓝色外套",
-            "attributes": {"wardrobe": ["蓝色外套"]},
+            "attributes": {
+                "wardrobe": ["蓝色外套"],
+                "space_axis": "screen-left",
+                "pose": "standing",
+                "held_props": [],
+            },
             "source_channel": "voice",
             "change_summary": "第一次确认",
         },
@@ -60,6 +66,50 @@ def approved_episode_with_library(api: TestClient) -> tuple[dict, dict, dict]:
     )
     assert approved.status_code == 200
     return project, episode, entity
+
+
+class DeterministicVisualAnalyzer:
+    version = "test-apple-vision-baseline/v1"
+    model_sha256 = hashlib.sha256(b"deterministic-local-vision-model").hexdigest()
+
+    def __init__(self) -> None:
+        self.call_count = 0
+
+    def analyze(self, request: dict, working_directory: Path) -> dict:
+        self.call_count += 1
+        assert working_directory.is_dir()
+        assert request["schema_version"] == "nalu.apple-vision-request/v1"
+        character_ids = [
+            item["entity_id"] for item in request["subjects"] if item["kind"] == "character"
+        ]
+        assert len(character_ids) == 1
+        return {
+            "schema_version": "nalu.apple-vision-measurements/v1",
+            "framework": "Apple Vision test double",
+            "local_analysis": True,
+            "shots": [
+                {
+                    "shot_id": frame["shot_id"],
+                    "frame_sha256": frame["frame_sha256"],
+                    "subjects": [
+                        {
+                            "entity_id": character_ids[0],
+                            "identity_distance": 0.0,
+                            "dominant_color": "蓝色",
+                            "color_confidence": 0.99,
+                            "space_axis": "screen-left",
+                            "axis_confidence": 0.99,
+                            "subject_center_x": 0.25,
+                            "pose": "standing",
+                            "pose_confidence": 0.99,
+                            "body_joint_count": 15,
+                            "prop_distances": {},
+                        }
+                    ],
+                }
+                for frame in request["frames"]
+            ],
+        }
 
 
 def seal_payload(
@@ -425,9 +475,7 @@ def write_visual_continuity_manifest(
         ],
     }
     body["manifest_sha256"] = hashlib.sha256(
-        json.dumps(body, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode(
-            "utf-8"
-        )
+        json.dumps(body, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
     ).hexdigest()
     (exports / "E01_VISUAL_CONTINUITY.json").write_text(
         json.dumps(body, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
@@ -455,9 +503,7 @@ def postproduction_materialization_fixture(run: dict, exports: Path) -> dict:
             }
         )
     captions_path = provider / "captions.vtt"
-    captions_path.write_text(
-        "WEBVTT\n\n00:00.100 --> 00:01.800\n回家\n", encoding="utf-8"
-    )
+    captions_path.write_text("WEBVTT\n\n00:00.100 --> 00:01.800\n回家\n", encoding="utf-8")
     return {
         "requested_by": "local-postproduction-worker",
         "shots": [
@@ -706,9 +752,7 @@ def test_verified_seal_and_human_qa_complete_atomically_and_retry_safely(
     )
     assert missing_visual.status_code == 409
     repair = api.get(f"/v1/production-runs/{run['id']}/postproduction-repair-plan").json()
-    assert [task["code"] for task in repair["repair_tasks"]] == [
-        "visual_continuity_qa_presence"
-    ]
+    assert [task["code"] for task in repair["repair_tasks"]] == ["visual_continuity_qa_presence"]
     visual_qa = api.post(f"/v1/production-runs/{run['id']}/visual-continuity-qa").json()
     assert visual_qa["status"] == "PASS"
     assert visual_qa["passed_shot_count"] == 1
@@ -1065,9 +1109,7 @@ def test_visual_continuity_redecodes_frames_and_creates_domain_repair(
 ) -> None:
     api = client(tmp_path)
     _, episode, _ = approved_episode_with_library(api)
-    run = api.post(
-        f"/v1/episodes/{episode['id']}/production-runs", json={"dry_run": True}
-    ).json()
+    run = api.post(f"/v1/episodes/{episode['id']}/production-runs", json={"dry_run": True}).json()
     api.app.state.repository.update_run_status(run["id"], RunStatus.QA_REVIEW)
     exports = Path(run["package_path"]).parent / "qingshan-workspace" / "exports"
     create_playable_mp4(exports / "E01_MASTER.mp4")
@@ -1098,9 +1140,7 @@ def test_visual_continuity_redecodes_frames_and_creates_domain_repair(
         f"/v1/episodes/{frame_episode['id']}/production-runs", json={"dry_run": True}
     ).json()
     api.app.state.repository.update_run_status(frame_run["id"], RunStatus.QA_REVIEW)
-    frame_exports = (
-        Path(frame_run["package_path"]).parent / "qingshan-workspace" / "exports"
-    )
+    frame_exports = Path(frame_run["package_path"]).parent / "qingshan-workspace" / "exports"
     create_playable_mp4(frame_exports / "E01_MASTER.mp4")
     (frame_exports / "E01_zh-CN.vtt").write_text("WEBVTT\n", encoding="utf-8")
     write_visual_continuity_manifest(frame_run, frame_exports, corrupt_frame=True)
@@ -1108,9 +1148,7 @@ def test_visual_continuity_redecodes_frames_and_creates_domain_repair(
         f"/v1/production-runs/{frame_run['id']}/rendered-output-seal",
         json=seal_payload(include_visual_continuity_manifest=True),
     )
-    frame_report = api.post(
-        f"/v1/production-runs/{frame_run['id']}/visual-continuity-qa"
-    ).json()
+    frame_report = api.post(f"/v1/production-runs/{frame_run['id']}/visual-continuity-qa").json()
     assert frame_report["status"] == "FAIL"
     assert "FRAME_SHA_MISMATCH" in frame_report["failures"]
     assert "IDENTITY_FRAME_NOT_VERIFIED" in frame_report["failures"]
@@ -1132,9 +1170,7 @@ def test_runtime_materializes_postproduction_and_recovers_after_state_commit_cra
 ) -> None:
     api = client(tmp_path)
     _, episode, _ = approved_episode_with_library(api)
-    run = api.post(
-        f"/v1/episodes/{episode['id']}/production-runs", json={"dry_run": True}
-    ).json()
+    run = api.post(f"/v1/episodes/{episode['id']}/production-runs", json={"dry_run": True}).json()
     repository = api.app.state.repository
     repository.update_run_status(run["id"], RunStatus.RUNNING)
     for target in ("generating", "postproduction"):
@@ -1225,9 +1261,7 @@ def test_runtime_materializes_postproduction_and_recovers_after_state_commit_cra
         },
     )
     assert seal.status_code == 201
-    lineage = api.post(
-        f"/v1/production-runs/{run['id']}/postproduction-lineage-qa"
-    )
+    lineage = api.post(f"/v1/production-runs/{run['id']}/postproduction-lineage-qa")
     assert lineage.status_code == 200
     report = lineage.json()
     assert report["status"] == "PASS"
@@ -1248,12 +1282,122 @@ def test_runtime_materializes_postproduction_and_recovers_after_state_commit_cra
     assert "sealed outputs cannot be rematerialized" in after_seal.text
 
 
+def test_local_visual_analysis_rehashes_references_decodes_master_and_recovers(
+    tmp_path: Path,
+) -> None:
+    api = client(tmp_path)
+    project, episode, _ = approved_episode_with_library(api)
+    reference_bytes = b"local-character-reference"
+    imported = api.post(
+        f"/v1/projects/{project['id']}/asset-imports",
+        params={
+            "filename": "lin-shu.jpg",
+            "kind": "character_image",
+            "name": "林叔参考照",
+            "subject_name": "林叔",
+            "consent_granted": True,
+            "consent_scope": "project_only",
+            "consent_granted_by": "本人",
+            "consent_statement": "我同意仅在这个项目的本机进行视觉核对",
+        },
+        content=reference_bytes,
+        headers={"Content-Type": "image/jpeg"},
+    )
+    assert imported.status_code == 201
+    reference_path = Path(urllib.parse.urlparse(imported.json()["local_uri"]).path)
+
+    run = api.post(f"/v1/episodes/{episode['id']}/production-runs", json={"dry_run": True}).json()
+    repository = api.app.state.repository
+    repository.update_run_status(run["id"], RunStatus.RUNNING)
+    for target in ("generating", "postproduction"):
+        assert (
+            api.post(
+                f"/v1/episodes/{episode['id']}/transition",
+                json={
+                    "target_status": target,
+                    "requested_by": "local-production-worker",
+                    "reason": f"fixture entered {target}",
+                },
+            ).status_code
+            == 200
+        )
+    exports = Path(run["package_path"]).parent / "qingshan-workspace" / "exports"
+    materialized = api.post(
+        f"/v1/production-runs/{run['id']}/postproduction-materializations",
+        json=postproduction_materialization_fixture(run, exports),
+    )
+    assert materialized.status_code == 201
+    materialization = materialized.json()
+
+    analyzer = DeterministicVisualAnalyzer()
+    api.app.state.production.visual_analyzer = analyzer
+    reference_path.write_bytes(b"tampered-reference")
+    rejected = api.post(f"/v1/production-runs/{run['id']}/local-visual-analysis")
+    assert rejected.status_code == 409
+    assert "reference digest changed" in rejected.text
+    assert analyzer.call_count == 0
+    reference_path.write_bytes(reference_bytes)
+
+    with (
+        patch.object(
+            repository,
+            "record_local_visual_analysis",
+            side_effect=RuntimeError("simulated crash before visual event commit"),
+        ),
+        pytest.raises(RuntimeError, match="simulated crash"),
+    ):
+        api.post(f"/v1/production-runs/{run['id']}/local-visual-analysis")
+
+    result_path = Path(run["package_path"]).parent / "local-visual-analysis-result.json"
+    assert result_path.is_file()
+    completed = api.post(f"/v1/production-runs/{run['id']}/local-visual-analysis")
+    assert completed.status_code == 201
+    result = completed.json()
+    assert result["schema_version"] == "nalu.local-visual-analysis/v1"
+    assert result["status"] == "PASS"
+    assert result["provider_upload_performed"] is False
+    assert result["analyzed_shot_count"] == 2
+    assert analyzer.call_count == 1
+    assert api.post(f"/v1/production-runs/{run['id']}/local-visual-analysis").json() == result
+    assert analyzer.call_count == 1
+    events = api.get(f"/v1/production-runs/{run['id']}/events").json()
+    assert sum(event["event_type"] == "local_visual_analysis_completed" for event in events) == 1
+
+    seal = api.post(
+        f"/v1/production-runs/{run['id']}/rendered-output-seal",
+        json={
+            "sealed_by": "local-qa-worker",
+            "artifacts": [
+                {
+                    "kind": item["kind"],
+                    "relative_path": item["relative_path"],
+                    "media_type": item["media_type"],
+                }
+                for item in (
+                    materialization["master"],
+                    materialization["captions"],
+                    materialization["postproduction_manifest"],
+                    result["manifest"],
+                )
+            ],
+        },
+    )
+    assert seal.status_code == 201
+    visual_qa = api.post(f"/v1/production-runs/{run['id']}/visual-continuity-qa")
+    assert visual_qa.status_code == 200
+    report = visual_qa.json()
+    assert report["status"] == "PASS"
+    assert report["shot_count"] == 2
+    assert report["passed_shot_count"] == 2
+    manifest = json.loads((exports / result["manifest"]["relative_path"]).read_text())
+    assert manifest["analyzer"]["local_analysis"] is True
+    assert manifest["analyzer"]["provider_upload_performed"] is False
+
+
 def test_postproduction_materializer_rejects_drift_and_unsafe_sources(tmp_path: Path) -> None:
     api = client(tmp_path)
     _, episode, _ = approved_episode_with_library(api)
-    run = api.post(
-        f"/v1/episodes/{episode['id']}/production-runs", json={"dry_run": True}
-    ).json()
+    run = api.post(f"/v1/episodes/{episode['id']}/production-runs", json={"dry_run": True}).json()
     repository = api.app.state.repository
     repository.update_run_status(run["id"], RunStatus.RUNNING)
     for target in ("generating", "postproduction"):

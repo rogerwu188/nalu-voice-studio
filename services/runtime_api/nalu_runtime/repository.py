@@ -3546,6 +3546,64 @@ class Repository:
             )
         return self.get_run_event(event_id)
 
+    def record_local_visual_analysis(
+        self,
+        run_id: str,
+        *,
+        result_sha256: str,
+        manifest_sha256: str,
+        status: str,
+        failure_count: int,
+    ) -> RunEvent:
+        """Record immutable visual evidence once and recover after a file/DB boundary crash."""
+        run = self.get_run(run_id)
+        event_id, now = new_id("evt"), utc_now()
+        payload = {
+            "status": status,
+            "result_sha256": result_sha256,
+            "manifest_sha256": manifest_sha256,
+            "failure_count": failure_count,
+            "provider_upload_performed": False,
+        }
+        with self.db.connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            prior = connection.execute(
+                """SELECT id, payload_json FROM run_events
+                   WHERE run_id = ? AND event_type = 'local_visual_analysis_completed'
+                   ORDER BY sequence DESC LIMIT 1""",
+                (run_id,),
+            ).fetchone()
+            if prior is not None:
+                prior_payload = decode(prior["payload_json"])
+                if (
+                    prior_payload.get("result_sha256") == result_sha256
+                    and prior_payload.get("manifest_sha256") == manifest_sha256
+                ):
+                    return self.get_run_event(prior["id"])
+                raise ConflictError("production run has different local visual evidence")
+            row = connection.execute(
+                "SELECT COALESCE(MAX(sequence), 0) + 1 AS sequence FROM run_events WHERE run_id = ?",
+                (run_id,),
+            ).fetchone()
+            connection.execute(
+                """INSERT INTO run_events VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    event_id,
+                    run_id,
+                    int(row["sequence"]),
+                    "local_visual_analysis_completed",
+                    run.status,
+                    run.status,
+                    (
+                        "Apple Vision analyzed decoded final-master frames against confirmed "
+                        "local character and prop references."
+                    ),
+                    encode(payload),
+                    now,
+                ),
+            )
+        return self.get_run_event(event_id)
+
     def get_run_event(self, event_id: str) -> RunEvent:
         with self.db.connect() as connection:
             row = connection.execute(
