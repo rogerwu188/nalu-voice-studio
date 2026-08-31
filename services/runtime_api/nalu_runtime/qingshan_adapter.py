@@ -68,6 +68,7 @@ class QingshanAdapter:
             "libraries/qa",
             "libraries/continuity",
             "exports",
+            "exports/provider-results",
         ):
             (workspace / relative).mkdir(parents=True, exist_ok=True)
 
@@ -130,6 +131,17 @@ class QingshanAdapter:
                         ),
                     },
                 },
+                "local_postproduction": {
+                    "executor": "nalu-local-postproduction",
+                    "request_schema_version": (
+                        "nalu.postproduction-materialization-plan/v1"
+                    ),
+                    "provider_result_root": "exports/provider-results",
+                    "contract_path": (
+                        f"configs/{episode_code}_POSTPRODUCTION_MATERIALIZATION_CONTRACT.json"
+                    ),
+                    "network_call_performed_by_executor": False,
+                },
             },
         )
         self._write_json(
@@ -178,6 +190,41 @@ class QingshanAdapter:
                 ],
                 "published_mix_must_bind_final_master_audio": True,
                 "subtitles_must_bind_sealed_captions": True,
+                "fail_closed": True,
+            },
+        )
+        self._write_json(
+            workspace
+            / "configs"
+            / f"{episode_code}_POSTPRODUCTION_MATERIALIZATION_CONTRACT.json",
+            {
+                "schema_version": "nalu.postproduction-materialization-contract/v1",
+                "request_schema_version": "nalu.postproduction-materialization-plan/v1",
+                "result_schema_version": "nalu.postproduction-materialization/v1",
+                "provider_result_root": "exports/provider-results",
+                "production_package_sha256": package["package_sha256"],
+                "required_shot_authority": [
+                    "source task ID",
+                    "provider receipt SHA-256",
+                    "source file SHA-256",
+                    "explicit admitted source interval",
+                ],
+                "required_audio_layers": [
+                    "dialogue",
+                    "ambience",
+                    "foley",
+                    "music",
+                    "sfx",
+                ],
+                "normalization": {
+                    "pixel_format": "yuv420p",
+                    "audio_sample_rate_hz": 48000,
+                    "audio_channels": 2,
+                    "timestamps_zero_based": True,
+                },
+                "atomic_output_directory": True,
+                "source_digest_rechecked_before_commit": True,
+                "network_call_performed": False,
                 "fail_closed": True,
             },
         )

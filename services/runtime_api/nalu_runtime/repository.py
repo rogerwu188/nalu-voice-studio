@@ -3023,6 +3023,105 @@ class Repository:
             )
         return self.get_run(run_id)
 
+    def mark_postproduction_materialized(
+        self,
+        run_id: str,
+        *,
+        plan_sha256: str,
+        result_sha256: str,
+        requested_by: str,
+    ) -> tuple[ProductionRun, Episode]:
+        run = self.get_run(run_id)
+        now = utc_now()
+        with self.db.connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            current_run = connection.execute(
+                "SELECT status, episode_id FROM production_runs WHERE id = ?", (run_id,)
+            ).fetchone()
+            current_episode = connection.execute(
+                "SELECT status FROM episodes WHERE id = ?", (run.episode_id,)
+            ).fetchone()
+            if current_run is None:
+                raise NotFoundError("production run not found")
+            if current_episode is None:
+                raise NotFoundError("episode not found")
+            run_status = RunStatus(current_run["status"])
+            episode_status = EpisodeStatus(current_episode["status"])
+            if run_status == RunStatus.QA_REVIEW and episode_status == EpisodeStatus.QA_REVIEW:
+                prior = connection.execute(
+                    """SELECT payload_json FROM run_events
+                       WHERE run_id = ? AND event_type = 'postproduction_materialized'
+                       ORDER BY sequence DESC LIMIT 1""",
+                    (run_id,),
+                ).fetchone()
+                payload = decode(prior["payload_json"]) if prior else {}
+                if (
+                    payload.get("plan_sha256") == plan_sha256
+                    and payload.get("result_sha256") == result_sha256
+                ):
+                    return self.get_run(run_id), self.get_episode(run.episode_id)
+                raise ConflictError(
+                    "production run entered QA review from different postproduction evidence"
+                )
+            if run_status != RunStatus.RUNNING:
+                raise ConflictError(
+                    "production run must be running before local postproduction materialization"
+                )
+            if episode_status != EpisodeStatus.POSTPRODUCTION:
+                raise ConflictError(
+                    "episode must be in postproduction before local materialization"
+                )
+            latest = connection.execute(
+                """SELECT id FROM production_runs WHERE episode_id = ?
+                   ORDER BY created_at DESC, id DESC LIMIT 1""",
+                (run.episode_id,),
+            ).fetchone()
+            if latest is None or latest["id"] != run_id:
+                raise ConflictError("only the latest episode production run can materialize")
+
+            connection.execute(
+                "UPDATE production_runs SET status = ?, error = NULL, updated_at = ? WHERE id = ?",
+                (RunStatus.QA_REVIEW, now, run_id),
+            )
+            connection.execute(
+                "UPDATE episodes SET status = ?, updated_at = ? WHERE id = ?",
+                (EpisodeStatus.QA_REVIEW, now, run.episode_id),
+            )
+            row = connection.execute(
+                "SELECT COALESCE(MAX(sequence), 0) + 1 AS sequence FROM run_events WHERE run_id = ?",
+                (run_id,),
+            ).fetchone()
+            connection.execute(
+                "INSERT INTO run_events VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    new_id("evt"),
+                    run_id,
+                    int(row["sequence"]),
+                    "postproduction_materialized",
+                    RunStatus.RUNNING,
+                    RunStatus.QA_REVIEW,
+                    "Local postproduction rendered normalized media, five audio layers and a final master.",
+                    encode(
+                        {
+                            "plan_sha256": plan_sha256,
+                            "result_sha256": result_sha256,
+                            "requested_by": requested_by,
+                            "network_call_performed": False,
+                        }
+                    ),
+                    now,
+                ),
+            )
+            self._record_episode_transition(
+                connection,
+                run.episode_id,
+                EpisodeStatus.POSTPRODUCTION,
+                EpisodeStatus.QA_REVIEW,
+                requested_by,
+                f"production run {run_id} completed local postproduction materialization",
+            )
+        return self.get_run(run_id), self.get_episode(run.episode_id)
+
     def complete_run_after_qa(
         self,
         run_id: str,

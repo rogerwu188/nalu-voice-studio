@@ -3118,6 +3118,63 @@
         "title": "PlatformPublicationApproval",
         "type": "object"
       },
+      "PostproductionAudioSource": {
+        "additionalProperties": false,
+        "properties": {
+          "gain_db": {
+            "default": 0,
+            "maximum": 12.0,
+            "minimum": -60.0,
+            "title": "Gain Db",
+            "type": "number"
+          },
+          "layer": {
+            "enum": [
+              "dialogue",
+              "ambience",
+              "foley",
+              "music",
+              "sfx"
+            ],
+            "title": "Layer",
+            "type": "string"
+          },
+          "source_cue_sha256s": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 10000,
+            "minItems": 1,
+            "title": "Source Cue Sha256S",
+            "type": "array"
+          },
+          "source_in_seconds": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Source In Seconds",
+            "type": "number"
+          },
+          "source_relative_path": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Source Relative Path",
+            "type": "string"
+          },
+          "source_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Source Sha256",
+            "type": "string"
+          }
+        },
+        "required": [
+          "layer",
+          "source_relative_path",
+          "source_sha256",
+          "source_cue_sha256s"
+        ],
+        "title": "PostproductionAudioSource",
+        "type": "object"
+      },
       "PostproductionLineageQAReport": {
         "properties": {
           "audio_mix": {
@@ -3210,6 +3267,210 @@
           "report_sha256"
         ],
         "title": "PostproductionLineageQAReport",
+        "type": "object"
+      },
+      "PostproductionMaterializationCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "audio_channels": {
+            "const": 2,
+            "default": 2,
+            "title": "Audio Channels",
+            "type": "integer"
+          },
+          "audio_layers": {
+            "items": {
+              "$ref": "#/components/schemas/PostproductionAudioSource"
+            },
+            "maxItems": 5,
+            "minItems": 5,
+            "title": "Audio Layers",
+            "type": "array"
+          },
+          "audio_sample_rate_hz": {
+            "const": 48000,
+            "default": 48000,
+            "title": "Audio Sample Rate Hz",
+            "type": "integer"
+          },
+          "captions_source_relative_path": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Captions Source Relative Path",
+            "type": "string"
+          },
+          "captions_source_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Captions Source Sha256",
+            "type": "string"
+          },
+          "frame_rate": {
+            "default": 24,
+            "maximum": 60.0,
+            "minimum": 1.0,
+            "title": "Frame Rate",
+            "type": "integer"
+          },
+          "height": {
+            "default": 1080,
+            "maximum": 2160.0,
+            "minimum": 16.0,
+            "title": "Height",
+            "type": "integer"
+          },
+          "pixel_format": {
+            "const": "yuv420p",
+            "default": "yuv420p",
+            "title": "Pixel Format",
+            "type": "string"
+          },
+          "requested_by": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Requested By",
+            "type": "string"
+          },
+          "shots": {
+            "items": {
+              "$ref": "#/components/schemas/PostproductionShotSource"
+            },
+            "maxItems": 500,
+            "minItems": 1,
+            "title": "Shots",
+            "type": "array"
+          },
+          "subtitle_contract_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Subtitle Contract Sha256",
+            "type": "string"
+          },
+          "width": {
+            "default": 1920,
+            "maximum": 3840.0,
+            "minimum": 16.0,
+            "title": "Width",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "requested_by",
+          "shots",
+          "audio_layers",
+          "captions_source_relative_path",
+          "captions_source_sha256",
+          "subtitle_contract_sha256"
+        ],
+        "title": "PostproductionMaterializationCreate",
+        "type": "object"
+      },
+      "PostproductionMaterializationResult": {
+        "properties": {
+          "audio_stems": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Audio Stems",
+            "type": "array"
+          },
+          "captions": {
+            "additionalProperties": true,
+            "title": "Captions",
+            "type": "object"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "episode_id": {
+            "title": "Episode Id",
+            "type": "string"
+          },
+          "master": {
+            "additionalProperties": true,
+            "title": "Master",
+            "type": "object"
+          },
+          "normalized_segments": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Normalized Segments",
+            "type": "array"
+          },
+          "output_root_relative_path": {
+            "title": "Output Root Relative Path",
+            "type": "string"
+          },
+          "plan_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Plan Sha256",
+            "type": "string"
+          },
+          "postproduction_manifest": {
+            "additionalProperties": true,
+            "title": "Postproduction Manifest",
+            "type": "object"
+          },
+          "production_package_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Production Package Sha256",
+            "type": "string"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "published_mix": {
+            "additionalProperties": true,
+            "title": "Published Mix",
+            "type": "object"
+          },
+          "requested_by": {
+            "title": "Requested By",
+            "type": "string"
+          },
+          "result_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Result Sha256",
+            "type": "string"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "nalu.postproduction-materialization/v1",
+            "default": "nalu.postproduction-materialization/v1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "workspace_manifest_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Workspace Manifest Sha256",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_id",
+          "project_id",
+          "episode_id",
+          "production_package_sha256",
+          "workspace_manifest_sha256",
+          "plan_sha256",
+          "output_root_relative_path",
+          "master",
+          "captions",
+          "postproduction_manifest",
+          "normalized_segments",
+          "audio_stems",
+          "published_mix",
+          "requested_by",
+          "created_at",
+          "result_sha256"
+        ],
+        "title": "PostproductionMaterializationResult",
         "type": "object"
       },
       "PostproductionRepairPlan": {
@@ -3321,6 +3582,59 @@
           "required_action"
         ],
         "title": "PostproductionRepairTask",
+        "type": "object"
+      },
+      "PostproductionShotSource": {
+        "additionalProperties": false,
+        "properties": {
+          "shot_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$",
+            "title": "Shot Id",
+            "type": "string"
+          },
+          "source_in_seconds": {
+            "minimum": 0.0,
+            "title": "Source In Seconds",
+            "type": "number"
+          },
+          "source_out_seconds": {
+            "exclusiveMinimum": 0.0,
+            "title": "Source Out Seconds",
+            "type": "number"
+          },
+          "source_receipt_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Source Receipt Sha256",
+            "type": "string"
+          },
+          "source_relative_path": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Source Relative Path",
+            "type": "string"
+          },
+          "source_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Source Sha256",
+            "type": "string"
+          },
+          "source_task_id": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Source Task Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "shot_id",
+          "source_relative_path",
+          "source_sha256",
+          "source_task_id",
+          "source_receipt_sha256",
+          "source_in_seconds",
+          "source_out_seconds"
+        ],
+        "title": "PostproductionShotSource",
         "type": "object"
       },
       "ProductionCompletionRequest": {
@@ -7286,6 +7600,55 @@
           }
         },
         "summary": "Postproduction Lineage Qa"
+      }
+    },
+    "/v1/production-runs/{run_id}/postproduction-materializations": {
+      "post": {
+        "operationId": "materialize_postproduction_v1_production_runs__run_id__postproduction_materializations_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PostproductionMaterializationCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostproductionMaterializationResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Materialize Postproduction"
       }
     },
     "/v1/production-runs/{run_id}/postproduction-repair-plan": {

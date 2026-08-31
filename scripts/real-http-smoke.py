@@ -61,6 +61,13 @@ def main() -> int:
             else:
                 raise RuntimeError("runtime did not become healthy")
 
+            status, openapi = request("/openapi.json")
+            materialization_route = (
+                "/v1/production-runs/{run_id}/postproduction-materializations"
+            )
+            if status != 200 or materialization_route not in openapi["paths"]:
+                raise RuntimeError("postproduction materialization route is absent over HTTP")
+
             status, project = request("/v1/projects", {"title": "HTTP smoke project"})
             if status != 201 or not project["id"].startswith("prj_"):
                 raise RuntimeError("project creation failed over HTTP")

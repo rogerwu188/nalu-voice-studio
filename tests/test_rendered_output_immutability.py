@@ -434,6 +434,62 @@ def write_visual_continuity_manifest(
     )
 
 
+def postproduction_materialization_fixture(run: dict, exports: Path) -> dict:
+    provider = exports / "provider-results"
+    provider.mkdir(parents=True, exist_ok=True)
+    source_path = provider / "provider-shot.mp4"
+    source_bytes = create_playable_mp4(source_path)
+    audio_layers = []
+    for index, layer in enumerate(("dialogue", "ambience", "foley", "music", "sfx")):
+        audio_path = provider / f"{layer}.wav"
+        audio_bytes = create_audio_stem(audio_path, frequency=330 + index * 55)
+        audio_layers.append(
+            {
+                "layer": layer,
+                "source_relative_path": str(audio_path.relative_to(exports)),
+                "source_sha256": hashlib.sha256(audio_bytes).hexdigest(),
+                "source_cue_sha256s": [
+                    hashlib.sha256(f"materialized-cue-{layer}".encode()).hexdigest()
+                ],
+                "gain_db": -3 if layer == "music" else 0,
+            }
+        )
+    captions_path = provider / "captions.vtt"
+    captions_path.write_text(
+        "WEBVTT\n\n00:00.100 --> 00:01.800\n回家\n", encoding="utf-8"
+    )
+    return {
+        "requested_by": "local-postproduction-worker",
+        "shots": [
+            {
+                "shot_id": "S01",
+                "source_relative_path": str(source_path.relative_to(exports)),
+                "source_sha256": hashlib.sha256(source_bytes).hexdigest(),
+                "source_task_id": "provider-task-1",
+                "source_receipt_sha256": hashlib.sha256(b"provider-receipt-1").hexdigest(),
+                "source_in_seconds": 0,
+                "source_out_seconds": 1,
+            },
+            {
+                "shot_id": "S02",
+                "source_relative_path": str(source_path.relative_to(exports)),
+                "source_sha256": hashlib.sha256(source_bytes).hexdigest(),
+                "source_task_id": "provider-task-2",
+                "source_receipt_sha256": hashlib.sha256(b"provider-receipt-2").hexdigest(),
+                "source_in_seconds": 1,
+                "source_out_seconds": 2,
+            },
+        ],
+        "audio_layers": audio_layers,
+        "captions_source_relative_path": str(captions_path.relative_to(exports)),
+        "captions_source_sha256": hashlib.sha256(captions_path.read_bytes()).hexdigest(),
+        "subtitle_contract_sha256": hashlib.sha256(b"subtitle-contract").hexdigest(),
+        "width": 64,
+        "height": 64,
+        "frame_rate": 10,
+    }
+
+
 def write_shot_manifest(run: dict, exports: Path, *, corrupt_contract: bool = False) -> None:
     package = json.loads(Path(run["package_path"]).read_text(encoding="utf-8"))
     contract = {
@@ -1069,6 +1125,202 @@ def test_visual_continuity_redecodes_frames_and_creates_domain_repair(
         "visual_pose",
         "visual_prop",
     }
+
+
+def test_runtime_materializes_postproduction_and_recovers_after_state_commit_crash(
+    tmp_path: Path,
+) -> None:
+    api = client(tmp_path)
+    _, episode, _ = approved_episode_with_library(api)
+    run = api.post(
+        f"/v1/episodes/{episode['id']}/production-runs", json={"dry_run": True}
+    ).json()
+    repository = api.app.state.repository
+    repository.update_run_status(run["id"], RunStatus.RUNNING)
+    for target in ("generating", "postproduction"):
+        assert (
+            api.post(
+                f"/v1/episodes/{episode['id']}/transition",
+                json={
+                    "target_status": target,
+                    "requested_by": "local-production-worker",
+                    "reason": f"fixture entered {target}",
+                },
+            ).status_code
+            == 200
+        )
+    exports = Path(run["package_path"]).parent / "qingshan-workspace" / "exports"
+    request = postproduction_materialization_fixture(run, exports)
+
+    with (
+        patch.object(
+            repository,
+            "mark_postproduction_materialized",
+            side_effect=RuntimeError("simulated crash before SQLite state commit"),
+        ),
+        pytest.raises(RuntimeError, match="simulated crash"),
+    ):
+        api.post(
+            f"/v1/production-runs/{run['id']}/postproduction-materializations",
+            json=request,
+        )
+    assert api.get(f"/v1/production-runs/{run['id']}").json()["status"] == "running"
+    assert api.get(f"/v1/episodes/{episode['id']}").json()["status"] == "postproduction"
+    finalized = list((exports / "materialized").glob("*/materialization-result.json"))
+    assert len(finalized) == 1
+
+    completed = api.post(
+        f"/v1/production-runs/{run['id']}/postproduction-materializations",
+        json=request,
+    )
+    assert completed.status_code == 201
+    result = completed.json()
+    assert result["schema_version"] == "nalu.postproduction-materialization/v1"
+    assert result["master"]["kind"] == "master_video"
+    assert result["captions"]["kind"] == "captions"
+    assert result["postproduction_manifest"]["kind"] == "postproduction_manifest"
+    assert [item["shot_id"] for item in result["normalized_segments"]] == ["S01", "S02"]
+    assert {item["layer"] for item in result["audio_stems"]} == {
+        "dialogue",
+        "ambience",
+        "foley",
+        "music",
+        "sfx",
+    }
+    assert api.get(f"/v1/production-runs/{run['id']}").json()["status"] == "qa_review"
+    assert api.get(f"/v1/episodes/{episode['id']}").json()["status"] == "qa_review"
+    replay = api.post(
+        f"/v1/production-runs/{run['id']}/postproduction-materializations",
+        json=request,
+    )
+    assert replay.status_code == 201
+    assert replay.json() == result
+    events = api.get(f"/v1/production-runs/{run['id']}/events").json()
+    assert sum(event["event_type"] == "postproduction_materialized" for event in events) == 1
+
+    changed = {**request, "requested_by": "different-worker"}
+    changed_response = api.post(
+        f"/v1/production-runs/{run['id']}/postproduction-materializations",
+        json=changed,
+    )
+    assert changed_response.status_code == 409
+    assert "different plan" in changed_response.text
+
+    seal = api.post(
+        f"/v1/production-runs/{run['id']}/rendered-output-seal",
+        json={
+            "sealed_by": "local-qa-worker",
+            "artifacts": [
+                {
+                    "kind": item["kind"],
+                    "relative_path": item["relative_path"],
+                    "media_type": item["media_type"],
+                }
+                for item in (
+                    result["master"],
+                    result["captions"],
+                    result["postproduction_manifest"],
+                )
+            ],
+        },
+    )
+    assert seal.status_code == 201
+    lineage = api.post(
+        f"/v1/production-runs/{run['id']}/postproduction-lineage-qa"
+    )
+    assert lineage.status_code == 200
+    report = lineage.json()
+    assert report["status"] == "PASS"
+    assert report["shot_selection"]["shot_count"] == 2
+    assert {item["layer"] for item in report["audio_mix"]["stems"]} == {
+        "dialogue",
+        "ambience",
+        "foley",
+        "music",
+        "sfx",
+    }
+
+    after_seal = api.post(
+        f"/v1/production-runs/{run['id']}/postproduction-materializations",
+        json=request,
+    )
+    assert after_seal.status_code == 409
+    assert "sealed outputs cannot be rematerialized" in after_seal.text
+
+
+def test_postproduction_materializer_rejects_drift_and_unsafe_sources(tmp_path: Path) -> None:
+    api = client(tmp_path)
+    _, episode, _ = approved_episode_with_library(api)
+    run = api.post(
+        f"/v1/episodes/{episode['id']}/production-runs", json={"dry_run": True}
+    ).json()
+    repository = api.app.state.repository
+    repository.update_run_status(run["id"], RunStatus.RUNNING)
+    for target in ("generating", "postproduction"):
+        api.post(
+            f"/v1/episodes/{episode['id']}/transition",
+            json={
+                "target_status": target,
+                "requested_by": "local-production-worker",
+                "reason": f"fixture entered {target}",
+            },
+        )
+    exports = Path(run["package_path"]).parent / "qingshan-workspace" / "exports"
+    request = postproduction_materialization_fixture(run, exports)
+
+    unsafe = json.loads(json.dumps(request))
+    unsafe["shots"][0]["source_relative_path"] = "../production-package.json"
+    assert (
+        api.post(
+            f"/v1/production-runs/{run['id']}/postproduction-materializations",
+            json=unsafe,
+        ).status_code
+        == 422
+    )
+    missing_layer = json.loads(json.dumps(request))
+    missing_layer["audio_layers"] = missing_layer["audio_layers"][:-1]
+    assert (
+        api.post(
+            f"/v1/production-runs/{run['id']}/postproduction-materializations",
+            json=missing_layer,
+        ).status_code
+        == 422
+    )
+
+    drifted = json.loads(json.dumps(request))
+    drifted["shots"][0]["source_sha256"] = "0" * 64
+    mismatch = api.post(
+        f"/v1/production-runs/{run['id']}/postproduction-materializations",
+        json=drifted,
+    )
+    assert mismatch.status_code == 409
+    assert "source digest changed" in mismatch.text
+    assert api.get(f"/v1/production-runs/{run['id']}").json()["status"] == "running"
+    assert not list((exports / "materialized").glob("*/materialization-result.json"))
+
+    from nalu_runtime import postproduction_materializer
+
+    original_encode = postproduction_materializer._encode_mp4
+    encode_count = 0
+
+    def mutate_after_render(*args, **kwargs):
+        nonlocal encode_count
+        encoded = original_encode(*args, **kwargs)
+        encode_count += 1
+        if encode_count == 3:
+            source = exports / request["shots"][0]["source_relative_path"]
+            source.write_bytes(source.read_bytes() + b"changed-after-render")
+        return encoded
+
+    with patch.object(postproduction_materializer, "_encode_mp4", side_effect=mutate_after_render):
+        changed_during_render = api.post(
+            f"/v1/production-runs/{run['id']}/postproduction-materializations",
+            json=request,
+        )
+    assert changed_during_render.status_code == 409
+    assert "source digest changed" in changed_during_render.text
+    assert api.get(f"/v1/production-runs/{run['id']}").json()["status"] == "running"
+    assert not list((exports / "materialized").glob("*/materialization-result.json"))
 
 
 def test_authored_boundary_requires_visual_change_when_contract_says_so(

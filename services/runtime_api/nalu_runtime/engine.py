@@ -19,6 +19,8 @@ from .models import (
     MediaStructureQAReport,
     PlatformPublicationApproval,
     PostproductionLineageQAReport,
+    PostproductionMaterializationCreate,
+    PostproductionMaterializationResult,
     PostproductionRepairPlan,
     PostproductionRepairTask,
     ProductionCompletionRequest,
@@ -44,6 +46,10 @@ from .models import (
     VisualContinuityQAReport,
 )
 from .postproduction_lineage_qa import inspect_postproduction_lineage
+from .postproduction_materializer import (
+    PostproductionMaterializationError,
+    materialize_postproduction,
+)
 from .publication_adapters import publication_adapter
 from .qingshan_adapter import QingshanAdapter, QingshanAdapterError
 from .remote_submitter import DurableRemoteTaskSubmitter
@@ -320,6 +326,53 @@ class ProductionService:
         if not run_directory.is_relative_to(runs_root):
             raise ConflictError("production run package is outside the managed data root")
         return run_directory
+
+    def materialize_postproduction(
+        self, run_id: str, request: PostproductionMaterializationCreate
+    ) -> PostproductionMaterializationResult:
+        run = self.repository.get_run(run_id)
+        if run.status not in {RunStatus.RUNNING, RunStatus.QA_REVIEW}:
+            raise ConflictError(
+                "local postproduction materialization requires a running run or exact QA replay"
+            )
+        run_directory = self._run_directory(run)
+        if (run_directory / "rendered-output-seal.json").exists():
+            raise ConflictError("sealed outputs cannot be rematerialized")
+        package_path = Path(run.package_path)
+        try:
+            package = json.loads(package_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            raise ConflictError("production package is unreadable before materialization") from exc
+        package_sha256 = str(package.get("package_sha256") or "")
+        package_body = {key: value for key, value in package.items() if key != "package_sha256"}
+        if not package_sha256 or self._canonical_sha256(package_body) != package_sha256:
+            raise ConflictError("production package integrity check failed before materialization")
+        workspace = run_directory / "qingshan-workspace"
+        exports_root = workspace / "exports"
+        workspace_manifest = workspace / "workspace-manifest.json"
+        if not exports_root.is_dir() or not workspace_manifest.is_file():
+            raise ConflictError("Qingshan workspace is incomplete before materialization")
+        try:
+            result = materialize_postproduction(
+                run_id=run.id,
+                project_id=run.project_id,
+                episode_id=run.episode_id,
+                episode_number=int(package["episode"]["episode_number"]),
+                production_package_sha256=package_sha256,
+                workspace_manifest_sha256=self._sha256_file(workspace_manifest),
+                exports_root=exports_root,
+                request=request,
+                created_at=utc_now(),
+            )
+        except (KeyError, TypeError, ValueError, PostproductionMaterializationError) as exc:
+            raise ConflictError(str(exc)) from exc
+        self.repository.mark_postproduction_materialized(
+            run.id,
+            plan_sha256=result.plan_sha256,
+            result_sha256=result.result_sha256,
+            requested_by=request.requested_by,
+        )
+        return result
 
     def seal_rendered_outputs(
         self, run_id: str, request: RenderedOutputSealCreate

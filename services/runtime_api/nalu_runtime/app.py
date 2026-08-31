@@ -58,6 +58,8 @@ from .models import (
     MemoryCardUpdate,
     MemoryGraphConflictReport,
     PostproductionLineageQAReport,
+    PostproductionMaterializationCreate,
+    PostproductionMaterializationResult,
     PostproductionRepairPlan,
     ProductionCompletionRequest,
     ProductionCompletionResult,
@@ -608,6 +610,16 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
     @app.get("/v1/production-runs/{run_id}/events", response_model=list[RunEvent])
     def get_run_events(run_id: str) -> list[RunEvent]:
         return production.events(run_id)
+
+    @app.post(
+        "/v1/production-runs/{run_id}/postproduction-materializations",
+        response_model=PostproductionMaterializationResult,
+        status_code=201,
+    )
+    def materialize_postproduction(
+        run_id: str, request: PostproductionMaterializationCreate
+    ) -> PostproductionMaterializationResult:
+        return production.materialize_postproduction(run_id, request)
 
     @app.post(
         "/v1/production-runs/{run_id}/rendered-output-seal",

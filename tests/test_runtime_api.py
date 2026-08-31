@@ -1356,6 +1356,21 @@ def test_dry_run_writes_immutable_package(tmp_path: Path) -> None:
         "sfx",
     }
     assert postproduction_contract["fail_closed"] is True
+    local_postproduction = task["local_postproduction"]
+    assert local_postproduction["executor"] == "nalu-local-postproduction"
+    assert local_postproduction["provider_result_root"] == "exports/provider-results"
+    materialization_contract = json.loads(
+        (workspace / local_postproduction["contract_path"]).read_text(encoding="utf-8")
+    )
+    assert (
+        materialization_contract["schema_version"]
+        == "nalu.postproduction-materialization-contract/v1"
+    )
+    assert materialization_contract["atomic_output_directory"] is True
+    assert materialization_contract["source_digest_rechecked_before_commit"] is True
+    assert materialization_contract["network_call_performed"] is False
+    assert materialization_contract["fail_closed"] is True
+    assert (workspace / "exports" / "provider-results").is_dir()
     visual_output = task["required_outputs"]["visual_continuity_manifest"]
     assert visual_output["artifact_kind"] == "visual_continuity_manifest"
     assert visual_output["relative_path"] == "exports/E01_VISUAL_CONTINUITY.json"

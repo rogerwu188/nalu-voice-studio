@@ -938,6 +938,131 @@ class ProductionPackage(BaseModel):
     package_sha256: str = ""
 
 
+def _safe_postproduction_relative_path(value: str) -> str:
+    normalized = value.replace("\\", "/")
+    parts = normalized.split("/")
+    if normalized.startswith("/") or any(part in {"", ".", ".."} for part in parts):
+        raise ValueError("postproduction source path must be a safe relative path")
+    if parts[0] != "provider-results":
+        raise ValueError("postproduction sources must be inside provider-results")
+    return normalized
+
+
+class PostproductionShotSource(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    shot_id: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$")
+    source_relative_path: str = Field(min_length=1, max_length=500)
+    source_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    source_task_id: str = Field(min_length=1, max_length=200)
+    source_receipt_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    source_in_seconds: float = Field(ge=0)
+    source_out_seconds: float = Field(gt=0)
+
+    @field_validator("source_relative_path")
+    @classmethod
+    def require_safe_source_path(cls, value: str) -> str:
+        return _safe_postproduction_relative_path(value)
+
+    @model_validator(mode="after")
+    def require_positive_source_range(self) -> PostproductionShotSource:
+        if self.source_out_seconds <= self.source_in_seconds:
+            raise ValueError("shot source_out_seconds must be after source_in_seconds")
+        if self.source_out_seconds - self.source_in_seconds > 300:
+            raise ValueError("one postproduction shot cannot exceed 300 seconds")
+        return self
+
+
+class PostproductionAudioSource(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    layer: Literal["dialogue", "ambience", "foley", "music", "sfx"]
+    source_relative_path: str = Field(min_length=1, max_length=500)
+    source_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    source_cue_sha256s: list[str] = Field(min_length=1, max_length=10000)
+    source_in_seconds: float = Field(default=0, ge=0)
+    gain_db: float = Field(default=0, ge=-60, le=12)
+
+    @field_validator("source_relative_path")
+    @classmethod
+    def require_safe_source_path(cls, value: str) -> str:
+        return _safe_postproduction_relative_path(value)
+
+    @field_validator("source_cue_sha256s")
+    @classmethod
+    def require_cue_digests(cls, values: list[str]) -> list[str]:
+        if any(
+            len(value) != 64 or any(character not in "0123456789abcdef" for character in value)
+            for value in values
+        ):
+            raise ValueError("every audio cue digest must be lowercase SHA-256")
+        if len(set(values)) != len(values):
+            raise ValueError("audio cue digests must be unique per layer")
+        return values
+
+
+class PostproductionMaterializationCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    requested_by: str = Field(min_length=1, max_length=160)
+    shots: list[PostproductionShotSource] = Field(min_length=1, max_length=500)
+    audio_layers: list[PostproductionAudioSource] = Field(min_length=5, max_length=5)
+    captions_source_relative_path: str = Field(min_length=1, max_length=500)
+    captions_source_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    subtitle_contract_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    width: int = Field(default=1920, ge=16, le=3840)
+    height: int = Field(default=1080, ge=16, le=2160)
+    frame_rate: int = Field(default=24, ge=1, le=60)
+    pixel_format: Literal["yuv420p"] = "yuv420p"
+    audio_sample_rate_hz: Literal[48000] = 48000
+    audio_channels: Literal[2] = 2
+
+    @field_validator("captions_source_relative_path")
+    @classmethod
+    def require_safe_captions_path(cls, value: str) -> str:
+        return _safe_postproduction_relative_path(value)
+
+    @model_validator(mode="after")
+    def require_complete_execution_plan(self) -> PostproductionMaterializationCreate:
+        shot_ids = [shot.shot_id for shot in self.shots]
+        if len(set(shot_ids)) != len(shot_ids):
+            raise ValueError("postproduction shot IDs must be unique")
+        layers = [layer.layer for layer in self.audio_layers]
+        required = {"dialogue", "ambience", "foley", "music", "sfx"}
+        if len(set(layers)) != len(layers) or set(layers) != required:
+            raise ValueError("postproduction requires exactly one source for every audio layer")
+        total_duration = sum(
+            shot.source_out_seconds - shot.source_in_seconds for shot in self.shots
+        )
+        if total_duration > 1800:
+            raise ValueError("one postproduction materialization cannot exceed 30 minutes")
+        if self.width % 2 or self.height % 2:
+            raise ValueError("yuv420p dimensions must be even")
+        return self
+
+
+class PostproductionMaterializationResult(BaseModel):
+    schema_version: Literal["nalu.postproduction-materialization/v1"] = (
+        "nalu.postproduction-materialization/v1"
+    )
+    run_id: str
+    project_id: str
+    episode_id: str
+    production_package_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    workspace_manifest_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    plan_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    output_root_relative_path: str
+    master: dict[str, Any]
+    captions: dict[str, Any]
+    postproduction_manifest: dict[str, Any]
+    normalized_segments: list[dict[str, Any]]
+    audio_stems: list[dict[str, Any]]
+    published_mix: dict[str, Any]
+    requested_by: str
+    created_at: str
+    result_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+
+
 class RenderedOutputCandidate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

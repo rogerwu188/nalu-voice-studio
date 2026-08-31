@@ -94,6 +94,37 @@ This is automated release-blocking evidence only. It does not claim lip-sync qua
 editorial taste, identity continuity or completion of the required original-resolution
 human audiovisual review.
 
+## Runtime-owned postproduction execution
+
+Qingshan provider results are staged under the run's managed
+`exports/provider-results` directory. The episode task carries
+`nalu.postproduction-materialization-contract/v1`; every selected source interval must
+bind the provider task ID, receipt SHA-256 and exact local source-file SHA-256. Dialogue,
+ambience, foley, music and SFX must each supply exactly one non-silent source with cue
+provenance. The captions source and subtitle contract are digest-bound as well.
+
+`POST /v1/production-runs/{run_id}/postproduction-materializations` is a local execution
+endpoint, not a provider submission endpoint. It rechecks every source path and digest,
+decodes and trims selected frames, normalizes each segment to the requested even-sized
+`yuv420p` frame and fixed frame rate, resets picture/audio timestamps, and writes 48 kHz
+stereo audio. It normalizes all five audio layers, applies their explicit gains, renders
+a non-clipping published mix, assembles the selected segments in order and encodes that
+same mix into the final MP4. The copied WebVTT and an execution-derived
+`nalu.postproduction-lineage-manifest/v1` are emitted with the master.
+
+All outputs and the immutable result record are built in a private staging directory and
+renamed together into `exports/materialized/{plan_sha256}`. Sources are rehashed after
+rendering and the existing lineage inspector decodes the finalized outputs before the
+run can enter `qa_review`. If the process stops after the directory commit but before the
+SQLite state transaction, replaying the identical request verifies and adopts the same
+result. A changed plan, a changed source, multiple finalized results, artifact drift or
+an existing output seal fails closed. The run and episode enter `qa_review` with one
+ordered event and one episode transition in the same SQLite transaction.
+
+The executor performs no network call and grants no paid authority. It executes an
+already-reviewed edit/mix plan; it does not decide which creative take is best, prove
+speech intelligibility or replace final human review.
+
 ## Selected-shot, normalization, stem and published-mix lineage gate
 
 The Qingshan task also declares an episode-specific
