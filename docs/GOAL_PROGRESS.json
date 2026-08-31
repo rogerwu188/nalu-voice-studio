@@ -17,7 +17,7 @@
     "id": "sop-09-production-bound-visual-continuity-gate",
     "sop": "SOP-09",
     "product_commit": "9b7bd45d38b445bdcd55396f0317301b86525f1f",
-    "evidence_commit": "9b7bd45d38b445bdcd55396f0317301b86525f1f",
+    "evidence_commit": "2fdc91539dd9531bd1d6dfe0e26fa0629aef098f",
     "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33350559526",
     "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33350559526/job/99363729575",
     "result": "PASS"
