@@ -45,6 +45,18 @@ NALU_REQUIRE_UNIVERSAL=true scripts/verify-macos-release.sh
 
 The merged bundle is ad-hoc signed until the separate Developer ID step below runs.
 
+## Offline upgrade and rollback rehearsal
+
+```bash
+python scripts/qa-macos-upgrade-rollback.py --app 'dist/Nalu Voice Studio.app' \
+  --evidence /tmp/nalu-upgrade-rollback.json
+```
+
+This creates a ten-episode approved project over loopback HTTP, restarts the exact Runtime,
+then restores its immutable backup into clean local data. It proves the local data
+preservation boundary only; it never downloads or installs an update and is not Developer ID,
+notarization or clean-Mac app-update evidence.
+
 ## Developer ID release
 
 Import a `Developer ID Application` certificate into the active keychain and create a

@@ -19,7 +19,7 @@ def test_repository_goal_progress_is_consistent_with_product_sop() -> None:
     result = audit_goal_progress(progress, sop_text)
     assert result["status"] == "PASS", result["failures"]
     assert result["project_complete"] is False
-    assert result["current_checkpoint"] == "SOP-09"
+    assert result["current_checkpoint"] == progress["current_checkpoint"]["sop"]
     assert result["next_action"] == progress["next_action"]["id"]
     assert progress["next_action"]["requires_user_authorization"] is False
 

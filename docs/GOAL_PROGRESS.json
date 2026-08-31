@@ -12,7 +12,7 @@
     "WAITING_AUTHORIZATION": 0
   },
   "observed_head": "9b3e5c590bf4cf5f49719aa40428dc51cde31557",
-  "last_advanced_at": "2026-08-31T16:46:27Z",
+  "last_advanced_at": "2026-08-31T20:44:38Z",
   "last_closed_checkpoint": {
     "id": "sop-09-full-duration-device-postproduction-soak",
     "sop": "SOP-09",
@@ -23,15 +23,15 @@
     "result": "PASS"
   },
   "current_checkpoint": {
-    "sop": "SOP-09",
+    "sop": "SOP-11",
     "status": "IN_PROGRESS",
-    "summary": "Structural, decoded, semantic, lineage, immutable five-domain evidence, Runtime-owned local assembly/mixing, bounded-chunk audio, visual input authority, packaged Apple Vision executor and 1,800-second device soak are closed on universal artifacts. Calibrated actual-final-master recognition and same-candidate native/human acceptance remain before SOP-09 can pass."
+    "summary": "The 1,800-second postproduction soak is closed. A local ten-episode Runtime restart and clean-backup rollback rehearsal now passes in source mode; packaged arm64, x86_64 and universal CI evidence, documentation, commit and evidence binding remain before this SOP-11 checkpoint closes."
   },
   "next_action": {
-    "sop": "SOP-09",
-    "id": "actual-final-master-perceptual-calibration",
-    "summary": "Collect explicitly consented real reference media and an actual final master, then run local on-device perceptual calibration before human original-resolution review; no provider upload or paid call is allowed without separate authorization.",
-    "requires_user_authorization": true
+    "sop": "SOP-11",
+    "id": "packaged-upgrade-rollback-rehearsal",
+    "summary": "Commit the offline ten-episode upgrade/restart and clean-backup rollback rehearsal, then require it in source, arm64, x86_64 and universal CI before recording packaged evidence.",
+    "requires_user_authorization": false
   },
   "blocking_conditions": [
     {

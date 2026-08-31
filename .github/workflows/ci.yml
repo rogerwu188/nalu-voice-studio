@@ -38,6 +38,7 @@ jobs:
         run: python scripts/check_openapi_compatibility.py --base origin/${{ github.base_ref }}
       - run: pytest -q
       - run: python scripts/real-http-smoke.py
+      - run: python scripts/qa-macos-upgrade-rollback.py --evidence /tmp/nalu-upgrade-rollback-source.json
 
   macos-arm64:
     runs-on: macos-15
@@ -53,6 +54,7 @@ jobs:
       - run: scripts/build-macos-app.sh
       - run: scripts/verify-macos-release.sh
       - run: scripts/smoke-macos-bundle.sh
+      - run: python scripts/qa-macos-upgrade-rollback.py --app "dist/Nalu Voice Studio.app" --evidence /tmp/nalu-upgrade-rollback-arm64.json
       - run: ditto -c -k --keepParent "dist/Nalu Voice Studio.app" "dist/Nalu-Voice-Studio-macOS.zip"
       - run: shasum -a 256 "dist/Nalu-Voice-Studio-macOS.zip" > "dist/Nalu-Voice-Studio-macOS.zip.sha256"
       - uses: actions/upload-artifact@v7
@@ -76,6 +78,7 @@ jobs:
       - run: scripts/build-macos-app.sh
       - run: scripts/verify-macos-release.sh
       - run: scripts/smoke-macos-bundle.sh
+      - run: python scripts/qa-macos-upgrade-rollback.py --app "dist/Nalu Voice Studio.app" --evidence /tmp/nalu-upgrade-rollback-x86_64.json
       - run: ditto -c -k --keepParent "dist/Nalu Voice Studio.app" "dist/Nalu-Voice-Studio-macOS.zip"
       - run: shasum -a 256 "dist/Nalu-Voice-Studio-macOS.zip" > "dist/Nalu-Voice-Studio-macOS.zip.sha256"
       - uses: actions/upload-artifact@v7
@@ -103,6 +106,7 @@ jobs:
       - run: scripts/merge-macos-universal.sh ".build/universal/arm64/app/Nalu Voice Studio.app" ".build/universal/x86_64/app/Nalu Voice Studio.app" "dist/Nalu Voice Studio.app"
       - run: NALU_REQUIRE_UNIVERSAL=true scripts/verify-macos-release.sh
       - run: scripts/smoke-macos-bundle.sh
+      - run: python scripts/qa-macos-upgrade-rollback.py --app "dist/Nalu Voice Studio.app" --evidence /tmp/nalu-upgrade-rollback-universal.json
       - run: ditto -c -k --keepParent "dist/Nalu Voice Studio.app" "dist/Nalu-Voice-Studio-macOS.zip"
       - run: shasum -a 256 "dist/Nalu-Voice-Studio-macOS.zip" > "dist/Nalu-Voice-Studio-macOS.zip.sha256"
       - uses: actions/upload-artifact@v7
