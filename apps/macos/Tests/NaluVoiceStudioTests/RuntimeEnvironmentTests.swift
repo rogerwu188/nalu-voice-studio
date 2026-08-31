@@ -2,6 +2,12 @@ import XCTest
 @testable import NaluVoiceStudio
 
 final class RuntimeEnvironmentTests: XCTestCase {
+    func testColdUniversalRuntimeGetsBoundedOlderMacStartupWindow() {
+        XCTAssertEqual(RuntimeStartupPolicy.pollIntervalMilliseconds, 100)
+        XCTAssertEqual(RuntimeStartupPolicy.maximumWaitSeconds, 180)
+        XCTAssertEqual(RuntimeStartupPolicy.maximumAttempts, 1_800)
+    }
+
     func testRuntimeEnvironmentDoesNotInheritSecrets() {
         let environment = RuntimeEnvironmentBuilder.build(
             inherited: [

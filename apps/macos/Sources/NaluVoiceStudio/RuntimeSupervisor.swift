@@ -2,6 +2,13 @@ import AppKit
 import Foundation
 import Observation
 
+enum RuntimeStartupPolicy {
+    static let pollIntervalMilliseconds: Int64 = 100
+    static let maximumWaitSeconds = 180
+    static let maximumAttempts =
+        maximumWaitSeconds * 1_000 / Int(pollIntervalMilliseconds)
+}
+
 @MainActor
 @Observable
 final class RuntimeSupervisor {
@@ -59,15 +66,18 @@ final class RuntimeSupervisor {
         try process.run()
         self.process = process
 
-        // The bundled one-file Runtime may need several seconds to unpack on a
-        // cold Mac. Keep polling quickly, but allow enough room for first launch.
-        for _ in 0..<300 {
+        // The universal one-file Runtime can take more than a minute to unpack and
+        // load its FFmpeg libraries on a cold or older Mac. Keep the UI responsive
+        // while polling, but retain a finite fail-closed startup deadline.
+        for _ in 0..<RuntimeStartupPolicy.maximumAttempts {
             if await runtimeIsHealthy() {
                 isReady = true
                 return
             }
             if !process.isRunning { break }
-            try await Task.sleep(for: .milliseconds(100))
+            try await Task.sleep(
+                for: .milliseconds(RuntimeStartupPolicy.pollIntervalMilliseconds)
+            )
         }
         process.terminate()
         throw RuntimeSupervisorError.startupTimedOut
