@@ -17,7 +17,7 @@
     "id": "sop-09-bounded-memory-postproduction-audio-mixer",
     "sop": "SOP-09",
     "product_commit": "3a314191f3b69549a659d82a4fca26def3e471d6",
-    "evidence_commit": "280732c9f85b3c8bffe7823939674732331be673",
+    "evidence_commit": "b7df65b080625133af0f36f40c40c9058bd50790",
     "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33353565965",
     "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33353565965/job/99371980750",
     "result": "PASS"
