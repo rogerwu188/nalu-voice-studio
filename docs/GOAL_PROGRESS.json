@@ -11,26 +11,26 @@
     "TODO": 1,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "9b7bd45d38b445bdcd55396f0317301b86525f1f",
-  "last_advanced_at": "2026-08-31T02:38:13Z",
+  "observed_head": "eb69f270c6b605b3b49bcf240b0c7958998d69b5",
+  "last_advanced_at": "2026-08-31T03:13:25Z",
   "last_closed_checkpoint": {
-    "id": "sop-09-production-bound-visual-continuity-gate",
+    "id": "sop-09-runtime-owned-postproduction-materializer",
     "sop": "SOP-09",
-    "product_commit": "9b7bd45d38b445bdcd55396f0317301b86525f1f",
+    "product_commit": "eb69f270c6b605b3b49bcf240b0c7958998d69b5",
     "evidence_commit": "2fdc91539dd9531bd1d6dfe0e26fa0629aef098f",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33350559526",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33350559526/job/99363729575",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33352196081",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33352196081/job/99368323647",
     "result": "PASS"
   },
   "current_checkpoint": {
     "sop": "SOP-09",
     "status": "IN_PROGRESS",
-    "summary": "Structural, decoded, semantic, lineage and immutable five-domain visual evidence gates are closed on universal artifacts. Actual production-owned assembly/mixing, perceptual visual analysis, same-candidate native/human final-master acceptance and real media remain before SOP-09 can pass."
+    "summary": "Structural, decoded, semantic, lineage, immutable five-domain evidence and Runtime-owned local assembly/mixing are closed on universal artifacts. Bounded-memory long-form rendering, perceptual visual analysis, same-candidate native/human final-master acceptance and real media remain before SOP-09 can pass."
   },
   "next_action": {
     "sop": "SOP-09",
-    "id": "runtime-owned-postproduction-materializer",
-    "summary": "Implement a deterministic local postproduction executor that consumes admitted source segments, normalizes and assembles their timeline, renders the five declared audio layers and emits lineage from execution instead of accepting an externally authored manifest; keep provider and human claims fail-closed.",
+    "id": "bounded-memory-postproduction-audio-mixer",
+    "summary": "Replace whole-episode five-layer audio accumulation with a bounded-memory streaming mixer and add long-duration resource-bound tests, while preserving exact execution-derived digests, replay and fail-closed source rehashing.",
     "requires_user_authorization": false
   },
   "blocking_conditions": [

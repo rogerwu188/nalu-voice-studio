@@ -719,11 +719,44 @@ Current evidence:
 - This gate validates immutable analyzer provenance and its claims against package,
   library, timeline and decoded-frame evidence. It does not yet execute a perceptual
   vision model and is not evidence that an actual actor, garment or prop looks correct.
-- Still required before `PASS`: a production-owned shot selection/normalization and
-  five-layer mix execution path; a real visual analyzer and the on-device recognition
-  path against an actual final master; native-window/accessibility repetition after the
-  Mac is unlocked; and original-resolution human audiovisual review on the same release
-  candidate.
+- Commit `eb69f27` moves postproduction execution inside the local Runtime. A bounded,
+  hash-addressed plan now binds every admitted provider segment and receipt, explicit
+  source in/out points, the five required audio sources and cue digests, captions and
+  the target timeline. The Runtime decodes and trims the source video, writes normalized
+  zero-based segments, normalizes dialogue/ambience/foley/music/SFX to 48 kHz stereo,
+  applies explicit gains, renders the published mix and final MP4, rehashes every source,
+  writes execution-derived lineage and atomically exposes the result. Identical retries
+  replay exactly; changed plans, path traversal, missing layers, pre-render digest drift,
+  post-render source mutation and a simulated filesystem/SQLite commit interruption fail
+  closed or recover without duplicate state events. The 88-test suite, real HTTP smoke,
+  OpenAPI compatibility and SOP/progress audits passed in GitHub CI run `33352196081`,
+  together with independent arm64 job `99367586208`, x86_64 job `99367586351` and
+  universal job `99368323647`.
+- The exact universal artifact `9744074571` (GitHub artifact digest
+  `60fa7573fa0f5a4d5e9e53496328ae9619dd593953a98903f2a711526f4fd39b`) had ZIP SHA-256
+  `4d159cd6d5564c559e92c6221dcce26022121c152322c9835a7c351792479397` and passed the
+  repository universal verifier. Its main executable SHA-256
+  `f7a1d18f5e3c1aada87eac6b25bc7d55cd7d89b6b2d1a459e8d083ebb3657a91` and bundled
+  Runtime SHA-256 `544f16f04b14246143edad8371c336a9afb174415f01a7b9d8bab88119d8537b`
+  both contained arm64 and x86_64 slices. The reusable
+  `scripts/qa-packaged-postproduction.py` harness started that exact bundled Runtime
+  against an isolated SQLite database and exercised the endpoint over real loopback
+  HTTP. It materialized two ordered shots and all five non-silent stems, sealed the
+  generated master/captions/lineage manifest, replayed the same plan without a second
+  event, rejected a changed plan, and passed decoded lineage QA. A second run with a
+  false source SHA returned HTTP 409, remained `running`/`postproduction` and left zero
+  accepted results. The Runtime then stopped and port 8765 closed. The evidence report
+  has SHA-256 `a81c55fe8199a54b0a343caa8297facfda2ebd238951d982414cd06d8943500a`.
+  No provider, credential, paid generation, non-loopback network or publication call was
+  used. The bundle is still ad-hoc signed, so this is not Developer ID/notarization
+  evidence.
+- This closes the production-owned local assembly/mix checkpoint, not SOP-09. The current
+  implementation keeps full decoded audio layers in memory, so long-form bounded-memory
+  execution still needs hardening before production-scale acceptance.
+- Still required before `PASS`: bounded-memory long-form postproduction; a real visual
+  analyzer and the on-device recognition path against an actual final master;
+  native-window/accessibility repetition after the Mac is unlocked; and
+  original-resolution human audiovisual review on the same release candidate.
 
 ## SOP-10 · Controlled release and learning loop — IN_PROGRESS
 
