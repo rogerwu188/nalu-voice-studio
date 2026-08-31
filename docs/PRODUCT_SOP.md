@@ -833,10 +833,39 @@ Current evidence:
   `52610d59feac33dfaaff49a6bc12129e3fcc352fe7063bb4eda9b6bd99e9c9f8` and the written
   JSON file SHA-256 is
   `97e8677f2a7c3bd36f36b0e20a1c08e19142d9310a7a99cfaa52841a9b274609`.
+- Commit `9b3e5c5` adds the remaining device-level safety mechanics: NumPy-vectorized,
+  bounded 8,192-sample mixing; cross-process workspace locking; cooperative cancellation;
+  abandoned-stage cleanup; and restart-safe resume that preserves already-materialized
+  provider media. It adds regression coverage for byte-identical vectorized mixing and
+  cancellation/resume without duplicate result or event. GitHub CI run `33363635917`
+  passed all 94 Runtime tests, real HTTP smoke, SOP/progress/OpenAPI/Qingshan checks,
+  independent arm64 and x86_64 builds/smokes, and universal merge job `99400722978`.
+- The exact universal artifact `9747627654` (GitHub digest
+  `b54d201bf579f436502228fdaa5613978d5d344ba0ec85df054bec4bb194a005`) had ZIP
+  SHA-256 `76bcfd7784c564ea2a20648b06126e46df13a20e7f0bb89acae9bb17e4175b11`.
+  Its main executable, Runtime and visual analyzer had arm64/x86_64 slices and SHA-256
+  values `9ac1b48725c2b574c1cca9b09b7e82736edbd96d868d743ed36f0ca063b78003`,
+  `f31440302f7a6816ee5f330e6260ca48d252e89ce96019d7ed91cd4ed301ef1f` and
+  `9b410061f53f0a990578de0de1bdae3e32a370147aae5fe202aed0e7833bc47c`.
+  The universal verifier and nested ad-hoc signature check passed; this is explicitly not
+  Developer ID or notarization evidence.
+- The exact downloaded bundle then completed a 1,800-second authored, six-shot/five-stem
+  materialization device soak on isolated SQLite and loopback HTTP. It completed in
+  126.492 seconds (14.2301× real time), sampled the full PyInstaller process tree 125
+  times, observed a visible working stage, used 125,632,512 bytes baseline and
+  132,399,104 bytes maximum RSS (6,766,592-byte growth), allocated at most
+  2,158,096,384 bytes and retained at least 4,605,083,648 bytes free disk. The false
+  digest negative case failed closed with HTTP 409 and no accepted result. After Runtime
+  restart, all sealed artifacts rehashed identically and the run retained exactly one
+  materialization event. Runtime shutdown and port closure were observed. The local
+  report is `nalu.packaged-postproduction-qa/v2`, canonical digest
+  `312fbd17bdf50fd81375038bdf57b11aa74629121c846f0aa12134d3234d1fa7`, written JSON
+  SHA-256 `db84a8d2c98175c4c5cff156ffd2dd9f88c32e992d0ac162c64035ce42b4b539`.
+  No provider upload, paid model, non-loopback network or publication call occurred.
 - This closes the real local perceptual-executor checkpoint, not SOP-09. Still required
-  before `PASS`: a full-duration device RSS/throughput soak; on-device recognition and
-  calibrated acceptance against an actual final master and real consented references;
-  native-window/accessibility repetition after the Mac is unlocked; and
+  before `PASS`: on-device recognition and calibrated acceptance against an actual final
+  master and real consented references; native-window/accessibility repetition after the
+  Mac is unlocked; and
   original-resolution human audiovisual review on the same release candidate.
 
 ## SOP-10 · Controlled release and learning loop — IN_PROGRESS

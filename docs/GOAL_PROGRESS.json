@@ -11,27 +11,27 @@
     "TODO": 1,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "1da3e63eb4ed2cf5888e2553856c7319e9c0fcd3",
-  "last_advanced_at": "2026-08-31T04:40:46Z",
+  "observed_head": "9b3e5c590bf4cf5f49719aa40428dc51cde31557",
+  "last_advanced_at": "2026-08-31T16:46:27Z",
   "last_closed_checkpoint": {
-    "id": "sop-09-local-perceptual-visual-analyzer-executor",
+    "id": "sop-09-full-duration-device-postproduction-soak",
     "sop": "SOP-09",
-    "product_commit": "1da3e63eb4ed2cf5888e2553856c7319e9c0fcd3",
-    "evidence_commit": "2c71513b3278864bab9176692b8fd8ceea5aa2c7",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33357165343",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33357165343/job/99382271354",
+    "product_commit": "9b3e5c590bf4cf5f49719aa40428dc51cde31557",
+    "evidence_commit": "PENDING_BIND_AFTER_EVIDENCE_COMMIT",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33363635917",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33363635917/job/99400722978",
     "result": "PASS"
   },
   "current_checkpoint": {
     "sop": "SOP-09",
     "status": "IN_PROGRESS",
-    "summary": "Structural, decoded, semantic, lineage, immutable five-domain evidence, Runtime-owned local assembly/mixing, bounded-chunk audio, visual input authority and a packaged Apple Vision perceptual executor are closed on universal artifacts. Full-duration device soak, calibrated actual-final-master recognition and same-candidate native/human acceptance remain before SOP-09 can pass."
+    "summary": "Structural, decoded, semantic, lineage, immutable five-domain evidence, Runtime-owned local assembly/mixing, bounded-chunk audio, visual input authority, packaged Apple Vision executor and 1,800-second device soak are closed on universal artifacts. Calibrated actual-final-master recognition and same-candidate native/human acceptance remain before SOP-09 can pass."
   },
   "next_action": {
     "sop": "SOP-09",
-    "id": "full-duration-device-postproduction-soak",
-    "summary": "Run a release-bundle, device-level full-duration materialization soak that samples process RSS, throughput, disk growth, cancellation and restart recovery instead of inferring device behavior from Python heap tests.",
-    "requires_user_authorization": false
+    "id": "actual-final-master-perceptual-calibration",
+    "summary": "Collect explicitly consented real reference media and an actual final master, then run local on-device perceptual calibration before human original-resolution review; no provider upload or paid call is allowed without separate authorization.",
+    "requires_user_authorization": true
   },
   "blocking_conditions": [
     {
