@@ -2,6 +2,25 @@ import XCTest
 @testable import NaluVoiceStudio
 
 final class RuntimeEnvironmentTests: XCTestCase {
+    @MainActor
+    func testApplicationTerminationStopsRuntimeSynchronously() {
+        let notificationCenter = NotificationCenter()
+        let notificationName = Notification.Name("NaluRuntimeTerminationTest")
+        var events = ["before"]
+        let signal = RuntimeTerminationSignal(
+            notificationCenter: notificationCenter,
+            notificationName: notificationName
+        ) {
+            events.append("terminated")
+        }
+
+        notificationCenter.post(name: notificationName, object: nil)
+        events.append("after")
+
+        XCTAssertEqual(events, ["before", "terminated", "after"])
+        withExtendedLifetime(signal) {}
+    }
+
     func testColdUniversalRuntimeGetsBoundedOlderMacStartupWindow() {
         XCTAssertEqual(RuntimeStartupPolicy.pollIntervalMilliseconds, 100)
         XCTAssertEqual(RuntimeStartupPolicy.maximumWaitSeconds, 180)

@@ -10,24 +10,56 @@ enum RuntimeStartupPolicy {
 }
 
 @MainActor
+final class RuntimeTerminationSignal: NSObject {
+    private let notificationCenter: NotificationCenter
+    private let onTermination: () -> Void
+
+    init(
+        notificationCenter: NotificationCenter = .default,
+        notificationName: Notification.Name = NSApplication.willTerminateNotification,
+        onTermination: @escaping () -> Void
+    ) {
+        self.notificationCenter = notificationCenter
+        self.onTermination = onTermination
+        super.init()
+        notificationCenter.addObserver(
+            self,
+            selector: #selector(handleTermination),
+            name: notificationName,
+            object: nil
+        )
+    }
+
+    deinit {
+        notificationCenter.removeObserver(self)
+    }
+
+    @objc private func handleTermination() {
+        // Do not enqueue a Task here. Once NSApplication terminates, the main
+        // event loop may never execute it and the bundled Runtime becomes orphaned.
+        onTermination()
+    }
+}
+
+@MainActor
 @Observable
 final class RuntimeSupervisor {
     static let shared = RuntimeSupervisor()
 
     private(set) var isReady = false
     private var process: Process?
-    private var terminationObserver: NSObjectProtocol?
+    private var terminationSignal: RuntimeTerminationSignal?
 
     private init() {
-        terminationObserver = NotificationCenter.default.addObserver(
-            forName: NSApplication.willTerminateNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in
-                self?.process?.terminate()
-            }
+        terminationSignal = RuntimeTerminationSignal { [weak self] in
+            self?.stop()
         }
+    }
+
+    func stop() {
+        process?.terminate()
+        process = nil
+        isReady = false
     }
 
     func start() async throws {
@@ -79,7 +111,7 @@ final class RuntimeSupervisor {
                 for: .milliseconds(RuntimeStartupPolicy.pollIntervalMilliseconds)
             )
         }
-        process.terminate()
+        stop()
         throw RuntimeSupervisorError.startupTimedOut
     }
 
