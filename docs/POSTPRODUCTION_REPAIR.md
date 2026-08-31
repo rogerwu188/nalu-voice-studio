@@ -112,6 +112,16 @@ a non-clipping published mix, assembles the selected segments in order and encod
 same mix into the final MP4. The copied WebVTT and an execution-derived
 `nalu.postproduction-lineage-manifest/v1` are emitted with the master.
 
+Audio decoding, normalization, five-layer mixing and final-master audio encoding use
+fixed 8,192-sample stereo chunks. The Runtime never retains a whole source, stem, mix or
+episode-length floating-point accumulator in Python memory. Every stem is normalized to
+an intermediate digest-bound WAV; the mixer then reopens the five stems in aligned
+chunks, applies gain and clipping protection per chunk, writes the published mix, and
+streams that file into the final MP4 encoder. A 90-second PCM resource-bound fixture
+consumes the entire source while asserting the fixed chunk ceiling and a Python heap
+peak below 4 MiB. This is a deterministic implementation bound, not a claim about total
+FFmpeg process RSS or device performance on a 30-minute final master.
+
 All outputs and the immutable result record are built in a private staging directory and
 renamed together into `exports/materialized/{plan_sha256}`. Sources are rehashed after
 rendering and the existing lineage inspector decodes the finalized outputs before the

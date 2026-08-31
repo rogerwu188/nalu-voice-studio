@@ -30,10 +30,15 @@ class PostproductionMaterializationError(RuntimeError):
     pass
 
 
+AUDIO_SAMPLE_RATE = 48000
+AUDIO_CHANNELS = 2
+AUDIO_CHUNK_SAMPLES = 8192
+
+
 def canonical_sha256(value: dict[str, Any] | list[Any]) -> str:
-    encoded = json.dumps(
-        value, ensure_ascii=False, sort_keys=True, separators=(",", ":")
-    ).encode("utf-8")
+    encoded = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode(
+        "utf-8"
+    )
     return hashlib.sha256(encoded).hexdigest()
 
 
@@ -127,67 +132,109 @@ def _selected_frames(
         yield selected[1].reformat(width=width, height=height, format=pixel_format)
 
 
-def _decode_audio(path: Path, *, sample_rate: int = 48000) -> array:
-    decoded = array("h")
-    try:
-        with av.open(str(path), mode="r") as container:
-            if not container.streams.audio:
-                return decoded
-            stream = container.streams.audio[0]
-            resampler = av.AudioResampler(format="s16", layout="stereo", rate=sample_rate)
-            for source_frame in container.decode(stream):
-                for frame in resampler.resample(source_frame):
-                    raw = bytes(frame.planes[0])[: frame.samples * 4]
-                    decoded.frombytes(raw)
-            for frame in resampler.resample(None):
-                raw = bytes(frame.planes[0])[: frame.samples * 4]
-                decoded.frombytes(raw)
-    except (av.FFmpegError, OSError, ValueError) as exc:
-        raise PostproductionMaterializationError(
-            f"audio cannot be decoded: {path.name}: {type(exc).__name__}"
-        ) from exc
-    return decoded
-
-
-def _audio_segment(
+def _audio_chunks(
     path: Path,
     *,
     start_seconds: float,
     sample_count: int,
     require_full_duration: bool,
-) -> array:
-    source = _decode_audio(path)
-    start = round(start_seconds * 48000) * 2
-    end = start + sample_count * 2
-    if require_full_duration and len(source) < end:
+) -> Iterator[array]:
+    """Yield an exact stereo segment without retaining the full source or result."""
+
+    skip_values = round(start_seconds * AUDIO_SAMPLE_RATE) * AUDIO_CHANNELS
+    remaining_values = sample_count * AUDIO_CHANNELS
+    chunk_values = AUDIO_CHUNK_SAMPLES * AUDIO_CHANNELS
+    pending = array("h")
+    stream_found = False
+    exhausted = True
+
+    def accept(samples: array) -> Iterator[array]:
+        nonlocal skip_values, remaining_values
+        if skip_values:
+            skipped = min(skip_values, len(samples))
+            skip_values -= skipped
+            del samples[:skipped]
+        if samples and remaining_values:
+            accepted = min(remaining_values, len(samples))
+            pending.extend(samples[:accepted])
+            remaining_values -= accepted
+        while len(pending) >= chunk_values:
+            yield array("h", pending[:chunk_values])
+            del pending[:chunk_values]
+
+    try:
+        with av.open(str(path), mode="r") as container:
+            if container.streams.audio:
+                stream_found = True
+                stream = container.streams.audio[0]
+                resampler = av.AudioResampler(format="s16", layout="stereo", rate=AUDIO_SAMPLE_RATE)
+                for source_frame in container.decode(stream):
+                    for frame in resampler.resample(source_frame):
+                        samples = array("h")
+                        samples.frombytes(
+                            bytes(frame.planes[0])[
+                                : frame.samples * AUDIO_CHANNELS * samples.itemsize
+                            ]
+                        )
+                        yield from accept(samples)
+                        if remaining_values == 0:
+                            exhausted = False
+                            break
+                    if remaining_values == 0:
+                        break
+                if exhausted:
+                    for frame in resampler.resample(None):
+                        samples = array("h")
+                        samples.frombytes(
+                            bytes(frame.planes[0])[
+                                : frame.samples * AUDIO_CHANNELS * samples.itemsize
+                            ]
+                        )
+                        yield from accept(samples)
+                        if remaining_values == 0:
+                            break
+    except (av.FFmpegError, OSError, ValueError) as exc:
+        raise PostproductionMaterializationError(
+            f"audio cannot be decoded: {path.name}: {type(exc).__name__}"
+        ) from exc
+    if require_full_duration and (not stream_found or skip_values or remaining_values):
         raise PostproductionMaterializationError(
             f"audio source is shorter than the requested timeline: {path.name}"
         )
-    selected = array("h", source[start:min(end, len(source))]) if start < len(source) else array("h")
-    missing = sample_count * 2 - len(selected)
-    if missing > 0:
-        selected.extend(array("h", [0]) * missing)
-    return selected
+    while remaining_values:
+        count = min(remaining_values, chunk_values - len(pending))
+        pending.extend(array("h", [0]) * count)
+        remaining_values -= count
+        if len(pending) == chunk_values:
+            yield pending
+            pending = array("h")
+    if pending:
+        yield pending
 
 
 def _encode_audio_packets(
     container: av.container.OutputContainer,
     stream: av.AudioStream,
-    samples: array,
+    chunks: Iterable[array],
 ) -> None:
     sample_cursor = 0
-    total_samples = len(samples) // 2
-    while sample_cursor < total_samples:
-        count = min(1024, total_samples - sample_cursor)
-        frame = av.AudioFrame(format="s16", layout="stereo", samples=count)
-        frame.sample_rate = 48000
-        frame.pts = sample_cursor
-        frame.time_base = Fraction(1, 48000)
-        offset = sample_cursor * 2
-        frame.planes[0].update(samples[offset : offset + count * 2].tobytes())
-        for packet in stream.encode(frame):
-            container.mux(packet)
-        sample_cursor += count
+    for samples in chunks:
+        if len(samples) % AUDIO_CHANNELS:
+            raise PostproductionMaterializationError("stereo audio chunk is misaligned")
+        chunk_cursor = 0
+        total_samples = len(samples) // AUDIO_CHANNELS
+        while chunk_cursor < total_samples:
+            count = min(1024, total_samples - chunk_cursor)
+            frame = av.AudioFrame(format="s16", layout="stereo", samples=count)
+            frame.sample_rate = AUDIO_SAMPLE_RATE
+            frame.pts = sample_cursor
+            frame.time_base = Fraction(1, AUDIO_SAMPLE_RATE)
+            offset = chunk_cursor * AUDIO_CHANNELS
+            frame.planes[0].update(samples[offset : offset + count * AUDIO_CHANNELS].tobytes())
+            for packet in stream.encode(frame):
+                container.mux(packet)
+            chunk_cursor += count
+            sample_cursor += count
     for packet in stream.encode(None):
         container.mux(packet)
 
@@ -196,7 +243,7 @@ def _encode_mp4(
     path: Path,
     *,
     frames: Iterable[av.VideoFrame],
-    audio_samples: array,
+    audio_chunks: Iterable[array],
     width: int,
     height: int,
     frame_rate: int,
@@ -212,7 +259,7 @@ def _encode_mp4(
             video.width = width
             video.height = height
             video.pix_fmt = pixel_format
-            audio = container.add_stream("aac", rate=48000)
+            audio = container.add_stream("aac", rate=AUDIO_SAMPLE_RATE)
             audio.layout = "stereo"
             audio.bit_rate = 192000
             for frame_count, frame in enumerate(frames, start=1):
@@ -222,7 +269,7 @@ def _encode_mp4(
                     container.mux(packet)
             for packet in video.encode(None):
                 container.mux(packet)
-            _encode_audio_packets(container, audio, audio_samples)
+            _encode_audio_packets(container, audio, audio_chunks)
     except (av.FFmpegError, OSError, ValueError) as exc:
         raise PostproductionMaterializationError(
             f"media encoding failed for {path.name}: {type(exc).__name__}"
@@ -232,17 +279,43 @@ def _encode_mp4(
     return frame_count
 
 
-def _write_wav(path: Path, samples: array) -> None:
+def _write_wav(path: Path, chunks: Iterable[array]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     try:
         with av.open(str(path), mode="w", format="wav") as container:
-            stream = container.add_stream("pcm_s16le", rate=48000)
+            stream = container.add_stream("pcm_s16le", rate=AUDIO_SAMPLE_RATE)
             stream.layout = "stereo"
-            _encode_audio_packets(container, stream, samples)
+            _encode_audio_packets(container, stream, chunks)
     except (av.FFmpegError, OSError, ValueError) as exc:
         raise PostproductionMaterializationError(
             f"audio encoding failed for {path.name}: {type(exc).__name__}"
         ) from exc
+
+
+def _mixed_audio_chunks(stems: list[tuple[Path, float]], *, sample_count: int) -> Iterator[array]:
+    total_gain = sum(gain for _path, gain in stems)
+    if total_gain <= 0:
+        raise PostproductionMaterializationError("audio mix has no positive gain")
+    iterators = [
+        _audio_chunks(
+            path,
+            start_seconds=0,
+            sample_count=sample_count,
+            require_full_duration=True,
+        )
+        for path, _gain in stems
+    ]
+    for chunks in zip(*iterators, strict=True):
+        if len({len(chunk) for chunk in chunks}) != 1:
+            raise PostproductionMaterializationError("audio stem chunks are not aligned")
+        accumulator = array("f", [0.0]) * len(chunks[0])
+        for chunk, (_path, gain) in zip(chunks, stems, strict=True):
+            for index, sample in enumerate(chunk):
+                accumulator[index] += sample * gain
+        yield array(
+            "h",
+            (max(-32768, min(32767, round(value / total_gain * 0.9))) for value in accumulator),
+        )
 
 
 def _artifact(relative_path: str, path: Path, *, kind: str, media_type: str) -> dict[str, Any]:
@@ -408,14 +481,8 @@ def materialize_postproduction(
             raw_duration = shot.source_out_seconds - shot.source_in_seconds
             frame_count = max(1, round(raw_duration * request.frame_rate))
             duration = frame_count / request.frame_rate
-            sample_count = round(duration * 48000)
+            sample_count = round(duration * AUDIO_SAMPLE_RATE)
             source_path = source_files[shot.source_relative_path]
-            source_audio = _audio_segment(
-                source_path,
-                start_seconds=shot.source_in_seconds,
-                sample_count=sample_count,
-                require_full_duration=False,
-            )
             normalized_path = stage / "normalized-segments" / f"{shot.shot_id}.mp4"
             encoded_frames = _encode_mp4(
                 normalized_path,
@@ -428,7 +495,12 @@ def materialize_postproduction(
                     height=request.height,
                     pixel_format=request.pixel_format,
                 ),
-                audio_samples=source_audio,
+                audio_chunks=_audio_chunks(
+                    source_path,
+                    start_seconds=shot.source_in_seconds,
+                    sample_count=sample_count,
+                    require_full_duration=False,
+                ),
                 width=request.width,
                 height=request.height,
                 frame_rate=request.frame_rate,
@@ -452,23 +524,22 @@ def materialize_postproduction(
             normalized_specs.append((shot, normalized_path, duration))
             total_duration += duration
 
-        total_sample_count = round(total_duration * 48000)
-        mix_accumulator = array("f", [0.0]) * (total_sample_count * 2)
-        total_gain = 0.0
+        total_sample_count = round(total_duration * AUDIO_SAMPLE_RATE)
+        stem_mix_sources: list[tuple[Path, float]] = []
         for layer in request.audio_layers:
             source_path = source_files[layer.source_relative_path]
-            samples = _audio_segment(
-                source_path,
-                start_seconds=layer.source_in_seconds,
-                sample_count=total_sample_count,
-                require_full_duration=True,
-            )
             stem_path = stage / "audio" / f"{episode_code}_{layer.layer.upper()}.wav"
-            _write_wav(stem_path, samples)
+            _write_wav(
+                stem_path,
+                _audio_chunks(
+                    source_path,
+                    start_seconds=layer.source_in_seconds,
+                    sample_count=total_sample_count,
+                    require_full_duration=True,
+                ),
+            )
             gain = math.pow(10.0, layer.gain_db / 20.0)
-            total_gain += gain
-            for index, sample in enumerate(samples):
-                mix_accumulator[index] += sample * gain
+            stem_mix_sources.append((stem_path, gain))
             relative = output_prefix / "audio" / stem_path.name
             stem_entries.append(
                 {
@@ -483,17 +554,11 @@ def materialize_postproduction(
                     "gain_db": layer.gain_db,
                 }
             )
-        if total_gain <= 0:
-            raise PostproductionMaterializationError("audio mix has no positive gain")
-        published_samples = array(
-            "h",
-            (
-                max(-32768, min(32767, round(value / total_gain * 0.9)))
-                for value in mix_accumulator
-            ),
-        )
         published_mix_path = stage / "audio" / f"{episode_code}_PUBLISHED_MIX.wav"
-        _write_wav(published_mix_path, published_samples)
+        _write_wav(
+            published_mix_path,
+            _mixed_audio_chunks(stem_mix_sources, sample_count=total_sample_count),
+        )
 
         def master_frames() -> Iterator[av.VideoFrame]:
             for _shot, normalized_path, duration in normalized_specs:
@@ -511,7 +576,12 @@ def materialize_postproduction(
         _encode_mp4(
             master_path,
             frames=master_frames(),
-            audio_samples=published_samples,
+            audio_chunks=_audio_chunks(
+                published_mix_path,
+                start_seconds=0,
+                sample_count=total_sample_count,
+                require_full_duration=True,
+            ),
             width=request.width,
             height=request.height,
             frame_rate=request.frame_rate,
@@ -646,8 +716,7 @@ def materialize_postproduction(
         ):
             _safe_input(exports_root, relative_path, expected_sha256)
         for relative_path, expected_sha256 in (
-            (layer.source_relative_path, layer.source_sha256)
-            for layer in request.audio_layers
+            (layer.source_relative_path, layer.source_sha256) for layer in request.audio_layers
         ):
             _safe_input(exports_root, relative_path, expected_sha256)
         _safe_input(
