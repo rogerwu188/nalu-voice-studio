@@ -987,9 +987,33 @@ Current evidence:
   lineage route. After Cmd-Q the app, Runtime parent, Runtime child, port 8765 and health
   endpoint were all absent within the observation window. This is ad-hoc-signed native
   lifecycle evidence, not clean-install, Developer ID or notarization acceptance.
+- Commits `da9a6d0`, `aed2375` and `bc1f844`, GitHub CI run `33439917162`: an
+  offline fail-closed rehearsal now creates a ten-episode older-adult project, approves
+  every episode script, exports an immutable backup, restarts the exact Runtime over the
+  same local SQLite/data roots and restores the backup into clean roots. Source, arm64,
+  x86_64 and universal executions all preserved episode numbers 1–10, all ten
+  `script_approved` states, schema v14 and the backup payload hash. Their persistent JSON
+  report SHA-256 values are respectively `f6770d85309dc1f6a57ada91ab1cff1c1002056020f55d8f22e4bc629ededd9b`,
+  `9437c3353afbe1e844ec1936fe6cd78eb09e2b1d441b325a80591750191fa4b6`,
+  `9660a11e4fc4c3a877d6f6d75aab49a7af804bbacf87da31f0b779ef2d806c2c`
+  and `4a0647c0669b2fdae488e964d71efeaab298de296ad71f16774429907b94090b`.
+  The universal artifact is `9776013167`, GitHub artifact digest
+  `sha256:ef9e590835d963cd56209379c0b54d372942d7662ab43c3103231020960dbf1e`
+  and downloaded ZIP SHA-256
+  `cd0b2e0c0a4e641aa2565f448490cfd2e2fc89c547548d7a6d82e10cc8fe65d5`.
+  Its native app, Runtime and visual analyzer all contain both arm64 and x86_64 slices.
+  The downloaded candidate passed the same rehearsal again on a local Apple Silicon Mac;
+  local report SHA-256 is
+  `9e4c9385f15d4a841d61761c055cca4c191363ea7321a451e128017f7f02a0a9`.
+  The first evidence-persistence attempt correctly failed universal merge because its
+  artifact root changed; `bc1f844` preserves the prior artifact layout while retaining
+  downloadable QA JSON. No step downloaded an update, contacted a model/provider or
+  performed a paid/publication action. This closes only the local data restart and clean-
+  backup rollback checkpoint; it is not an old-version-to-new-version installation test.
 - Still required before `PASS`: Developer ID signing, hardened runtime, notarized
-  universal release evidence, update channel and clean-Mac upgrade/rollback QA with
-  populated multi-episode data. The green universal build is still ad-hoc signed.
+  universal release evidence, cryptographically verified update channel, automatic staged
+  install/health rollback and clean-Mac old-version-to-new-version upgrade/rollback QA
+  with populated multi-episode data. The green universal build is still ad-hoc signed.
 
 ## SOP-12 · End-to-end release-candidate acceptance — TODO
 

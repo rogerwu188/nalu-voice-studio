@@ -11,26 +11,26 @@
     "TODO": 1,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "9b3e5c590bf4cf5f49719aa40428dc51cde31557",
-  "last_advanced_at": "2026-08-31T20:44:38Z",
+  "observed_head": "bc1f844f877f28eece4bfc1937c2188536fa8930",
+  "last_advanced_at": "2026-08-31T21:20:00Z",
   "last_closed_checkpoint": {
-    "id": "sop-09-full-duration-device-postproduction-soak",
-    "sop": "SOP-09",
-    "product_commit": "9b3e5c590bf4cf5f49719aa40428dc51cde31557",
-    "evidence_commit": "ebdecbdafa03862d020d338287bac1db25eff246",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33363635917",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33363635917/job/99400722978",
+    "id": "sop-11-packaged-upgrade-rollback-rehearsal",
+    "sop": "SOP-11",
+    "product_commit": "bc1f844f877f28eece4bfc1937c2188536fa8930",
+    "evidence_commit": "bc1f844f877f28eece4bfc1937c2188536fa8930",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33439917162",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33439917162/artifacts/9776013167",
     "result": "PASS"
   },
   "current_checkpoint": {
     "sop": "SOP-11",
     "status": "IN_PROGRESS",
-    "summary": "The 1,800-second postproduction soak is closed. A local ten-episode Runtime restart and clean-backup rollback rehearsal now passes in source mode; packaged arm64, x86_64 and universal CI evidence, documentation, commit and evidence binding remain before this SOP-11 checkpoint closes."
+    "summary": "The source, arm64, x86_64, universal CI and downloaded universal package all pass the ten-episode SQLite restart and clean-backup rollback rehearsal. SOP-11 remains open for a verified update channel, automatic staged install/health rollback and signed/notarized clean-Mac old-to-new QA."
   },
   "next_action": {
     "sop": "SOP-11",
-    "id": "packaged-upgrade-rollback-rehearsal",
-    "summary": "Commit the offline ten-episode upgrade/restart and clean-backup rollback rehearsal, then require it in source, arm64, x86_64 and universal CI before recording packaged evidence.",
+    "id": "verified-staged-update-core",
+    "summary": "Implement a fail-closed update manifest verifier and staged local install/health rollback transaction with tamper, downgrade, crash and project-preservation tests; do not download or publish a real release without authorization.",
     "requires_user_authorization": false
   },
   "blocking_conditions": [
