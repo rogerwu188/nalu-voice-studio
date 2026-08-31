@@ -12,7 +12,7 @@
     "WAITING_AUTHORIZATION": 0
   },
   "observed_head": "d23c7b9d23cfa62e77fad1e387e6479e6ad95152",
-  "last_advanced_at": "2026-08-31T00:12:05Z",
+  "last_advanced_at": "2026-08-31T00:41:50Z",
   "last_closed_checkpoint": {
     "id": "sop-09-decoded-playable-media-gates",
     "sop": "SOP-09",
@@ -24,13 +24,13 @@
   },
   "current_checkpoint": {
     "sop": "SOP-09",
-    "status": "READY",
-    "summary": "Add semantic transcript comparison and shot-aware adjacent-boundary evidence without claiming human review."
+    "status": "IN_PROGRESS",
+    "summary": "Semantic transcript and authored-boundary gates are implemented and locally tested; native compile, artifact QA and CI evidence remain."
   },
   "next_action": {
     "sop": "SOP-09",
-    "id": "semantic-asr-shot-boundary-gates",
-    "summary": "Bind expected approved dialogue and authored shot boundaries to deterministic ASR/decoded-boundary QA reports, with playable pass/fail fixtures.",
+    "id": "semantic-asr-shot-boundary-ci-native-qa",
+    "summary": "Compile the native on-device recognition flow in GitHub CI, inspect the packaged QA-stage action, and record immutable checkpoint evidence.",
     "requires_user_authorization": false
   },
   "blocking_conditions": [

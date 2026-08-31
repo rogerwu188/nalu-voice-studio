@@ -373,11 +373,18 @@ struct ContentView: View {
                     lastRefreshedAt: model.productionProgressLastRefreshedAt,
                     refreshWarning: model.productionProgressRefreshWarning,
                     actionInProgress: model.productionRunActionInProgress == progress.runID,
+                    mediaCheckInProgress: model.semanticMediaQARunInProgress == progress.runID,
+                    mediaCheckStatus: progress.runID.flatMap {
+                        model.semanticMediaQAStatusByRunID[$0]
+                    },
                     onCancel: progress.runID.map { runID in
                         { runPendingCancelID = runID }
                     },
                     onResume: progress.runID.map { runID in
                         { Task { await model.resumeProductionRun(runID: runID) } }
+                    },
+                    onVerifyFinalMedia: progress.runID.map { runID in
+                        { Task { await model.verifyFinalMaster(runID: runID) } }
                     }
                 )
                 .padding(.horizontal, 24)

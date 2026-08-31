@@ -100,6 +100,35 @@ class QingshanAdapter:
                 "approved_script_revision": script["revision"],
                 "requested_model": package["production_policy"]["requested_model"],
                 "dry_run": package["production_policy"]["dry_run"],
+                "required_outputs": {
+                    "shot_boundary_manifest": {
+                        "artifact_kind": "shot_manifest",
+                        "relative_path": f"exports/{episode_code}_SHOT_BOUNDARIES.json",
+                        "contract_path": (
+                            f"configs/{episode_code}_SHOT_BOUNDARY_CONTRACT.json"
+                        ),
+                    }
+                },
+            },
+        )
+        self._write_json(
+            workspace / "configs" / f"{episode_code}_SHOT_BOUNDARY_CONTRACT.json",
+            {
+                "schema_version": "nalu.shot-boundary-output-contract/v1",
+                "manifest_schema_version": "nalu.shot-boundary-manifest/v1",
+                "artifact_kind": "shot_manifest",
+                "output_relative_path": f"exports/{episode_code}_SHOT_BOUNDARIES.json",
+                "production_package_sha256": package["package_sha256"],
+                "digest_algorithm": (
+                    "sha256-canonical-json-excluding-manifest_sha256"
+                ),
+                "required_unit_fields": ["unit_id", "start_seconds", "end_seconds"],
+                "required_incoming_transition_fields": [
+                    "transition_type",
+                    "visual_change_required",
+                    "audio_bridge",
+                ],
+                "fail_closed": True,
             },
         )
 

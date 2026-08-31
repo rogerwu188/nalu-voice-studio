@@ -11,6 +11,16 @@ final class ProductionProgressPresentationTests: XCTestCase {
         XCTAssertTrue(presentation.moves)
         XCTAssertTrue(presentation.reassurance.contains("没有停"))
         XCTAssertTrue(presentation.nextStep.contains("安全暂停"))
+        XCTAssertFalse(presentation.canVerifyFinalMedia)
+    }
+
+    func testQAReviewOffersFinalMediaVerification() {
+        let presentation = ProductionProgressPresentation(
+            progress: progress(runStatus: "qa_review", stage: "qa_review", canCancel: true)
+        )
+
+        XCTAssertEqual(presentation.attention, .working)
+        XCTAssertTrue(presentation.canVerifyFinalMedia)
     }
 
     func testAmbiguousChargeNeverLooksLikeOrdinaryActiveWork() {

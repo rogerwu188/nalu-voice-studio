@@ -652,9 +652,17 @@ Current evidence:
   OpenAPI backward compatibility, SOP/progress audits and real HTTP smoke passed. The
   same commit built, verified and launched the PyAV/FFmpeg-equipped packaged Runtime on
   Apple Silicon and Intel, then merged, verified and launched the universal application.
-- Still required before `PASS`: real shot selection/normalization and mix pipeline,
-  semantic ASR/transcript comparison, shot-aware adjacent-shot media-boundary evidence,
-  and actual original-resolution human audiovisual review on the release candidate.
+- The current checkpoint adds an explicit Qingshan workspace output contract for an
+  immutable, production-package-bound shot manifest. Runtime compares visible WebVTT
+  dialogue with timed local ASR segments, decodes both sides of each authored cut,
+  validates transition-contract digests and blocks completion/release packaging unless
+  the report passes against the same seal. The native QA-stage action downloads and
+  digest-verifies the sealed master, requires Apple on-device `zh-CN` recognition and
+  never silently falls back to cloud recognition. Automated playable pass/fail fixtures
+  cover semantic mismatch, corrupt transition evidence and immutable replay.
+- Still required before `PASS`: CI and packaged-native QA for the current semantic/
+  boundary checkpoint; real shot selection/normalization and mix pipeline; and actual
+  original-resolution human audiovisual review on the release candidate.
 
 ## SOP-10 · Controlled release and learning loop — IN_PROGRESS
 

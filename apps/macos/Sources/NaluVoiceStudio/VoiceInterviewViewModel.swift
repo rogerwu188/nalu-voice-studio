@@ -31,6 +31,8 @@ final class VoiceInterviewViewModel {
     var productionProgressLastRefreshedAt: Date?
     var productionProgressRefreshWarning: String?
     var productionRunActionInProgress: String?
+    var semanticMediaQARunInProgress: String?
+    var semanticMediaQAStatusByRunID: [String: String] = [:]
     private var pendingVoiceRunCancellationID: String?
     var selectedEpisodeID: String?
     var messages: [InterviewMessage] = [
@@ -114,6 +116,7 @@ final class VoiceInterviewViewModel {
     private let runtime = RuntimeClient()
     private let speech = SpeechRecorder()
     private let speechPlayback = SpeechPlayback()
+    private let finalMasterSpeechRecognizer = FinalMasterSpeechRecognizer()
     private var interviewFlow = InterviewFlow()
     private var planningVoiceFlow = PlanningVoiceFlow()
     private var acceptedContinuityDraft: ContinuityPreflightDraft?
@@ -583,6 +586,49 @@ final class VoiceInterviewViewModel {
             )
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+
+    func verifyFinalMaster(runID: String) async {
+        guard productionRunActionInProgress == nil,
+              semanticMediaQARunInProgress == nil else { return }
+        semanticMediaQARunInProgress = runID
+        semanticMediaQAStatusByRunID[runID] = "正在安全下载当前封存成片…"
+        defer { semanticMediaQARunInProgress = nil }
+
+        var downloadedFile: URL?
+        do {
+            let download = try await runtime.downloadSealedMaster(runID: runID)
+            downloadedFile = download.fileURL
+            semanticMediaQAStatusByRunID[runID] = "正在这台 Mac 上识别成片声音，不会上传录音…"
+            let recognition = try await finalMasterSpeechRecognizer.recognize(
+                fileURL: download.fileURL
+            )
+            semanticMediaQAStatusByRunID[runID] = "正在核对台词和每个镜头切点…"
+            let report = try await runtime.submitSemanticMediaQA(
+                runID: runID,
+                draft: recognition.semanticQADraft(masterSHA256: download.sha256)
+            )
+            let response: String
+            if report.status == "PASS" {
+                semanticMediaQAStatusByRunID[runID] = "本机声音和镜头切点自动检查通过"
+                response = "本机自动检查通过：成片中的中文台词与字幕一致，镜头切点也能正常解码。接下来仍要由您查看原尺寸成片，确认内容和观感。"
+            } else {
+                let count = report.failures.count
+                semanticMediaQAStatusByRunID[runID] = "发现 \(count) 项需要修复，尚未进入发行"
+                response = "自动检查发现 \(count) 项需要修复，Nalu 已经安全停在发行之前，并保留了修复证据。"
+            }
+            messages.append(.init(speaker: .nalu, text: response))
+            speechPlayback.speak(response, rate: comfortPreferences.speechRate)
+        } catch {
+            let response = "成片自动检查没有完成：\(error.localizedDescription)。没有改用云端识别，也没有进入发行。"
+            semanticMediaQAStatusByRunID[runID] = response
+            errorMessage = error.localizedDescription
+            messages.append(.init(speaker: .nalu, text: response))
+            speechPlayback.speak(response, rate: comfortPreferences.speechRate)
+        }
+        if let downloadedFile {
+            try? FileManager.default.removeItem(at: downloadedFile)
         }
     }
 

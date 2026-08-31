@@ -38,12 +38,15 @@ from .models import (
     RunEvent,
     RunResumeRequest,
     RunStatus,
+    SemanticMediaQAReport,
+    SemanticMediaQARequest,
 )
 from .publication_adapters import publication_adapter
 from .qingshan_adapter import QingshanAdapter, QingshanAdapterError
 from .remote_submitter import DurableRemoteTaskSubmitter
 from .repository import ConflictError, Repository, new_id, utc_now
 from .secure_files import harden_tree, secure_directory, secure_file
+from .semantic_media_qa import inspect_semantic_asr, inspect_shot_boundaries
 
 EPISODE_PROGRESS = {
     EpisodeStatus.PLANNED: ("planning", 0, "等待完善分集规划", "这一集还在规划中。"),
@@ -127,10 +130,20 @@ QA_REPAIR_CATALOG = {
         "The WebVTT format, cue order or master-duration boundary failed QA.",
         "Correct caption format and timestamps against the normalized master, then reseal.",
     ),
+    "media_structure_qa_presence": (
+        "container and caption structure QA",
+        "No immutable MP4/WebVTT structure report is bound to this output seal.",
+        "Run the local container and caption timeline gate before completion.",
+    ),
     "decoded_media_qa_presence": (
         "decoded media QA",
         "No immutable decoded-media QA report is bound to this output seal.",
         "Decode the sealed master, run picture/audio/caption alignment gates and record the report.",
+    ),
+    "semantic_media_qa_presence": (
+        "semantic media QA",
+        "No immutable local semantic-ASR and authored-boundary report is bound to this seal.",
+        "Run local final-master recognition and decoded authored-boundary QA before completion.",
     ),
     "decoded_video": (
         "decoded picture track",
@@ -151,6 +164,16 @@ QA_REPAIR_CATALOG = {
         "captions and dialogue",
         "Too many caption cues do not overlap a decoded voiced-audio interval.",
         "Retimestamp captions or repair dialogue audio, then rerun decoded-media QA.",
+    ),
+    "semantic_asr": (
+        "final dialogue transcript",
+        "The exact sealed master failed local semantic speech-to-caption comparison.",
+        "Repair dialogue or captions, rerun local recognition and bind a new report to the new seal.",
+    ),
+    "shot_boundary": (
+        "authored shot boundaries",
+        "The sealed shot manifest or decoded frames around an authored cut failed boundary QA.",
+        "Repair the shot assembly or transition contract, reseal and rerun boundary QA.",
     ),
     "original_resolution_reviewed": (
         "master video",
@@ -686,6 +709,164 @@ class ProductionService:
             raise ConflictError("decoded media QA report belongs to another run")
         return report
 
+    def sealed_master_path(self, run_id: str) -> tuple[Path, RenderedOutputArtifact]:
+        integrity = self.rendered_output_integrity(run_id)
+        if not integrity.integrity_ok:
+            raise ConflictError("sealed output integrity failed before master access")
+        masters = [
+            artifact for artifact in integrity.seal.artifacts if artifact.kind == "master_video"
+        ]
+        if len(masters) != 1:
+            raise ConflictError("exactly one sealed master is required")
+        run = self.repository.get_run(run_id)
+        path = (
+            self._run_directory(run)
+            / "qingshan-workspace"
+            / "exports"
+            / masters[0].relative_path
+        )
+        return path, masters[0]
+
+    def semantic_media_qa(
+        self, run_id: str, request: SemanticMediaQARequest
+    ) -> SemanticMediaQAReport:
+        integrity = self.rendered_output_integrity(run_id)
+        if not integrity.integrity_ok:
+            raise ConflictError("sealed output integrity failed before semantic media QA")
+        run = self.repository.get_run(run_id)
+        seal = integrity.seal
+        masters = [artifact for artifact in seal.artifacts if artifact.kind == "master_video"]
+        captions = [artifact for artifact in seal.artifacts if artifact.kind == "captions"]
+        shot_manifests = [
+            artifact for artifact in seal.artifacts if artifact.kind == "shot_manifest"
+        ]
+        if len(masters) != 1 or len(captions) != 1 or len(shot_manifests) != 1:
+            raise ConflictError(
+                "semantic media QA requires exactly one sealed master, captions and shot manifest"
+            )
+        if request.source_master_sha256 != masters[0].sha256:
+            self._record_postproduction_repair_plan(
+                run,
+                output_seal_sha256=seal.manifest_sha256,
+                master_sha256=masters[0].sha256,
+                codes=["semantic_asr"],
+            )
+            raise ConflictError("speech recognition belongs to a different master")
+        structure_qa = self.stored_media_structure_qa(run_id)
+        decoded_qa = self.stored_decoded_media_qa(run_id)
+        if structure_qa.status != "PASS" or decoded_qa.status != "PASS":
+            raise ConflictError("structure and decoded media QA must pass first")
+        if (
+            structure_qa.output_seal_sha256 != seal.manifest_sha256
+            or decoded_qa.output_seal_sha256 != seal.manifest_sha256
+        ):
+            raise ConflictError("prior media QA belongs to a different output seal")
+        exports = self._run_directory(run) / "qingshan-workspace" / "exports"
+        duration = float(structure_qa.mp4.get("duration_seconds") or 0)
+        semantic_asr = inspect_semantic_asr(
+            exports / captions[0].relative_path,
+            transcript=request.transcript,
+            segments=[segment.model_dump(mode="json") for segment in request.segments],
+            recognizer_id=request.recognizer_id,
+            locale=request.locale,
+            local_recognition=request.local_recognition,
+            media_duration_seconds=duration,
+        )
+        shot_boundaries = inspect_shot_boundaries(
+            exports / masters[0].relative_path,
+            exports / shot_manifests[0].relative_path,
+            production_package_sha256=seal.production_package_sha256,
+            media_duration_seconds=duration,
+        )
+        failures = [
+            *("asr:" + value for value in semantic_asr["failures"]),
+            *("boundary:" + value for value in shot_boundaries["failures"]),
+        ]
+        body = {
+            "schema_version": "nalu.semantic-media-qa/v1",
+            "run_id": run.id,
+            "output_seal_sha256": seal.manifest_sha256,
+            "master_sha256": masters[0].sha256,
+            "captions_sha256": captions[0].sha256,
+            "shot_manifest_sha256": shot_manifests[0].sha256,
+            "recognizer_version": request.recognizer_version,
+            "recognition_generated_at": request.generated_at,
+            "semantic_asr": semantic_asr,
+            "shot_boundaries": shot_boundaries,
+            "status": "PASS" if not failures else "FAIL",
+            "failures": failures,
+            "created_at": utc_now(),
+        }
+        report = SemanticMediaQAReport(
+            **body,
+            report_sha256=self._canonical_sha256(body),
+        )
+        report_path = self._run_directory(run) / "semantic-media-qa.json"
+        if report_path.is_file():
+            existing = self.stored_semantic_media_qa(run_id)
+            if (
+                existing.output_seal_sha256 == report.output_seal_sha256
+                and existing.master_sha256 == report.master_sha256
+                and existing.recognizer_version == report.recognizer_version
+                and existing.recognition_generated_at == report.recognition_generated_at
+                and existing.semantic_asr == report.semantic_asr
+                and existing.shot_boundaries == report.shot_boundaries
+            ):
+                return existing
+            raise ConflictError("semantic media QA already exists with different evidence")
+        temporary = report_path.with_name(f".{new_id('semantic-media-qa')}.tmp")
+        temporary.write_text(report.model_dump_json(indent=2) + "\n", encoding="utf-8")
+        secure_file(temporary)
+        try:
+            os.link(temporary, report_path)
+        except FileExistsError as exc:
+            raise ConflictError("semantic media QA was created concurrently") from exc
+        finally:
+            temporary.unlink(missing_ok=True)
+        secure_file(report_path)
+        self.repository.append_run_event(
+            run.id,
+            "semantic_media_qa_completed",
+            from_status=run.status,
+            to_status=run.status,
+            message="Local semantic ASR and authored decoded-boundary QA completed.",
+            payload={
+                "status": report.status,
+                "report_sha256": report.report_sha256,
+                "failure_count": len(report.failures),
+                "local_recognition": request.local_recognition,
+            },
+        )
+        if failures:
+            codes: list[str] = []
+            if semantic_asr["status"] != "PASS":
+                codes.append("semantic_asr")
+            if shot_boundaries["status"] != "PASS":
+                codes.append("shot_boundary")
+            self._record_postproduction_repair_plan(
+                run,
+                output_seal_sha256=seal.manifest_sha256,
+                master_sha256=masters[0].sha256,
+                codes=codes,
+            )
+        return report
+
+    def stored_semantic_media_qa(self, run_id: str) -> SemanticMediaQAReport:
+        run = self.repository.get_run(run_id)
+        path = self._run_directory(run) / "semantic-media-qa.json"
+        if not path.is_file() or path.is_symlink():
+            raise ConflictError("semantic media QA has not been recorded for this run")
+        try:
+            report = SemanticMediaQAReport.model_validate_json(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            raise ConflictError("semantic media QA report is unreadable or invalid") from exc
+        body = report.model_dump(mode="json", exclude={"report_sha256"})
+        if self._canonical_sha256(body) != report.report_sha256:
+            raise ConflictError("semantic media QA report digest mismatch")
+        if report.run_id != run.id:
+            raise ConflictError("semantic media QA report belongs to another run")
+        return report
+
     def create_release_package(self, run_id: str, request: ReleasePackageCreate) -> ReleasePackage:
         run = self.repository.get_run(run_id)
         if run.status != RunStatus.COMPLETED:
@@ -706,6 +887,11 @@ class ProductionService:
             raise ConflictError("decoded media QA must pass before release packaging")
         if decoded_qa.output_seal_sha256 != integrity.seal.manifest_sha256:
             raise ConflictError("decoded media QA reviewed a different output seal")
+        semantic_qa = self.stored_semantic_media_qa(run.id)
+        if semantic_qa.status != "PASS":
+            raise ConflictError("semantic media QA must pass before release packaging")
+        if semantic_qa.output_seal_sha256 != integrity.seal.manifest_sha256:
+            raise ConflictError("semantic media QA reviewed a different output seal")
 
         artifacts_by_kind: dict[str, list[RenderedOutputArtifact]] = {}
         for artifact in integrity.seal.artifacts:
@@ -731,6 +917,7 @@ class ProductionService:
                 existing.output_seal_sha256 == integrity.seal.manifest_sha256
                 and existing.media_qa_report_sha256 == media_qa.report_sha256
                 and existing.decoded_media_qa_report_sha256 == decoded_qa.report_sha256
+                and existing.semantic_media_qa_report_sha256 == semantic_qa.report_sha256
                 and existing.title == request.title
                 and existing.description == request.description
                 and existing.prepared_by == request.prepared_by
@@ -746,6 +933,7 @@ class ProductionService:
             "output_seal_sha256": integrity.seal.manifest_sha256,
             "media_qa_report_sha256": media_qa.report_sha256,
             "decoded_media_qa_report_sha256": decoded_qa.report_sha256,
+            "semantic_media_qa_report_sha256": semantic_qa.report_sha256,
             "title": request.title,
             "description": request.description,
             "artifacts": [
@@ -1041,24 +1229,36 @@ class ProductionService:
             )
             raise ConflictError("final QA report reviewed a different master")
 
-        try:
-            structure_qa = self.stored_media_structure_qa(run_id)
-            decoded_qa = self.stored_decoded_media_qa(run_id)
-        except ConflictError as exc:
-            self._record_postproduction_repair_plan(
-                run,
-                output_seal_sha256=seal.manifest_sha256,
-                master_sha256=master_artifacts[0].sha256,
-                codes=["decoded_media_qa_presence"],
-            )
-            raise ConflictError(
-                "production completion requires recorded structure and decoded media QA"
-            ) from exc
-        if structure_qa.status != "PASS" or decoded_qa.status != "PASS":
+        required_media_qa = (
+            (self.stored_media_structure_qa, "media_structure_qa_presence"),
+            (self.stored_decoded_media_qa, "decoded_media_qa_presence"),
+            (self.stored_semantic_media_qa, "semantic_media_qa_presence"),
+        )
+        reports: list[MediaStructureQAReport | DecodedMediaQAReport | SemanticMediaQAReport] = []
+        for loader, repair_code in required_media_qa:
+            try:
+                reports.append(loader(run_id))
+            except ConflictError as exc:
+                self._record_postproduction_repair_plan(
+                    run,
+                    output_seal_sha256=seal.manifest_sha256,
+                    master_sha256=master_artifacts[0].sha256,
+                    codes=[repair_code],
+                )
+                raise ConflictError(
+                    "production completion requires structure, decoded and semantic media QA"
+                ) from exc
+        structure_qa, decoded_qa, semantic_qa = reports
+        if (
+            structure_qa.status != "PASS"
+            or decoded_qa.status != "PASS"
+            or semantic_qa.status != "PASS"
+        ):
             raise ConflictError("production completion requires all automated media QA to pass")
         if (
             structure_qa.output_seal_sha256 != seal.manifest_sha256
             or decoded_qa.output_seal_sha256 != seal.manifest_sha256
+            or semantic_qa.output_seal_sha256 != seal.manifest_sha256
         ):
             raise ConflictError("automated media QA reviewed a different output seal")
 

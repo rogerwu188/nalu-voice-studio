@@ -948,6 +948,7 @@ class RenderedOutputCandidate(BaseModel):
         "cover",
         "qa_report",
         "release_metadata",
+        "shot_manifest",
     ]
     relative_path: str = Field(min_length=1, max_length=500)
     media_type: str = Field(min_length=1, max_length=160)
@@ -1085,6 +1086,47 @@ class DecodedMediaQAReport(BaseModel):
     report_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
 
 
+class SemanticASRSegment(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    start_seconds: float = Field(ge=0)
+    end_seconds: float = Field(gt=0)
+    text: str = Field(default="", max_length=4000)
+    confidence: float | None = Field(default=None, ge=0, le=1)
+
+
+class SemanticMediaQARequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    source_master_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    transcript: str = Field(default="", max_length=200000)
+    segments: list[SemanticASRSegment] = Field(default_factory=list, max_length=10000)
+    recognizer_id: Literal[
+        "apple-speech-on-device", "qingshan-faster-whisper-local"
+    ]
+    recognizer_version: str = Field(min_length=1, max_length=200)
+    locale: str = Field(min_length=2, max_length=40)
+    local_recognition: bool
+    generated_at: str = Field(min_length=1, max_length=100)
+
+
+class SemanticMediaQAReport(BaseModel):
+    schema_version: Literal["nalu.semantic-media-qa/v1"] = "nalu.semantic-media-qa/v1"
+    run_id: str
+    output_seal_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    master_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    captions_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    shot_manifest_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    recognizer_version: str
+    recognition_generated_at: str
+    semantic_asr: dict[str, Any]
+    shot_boundaries: dict[str, Any]
+    status: Literal["PASS", "FAIL"]
+    failures: list[str] = Field(default_factory=list)
+    created_at: str
+    report_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+
+
 class ReleasePackageCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -1101,6 +1143,7 @@ class ReleasePackage(BaseModel):
     output_seal_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     media_qa_report_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     decoded_media_qa_report_sha256: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
+    semantic_media_qa_report_sha256: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
     title: str
     description: str
     artifacts: list[RenderedOutputArtifact]

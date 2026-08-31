@@ -12,8 +12,10 @@ struct ProductionProgressPresentation: Equatable {
     let attention: ProductionProgressAttention
     let reassurance: String
     let nextStep: String
+    let canVerifyFinalMedia: Bool
 
     init(progress: EpisodeProductionProgress) {
+        canVerifyFinalMedia = progress.runStatus == "qa_review" && progress.runID != nil
         if progress.stage == "charge_reconciliation" {
             attention = .needsConfirmation
             reassurance = "正在安全核对，没有重复扣费或重复提交"
@@ -50,8 +52,11 @@ struct ProductionProgressStatusView: View {
     let lastRefreshedAt: Date?
     let refreshWarning: String?
     let actionInProgress: Bool
+    let mediaCheckInProgress: Bool
+    let mediaCheckStatus: String?
     let onCancel: (() -> Void)?
     let onResume: (() -> Void)?
+    let onVerifyFinalMedia: (() -> Void)?
 
     private var presentation: ProductionProgressPresentation {
         ProductionProgressPresentation(progress: progress)
@@ -106,6 +111,37 @@ struct ProductionProgressStatusView: View {
                         .foregroundStyle(.primary)
                     Label(presentation.nextStep, systemImage: "arrow.turn.down.right")
                         .foregroundStyle(.secondary)
+                    if presentation.canVerifyFinalMedia, let onVerifyFinalMedia {
+                        Button(action: onVerifyFinalMedia) {
+                            HStack(spacing: 10) {
+                                if mediaCheckInProgress {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                } else {
+                                    Image(systemName: "waveform.and.magnifyingglass")
+                                }
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(mediaCheckInProgress ? "正在检查成片…" : "检查成片声音与转场")
+                                        .font(.headline)
+                                    Text("只在这台 Mac 上识别；通过后仍需您观看确认")
+                                        .font(.caption)
+                                }
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.large)
+                        .disabled(mediaCheckInProgress || actionInProgress)
+                        .accessibilityHint("下载当前封存成片，在本机核对中文台词、字幕和镜头切点")
+                    }
+                    if let mediaCheckStatus, !mediaCheckStatus.isEmpty {
+                        Label(
+                            mediaCheckStatus,
+                            systemImage: mediaCheckInProgress
+                                ? "arrow.triangle.2.circlepath" : "checklist"
+                        )
+                        .foregroundStyle(mediaCheckInProgress ? .blue : .secondary)
+                    }
                     if progress.canCancel || progress.canResume {
                         HStack(spacing: 12) {
                             if progress.canCancel, let onCancel {
@@ -123,7 +159,7 @@ struct ProductionProgressStatusView: View {
                             }
                         }
                         .controlSize(.large)
-                        .disabled(actionInProgress)
+                        .disabled(actionInProgress || mediaCheckInProgress)
                     }
                     if let refreshWarning {
                         Label(refreshWarning, systemImage: "wifi.exclamationmark")

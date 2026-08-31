@@ -326,6 +326,59 @@ struct ProductionRunResumeDraft: Codable, Sendable {
     }
 }
 
+struct SealedMasterDownload: Sendable {
+    let fileURL: URL
+    let sha256: String
+}
+
+struct SemanticASRSegmentDraft: Codable, Equatable, Sendable {
+    let startSeconds: Double
+    let endSeconds: Double
+    let text: String
+    let confidence: Double?
+
+    enum CodingKeys: String, CodingKey {
+        case text, confidence
+        case startSeconds = "start_seconds"
+        case endSeconds = "end_seconds"
+    }
+}
+
+struct SemanticMediaQADraft: Codable, Equatable, Sendable {
+    let sourceMasterSHA256: String
+    let transcript: String
+    let segments: [SemanticASRSegmentDraft]
+    let recognizerID: String
+    let recognizerVersion: String
+    let locale: String
+    let localRecognition: Bool
+    let generatedAt: String
+
+    enum CodingKeys: String, CodingKey {
+        case transcript, segments, locale
+        case sourceMasterSHA256 = "source_master_sha256"
+        case recognizerID = "recognizer_id"
+        case recognizerVersion = "recognizer_version"
+        case localRecognition = "local_recognition"
+        case generatedAt = "generated_at"
+    }
+}
+
+struct SemanticMediaQAResult: Codable, Sendable {
+    let status: String
+    let failures: [String]
+    let reportSHA256: String
+    let semanticASR: [String: JSONValue]
+    let shotBoundaries: [String: JSONValue]
+
+    enum CodingKeys: String, CodingKey {
+        case status, failures
+        case reportSHA256 = "report_sha256"
+        case semanticASR = "semantic_asr"
+        case shotBoundaries = "shot_boundaries"
+    }
+}
+
 struct EpisodePlanUpdateDraft: Codable, Sendable {
     let logline: String
     let outline: [String: JSONValue]

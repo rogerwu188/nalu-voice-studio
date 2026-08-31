@@ -64,3 +64,32 @@ case and a frozen-picture/silent-audio failure case.
 The report explicitly stores `semantic_asr_verified: false`. Voice activity and cue
 overlap are not transcript correctness, lip sync, shot-aware transition continuity or a
 human viewing claim.
+
+## Local semantic dialogue and authored-boundary gate
+
+The Qingshan workspace task now declares one required `shot_manifest` output and writes
+an episode-specific `nalu.shot-boundary-output-contract/v1` file. The finished manifest
+must bind the immutable production-package digest, list every authored unit on the final
+master timeline, carry a canonical manifest digest and bind each incoming transition to
+its own digest-checked contract. The contract records transition type, whether visible
+change is required and the intended audio bridge; it is production output evidence, not
+a value reconstructed later from the rendered video.
+
+During `qa_review`, the native macOS application downloads the exact sealed master and
+verifies its `X-Nalu-Master-SHA256` before use. It asks Apple's `zh-CN` speech recognizer
+to set `requiresOnDeviceRecognition`; if on-device recognition is unavailable, Nalu stops
+instead of silently sending the master to a cloud recognizer. The transcript and timed
+segments are submitted with the sealed-master digest and the fixed recognizer identity.
+
+`POST /v1/production-runs/{run_id}/semantic-media-qa` requires the structure and decoded
+reports to have passed against the same seal. It compares normalized visible WebVTT text
+with the local transcript at a minimum 80 percent recall, validates segment order and
+duration, and decodes the frames immediately before and after every authored boundary.
+Missing sides, large frame gaps, black frames, an expected-but-absent visual change,
+invalid transition contracts, package drift and recognizer/locale drift fail closed.
+The immutable report creates `semantic_asr` and/or `shot_boundary` repair tasks and is
+required by both production completion and offline release packaging.
+
+This is automated release-blocking evidence only. It does not claim lip-sync quality,
+editorial taste, identity continuity or completion of the required original-resolution
+human audiovisual review.

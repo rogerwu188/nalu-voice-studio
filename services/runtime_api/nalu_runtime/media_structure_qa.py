@@ -179,3 +179,26 @@ def webvtt_cues(path: Path) -> list[tuple[float, float]]:
         if end > start:
             cues.append((start, end))
     return cues
+
+
+def webvtt_transcript(path: Path) -> str:
+    """Return visible cue text without identifiers, timing rows or WebVTT metadata."""
+    try:
+        lines = path.read_text(encoding="utf-8-sig").splitlines()
+    except (OSError, UnicodeError):
+        return ""
+    result: list[str] = []
+    in_note = False
+    for line in lines[1:]:
+        stripped = line.strip()
+        if stripped.startswith("NOTE"):
+            in_note = True
+            continue
+        if in_note:
+            if not stripped:
+                in_note = False
+            continue
+        if not stripped or "-->" in stripped or stripped.isdigit():
+            continue
+        result.append(re.sub(r"<[^>]+>", "", stripped))
+    return "".join(result)

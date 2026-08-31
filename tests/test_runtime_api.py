@@ -1327,6 +1327,22 @@ def test_dry_run_writes_immutable_package(tmp_path: Path) -> None:
     assert (workspace / "workspace-manifest.json").exists()
     assert (workspace / "source" / "E01_APPROVED_SCRIPT.md").exists()
     assert (workspace / "workflow" / "work_queue.json").exists()
+    task = json.loads(
+        (workspace / "workflow" / "tasks" / "E01_PRODUCTION_TASK.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    output_contract = task["required_outputs"]["shot_boundary_manifest"]
+    assert output_contract["artifact_kind"] == "shot_manifest"
+    assert output_contract["relative_path"] == "exports/E01_SHOT_BOUNDARIES.json"
+    shot_contract = json.loads(
+        (workspace / output_contract["contract_path"]).read_text(encoding="utf-8")
+    )
+    assert shot_contract["schema_version"] == "nalu.shot-boundary-output-contract/v1"
+    assert shot_contract["production_package_sha256"] == json.loads(
+        package.read_text(encoding="utf-8")
+    )["package_sha256"]
+    assert shot_contract["fail_closed"] is True
     gate_audit = json.loads(
         (workspace / "workflow" / "qingshan-gate-registry-audit.json").read_text(
             encoding="utf-8"

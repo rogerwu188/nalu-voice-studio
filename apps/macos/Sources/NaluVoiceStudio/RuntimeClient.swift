@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 
 actor RuntimeClient {
@@ -386,6 +387,46 @@ actor RuntimeClient {
                 reason: "用户要求继续修改剧本"
             )
         )
+    }
+
+    func downloadSealedMaster(runID: String) async throws -> SealedMasterDownload {
+        let sourceURL = baseURL.appending(path: "v1/production-runs/\(runID)/sealed-master")
+        var request = URLRequest(url: sourceURL)
+        request.timeoutInterval = 600
+        let (temporaryDownload, response) = try await session.download(for: request)
+        guard let http = response as? HTTPURLResponse,
+              (200..<300).contains(http.statusCode),
+              let expectedSHA = http.value(forHTTPHeaderField: "X-Nalu-Master-SHA256"),
+              expectedSHA.count == 64 else {
+            throw RuntimeError.requestFailed("无法取得当前封存成片或其校验摘要")
+        }
+        let directory = FileManager.default.temporaryDirectory
+            .appending(path: "NaluSemanticMediaQA", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(
+            at: directory, withIntermediateDirectories: true,
+            attributes: [.posixPermissions: 0o700]
+        )
+        let destination = directory.appending(path: UUID().uuidString + ".mp4")
+        var keepDestination = false
+        defer {
+            if !keepDestination {
+                try? FileManager.default.removeItem(at: destination)
+            }
+        }
+        try FileManager.default.copyItem(at: temporaryDownload, to: destination)
+        let data = try Data(contentsOf: destination, options: .mappedIfSafe)
+        let actualSHA = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+        guard actualSHA == expectedSHA.lowercased() else {
+            throw RuntimeError.requestFailed("成片下载后的摘要不一致，声音检查已经停止")
+        }
+        keepDestination = true
+        return SealedMasterDownload(fileURL: destination, sha256: actualSHA)
+    }
+
+    func submitSemanticMediaQA(
+        runID: String, draft: SemanticMediaQADraft
+    ) async throws -> SemanticMediaQAResult {
+        try await post("v1/production-runs/\(runID)/semantic-media-qa", body: draft)
     }
 
     private func get<Response: Decodable>(_ path: String) async throws -> Response {

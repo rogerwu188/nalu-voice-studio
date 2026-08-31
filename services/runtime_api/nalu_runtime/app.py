@@ -90,6 +90,8 @@ from .models import (
     SeasonPlanApprovalCreate,
     SeasonPlanRevision,
     SeasonPlanUpdate,
+    SemanticMediaQAReport,
+    SemanticMediaQARequest,
     StorageDiagnostics,
 )
 from .privacy_service import ProjectPrivacyService
@@ -654,6 +656,35 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
     )
     def stored_decoded_media_qa(run_id: str) -> DecodedMediaQAReport:
         return production.stored_decoded_media_qa(run_id)
+
+    @app.get(
+        "/v1/production-runs/{run_id}/sealed-master",
+        response_class=FileResponse,
+    )
+    def sealed_master(run_id: str) -> FileResponse:
+        path, artifact = production.sealed_master_path(run_id)
+        return FileResponse(
+            path,
+            media_type=artifact.media_type,
+            filename=Path(artifact.relative_path).name,
+            headers={"X-Nalu-Master-SHA256": artifact.sha256},
+        )
+
+    @app.post(
+        "/v1/production-runs/{run_id}/semantic-media-qa",
+        response_model=SemanticMediaQAReport,
+    )
+    def semantic_media_qa(
+        run_id: str, request: SemanticMediaQARequest
+    ) -> SemanticMediaQAReport:
+        return production.semantic_media_qa(run_id, request)
+
+    @app.get(
+        "/v1/production-runs/{run_id}/semantic-media-qa",
+        response_model=SemanticMediaQAReport,
+    )
+    def stored_semantic_media_qa(run_id: str) -> SemanticMediaQAReport:
+        return production.stored_semantic_media_qa(run_id)
 
     @app.post(
         "/v1/production-runs/{run_id}/release-package",

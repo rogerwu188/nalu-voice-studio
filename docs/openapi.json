@@ -4071,6 +4071,18 @@
             "title": "Schema Version",
             "type": "string"
           },
+          "semantic_media_qa_report_sha256": {
+            "anyOf": [
+              {
+                "pattern": "^[a-f0-9]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Semantic Media Qa Report Sha256"
+          },
           "title": {
             "title": "Title",
             "type": "string"
@@ -4137,7 +4149,8 @@
               "captions",
               "cover",
               "qa_report",
-              "release_metadata"
+              "release_metadata",
+              "shot_manifest"
             ],
             "title": "Kind",
             "type": "string"
@@ -4180,7 +4193,8 @@
               "captions",
               "cover",
               "qa_report",
-              "release_metadata"
+              "release_metadata",
+              "shot_manifest"
             ],
             "title": "Kind",
             "type": "string"
@@ -4796,6 +4810,202 @@
           }
         },
         "title": "SeasonPlanUpdate",
+        "type": "object"
+      },
+      "SemanticASRSegment": {
+        "additionalProperties": false,
+        "properties": {
+          "confidence": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence"
+          },
+          "end_seconds": {
+            "exclusiveMinimum": 0.0,
+            "title": "End Seconds",
+            "type": "number"
+          },
+          "start_seconds": {
+            "minimum": 0.0,
+            "title": "Start Seconds",
+            "type": "number"
+          },
+          "text": {
+            "default": "",
+            "maxLength": 4000,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "start_seconds",
+          "end_seconds"
+        ],
+        "title": "SemanticASRSegment",
+        "type": "object"
+      },
+      "SemanticMediaQAReport": {
+        "properties": {
+          "captions_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Captions Sha256",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "failures": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Failures",
+            "type": "array"
+          },
+          "master_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Master Sha256",
+            "type": "string"
+          },
+          "output_seal_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Output Seal Sha256",
+            "type": "string"
+          },
+          "recognition_generated_at": {
+            "title": "Recognition Generated At",
+            "type": "string"
+          },
+          "recognizer_version": {
+            "title": "Recognizer Version",
+            "type": "string"
+          },
+          "report_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Report Sha256",
+            "type": "string"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "nalu.semantic-media-qa/v1",
+            "default": "nalu.semantic-media-qa/v1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "semantic_asr": {
+            "additionalProperties": true,
+            "title": "Semantic Asr",
+            "type": "object"
+          },
+          "shot_boundaries": {
+            "additionalProperties": true,
+            "title": "Shot Boundaries",
+            "type": "object"
+          },
+          "shot_manifest_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Shot Manifest Sha256",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "PASS",
+              "FAIL"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_id",
+          "output_seal_sha256",
+          "master_sha256",
+          "captions_sha256",
+          "shot_manifest_sha256",
+          "recognizer_version",
+          "recognition_generated_at",
+          "semantic_asr",
+          "shot_boundaries",
+          "status",
+          "created_at",
+          "report_sha256"
+        ],
+        "title": "SemanticMediaQAReport",
+        "type": "object"
+      },
+      "SemanticMediaQARequest": {
+        "additionalProperties": false,
+        "properties": {
+          "generated_at": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Generated At",
+            "type": "string"
+          },
+          "local_recognition": {
+            "title": "Local Recognition",
+            "type": "boolean"
+          },
+          "locale": {
+            "maxLength": 40,
+            "minLength": 2,
+            "title": "Locale",
+            "type": "string"
+          },
+          "recognizer_id": {
+            "enum": [
+              "apple-speech-on-device",
+              "qingshan-faster-whisper-local"
+            ],
+            "title": "Recognizer Id",
+            "type": "string"
+          },
+          "recognizer_version": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Recognizer Version",
+            "type": "string"
+          },
+          "segments": {
+            "items": {
+              "$ref": "#/components/schemas/SemanticASRSegment"
+            },
+            "maxItems": 10000,
+            "title": "Segments",
+            "type": "array"
+          },
+          "source_master_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Source Master Sha256",
+            "type": "string"
+          },
+          "transcript": {
+            "default": "",
+            "maxLength": 200000,
+            "title": "Transcript",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_master_sha256",
+          "recognizer_id",
+          "recognizer_version",
+          "locale",
+          "local_recognition",
+          "generated_at"
+        ],
+        "title": "SemanticMediaQARequest",
         "type": "object"
       },
       "StorageDiagnostics": {
@@ -7091,6 +7301,124 @@
           }
         },
         "summary": "Resume Run"
+      }
+    },
+    "/v1/production-runs/{run_id}/sealed-master": {
+      "get": {
+        "operationId": "sealed_master_v1_production_runs__run_id__sealed_master_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Sealed Master"
+      }
+    },
+    "/v1/production-runs/{run_id}/semantic-media-qa": {
+      "get": {
+        "operationId": "stored_semantic_media_qa_v1_production_runs__run_id__semantic_media_qa_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SemanticMediaQAReport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Stored Semantic Media Qa"
+      },
+      "post": {
+        "operationId": "semantic_media_qa_v1_production_runs__run_id__semantic_media_qa_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SemanticMediaQARequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SemanticMediaQAReport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Semantic Media Qa"
       }
     },
     "/v1/project-imports": {
