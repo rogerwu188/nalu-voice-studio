@@ -17,6 +17,7 @@ update_helper="$bundle/Contents/Resources/updater/nalu-update-helper"
 update_trust="$bundle/Contents/Resources/update-trust.json"
 update_discovery="$bundle/Contents/Resources/update-discovery.json"
 feedback_export="$bundle/Contents/Resources/runtime-resources/configs/feedback-export.json"
+development_handoff="$bundle/Contents/Resources/runtime-resources/configs/development-handoff.json"
 
 test -d "$bundle"
 test -f "$plist"
@@ -27,6 +28,7 @@ test -x "$update_helper"
 test -f "$update_trust"
 test -f "$update_discovery"
 test -f "$feedback_export"
+test -f "$development_handoff"
 test -f "$bundle/Contents/Resources/runtime-resources/configs/qingshan-upstream.json"
 test -f "$bundle/Contents/Resources/runtime-resources/vendor/qingshan/LICENSE"
 
@@ -41,6 +43,9 @@ build="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$plist")"
 [[ "$(/usr/bin/plutil -extract administrator_authorized raw "$feedback_export")" == "false" ]]
 [[ -z "$(/usr/bin/plutil -extract endpoint raw "$feedback_export")" ]]
 [[ -z "$(/usr/bin/plutil -extract repository raw "$feedback_export")" ]]
+[[ "$(/usr/bin/plutil -extract enabled raw "$development_handoff")" == "false" ]]
+[[ "$(/usr/bin/plutil -extract administrator_authorized raw "$development_handoff")" == "false" ]]
+[[ -z "$(/usr/bin/plutil -extract endpoint raw "$development_handoff")" ]]
 
 codesign --verify --deep --strict --verbose=2 "$bundle"
 if [[ "$require_universal" == "true" ]]; then

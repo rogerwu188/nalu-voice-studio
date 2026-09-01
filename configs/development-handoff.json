@@ -1,0 +1,8 @@
+{
+  "schema_version": "nalu.development-handoff-policy/v1",
+  "enabled": false,
+  "administrator_authorized": false,
+  "provider": "development_agent",
+  "endpoint": "",
+  "max_payload_bytes": 65536
+}

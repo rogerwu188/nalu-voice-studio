@@ -12,6 +12,7 @@ from uuid import uuid4
 from .continuity import ending_hooks_match_review
 from .continuity_extraction import extract_semantic_ending_continuity
 from .database import Database
+from .development_handoff import DevelopmentHandoffPolicy, DevelopmentHandoffTransport
 from .feedback_export import (
     FeedbackExportPolicy,
     IssueTrackerReconciliationVerifier,
@@ -42,6 +43,8 @@ from .models import (
     EpisodeStatus,
     EpisodeTransitionRequest,
     FeedbackCreate,
+    FeedbackDevelopmentHandoffCreate,
+    FeedbackDevelopmentHandoffReceipt,
     FeedbackDevelopmentWorkOrder,
     FeedbackDevelopmentWorkOrderCreate,
     FeedbackExternalExportCreate,
@@ -542,6 +545,12 @@ class Repository:
                    WHERE f.project_id = ?""",
                 (project_id,),
             ),
+            "feedback_development_handoffs": (
+                """SELECT h.* FROM feedback_development_handoffs h
+                   JOIN feedback_items f ON f.id = h.feedback_id
+                   WHERE f.project_id = ?""",
+                (project_id,),
+            ),
             "memory_cards": (
                 "SELECT * FROM memory_cards WHERE project_id = ?",
                 (project_id,),
@@ -780,6 +789,24 @@ class Repository:
                 "record_sha256",
                 "created_at",
             ),
+            "feedback_development_handoffs": (
+                "feedback_id",
+                "policy_sha256",
+                "policy_json",
+                "idempotency_key_sha256",
+                "confirmation_sha256",
+                "request_sha256",
+                "state",
+                "payload_json",
+                "payload_sha256",
+                "response_json",
+                "response_sha256",
+                "remote_task_id",
+                "remote_task_url",
+                "error",
+                "created_at",
+                "updated_at",
+            ),
             "memory_cards": (
                 "id",
                 "project_id",
@@ -949,6 +976,23 @@ class Repository:
             "nalu.project-export/v13",
         }:
             allowed_columns.pop("feedback_development_work_orders")
+        if backup.schema_version in {
+            "nalu.project-export/v1",
+            "nalu.project-export/v2",
+            "nalu.project-export/v3",
+            "nalu.project-export/v4",
+            "nalu.project-export/v5",
+            "nalu.project-export/v6",
+            "nalu.project-export/v7",
+            "nalu.project-export/v8",
+            "nalu.project-export/v9",
+            "nalu.project-export/v10",
+            "nalu.project-export/v11",
+            "nalu.project-export/v12",
+            "nalu.project-export/v13",
+            "nalu.project-export/v14",
+        }:
+            allowed_columns.pop("feedback_development_handoffs")
         if backup.schema_version in {
             "nalu.project-export/v1",
             "nalu.project-export/v2",
@@ -1231,7 +1275,11 @@ class Repository:
                     or remote_url.fragment
                     or (
                         backup.schema_version
-                        in {"nalu.project-export/v13", "nalu.project-export/v14"}
+                        in {
+                            "nalu.project-export/v13",
+                            "nalu.project-export/v14",
+                            "nalu.project-export/v15",
+                        }
                         and response
                         != {
                             "remote_issue_id": row.get("remote_issue_id"),
@@ -1297,6 +1345,7 @@ class Repository:
                 raise ConflictError("confirmed reconciliation does not match export receipt")
             if record.outcome == "verified_absent" and export.get("state") != "rejected":
                 raise ConflictError("absent reconciliation does not match export state")
+        feedback_development_work_orders: dict[str, FeedbackDevelopmentWorkOrder] = {}
         for row in backup.payload.get("feedback_development_work_orders", []):
             try:
                 record_body = decode(row.get("record_json", ""))
@@ -1347,6 +1396,80 @@ class Repository:
                 != work_order.request_sha256
             ):
                 raise ConflictError("development work order request digest does not match")
+            feedback_development_work_orders[work_order.feedback_id] = work_order
+        for row in backup.payload.get("feedback_development_handoffs", []):
+            work_order = feedback_development_work_orders.get(row.get("feedback_id"))
+            try:
+                policy_body = decode(row.get("policy_json", ""))
+                payload_body = decode(row.get("payload_json", ""))
+                policy = DevelopmentHandoffPolicy(**policy_body)
+                policy.validate()
+            except (TypeError, json.JSONDecodeError, ValueError) as exc:
+                raise ConflictError("project export contains invalid development handoff") from exc
+            if (
+                work_order is None
+                or hashlib.sha256(encode(policy_body).encode()).hexdigest()
+                != row.get("policy_sha256")
+                or hashlib.sha256(encode(payload_body).encode()).hexdigest()
+                != row.get("payload_sha256")
+                or payload_body.get("feedback_id") != row.get("feedback_id")
+                or payload_body.get("work_order_sha256") != work_order.record_sha256
+                or payload_body.get("report_text_treated_as_inert") is not True
+                or payload_body.get("automatic_actions")
+                != {
+                    "branch_created": False,
+                    "code_change_performed": False,
+                    "merge_performed": False,
+                    "signing_performed": False,
+                    "release_performed": False,
+                }
+            ):
+                raise ConflictError("project export contains tampered development handoff")
+            request_body = {
+                "feedback_id": row.get("feedback_id"),
+                "policy_sha256": row.get("policy_sha256"),
+                "work_order_sha256": work_order.record_sha256,
+                "idempotency_key_sha256": row.get("idempotency_key_sha256"),
+                "confirmation_sha256": row.get("confirmation_sha256"),
+                "payload_sha256": row.get("payload_sha256"),
+            }
+            if hashlib.sha256(encode(request_body).encode()).hexdigest() != row.get(
+                "request_sha256"
+            ):
+                raise ConflictError("development handoff request digest does not match")
+            if row.get("state") not in {"submitting", "ambiguous", "confirmed"}:
+                raise ConflictError("project export contains invalid development handoff state")
+            receipt_fields = (
+                row.get("response_json"),
+                row.get("response_sha256"),
+                row.get("remote_task_id"),
+                row.get("remote_task_url"),
+            )
+            if row.get("state") == "confirmed":
+                try:
+                    response = decode(row.get("response_json", ""))
+                    remote_url = urlsplit(row.get("remote_task_url", ""))
+                except (TypeError, json.JSONDecodeError) as exc:
+                    raise ConflictError("development handoff receipt is unreadable") from exc
+                if (
+                    hashlib.sha256(encode(response).encode()).hexdigest()
+                    != row.get("response_sha256")
+                    or response
+                    != {
+                        "remote_task_id": row.get("remote_task_id"),
+                        "remote_task_url": row.get("remote_task_url"),
+                    }
+                    or not row.get("remote_task_id")
+                    or remote_url.scheme != "https"
+                    or not remote_url.hostname
+                    or remote_url.username is not None
+                    or remote_url.password is not None
+                    or remote_url.query
+                    or remote_url.fragment
+                ):
+                    raise ConflictError("confirmed development handoff receipt is invalid")
+            elif any(value is not None for value in receipt_fields):
+                raise ConflictError("unconfirmed development handoff contains a receipt")
         if any(
             row.get("project_id") != project_id or row.get("asset_id") not in asset_ids
             for row in backup.payload.get("memory_cards", [])
@@ -2323,6 +2446,264 @@ class Repository:
             raise ConflictError("stored development work order digest mismatch")
         stored["record_sha256"] = row["record_sha256"]
         return FeedbackDevelopmentWorkOrder.model_validate(stored)
+
+    @staticmethod
+    def _explicit_development_handoff_confirmation(value: str) -> bool:
+        normalized = "".join(value.lower().split())
+        return any(
+            phrase in normalized
+            for phrase in (
+                "我确认交给开发人员",
+                "我同意发送开发工单",
+                "确认提交开发工单",
+            )
+        )
+
+    def handoff_feedback_to_development(
+        self,
+        feedback_id: str,
+        request: FeedbackDevelopmentHandoffCreate,
+        idempotency_key: str | None,
+        policy: DevelopmentHandoffPolicy,
+        transport: DevelopmentHandoffTransport,
+    ) -> FeedbackDevelopmentHandoffReceipt:
+        policy.validate()
+        if not policy.enabled or not policy.administrator_authorized:
+            raise ConflictError("development handoff is disabled")
+        if idempotency_key is None or not 16 <= len(idempotency_key.strip()) <= 200:
+            raise ConflictError("a stable 16-200 character idempotency key is required")
+        if idempotency_key != idempotency_key.strip():
+            raise ConflictError("idempotency key must not have surrounding whitespace")
+        if not self._explicit_development_handoff_confirmation(request.confirmation_text):
+            raise ConflictError("development handoff requires explicit confirmation")
+        work_order = self.get_feedback_development_work_order(feedback_id)
+        if request.work_order_sha256 != work_order.record_sha256:
+            raise ConflictError("development handoff work order digest does not match")
+
+        payload = {
+            "schema_version": "nalu.development-handoff-payload/v1",
+            "feedback_id": feedback_id,
+            "work_order_sha256": work_order.record_sha256,
+            "repository": work_order.repository,
+            "remote_issue_id": work_order.remote_issue_id,
+            "title": work_order.title,
+            "scope": work_order.scope,
+            "acceptance_tests": work_order.acceptance_tests,
+            "privacy_requirements": work_order.privacy_requirements,
+            "accessibility_requirements": work_order.accessibility_requirements,
+            "report_text_treated_as_inert": True,
+            "automatic_actions": {
+                "branch_created": False,
+                "code_change_performed": False,
+                "merge_performed": False,
+                "signing_performed": False,
+                "release_performed": False,
+            },
+            "attachments": [],
+        }
+        payload_json = encode(payload)
+        if len(payload_json.encode()) > policy.max_payload_bytes:
+            raise ConflictError("development handoff payload exceeds the configured limit")
+        payload_sha256 = hashlib.sha256(payload_json.encode()).hexdigest()
+        policy_body = {
+            "schema_version": policy.schema_version,
+            "enabled": policy.enabled,
+            "administrator_authorized": policy.administrator_authorized,
+            "provider": policy.provider,
+            "endpoint": policy.endpoint,
+            "max_payload_bytes": policy.max_payload_bytes,
+        }
+        policy_json = encode(policy_body)
+        policy_sha256 = hashlib.sha256(policy_json.encode()).hexdigest()
+        idempotency_key_sha256 = hashlib.sha256(idempotency_key.encode()).hexdigest()
+        confirmation_sha256 = hashlib.sha256(
+            request.confirmation_text.strip().encode()
+        ).hexdigest()
+        request_body = {
+            "feedback_id": feedback_id,
+            "policy_sha256": policy_sha256,
+            "work_order_sha256": work_order.record_sha256,
+            "idempotency_key_sha256": idempotency_key_sha256,
+            "confirmation_sha256": confirmation_sha256,
+            "payload_sha256": payload_sha256,
+        }
+        request_sha256 = hashlib.sha256(encode(request_body).encode()).hexdigest()
+        with self.db.connect() as connection:
+            existing = connection.execute(
+                "SELECT * FROM feedback_development_handoffs WHERE feedback_id = ?",
+                (feedback_id,),
+            ).fetchone()
+        if existing is not None:
+            if (
+                existing["policy_sha256"] != policy_sha256
+                or existing["idempotency_key_sha256"] != idempotency_key_sha256
+                or existing["request_sha256"] != request_sha256
+            ):
+                raise ConflictError("development handoff already has different immutable inputs")
+            if existing["state"] != "confirmed":
+                raise ConflictError(
+                    "development handoff outcome is uncertain; automatic retry is forbidden"
+                )
+            return self.get_feedback_development_handoff(feedback_id)
+
+        now = utc_now()
+        try:
+            with self.db.connect() as connection:
+                connection.execute(
+                    """INSERT INTO feedback_development_handoffs VALUES (
+                       ?, ?, ?, ?, ?, ?, 'submitting', ?, ?, NULL, NULL, NULL, NULL, NULL, ?, ?
+                    )""",
+                    (
+                        feedback_id,
+                        policy_sha256,
+                        policy_json,
+                        idempotency_key_sha256,
+                        confirmation_sha256,
+                        request_sha256,
+                        payload_json,
+                        payload_sha256,
+                        now,
+                        now,
+                    ),
+                )
+        except sqlite3.IntegrityError as exc:
+            raise ConflictError(
+                "development handoff was created concurrently and requires reconciliation"
+            ) from exc
+
+        try:
+            receipt = transport.submit_work_order(
+                endpoint=policy.endpoint,
+                payload=payload,
+                idempotency_key=idempotency_key,
+            )
+            remote_url = urlsplit(receipt.remote_task_url)
+            if (
+                not receipt.remote_task_id
+                or len(receipt.remote_task_id) > 160
+                or remote_url.scheme != "https"
+                or not remote_url.hostname
+                or remote_url.username is not None
+                or remote_url.password is not None
+                or remote_url.query
+                or remote_url.fragment
+            ):
+                raise ValueError("development agent returned an invalid receipt")
+            response_json = encode(
+                {
+                    "remote_task_id": receipt.remote_task_id,
+                    "remote_task_url": receipt.remote_task_url,
+                }
+            )
+            if len(response_json.encode()) > policy.max_payload_bytes:
+                raise ValueError("development handoff response exceeds the configured limit")
+            response_sha256 = hashlib.sha256(response_json.encode()).hexdigest()
+        except Exception as exc:
+            with self.db.connect() as connection:
+                connection.execute(
+                    """UPDATE feedback_development_handoffs
+                       SET state = 'ambiguous', error = ?, updated_at = ?
+                       WHERE feedback_id = ? AND state = 'submitting'""",
+                    (type(exc).__name__, utc_now(), feedback_id),
+                )
+            raise ConflictError(
+                "development handoff outcome is ambiguous; automatic retry is forbidden"
+            ) from exc
+
+        updated_at = utc_now()
+        with self.db.connect() as connection:
+            updated = connection.execute(
+                """UPDATE feedback_development_handoffs
+                   SET state = 'confirmed', response_json = ?, response_sha256 = ?,
+                       remote_task_id = ?, remote_task_url = ?, updated_at = ?
+                   WHERE feedback_id = ? AND state = 'submitting'""",
+                (
+                    response_json,
+                    response_sha256,
+                    receipt.remote_task_id,
+                    receipt.remote_task_url,
+                    updated_at,
+                    feedback_id,
+                ),
+            )
+            if updated.rowcount != 1:
+                raise ConflictError("development handoff state changed concurrently")
+        return self.get_feedback_development_handoff(feedback_id)
+
+    def get_feedback_development_handoff(
+        self, feedback_id: str
+    ) -> FeedbackDevelopmentHandoffReceipt:
+        self.get_feedback(feedback_id)
+        with self.db.connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM feedback_development_handoffs WHERE feedback_id = ?",
+                (feedback_id,),
+            ).fetchone()
+        if row is None:
+            raise NotFoundError("feedback development handoff not found")
+        if row["state"] != "confirmed":
+            raise ConflictError("development handoff is not confirmed")
+        work_order = self.get_feedback_development_work_order(feedback_id)
+        try:
+            policy_body = decode(row["policy_json"])
+            policy = DevelopmentHandoffPolicy(**policy_body)
+            policy.validate()
+            payload_body = decode(row["payload_json"])
+            response = decode(row["response_json"])
+            remote_url = urlsplit(row["remote_task_url"])
+        except (TypeError, json.JSONDecodeError, ValueError) as exc:
+            raise ConflictError("stored development handoff receipt is unreadable") from exc
+        if (
+            hashlib.sha256(encode(policy_body).encode()).hexdigest()
+            != row["policy_sha256"]
+            or hashlib.sha256(encode(payload_body).encode()).hexdigest()
+            != row["payload_sha256"]
+            or payload_body.get("feedback_id") != feedback_id
+            or payload_body.get("work_order_sha256") != work_order.record_sha256
+            or payload_body.get("attachments") != []
+            or hashlib.sha256(encode(response).encode()).hexdigest()
+            != row["response_sha256"]
+            or response
+            != {
+                "remote_task_id": row["remote_task_id"],
+                "remote_task_url": row["remote_task_url"],
+            }
+            or not row["remote_task_id"]
+            or remote_url.scheme != "https"
+            or not remote_url.hostname
+            or remote_url.username is not None
+            or remote_url.password is not None
+            or remote_url.query
+            or remote_url.fragment
+        ):
+            raise ConflictError("stored development handoff digest mismatch")
+        request_body = {
+            "feedback_id": feedback_id,
+            "policy_sha256": row["policy_sha256"],
+            "work_order_sha256": work_order.record_sha256,
+            "idempotency_key_sha256": row["idempotency_key_sha256"],
+            "confirmation_sha256": row["confirmation_sha256"],
+            "payload_sha256": row["payload_sha256"],
+        }
+        if hashlib.sha256(encode(request_body).encode()).hexdigest() != row[
+            "request_sha256"
+        ]:
+            raise ConflictError("stored development handoff request digest mismatch")
+        return FeedbackDevelopmentHandoffReceipt(
+            feedback_id=feedback_id,
+            provider="development_agent",
+            state="confirmed",
+            work_order_sha256=work_order.record_sha256,
+            remote_task_id=row["remote_task_id"],
+            remote_task_url=row["remote_task_url"],
+            payload_sha256=row["payload_sha256"],
+            response_sha256=row["response_sha256"],
+            idempotency_key_sha256=row["idempotency_key_sha256"],
+            confirmation_sha256=row["confirmation_sha256"],
+            request_sha256=row["request_sha256"],
+            created_at=row["created_at"],
+            updated_at=row["updated_at"],
+        )
 
     def create_feedback_release_linkage(
         self,

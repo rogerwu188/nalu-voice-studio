@@ -155,7 +155,8 @@ class ProjectExport(BaseModel):
         "nalu.project-export/v12",
         "nalu.project-export/v13",
         "nalu.project-export/v14",
-    ] = "nalu.project-export/v14"
+        "nalu.project-export/v15",
+    ] = "nalu.project-export/v15"
     exported_at: str
     payload: dict[str, Any]
     payload_sha256: str
@@ -514,6 +515,36 @@ class FeedbackDevelopmentWorkOrder(BaseModel):
     request_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     record_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     created_at: str
+
+
+class FeedbackDevelopmentHandoffCreate(BaseModel):
+    work_order_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    confirmation_text: str = Field(min_length=1, max_length=300)
+
+
+class FeedbackDevelopmentHandoffReceipt(BaseModel):
+    schema_version: Literal["nalu.feedback-development-handoff/v1"] = (
+        "nalu.feedback-development-handoff/v1"
+    )
+    feedback_id: str
+    provider: Literal["development_agent"]
+    state: Literal["confirmed"]
+    work_order_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    remote_task_id: str
+    remote_task_url: str
+    payload_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    response_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    idempotency_key_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    confirmation_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    request_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    report_text_treated_as_inert: Literal[True] = True
+    branch_created: Literal[False] = False
+    code_change_performed: Literal[False] = False
+    merge_performed: Literal[False] = False
+    signing_performed: Literal[False] = False
+    release_performed: Literal[False] = False
+    created_at: str
+    updated_at: str
 
 
 class ReviewedChangeEvidence(BaseModel):

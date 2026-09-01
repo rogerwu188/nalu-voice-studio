@@ -1728,6 +1728,150 @@
         "title": "FeedbackCreate",
         "type": "object"
       },
+      "FeedbackDevelopmentHandoffCreate": {
+        "properties": {
+          "confirmation_text": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Confirmation Text",
+            "type": "string"
+          },
+          "work_order_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Work Order Sha256",
+            "type": "string"
+          }
+        },
+        "required": [
+          "work_order_sha256",
+          "confirmation_text"
+        ],
+        "title": "FeedbackDevelopmentHandoffCreate",
+        "type": "object"
+      },
+      "FeedbackDevelopmentHandoffReceipt": {
+        "properties": {
+          "branch_created": {
+            "const": false,
+            "default": false,
+            "title": "Branch Created",
+            "type": "boolean"
+          },
+          "code_change_performed": {
+            "const": false,
+            "default": false,
+            "title": "Code Change Performed",
+            "type": "boolean"
+          },
+          "confirmation_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Confirmation Sha256",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "feedback_id": {
+            "title": "Feedback Id",
+            "type": "string"
+          },
+          "idempotency_key_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Idempotency Key Sha256",
+            "type": "string"
+          },
+          "merge_performed": {
+            "const": false,
+            "default": false,
+            "title": "Merge Performed",
+            "type": "boolean"
+          },
+          "payload_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Payload Sha256",
+            "type": "string"
+          },
+          "provider": {
+            "const": "development_agent",
+            "title": "Provider",
+            "type": "string"
+          },
+          "release_performed": {
+            "const": false,
+            "default": false,
+            "title": "Release Performed",
+            "type": "boolean"
+          },
+          "remote_task_id": {
+            "title": "Remote Task Id",
+            "type": "string"
+          },
+          "remote_task_url": {
+            "title": "Remote Task Url",
+            "type": "string"
+          },
+          "report_text_treated_as_inert": {
+            "const": true,
+            "default": true,
+            "title": "Report Text Treated As Inert",
+            "type": "boolean"
+          },
+          "request_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Request Sha256",
+            "type": "string"
+          },
+          "response_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Response Sha256",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "nalu.feedback-development-handoff/v1",
+            "default": "nalu.feedback-development-handoff/v1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "signing_performed": {
+            "const": false,
+            "default": false,
+            "title": "Signing Performed",
+            "type": "boolean"
+          },
+          "state": {
+            "const": "confirmed",
+            "title": "State",
+            "type": "string"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          },
+          "work_order_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Work Order Sha256",
+            "type": "string"
+          }
+        },
+        "required": [
+          "feedback_id",
+          "provider",
+          "state",
+          "work_order_sha256",
+          "remote_task_id",
+          "remote_task_url",
+          "payload_sha256",
+          "response_sha256",
+          "idempotency_key_sha256",
+          "confirmation_sha256",
+          "request_sha256",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "FeedbackDevelopmentHandoffReceipt",
+        "type": "object"
+      },
       "FeedbackDevelopmentWorkOrder": {
         "properties": {
           "acceptance_tests": {
@@ -5151,7 +5295,7 @@
             "type": "string"
           },
           "schema_version": {
-            "default": "nalu.project-export/v14",
+            "default": "nalu.project-export/v15",
             "enum": [
               "nalu.project-export/v1",
               "nalu.project-export/v2",
@@ -5166,7 +5310,8 @@
               "nalu.project-export/v11",
               "nalu.project-export/v12",
               "nalu.project-export/v13",
-              "nalu.project-export/v14"
+              "nalu.project-export/v14",
+              "nalu.project-export/v15"
             ],
             "title": "Schema Version",
             "type": "string"
@@ -7928,6 +8073,108 @@
           }
         },
         "summary": "Create Feedback"
+      }
+    },
+    "/v1/feedback/{feedback_id}/development-handoff": {
+      "get": {
+        "operationId": "get_feedback_development_handoff_v1_feedback__feedback_id__development_handoff_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "feedback_id",
+            "required": true,
+            "schema": {
+              "title": "Feedback Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackDevelopmentHandoffReceipt"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Feedback Development Handoff"
+      },
+      "post": {
+        "operationId": "handoff_feedback_to_development_v1_feedback__feedback_id__development_handoff_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "feedback_id",
+            "required": true,
+            "schema": {
+              "title": "Feedback Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedbackDevelopmentHandoffCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackDevelopmentHandoffReceipt"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Handoff Feedback To Development"
       }
     },
     "/v1/feedback/{feedback_id}/development-work-order": {

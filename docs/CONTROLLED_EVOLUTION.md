@@ -84,6 +84,19 @@ and literal false values for branch creation, code edits, merge, signing, releas
 network activity. The work order authorizes no development operation by itself; a later
 agent/maintainer handoff must remain separately governed and reviewed.
 
+That handoff now has its own persistent transaction boundary. The packaged
+`configs/development-handoff.json` policy is disabled, unauthorized and target-free, and
+the distributed transport always denies I/O. An administrator-supplied implementation
+must use one exact credential-free HTTPS endpoint. Nalu verifies the approved work-order
+digest and another explicit confirmation, persists `submitting` before I/O, retains only
+the idempotency-key hash and sends a bounded payload with no attachments. The payload
+states that report text is inert and that branch creation, code edit, merge, signing and
+release have not occurred. A bounded receipt can confirm only that the work order was
+accepted by the development system; it cannot claim code or release activity. Exact
+confirmed replay makes no second call. Any timeout, malformed receipt or uncertain result
+becomes `ambiguous`, and automatic retry is forbidden. Automated tests use injected local
+fixtures only, so this boundary is not evidence of a real development-agent handoff.
+
 A separate local `qa_evidence_linked` receipt can bind the immutable review-bundle hash
 to one reviewed 40-character change commit, the exact successful CI head and artifact,
 an installed Developer ID/notarization/Gatekeeper receipt and an older-build rollback
@@ -110,6 +123,8 @@ Developer ID/notarized candidate and authorized rollout evidence.
   without an administrator enabling that destination and policy.
 - The packaged `configs/feedback-export.json` must stay disabled and target-free; release
   verification fails if a distributed bundle silently enables it.
+- The packaged `configs/development-handoff.json` must also stay disabled and target-free;
+  a work order alone never authorizes code, merge, signing or release activity.
 - No project media is attached automatically.
 - Diagnostics use an allowlist; full logs and SQLite are forbidden attachments.
 - Similar reports may be clustered only after redaction. Counts do not override

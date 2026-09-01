@@ -519,6 +519,30 @@ MIGRATIONS = (
         );
         """,
     ),
+    (
+        20,
+        "feedback_development_handoffs",
+        """
+        CREATE TABLE IF NOT EXISTS feedback_development_handoffs (
+          feedback_id TEXT PRIMARY KEY REFERENCES feedback_items(id) ON DELETE CASCADE,
+          policy_sha256 TEXT NOT NULL,
+          policy_json TEXT NOT NULL,
+          idempotency_key_sha256 TEXT NOT NULL,
+          confirmation_sha256 TEXT NOT NULL,
+          request_sha256 TEXT NOT NULL,
+          state TEXT NOT NULL,
+          payload_json TEXT NOT NULL,
+          payload_sha256 TEXT NOT NULL,
+          response_json TEXT,
+          response_sha256 TEXT,
+          remote_task_id TEXT,
+          remote_task_url TEXT,
+          error TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        """,
+    ),
 )
 
 

@@ -10,6 +10,11 @@ from fastapi.responses import FileResponse, JSONResponse
 from .asset_service import AssetService
 from .continuity import audit_continuity
 from .database import Database
+from .development_handoff import (
+    DevelopmentHandoffPolicy,
+    DevelopmentHandoffTransport,
+    DisabledDevelopmentHandoffTransport,
+)
 from .engine import ProductionService
 from .feedback_export import (
     DisabledIssueTrackerReconciliationVerifier,
@@ -45,6 +50,8 @@ from .models import (
     EpisodeProductionProgress,
     EpisodeTransitionRequest,
     FeedbackCreate,
+    FeedbackDevelopmentHandoffCreate,
+    FeedbackDevelopmentHandoffReceipt,
     FeedbackDevelopmentWorkOrder,
     FeedbackDevelopmentWorkOrderCreate,
     FeedbackExternalExportCreate,
@@ -128,6 +135,8 @@ def create_app(
     feedback_export_policy: FeedbackExportPolicy | None = None,
     issue_tracker_transport: IssueTrackerTransport | None = None,
     issue_tracker_reconciliation_verifier: IssueTrackerReconciliationVerifier | None = None,
+    development_handoff_policy: DevelopmentHandoffPolicy | None = None,
+    development_handoff_transport: DevelopmentHandoffTransport | None = None,
 ) -> FastAPI:
     repository_root = Path(
         os.environ.get("NALU_REPOSITORY_ROOT", Path(__file__).resolve().parents[3])
@@ -160,6 +169,21 @@ def create_app(
         issue_tracker_reconciliation_verifier
         or DisabledIssueTrackerReconciliationVerifier()
     )
+    if development_handoff_policy is None:
+        configured_handoff_policy = os.environ.get("NALU_DEVELOPMENT_HANDOFF_POLICY")
+        handoff_policy_path = (
+            Path(configured_handoff_policy)
+            if configured_handoff_policy
+            else repository_root / "configs" / "development-handoff.json"
+        )
+        development_handoff_policy = (
+            DevelopmentHandoffPolicy.load(handoff_policy_path)
+            if handoff_policy_path.exists()
+            else DevelopmentHandoffPolicy()
+        )
+    development_handoff_transport = (
+        development_handoff_transport or DisabledDevelopmentHandoffTransport()
+    )
 
     app = FastAPI(
         title="Nalu Voice Studio Runtime API",
@@ -172,6 +196,8 @@ def create_app(
     app.state.feedback_export_policy = feedback_export_policy
     app.state.issue_tracker_transport = issue_tracker_transport
     app.state.issue_tracker_reconciliation_verifier = issue_tracker_reconciliation_verifier
+    app.state.development_handoff_policy = development_handoff_policy
+    app.state.development_handoff_transport = development_handoff_transport
 
     @app.exception_handler(NotFoundError)
     async def not_found_handler(_request, exc: NotFoundError):
@@ -329,6 +355,33 @@ def create_app(
         feedback_id: str,
     ) -> FeedbackDevelopmentWorkOrder:
         return repository.get_feedback_development_work_order(feedback_id)
+
+    @app.post(
+        "/v1/feedback/{feedback_id}/development-handoff",
+        response_model=FeedbackDevelopmentHandoffReceipt,
+        status_code=201,
+    )
+    def handoff_feedback_to_development(
+        feedback_id: str,
+        request: FeedbackDevelopmentHandoffCreate,
+        idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    ) -> FeedbackDevelopmentHandoffReceipt:
+        return repository.handoff_feedback_to_development(
+            feedback_id,
+            request,
+            idempotency_key,
+            development_handoff_policy,
+            development_handoff_transport,
+        )
+
+    @app.get(
+        "/v1/feedback/{feedback_id}/development-handoff",
+        response_model=FeedbackDevelopmentHandoffReceipt,
+    )
+    def get_feedback_development_handoff(
+        feedback_id: str,
+    ) -> FeedbackDevelopmentHandoffReceipt:
+        return repository.get_feedback_development_handoff(feedback_id)
 
     @app.post(
         "/v1/feedback/{feedback_id}/release-linkage",
