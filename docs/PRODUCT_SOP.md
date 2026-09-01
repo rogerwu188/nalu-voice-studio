@@ -1090,6 +1090,31 @@ Current evidence:
   and `f600d6f95f1c74347e56a2abe27b9618cc282bc07a2ae1060d6947d86cb9b6eb`.
   The packaged fixture checkpoint is closed, but actual-window visual/readback/VoiceOver
   observation and Developer ID/notarization remain absent. SOP-10 stays `IN_PROGRESS`.
+- Commit `fa0eee8` gives the publication-learning card a stable accessibility contract:
+  unique identifiers cover the card, metrics, observations, directives, readback,
+  refresh and safety statement; combined Chinese labels preserve visible order; metric
+  and narrative text can grow vertically at larger sizes; refresh explicitly says it is
+  read-only. The contract test checks coherent platform/window/views/completion/advice
+  and no-write wording plus identifier uniqueness. CI run `33500996286` passed 118
+  Runtime tests, 48 XCTest cases and 28 Swift Testing cases (including the named new
+  VoiceOver contract test), all architecture builds, packaged fixture smokes, Universal
+  merge, staged update and rollback.
+- Universal artifact `9798019635` has GitHub artifact digest
+  `3ba26b8337d4213454f5e86a18ea3debde73ff064ef8520216d9ff39a096e86e`.
+  A fresh independent download passed ZIP integrity with inner ZIP SHA-256
+  `bc888d7e188e43c27bf02c6a390cb4dc805126294bc61c490ad9d1f3423a839a`;
+  staged-update, rollback and packaged publication-fixture evidence SHA-256 values were
+  `00c93b4acc4ea8026360db5cd7c76e3b3094c130134a43a195666a6cee673a9e`,
+  `79c332281db66d02628d004351518a6a602af309b0aaa424e36990ae034df568`
+  and `473ed0d45ef25c22527a0bbb1ac0d18bb4ffc32ebd21db2676bc737f0b5d31fa`.
+  Independent extraction, strict deep signature and Universal release checks passed;
+  native executable and Runtime SHA-256 values are
+  `8ddca523d43dc5f4048495a27e7b8dac75225599e269a37a7ef83550bd692329`
+  and `20004bb1e0198fcd3b5750fd5b0f3211107f50a4dcf8ead58793d85f52ed9d64`.
+  An independent static binary scan found all seven exact accessibility identifiers.
+  This closes the code-level accessibility contract only. The app has not been launched
+  for actual-window visual/readback/VoiceOver observation, so SOP-10 remains
+  `IN_PROGRESS`.
 
 ## SOP-11 · macOS packaging, updates and operations — IN_PROGRESS
 
