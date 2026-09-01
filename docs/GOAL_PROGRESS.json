@@ -5,32 +5,32 @@
   "project_complete": false,
   "sop_source": "docs/PRODUCT_SOP.md",
   "sop_counts": {
-    "IN_PROGRESS": 10,
+    "IN_PROGRESS": 11,
     "PASS": 3,
     "REGRESSION": 0,
-    "TODO": 1,
+    "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "e8956f251d5393e7021ed6c9b194cfc8a387d267",
-  "last_advanced_at": "2026-09-01T12:19:26Z",
+  "observed_head": "a7f5d4067b78268619fa81ef5cd0eab4720a20ae",
+  "last_advanced_at": "2026-09-01T12:46:12Z",
   "last_closed_checkpoint": {
-    "id": "semantic-asr-provenance-hardening",
+    "id": "packaged-apple-semantic-recognizer",
     "sop": "SOP-09",
-    "product_commit": "1fb6757ec963b0f591ee0dd494823bb2d6b3b7f4",
-    "evidence_commit": "e8956f251d5393e7021ed6c9b194cfc8a387d267",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33506251878",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33506251878/artifacts/9799897045",
+    "product_commit": "ad39da12b0ea1475a3f5fcfbc9cfff2f92359dc2",
+    "evidence_commit": "a7f5d4067b78268619fa81ef5cd0eab4720a20ae",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33508561436",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33508561436/artifacts/9800868404",
     "result": "PASS"
   },
   "current_checkpoint": {
-    "sop": "SOP-09",
+    "sop": "SOP-12",
     "status": "IN_PROGRESS",
-    "summary": "Semantic QA now rejects bare client authority and requires immutable execution evidence bound to the sealed master, decoded audio, recognizer executable and output. The packaged Runtime contains that fail-closed contract, but no production Apple on-device recognizer helper is registered yet, so real semantic QA cannot pass until the next checkpoint."
+    "summary": "The real signed end-to-end release candidate remains authorization-blocked, but an offline, non-claiming acceptance harness can still exercise the seven required scenario structures and produce a deterministic evidence-gap report before paid, publication, Speech-permission and notarization authorization."
   },
   "next_action": {
-    "sop": "SOP-09",
-    "id": "packaged-apple-semantic-recognizer",
-    "summary": "Build and bundle a local-only Apple Speech recognizer helper, register its exact executable with the Runtime, move semantic transcription authority fully behind the Runtime boundary, and add fail-closed build, architecture and packaged-runtime evidence without silently falling back to cloud recognition.",
+    "sop": "SOP-12",
+    "id": "offline-e2e-acceptance-harness",
+    "summary": "Create a clean-SQLite, no-provider, no-publication rehearsal for all seven SOP-12 scenario structures, prove unsupported paid routes remain blocked, record exact evidence gaps instead of fabricating external receipts, and package the harness into CI while preserving the final signed real E2E gate.",
     "requires_user_authorization": false
   },
   "blocking_conditions": [
@@ -61,6 +61,12 @@
     {
       "id": "human-accessibility-and-family-qa",
       "sops": ["SOP-02", "SOP-03", "SOP-04", "SOP-05", "SOP-09", "SOP-12"],
+      "requires_user_authorization": true,
+      "continue_other_work": true
+    },
+    {
+      "id": "real-apple-speech-permission-and-master-qa",
+      "sops": ["SOP-09", "SOP-12"],
       "requires_user_authorization": true,
       "continue_other_work": true
     },

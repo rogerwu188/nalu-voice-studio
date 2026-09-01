@@ -1365,7 +1365,7 @@ Current evidence:
   upgrade/rollback QA with populated multi-episode data. The green universal build is
   still ad-hoc signed.
 
-## SOP-12 · End-to-end release-candidate acceptance — TODO
+## SOP-12 · End-to-end release-candidate acceptance — IN_PROGRESS
 
 Acceptance scenarios:
 
@@ -1384,6 +1384,12 @@ Completion evidence:
 - Costs, task IDs, receipts, QA reports and published IDs reconcile.
 - No P0/P1 defects remain open.
 - SOP-00 through SOP-11 and SOP-13 are revalidated on the same release commit.
+
+Current evidence:
+
+- Implementation of the offline, non-claiming scenario rehearsal has started. This status
+  change is not E2E acceptance: no scenario may become `PASS` until it runs from the same
+  signed/notarized installation with reconciled real provider and publication evidence.
 
 ## SOP-13 · Controlled product evolution — IN_PROGRESS
 
