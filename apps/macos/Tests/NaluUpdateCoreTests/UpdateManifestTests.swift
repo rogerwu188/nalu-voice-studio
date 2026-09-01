@@ -4,6 +4,26 @@ import Testing
 @testable import NaluUpdateCore
 
 struct UpdateManifestTests {
+    @Test func packagedSnakeCaseTrustConfigurationDecodesFailClosed() throws {
+        let data = Data(#"""
+        {
+          "schema_version": "nalu.update-trust/v1",
+          "enabled": false,
+          "channel": "stable",
+          "public_key_base64": "",
+          "require_notarization": true
+        }
+        """#.utf8)
+
+        let trust = try JSONDecoder().decode(UpdateTrustConfiguration.self, from: data)
+
+        #expect(trust.schemaVersion == "nalu.update-trust/v1")
+        #expect(!trust.enabled)
+        #expect(trust.channel == "stable")
+        #expect(trust.publicKeyBase64.isEmpty)
+        #expect(trust.requireNotarization)
+    }
+
     private func fixture(
         packageData: Data = Data("signed package".utf8),
         build: UInt64 = 11,

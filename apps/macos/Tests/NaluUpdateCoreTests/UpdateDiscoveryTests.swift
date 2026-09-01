@@ -89,6 +89,25 @@ struct UpdateDiscoveryTests {
         )
     }
 
+    @Test func packagedSnakeCaseDiscoveryConfigurationDecodesDisabled() throws {
+        let data = Data(#"""
+        {
+          "schema_version": "nalu.update-discovery/v1",
+          "enabled": false,
+          "origin": "",
+          "max_manifest_bytes": 65536,
+          "max_package_bytes": 2147483648
+        }
+        """#.utf8)
+
+        let value = try JSONDecoder().decode(UpdateDiscoveryConfiguration.self, from: data)
+
+        #expect(value.schemaVersion == "nalu.update-discovery/v1")
+        #expect(!value.enabled)
+        #expect(value.maxManifestBytes == 65_536)
+        #expect(value.maxPackageBytes == 2_147_483_648)
+    }
+
     @Test func exactHTTPSFixtureDownloadsAtomicallyAndReplaysIdempotently() throws {
         let package = Data("exact package".utf8)
         let fixture = try signedFixture(package: package)

@@ -21,6 +21,13 @@ public struct UpdateTrustConfiguration: Codable, Equatable, Sendable {
         self.publicKeyBase64 = publicKeyBase64
         self.requireNotarization = requireNotarization
     }
+
+    enum CodingKeys: String, CodingKey {
+        case schemaVersion = "schema_version"
+        case enabled, channel
+        case publicKeyBase64 = "public_key_base64"
+        case requireNotarization = "require_notarization"
+    }
 }
 
 public struct UpdateManifest: Codable, Equatable, Sendable {
