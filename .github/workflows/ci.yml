@@ -41,10 +41,13 @@ jobs:
       - run: pytest -q
       - run: python scripts/real-http-smoke.py
       - run: python scripts/qa-macos-upgrade-rollback.py --evidence /tmp/nalu-upgrade-rollback-source.json
+      - run: python scripts/qa-offline-e2e-rehearsal.py --evidence /tmp/nalu-offline-e2e-rehearsal.json
       - uses: actions/upload-artifact@v7
         with:
           name: Nalu-Voice-Studio-runtime-QA
-          path: /tmp/nalu-upgrade-rollback-source.json
+          path: |
+            /tmp/nalu-upgrade-rollback-source.json
+            /tmp/nalu-offline-e2e-rehearsal.json
 
   macos-arm64:
     runs-on: macos-15

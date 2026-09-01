@@ -1373,6 +1373,8 @@ Acceptance scenarios:
 2. Guardian and child create a fictional multi-episode story.
 3. A 10-episode project preserves identity, voice and narrative state across episodes.
 4. One episode fails generation, survives restart, resumes safely and passes QA.
+5. A completed episode creates an offline release package, while paid submission and
+   platform publication remain blocked without their separate authorizations.
 6. Animation intent selects a capability-checked route; commercial intent with no
    approved adapter remains a useful project but cannot start production.
 7. A spoken usability report is redacted, kept local by default and cannot change or
