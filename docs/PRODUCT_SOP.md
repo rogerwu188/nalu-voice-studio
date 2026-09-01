@@ -528,6 +528,23 @@ Current evidence:
   invoke a paid transport is that submitter. Immediately before I/O it revalidates the
   immutable package hash, explicit approver, requested model and provider idempotency
   guarantee. Concrete paid transports remain deliberately unregistered.
+- Commit `a567ee5`, GitHub CI run `33489248611`: the latest upstream release
+  `v2026.09.01` was checked out by exact tag and commit
+  `098361366538b74eff3985af0d28e5462cb29535` in isolation. Its complete tracked tree
+  (`c84f4addeded3a4b1346ebd759a9f24150fd195d4eab5faceac1c39a6b82cafa`) and gate
+  registry (`a6308af097da8cac3c664466ba665277970391587c44bb1dd949421901e8ac6b`)
+  are bound to a machine-readable quarantine record. The upstream integrity function
+  found 69 gates and 66 coded/runtime-bound gates but still failed on eight exact missing
+  paths, so Nalu retained `v2026.08.29.1`, prohibited paid execution and did not claim
+  the advertised targeted subset as the complete registered suite. All 114 Nalu Runtime
+  tests, real HTTP smoke, both architecture builds and the universal artifact passed;
+  artifact `9793232570` has GitHub digest
+  `sha256:1d2c1a37b3ba5bb50adbf0ed09ac0ae34a7258c439ee66563d4f76688379c3cf`,
+  inner ZIP SHA-256 `ea3c99a101561c807aadd219f0dca1e1bddbc193dec4e6628186fe0d78ab299d`,
+  staged-update evidence SHA-256
+  `c6cd5b8d4fee0900196d37007a2dcc8934a62a04c825198ea0d42c2ef1c39f30` and rollback
+  evidence SHA-256 `c55fc9364a81783328719c2eac995a4d288c2c93c63a3f95c5b439ef424b0239`.
+  This closes only the candidate-quarantine audit checkpoint, not SOP-07 or promotion.
 - Still required before `PASS`: a corrected pinned Qingshan release whose registry
   integrity and complete registered tests pass, plus authorized real-provider sandbox
   task/result/receipt evidence. Offline authority and transport doubles are not a paid
