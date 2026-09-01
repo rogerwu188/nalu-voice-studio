@@ -1067,6 +1067,29 @@ Current evidence:
   This closes the safe fixture-generation checkpoint, not the actual-window review:
   the downloaded app has not yet been launched, readback and VoiceOver have not been
   observed, and the signature is still ad hoc. SOP-10 remains `IN_PROGRESS`.
+- Commit `6cbc13c` extends bundle smoke so the arm64, x86_64 and merged Universal
+  candidates each create a fresh isolated publication-learning database, boot their own
+  embedded Runtime, fetch project/strategy/metrics over loopback, verify the stored
+  digest link and assert every no-write/no-production/no-publication flag. CI run
+  `33500024374` passed all three packaged smoke executions plus 118 Runtime tests, 48
+  XCTest cases, 27 Swift Testing cases, build, update and rollback gates. The Universal
+  `nalu.packaged-publication-learning-qa/v1` report is `PASS`; its SHA-256 is
+  `50e55480f970ebbb7d652d60aaa6944508b02cb353c1adbf127a51714a9c2fa9`
+  and its internal canonical report digest is
+  `0c9f27711f48e8813566bf06a97a84a3bc584229bec52908b5db971a5d2fda9a`.
+- Universal artifact `9797507392` has GitHub artifact digest
+  `794f6ff7e609985a34ef73d0e8ef449263c95429532dfd070d5b822b5dc61400`.
+  A fresh independent download passed ZIP integrity with inner ZIP SHA-256
+  `7d680fb2f418755eaa8e4d77b6b05486fc0d191cbceb8a8edbfd4c9d8895487f`;
+  staged-update and rollback evidence SHA-256 values were
+  `19541b3e5f6f6be9b30ea994d652b4b9848aaabb54691f8ffd7c7b3f88ec9c73`
+  and `0ce08e0d5e6f301fc3a3e9d9bbb96a7bd7043f071c3dced7d2100aeca6728b0f`.
+  Independent extraction, Universal release verification and strict deep signature
+  verification passed; native executable and Runtime contain both architectures with
+  SHA-256 values `4c9138a6d688b257b7e71a300f923ff1869365e51f3e6a7471dce117e25386ef`
+  and `f600d6f95f1c74347e56a2abe27b9618cc282bc07a2ae1060d6947d86cb9b6eb`.
+  The packaged fixture checkpoint is closed, but actual-window visual/readback/VoiceOver
+  observation and Developer ID/notarization remain absent. SOP-10 stays `IN_PROGRESS`.
 
 ## SOP-11 · macOS packaging, updates and operations — IN_PROGRESS
 
