@@ -87,6 +87,21 @@ valid installation, tamper/downgrade rejection, health-timeout rollback, healthy
 and byte-stable multi-episode project data. It does not claim that a production update
 channel, Developer ID release, notarization or clean-Mac rollout exists.
 
+## Verified update discovery boundary
+
+The packaged `nalu-update-helper discover` command is disabled by default. A production
+release may enable it only when `NALU_UPDATE_ORIGIN` is an exact HTTPS origin ending in
+`/`, with no credentials, query or fragment. Discovery downloads only `manifest.json`
+and the content-addressed `packages/<signed-sha256>.zip` below that origin, rejects
+redirects, caps the manifest at 64 KiB and the package at 2 GiB by default, writes through
+an atomic partial file and verifies the signed manifest before fetching and again before
+staging the package.
+
+Every discovery request requires a stable idempotency key. Its persistent transaction
+binds the installed build, discovery policy and complete trust policy; replay with changed
+inputs fails closed. Supplying a public key without an authorized origin leaves discovery
+disabled. No CI or local fixture test contacts a production update service.
+
 ## Developer ID release
 
 Import a `Developer ID Application` certificate into the active keychain and create a
@@ -120,6 +135,9 @@ exist:
 - `APPLE_NOTARY_KEY_ID`
 - `APPLE_NOTARY_ISSUER_ID`
 - `NALU_UPDATE_PUBLIC_KEY_BASE64`
+
+To enable production discovery, also configure `NALU_UPDATE_ORIGIN`. Leaving it absent
+keeps discovery disabled even in a signed build.
 
 `NALU_UPDATE_PUBLIC_KEY_BASE64` must decode to exactly one 32-byte Ed25519 public key. The
 workflow uploads the zip, checksum and a commit-bound provenance record containing only

@@ -11,26 +11,26 @@
     "TODO": 1,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "7d1b53dc2e293eb1bb846ed1fe91e28b61e7476e",
-  "last_advanced_at": "2026-09-01T04:23:46Z",
+  "observed_head": "e8be5e3bc0c34adb528620ef1b2f5d0595c53fad",
+  "last_advanced_at": "2026-09-01T05:08:30Z",
   "last_closed_checkpoint": {
-    "id": "sop-11-verified-staged-update-core",
+    "id": "sop-11-verified-update-discovery-core",
     "sop": "SOP-11",
-    "product_commit": "7d1b53dc2e293eb1bb846ed1fe91e28b61e7476e",
-    "evidence_commit": "5a2fa81d403cca023f12435539449a62a1b04295",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33469370874",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33469370874/artifacts/9786074323",
+    "product_commit": "e8be5e3bc0c34adb528620ef1b2f5d0595c53fad",
+    "evidence_commit": "PENDING",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33471853902",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33471853902/artifacts/9786896858",
     "result": "PASS"
   },
   "current_checkpoint": {
     "sop": "SOP-11",
     "status": "IN_PROGRESS",
-    "summary": "The packaged arm64, x86_64 and universal helper verifies exact Ed25519 manifests, rejects tamper/replay, performs persistent health-gated activation/rollback and preserves protected project data. SOP-11 remains open for a real authorized update origin, Developer ID/notarized candidate and clean-Mac old-to-new QA."
+    "summary": "The packaged universal helper now includes fail-closed Ed25519 staging plus disabled-by-default, exact-origin HTTPS discovery with bounded atomic downloads and persistent idempotency. SOP-11 remains open for an authorized real origin, production key, Developer ID/notarized candidate and clean-Mac old-to-new QA."
   },
   "next_action": {
-    "sop": "SOP-11",
-    "id": "verified-update-discovery-core",
-    "summary": "Implement a disabled-by-default HTTPS update discovery/download boundary with origin allowlisting, size limits, atomic downloads, persistent idempotency and exact manifest/package verification; test only against a local fixture and do not publish or contact a real update service without authorization.",
+    "sop": "SOP-13",
+    "id": "feedback-release-linkage-core",
+    "summary": "Implement a local fail-closed evidence chain linking a feedback report to a reviewed change, exact CI run and installed signed release receipt without exporting, merging, signing, publishing or marking feedback released; add tamper, mismatch, rollback and idempotency tests.",
     "requires_user_authorization": false
   },
   "blocking_conditions": [

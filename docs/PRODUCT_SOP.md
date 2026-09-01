@@ -1031,9 +1031,29 @@ Current evidence:
   Its native client, Runtime, visual analyzer and update helper all contain arm64 and
   x86_64 slices and the deep signature structure verifies. This was offline with an
   ephemeral QA key and ad-hoc app signatures; no update was downloaded or published.
+- Commits `d9e0e16`, `c84c32e` and `e8be5e3`, GitHub CI run `33471853902`: update
+  discovery is now a separate disabled-by-default boundary with an exact HTTPS-origin
+  allowlist, redirect rejection, 64-KiB manifest and 2-GiB package limits, atomic partial
+  downloads, content-addressed package paths, signed-manifest-first verification and a
+  persistent idempotency record binding installed build plus complete discovery/trust
+  policy. All 45 XCTest cases plus the Swift Testing discovery/fetcher suites passed on
+  Apple Silicon and Intel; snake_case packaged trust and discovery policies have explicit
+  decoding regression tests. Runtime, architecture builds, bundle verification/smoke,
+  staged update, populated ten-episode restart/rollback and universal merge all passed.
+  Universal artifact `9786896858` has GitHub digest
+  `sha256:db223f3e44f7864d3db927057fb20370b3213217e26b95b997056ad86a29aa79`;
+  its downloaded inner ZIP SHA-256 is
+  `acaf18d528308e6228dbf20293f82cc7fda18f21806f1b53e73eb2382f54a68c`.
+  Independent inspection found both `x86_64` and `arm64` update-helper slices, decoded the
+  exact packaged policies and observed exit 1 with
+  `nalu-update-helper: Update discovery is disabled.` The universal staged-update and
+  rollback evidence-file SHA-256 values are respectively
+  `7052afb140caf7e7371daa842a4f075f3a26a5f8196456c65886c52165316f01` and
+  `dd0e3abb68ae8e574af57d1a8d3190b32577fc599c322afdb577bbea5e2d255c`.
+  This proves only the offline/local-fixture boundary; no production origin was contacted.
 - Still required before `PASS`: Developer ID signing, hardened runtime, notarized
   universal release evidence, an authorized real update origin and production public key,
-  automatic discovery/download integration, and clean-Mac old-version-to-new-version
+  authorized production discovery/download QA, and clean-Mac old-version-to-new-version
   upgrade/rollback QA with populated multi-episode data. The green universal build is
   still ad-hoc signed.
 
