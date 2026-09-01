@@ -39,6 +39,8 @@ from .models import (
     EpisodeTransitionRequest,
     FeedbackCreate,
     FeedbackItem,
+    FeedbackReleaseLinkage,
+    FeedbackReleaseLinkageCreate,
     FeedbackReviewBundle,
     FeedbackReviewBundleCreate,
     InheritedContinuityResult,
@@ -190,6 +192,27 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
     )
     def get_feedback_review_bundle(feedback_id: str) -> FeedbackReviewBundle:
         return repository.get_feedback_review_bundle(feedback_id)
+
+    @app.post(
+        "/v1/feedback/{feedback_id}/release-linkage",
+        response_model=FeedbackReleaseLinkage,
+        status_code=201,
+    )
+    def create_feedback_release_linkage(
+        feedback_id: str,
+        request: FeedbackReleaseLinkageCreate,
+        idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    ) -> FeedbackReleaseLinkage:
+        return repository.create_feedback_release_linkage(
+            feedback_id, request, idempotency_key
+        )
+
+    @app.get(
+        "/v1/feedback/{feedback_id}/release-linkage",
+        response_model=FeedbackReleaseLinkage,
+    )
+    def get_feedback_release_linkage(feedback_id: str) -> FeedbackReleaseLinkage:
+        return repository.get_feedback_release_linkage(feedback_id)
 
     @app.post(
         "/v1/projects/{project_id}/memory-cards",

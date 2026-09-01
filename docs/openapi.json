@@ -1807,6 +1807,116 @@
         "title": "FeedbackItem",
         "type": "object"
       },
+      "FeedbackReleaseLinkage": {
+        "properties": {
+          "ci": {
+            "$ref": "#/components/schemas/SuccessfulCIEvidence"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "feedback_id": {
+            "title": "Feedback Id",
+            "type": "string"
+          },
+          "idempotency_key_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Idempotency Key Sha256",
+            "type": "string"
+          },
+          "installed_release": {
+            "$ref": "#/components/schemas/InstalledSignedReleaseReceipt"
+          },
+          "linkage_sha256": {
+            "title": "Linkage Sha256",
+            "type": "string"
+          },
+          "network_call_performed": {
+            "const": false,
+            "default": false,
+            "title": "Network Call Performed",
+            "type": "boolean"
+          },
+          "release_claimed": {
+            "const": false,
+            "default": false,
+            "title": "Release Claimed",
+            "type": "boolean"
+          },
+          "request_sha256": {
+            "title": "Request Sha256",
+            "type": "string"
+          },
+          "review_bundle_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Review Bundle Sha256",
+            "type": "string"
+          },
+          "reviewed_change": {
+            "$ref": "#/components/schemas/ReviewedChangeEvidence"
+          },
+          "rollback": {
+            "$ref": "#/components/schemas/RollbackRehearsalEvidence"
+          },
+          "schema_version": {
+            "const": "nalu.feedback-release-linkage/v1",
+            "default": "nalu.feedback-release-linkage/v1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "status": {
+            "const": "qa_evidence_linked",
+            "default": "qa_evidence_linked",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "review_bundle_sha256",
+          "reviewed_change",
+          "ci",
+          "installed_release",
+          "rollback",
+          "feedback_id",
+          "created_at",
+          "idempotency_key_sha256",
+          "request_sha256",
+          "linkage_sha256"
+        ],
+        "title": "FeedbackReleaseLinkage",
+        "type": "object"
+      },
+      "FeedbackReleaseLinkageCreate": {
+        "properties": {
+          "ci": {
+            "$ref": "#/components/schemas/SuccessfulCIEvidence"
+          },
+          "installed_release": {
+            "$ref": "#/components/schemas/InstalledSignedReleaseReceipt"
+          },
+          "review_bundle_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Review Bundle Sha256",
+            "type": "string"
+          },
+          "reviewed_change": {
+            "$ref": "#/components/schemas/ReviewedChangeEvidence"
+          },
+          "rollback": {
+            "$ref": "#/components/schemas/RollbackRehearsalEvidence"
+          }
+        },
+        "required": [
+          "review_bundle_sha256",
+          "reviewed_change",
+          "ci",
+          "installed_release",
+          "rollback"
+        ],
+        "title": "FeedbackReleaseLinkageCreate",
+        "type": "object"
+      },
       "FeedbackReviewBundle": {
         "properties": {
           "actual_behavior": {
@@ -1999,6 +2109,82 @@
           }
         },
         "title": "InheritedContinuityResult",
+        "type": "object"
+      },
+      "InstalledSignedReleaseReceipt": {
+        "properties": {
+          "artifact_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Artifact Sha256",
+            "type": "string"
+          },
+          "build": {
+            "exclusiveMinimum": 0.0,
+            "title": "Build",
+            "type": "integer"
+          },
+          "code_signature_verified": {
+            "const": true,
+            "title": "Code Signature Verified",
+            "type": "boolean"
+          },
+          "developer_id_team_id": {
+            "pattern": "^[A-Z0-9]{10}$",
+            "title": "Developer Id Team Id",
+            "type": "string"
+          },
+          "gatekeeper_accepted": {
+            "const": true,
+            "title": "Gatekeeper Accepted",
+            "type": "boolean"
+          },
+          "installed_at": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Installed At",
+            "type": "string"
+          },
+          "notarization_submission_id": {
+            "pattern": "^[0-9a-fA-F-]{36}$",
+            "title": "Notarization Submission Id",
+            "type": "string"
+          },
+          "notarization_verified": {
+            "const": true,
+            "title": "Notarization Verified",
+            "type": "boolean"
+          },
+          "product_commit": {
+            "pattern": "^[0-9a-f]{40}$",
+            "title": "Product Commit",
+            "type": "string"
+          },
+          "provenance_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Provenance Sha256",
+            "type": "string"
+          },
+          "version": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "build",
+          "product_commit",
+          "artifact_sha256",
+          "provenance_sha256",
+          "developer_id_team_id",
+          "notarization_submission_id",
+          "code_signature_verified",
+          "notarization_verified",
+          "gatekeeper_accepted",
+          "installed_at"
+        ],
+        "title": "InstalledSignedReleaseReceipt",
         "type": "object"
       },
       "LibraryEntity": {
@@ -4198,7 +4384,7 @@
             "type": "string"
           },
           "schema_version": {
-            "default": "nalu.project-export/v9",
+            "default": "nalu.project-export/v10",
             "enum": [
               "nalu.project-export/v1",
               "nalu.project-export/v2",
@@ -4208,7 +4394,8 @@
               "nalu.project-export/v6",
               "nalu.project-export/v7",
               "nalu.project-export/v8",
-              "nalu.project-export/v9"
+              "nalu.project-export/v9",
+              "nalu.project-export/v10"
             ],
             "title": "Schema Version",
             "type": "string"
@@ -4873,6 +5060,94 @@
           "sealed_by"
         ],
         "title": "RenderedOutputSealCreate",
+        "type": "object"
+      },
+      "ReviewedChangeEvidence": {
+        "properties": {
+          "approved_at": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Approved At",
+            "type": "string"
+          },
+          "approved_by": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Approved By",
+            "type": "string"
+          },
+          "commit_sha": {
+            "pattern": "^[0-9a-f]{40}$",
+            "title": "Commit Sha",
+            "type": "string"
+          },
+          "repository_url": {
+            "maxLength": 500,
+            "minLength": 9,
+            "title": "Repository Url",
+            "type": "string"
+          },
+          "review_url": {
+            "maxLength": 500,
+            "minLength": 9,
+            "title": "Review Url",
+            "type": "string"
+          },
+          "test_evidence_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Test Evidence Sha256",
+            "type": "string"
+          }
+        },
+        "required": [
+          "repository_url",
+          "commit_sha",
+          "review_url",
+          "approved_by",
+          "approved_at",
+          "test_evidence_sha256"
+        ],
+        "title": "ReviewedChangeEvidence",
+        "type": "object"
+      },
+      "RollbackRehearsalEvidence": {
+        "properties": {
+          "evidence_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Evidence Sha256",
+            "type": "string"
+          },
+          "previous_build": {
+            "exclusiveMinimum": 0.0,
+            "title": "Previous Build",
+            "type": "integer"
+          },
+          "previous_version": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Previous Version",
+            "type": "string"
+          },
+          "project_data_preserved": {
+            "const": true,
+            "title": "Project Data Preserved",
+            "type": "boolean"
+          },
+          "verified_at": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Verified At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "previous_version",
+          "previous_build",
+          "evidence_sha256",
+          "project_data_preserved",
+          "verified_at"
+        ],
+        "title": "RollbackRehearsalEvidence",
         "type": "object"
       },
       "RunActionRequest": {
@@ -5598,6 +5873,46 @@
           "explanation"
         ],
         "title": "StorageDiagnostics",
+        "type": "object"
+      },
+      "SuccessfulCIEvidence": {
+        "properties": {
+          "artifact_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Artifact Sha256",
+            "type": "string"
+          },
+          "completed_at": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Completed At",
+            "type": "string"
+          },
+          "conclusion": {
+            "const": "success",
+            "title": "Conclusion",
+            "type": "string"
+          },
+          "head_sha": {
+            "pattern": "^[0-9a-f]{40}$",
+            "title": "Head Sha",
+            "type": "string"
+          },
+          "run_url": {
+            "maxLength": 500,
+            "minLength": 9,
+            "title": "Run Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_url",
+          "head_sha",
+          "conclusion",
+          "artifact_sha256",
+          "completed_at"
+        ],
+        "title": "SuccessfulCIEvidence",
         "type": "object"
       },
       "ValidationError": {
@@ -6842,6 +7157,108 @@
           }
         },
         "summary": "Create Feedback"
+      }
+    },
+    "/v1/feedback/{feedback_id}/release-linkage": {
+      "get": {
+        "operationId": "get_feedback_release_linkage_v1_feedback__feedback_id__release_linkage_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "feedback_id",
+            "required": true,
+            "schema": {
+              "title": "Feedback Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackReleaseLinkage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Feedback Release Linkage"
+      },
+      "post": {
+        "operationId": "create_feedback_release_linkage_v1_feedback__feedback_id__release_linkage_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "feedback_id",
+            "required": true,
+            "schema": {
+              "title": "Feedback Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedbackReleaseLinkageCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackReleaseLinkage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Feedback Release Linkage"
       }
     },
     "/v1/feedback/{feedback_id}/review-bundle": {

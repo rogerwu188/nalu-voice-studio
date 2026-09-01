@@ -443,6 +443,19 @@ MIGRATIONS = (
         );
         """,
     ),
+    (
+        15,
+        "feedback_release_linkages",
+        """
+        CREATE TABLE IF NOT EXISTS feedback_release_linkages (
+          feedback_id TEXT PRIMARY KEY REFERENCES feedback_items(id) ON DELETE CASCADE,
+          request_sha256 TEXT NOT NULL,
+          linkage_json TEXT NOT NULL,
+          linkage_sha256 TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        );
+        """,
+    ),
 )
 
 

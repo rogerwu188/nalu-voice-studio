@@ -358,7 +358,7 @@ def test_feedback_review_bundle_is_local_redacted_immutable_and_exported(
     assert bundle["attachments"] == []
     assert bundle["diagnostics"] == {
         "runtime_version": "0.1.0",
-        "schema_version": "14",
+        "schema_version": "15",
         "screen": "family-materials",
     }
     assert bundle["redaction_applied"] is True
@@ -376,7 +376,7 @@ def test_feedback_review_bundle_is_local_redacted_immutable_and_exported(
     assert api.get(f"/v1/feedback/{feedback['id']}/review-bundle").json() == bundle
 
     backup = api.get(f"/v1/projects/{project['id']}/export").json()
-    assert backup["schema_version"] == "nalu.project-export/v9"
+    assert backup["schema_version"] == "nalu.project-export/v10"
     assert (
         backup["payload"]["feedback_review_bundles"][0]["bundle_sha256"] == bundle["bundle_sha256"]
     )
@@ -397,6 +397,163 @@ def test_feedback_review_bundle_is_local_redacted_immutable_and_exported(
     assert restored_api.post("/v1/project-imports", json=backup).status_code == 201
     restored = restored_api.get(f"/v1/feedback/{feedback['id']}/review-bundle").json()
     assert restored == bundle
+
+
+def test_feedback_release_linkage_is_hash_bound_immutable_and_never_claims_release(
+    tmp_path: Path,
+) -> None:
+    api = client(tmp_path)
+    project = api.post(
+        "/v1/projects", json={"title": "反馈证据链", "audience_mode": "older_adult"}
+    ).json()
+    feedback = api.post(
+        "/v1/feedback",
+        json={
+            "project_id": project["id"],
+            "category": "bug",
+            "message": "朗读按钮没有反应",
+            "share_authorized": True,
+        },
+    ).json()
+    bundle = api.post(
+        f"/v1/feedback/{feedback['id']}/review-bundle",
+        json={
+            "prepared_by": "本机用户",
+            "expected_behavior": "按钮应当朗读",
+            "actual_behavior": "没有声音",
+            "reproduction_steps": ["打开项目", "点击朗读"],
+            "confirmation_text": "我确认生成审核包",
+        },
+    ).json()
+    commit_sha = "a" * 40
+    artifact_sha = "b" * 64
+    request = {
+        "review_bundle_sha256": bundle["bundle_sha256"],
+        "reviewed_change": {
+            "repository_url": "https://github.com/example/nalu",
+            "commit_sha": commit_sha,
+            "review_url": "https://github.com/example/nalu/pull/42",
+            "approved_by": "maintainer-a",
+            "approved_at": "2026-09-01T01:00:00Z",
+            "test_evidence_sha256": "c" * 64,
+        },
+        "ci": {
+            "run_url": "https://github.com/example/nalu/actions/runs/42",
+            "head_sha": commit_sha,
+            "conclusion": "success",
+            "artifact_sha256": artifact_sha,
+            "completed_at": "2026-09-01T01:10:00Z",
+        },
+        "installed_release": {
+            "version": "0.2.0",
+            "build": 20,
+            "product_commit": commit_sha,
+            "artifact_sha256": artifact_sha,
+            "provenance_sha256": "d" * 64,
+            "developer_id_team_id": "AB12CD34EF",
+            "notarization_submission_id": "12345678-1234-1234-1234-123456789abc",
+            "code_signature_verified": True,
+            "notarization_verified": True,
+            "gatekeeper_accepted": True,
+            "installed_at": "2026-09-01T01:20:00Z",
+        },
+        "rollback": {
+            "previous_version": "0.1.0",
+            "previous_build": 10,
+            "evidence_sha256": "e" * 64,
+            "project_data_preserved": True,
+            "verified_at": "2026-09-01T01:30:00Z",
+        },
+    }
+    endpoint = f"/v1/feedback/{feedback['id']}/release-linkage"
+    assert api.post(endpoint, json=request).status_code == 409
+
+    wrong_bundle = deepcopy(request)
+    wrong_bundle["review_bundle_sha256"] = "f" * 64
+    assert (
+        api.post(endpoint, json=wrong_bundle, headers={"Idempotency-Key": "release-linkage-0001"})
+        .status_code
+        == 409
+    )
+    mismatched_commit = deepcopy(request)
+    mismatched_commit["ci"]["head_sha"] = "f" * 40
+    assert (
+        api.post(
+            endpoint,
+            json=mismatched_commit,
+            headers={"Idempotency-Key": "release-linkage-0001"},
+        ).status_code
+        == 409
+    )
+    unsafe_receipt = deepcopy(request)
+    unsafe_receipt["installed_release"]["notarization_verified"] = False
+    assert (
+        api.post(
+            endpoint,
+            json=unsafe_receipt,
+            headers={"Idempotency-Key": "release-linkage-0001"},
+        ).status_code
+        == 422
+    )
+    invalid_rollback = deepcopy(request)
+    invalid_rollback["rollback"]["previous_build"] = 20
+    assert (
+        api.post(
+            endpoint,
+            json=invalid_rollback,
+            headers={"Idempotency-Key": "release-linkage-0001"},
+        ).status_code
+        == 409
+    )
+
+    headers = {"Idempotency-Key": "release-linkage-0001"}
+    created = api.post(endpoint, json=request, headers=headers)
+    assert created.status_code == 201
+    linkage = created.json()
+    assert linkage["status"] == "qa_evidence_linked"
+    assert linkage["release_claimed"] is False
+    assert linkage["network_call_performed"] is False
+    assert linkage["idempotency_key_sha256"] == hashlib.sha256(
+        b"release-linkage-0001"
+    ).hexdigest()
+    assert "release-linkage-0001" not in json.dumps(linkage, sort_keys=True)
+    assert api.get(endpoint).json() == linkage
+    assert api.post(endpoint, json=request, headers=headers).json() == linkage
+    changed = deepcopy(request)
+    changed["rollback"]["evidence_sha256"] = "1" * 64
+    assert api.post(endpoint, json=changed, headers=headers).status_code == 409
+    assert (
+        api.post(endpoint, json=request, headers={"Idempotency-Key": "release-linkage-0002"})
+        .status_code
+        == 409
+    )
+    current_feedback = api.get("/v1/feedback", params={"project_id": project["id"]}).json()[0]
+    assert current_feedback["status"] == "ready_for_review"
+
+    backup = api.get(f"/v1/projects/{project['id']}/export").json()
+    assert backup["schema_version"] == "nalu.project-export/v10"
+    assert backup["payload"]["feedback_release_linkages"][0]["linkage_sha256"] == linkage[
+        "linkage_sha256"
+    ]
+    restored_api = client(tmp_path / "release-linkage-restored")
+    assert restored_api.post("/v1/project-imports", json=backup).status_code == 201
+    assert restored_api.get(endpoint).json() == linkage
+
+    tampered = deepcopy(backup)
+    row = tampered["payload"]["feedback_release_linkages"][0]
+    body = json.loads(row["linkage_json"])
+    body["release_claimed"] = True
+    row["linkage_json"] = json.dumps(body, ensure_ascii=False, sort_keys=True)
+    row["linkage_sha256"] = hashlib.sha256(row["linkage_json"].encode()).hexdigest()
+    tampered["payload_sha256"] = hashlib.sha256(
+        json.dumps(tampered["payload"], ensure_ascii=False, sort_keys=True).encode()
+    ).hexdigest()
+    assert (
+        client(tmp_path / "tampered-linkage")
+        .post("/v1/project-imports", json=tampered)
+        .status_code
+        == 409
+    )
 
 
 def test_memory_card_requires_explicit_confirmation_and_keeps_evidence(tmp_path: Path) -> None:
@@ -482,7 +639,7 @@ def test_memory_card_requires_explicit_confirmation_and_keeps_evidence(tmp_path:
     assert confirmations[0]["spoken_confirmation"] == "我确认这张记忆卡并归档"
 
     backup = api.get(f"/v1/projects/{project['id']}/export").json()
-    assert backup["schema_version"] == "nalu.project-export/v9"
+    assert backup["schema_version"] == "nalu.project-export/v10"
     assert backup["payload"]["memory_cards"][0]["asset_id"] == asset["id"]
 
     other = api.post("/v1/projects", json={"title": "另一个项目"}).json()
@@ -830,6 +987,7 @@ def test_project_rename_archive_export_and_restore(tmp_path: Path) -> None:
     legacy["payload"].pop("asset_consent_records")
     legacy["payload"].pop("feedback_items")
     legacy["payload"].pop("feedback_review_bundles")
+    legacy["payload"].pop("feedback_release_linkages")
     legacy["payload"].pop("memory_cards")
     legacy["payload"].pop("memory_card_revisions")
     legacy["payload"].pop("memory_card_confirmation_records")
@@ -929,7 +1087,7 @@ def test_database_migration_preserves_existing_database(tmp_path: Path) -> None:
         connection.execute("INSERT INTO legacy_marker VALUES ('preserve-me')")
 
     api = create_app(database_path, tmp_path / "data")
-    assert api.state.repository.db.schema_version() == 14
+    assert api.state.repository.db.schema_version() == 15
     with sqlite3.connect(database_path) as connection:
         marker = connection.execute("SELECT value FROM legacy_marker").fetchone()[0]
         approval_table = connection.execute(
@@ -981,7 +1139,7 @@ def test_populated_v1_database_upgrades_without_project_loss(tmp_path: Path) -> 
         connection.execute("DELETE FROM schema_migrations WHERE version >= 2")
 
     after = TestClient(create_app(database_path, data_root))
-    assert after.app.state.repository.db.schema_version() == 14
+    assert after.app.state.repository.db.schema_version() == 15
     assert after.get(f"/v1/projects/{project['id']}").json()["title"] == "我的一生"
     assert after.get(f"/v1/episodes/{episode['id']}").json()["approved_script_revision"] == 1
     approvals = after.get(f"/v1/episodes/{episode['id']}/script-approvals").json()
@@ -1171,6 +1329,7 @@ def test_project_season_and_episode_asset_scope_inheritance(tmp_path: Path) -> N
     legacy_v3["schema_version"] = "nalu.project-export/v3"
     legacy_v3["payload"].pop("feedback_items")
     legacy_v3["payload"].pop("feedback_review_bundles")
+    legacy_v3["payload"].pop("feedback_release_linkages")
     legacy_v3["payload"].pop("memory_cards")
     legacy_v3["payload"].pop("memory_card_revisions")
     legacy_v3["payload"].pop("memory_card_confirmation_records")
@@ -1242,7 +1401,7 @@ def test_complete_privacy_export_and_confirmed_project_deletion(tmp_path: Path) 
         assert {"project-export.json", "privacy-manifest.json", media_name} <= names
         assert archive.read(media_name) == b"private-photo-bytes"
         project_backup = json.loads(archive.read("project-export.json"))
-        assert project_backup["schema_version"] == "nalu.project-export/v9"
+        assert project_backup["schema_version"] == "nalu.project-export/v10"
         assert project_backup["payload"]["asset_consent_records"][0]["action_type"] == "granted"
         manifest = json.loads(archive.read("privacy-manifest.json"))
         assert manifest["database_included"] is False

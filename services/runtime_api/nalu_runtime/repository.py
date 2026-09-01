@@ -37,6 +37,8 @@ from .models import (
     EpisodeTransitionRequest,
     FeedbackCreate,
     FeedbackItem,
+    FeedbackReleaseLinkage,
+    FeedbackReleaseLinkageCreate,
     FeedbackReviewBundle,
     FeedbackReviewBundleCreate,
     LibraryEntity,
@@ -496,6 +498,12 @@ class Repository:
                    WHERE f.project_id = ?""",
                 (project_id,),
             ),
+            "feedback_release_linkages": (
+                """SELECT l.* FROM feedback_release_linkages l
+                   JOIN feedback_items f ON f.id = l.feedback_id
+                   WHERE f.project_id = ?""",
+                (project_id,),
+            ),
             "memory_cards": (
                 "SELECT * FROM memory_cards WHERE project_id = ?",
                 (project_id,),
@@ -688,6 +696,13 @@ class Repository:
                 "bundle_sha256",
                 "created_at",
             ),
+            "feedback_release_linkages": (
+                "feedback_id",
+                "request_sha256",
+                "linkage_json",
+                "linkage_sha256",
+                "created_at",
+            ),
             "memory_cards": (
                 "id",
                 "project_id",
@@ -787,6 +802,18 @@ class Repository:
             "nalu.project-export/v8",
         }:
             allowed_columns.pop("feedback_review_bundles")
+        if backup.schema_version in {
+            "nalu.project-export/v1",
+            "nalu.project-export/v2",
+            "nalu.project-export/v3",
+            "nalu.project-export/v4",
+            "nalu.project-export/v5",
+            "nalu.project-export/v6",
+            "nalu.project-export/v7",
+            "nalu.project-export/v8",
+            "nalu.project-export/v9",
+        }:
+            allowed_columns.pop("feedback_release_linkages")
         if backup.schema_version in {
             "nalu.project-export/v1",
             "nalu.project-export/v2",
@@ -914,6 +941,7 @@ class Repository:
             for row in backup.payload.get("feedback_review_bundles", [])
         ):
             raise ConflictError("project export contains a feedback bundle from another project")
+        feedback_bundle_digests: dict[Any, Any] = {}
         for row in backup.payload.get("feedback_review_bundles", []):
             try:
                 bundle_body = decode(row.get("bundle_json", ""))
@@ -926,6 +954,41 @@ class Repository:
                 != row.get("bundle_sha256")
             ):
                 raise ConflictError("project export contains a tampered feedback bundle")
+            feedback_bundle_digests[row.get("feedback_id")] = row.get("bundle_sha256")
+        for row in backup.payload.get("feedback_release_linkages", []):
+            try:
+                linkage_body = decode(row.get("linkage_json", ""))
+            except (TypeError, json.JSONDecodeError) as exc:
+                raise ConflictError("project export contains an unreadable release linkage") from exc
+            if (
+                row.get("feedback_id") not in feedback_ids
+                or linkage_body.get("feedback_id") != row.get("feedback_id")
+                or linkage_body.get("request_sha256") != row.get("request_sha256")
+                or hashlib.sha256(encode(linkage_body).encode()).hexdigest()
+                != row.get("linkage_sha256")
+            ):
+                raise ConflictError("project export contains a tampered release linkage")
+            try:
+                validated = FeedbackReleaseLinkage.model_validate(
+                    {**linkage_body, "linkage_sha256": row.get("linkage_sha256")}
+                )
+                evidence = FeedbackReleaseLinkageCreate.model_validate(linkage_body)
+            except ValueError as exc:
+                raise ConflictError("project export contains invalid release evidence") from exc
+            if validated.review_bundle_sha256 != feedback_bundle_digests.get(
+                row.get("feedback_id")
+            ):
+                raise ConflictError("release linkage references a different review bundle")
+            self._validate_feedback_release_evidence(evidence)
+            request_body = {
+                "feedback_id": row.get("feedback_id"),
+                "idempotency_key_sha256": validated.idempotency_key_sha256,
+                "evidence": evidence.model_dump(mode="json"),
+            }
+            if hashlib.sha256(encode(request_body).encode()).hexdigest() != row.get(
+                "request_sha256"
+            ):
+                raise ConflictError("release linkage request digest does not match its evidence")
         if any(
             row.get("project_id") != project_id or row.get("asset_id") not in asset_ids
             for row in backup.payload.get("memory_cards", [])
@@ -1161,6 +1224,102 @@ class Repository:
             raise ConflictError("stored feedback review bundle digest mismatch")
         stored["bundle_sha256"] = row["bundle_sha256"]
         return FeedbackReviewBundle.model_validate(stored)
+
+    def create_feedback_release_linkage(
+        self,
+        feedback_id: str,
+        request: FeedbackReleaseLinkageCreate,
+        idempotency_key: str | None,
+    ) -> FeedbackReleaseLinkage:
+        feedback = self.get_feedback(feedback_id)
+        if not feedback.share_authorized or feedback.status != "ready_for_review":
+            raise ConflictError("local-only feedback cannot link release evidence")
+        if idempotency_key is None or not 16 <= len(idempotency_key.strip()) <= 200:
+            raise ConflictError("a stable 16-200 character idempotency key is required")
+        if idempotency_key != idempotency_key.strip():
+            raise ConflictError("idempotency key must not have surrounding whitespace")
+
+        bundle = self.get_feedback_review_bundle(feedback_id)
+        if request.review_bundle_sha256 != bundle.bundle_sha256:
+            raise ConflictError("review bundle digest does not match the immutable local bundle")
+        self._validate_feedback_release_evidence(request)
+
+        idempotency_key_sha256 = hashlib.sha256(idempotency_key.encode()).hexdigest()
+        request_body = {
+            "feedback_id": feedback_id,
+            "idempotency_key_sha256": idempotency_key_sha256,
+            "evidence": request.model_dump(mode="json"),
+        }
+        request_sha256 = hashlib.sha256(encode(request_body).encode()).hexdigest()
+        with self.db.connect() as connection:
+            existing = connection.execute(
+                "SELECT * FROM feedback_release_linkages WHERE feedback_id = ?",
+                (feedback_id,),
+            ).fetchone()
+        if existing is not None:
+            if existing["request_sha256"] != request_sha256:
+                raise ConflictError("feedback already has different immutable release evidence")
+            stored = decode(existing["linkage_json"])
+            if hashlib.sha256(encode(stored).encode()).hexdigest() != existing["linkage_sha256"]:
+                raise ConflictError("stored feedback release linkage digest mismatch")
+            stored["linkage_sha256"] = existing["linkage_sha256"]
+            return FeedbackReleaseLinkage.model_validate(stored)
+
+        now = utc_now()
+        linkage_body = {
+            "schema_version": "nalu.feedback-release-linkage/v1",
+            "feedback_id": feedback_id,
+            **request.model_dump(mode="json"),
+            "status": "qa_evidence_linked",
+            "release_claimed": False,
+            "network_call_performed": False,
+            "created_at": now,
+            "idempotency_key_sha256": idempotency_key_sha256,
+            "request_sha256": request_sha256,
+        }
+        linkage_sha256 = hashlib.sha256(encode(linkage_body).encode()).hexdigest()
+        with self.db.connect() as connection:
+            try:
+                connection.execute(
+                    "INSERT INTO feedback_release_linkages VALUES (?, ?, ?, ?, ?)",
+                    (
+                        feedback_id,
+                        request_sha256,
+                        encode(linkage_body),
+                        linkage_sha256,
+                        now,
+                    ),
+                )
+            except sqlite3.IntegrityError as exc:
+                raise ConflictError("feedback release evidence was linked concurrently") from exc
+        linkage_body["linkage_sha256"] = linkage_sha256
+        return FeedbackReleaseLinkage.model_validate(linkage_body)
+
+    @staticmethod
+    def _validate_feedback_release_evidence(request: FeedbackReleaseLinkageCreate) -> None:
+        if request.reviewed_change.commit_sha != request.ci.head_sha:
+            raise ConflictError("reviewed change commit does not match successful CI head")
+        if request.reviewed_change.commit_sha != request.installed_release.product_commit:
+            raise ConflictError("reviewed change commit does not match installed release receipt")
+        if request.ci.artifact_sha256 != request.installed_release.artifact_sha256:
+            raise ConflictError("CI artifact does not match installed release receipt")
+        if request.rollback.previous_build >= request.installed_release.build:
+            raise ConflictError("rollback rehearsal must identify an older positive build")
+
+    def get_feedback_release_linkage(self, feedback_id: str) -> FeedbackReleaseLinkage:
+        self.get_feedback(feedback_id)
+        with self.db.connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM feedback_release_linkages WHERE feedback_id = ?",
+                (feedback_id,),
+            ).fetchone()
+        if row is None:
+            raise NotFoundError("feedback release linkage not found")
+        stored = decode(row["linkage_json"])
+        if hashlib.sha256(encode(stored).encode()).hexdigest() != row["linkage_sha256"]:
+            raise ConflictError("stored feedback release linkage digest mismatch")
+        stored["linkage_sha256"] = row["linkage_sha256"]
+        return FeedbackReleaseLinkage.model_validate(stored)
 
     def create_memory_card(self, project_id: str, request: MemoryCardCreate) -> MemoryCard:
         project = self.get_project(project_id)

@@ -150,7 +150,8 @@ class ProjectExport(BaseModel):
         "nalu.project-export/v7",
         "nalu.project-export/v8",
         "nalu.project-export/v9",
-    ] = "nalu.project-export/v9"
+        "nalu.project-export/v10",
+    ] = "nalu.project-export/v10"
     exported_at: str
     payload: dict[str, Any]
     payload_sha256: str
@@ -346,6 +347,81 @@ class FeedbackReviewBundle(BaseModel):
     network_call_performed: Literal[False] = False
     request_sha256: str
     bundle_sha256: str
+
+
+class ReviewedChangeEvidence(BaseModel):
+    repository_url: str = Field(min_length=9, max_length=500)
+    commit_sha: str = Field(pattern=r"^[0-9a-f]{40}$")
+    review_url: str = Field(min_length=9, max_length=500)
+    approved_by: str = Field(min_length=1, max_length=160)
+    approved_at: str = Field(min_length=1, max_length=80)
+    test_evidence_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+
+    @field_validator("repository_url", "review_url")
+    @classmethod
+    def require_https(cls, value: str) -> str:
+        if not value.startswith("https://"):
+            raise ValueError("evidence URLs must use HTTPS")
+        return value
+
+
+class SuccessfulCIEvidence(BaseModel):
+    run_url: str = Field(min_length=9, max_length=500)
+    head_sha: str = Field(pattern=r"^[0-9a-f]{40}$")
+    conclusion: Literal["success"]
+    artifact_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    completed_at: str = Field(min_length=1, max_length=80)
+
+    @field_validator("run_url")
+    @classmethod
+    def require_https(cls, value: str) -> str:
+        if not value.startswith("https://"):
+            raise ValueError("CI run URL must use HTTPS")
+        return value
+
+
+class InstalledSignedReleaseReceipt(BaseModel):
+    version: str = Field(min_length=1, max_length=80)
+    build: int = Field(gt=0)
+    product_commit: str = Field(pattern=r"^[0-9a-f]{40}$")
+    artifact_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    provenance_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    developer_id_team_id: str = Field(pattern=r"^[A-Z0-9]{10}$")
+    notarization_submission_id: str = Field(pattern=r"^[0-9a-fA-F-]{36}$")
+    code_signature_verified: Literal[True]
+    notarization_verified: Literal[True]
+    gatekeeper_accepted: Literal[True]
+    installed_at: str = Field(min_length=1, max_length=80)
+
+
+class RollbackRehearsalEvidence(BaseModel):
+    previous_version: str = Field(min_length=1, max_length=80)
+    previous_build: int = Field(gt=0)
+    evidence_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    project_data_preserved: Literal[True]
+    verified_at: str = Field(min_length=1, max_length=80)
+
+
+class FeedbackReleaseLinkageCreate(BaseModel):
+    review_bundle_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    reviewed_change: ReviewedChangeEvidence
+    ci: SuccessfulCIEvidence
+    installed_release: InstalledSignedReleaseReceipt
+    rollback: RollbackRehearsalEvidence
+
+
+class FeedbackReleaseLinkage(FeedbackReleaseLinkageCreate):
+    schema_version: Literal["nalu.feedback-release-linkage/v1"] = (
+        "nalu.feedback-release-linkage/v1"
+    )
+    feedback_id: str
+    status: Literal["qa_evidence_linked"] = "qa_evidence_linked"
+    release_claimed: Literal[False] = False
+    network_call_performed: Literal[False] = False
+    created_at: str
+    idempotency_key_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    request_sha256: str
+    linkage_sha256: str
 
 
 class MemoryPerson(BaseModel):

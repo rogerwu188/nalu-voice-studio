@@ -44,6 +44,15 @@ local review bundle while deliberately leaving the item in `ready_for_review`. L
 states require an explicitly configured issue tracker and release service; preparing a
 bundle is not reported as an export.
 
+A separate local `qa_evidence_linked` receipt can bind the immutable review-bundle hash
+to one reviewed 40-character change commit, the exact successful CI head and artifact,
+an installed Developer ID/notarization/Gatekeeper receipt and an older-build rollback
+rehearsal that preserved project data. The receipt is immutable, hash-chained, project-
+exported and idempotent; its key is stored only as a SHA-256. It performs no network call,
+does not change the feedback state, and always records `release_claimed: false`. These are
+locally supplied verification facts, not proof that Nalu independently contacted GitHub
+or Apple, and therefore cannot advance an item to `released`.
+
 The packaged application now has a separate fail-closed staged-update primitive. It can
 verify an exact Ed25519-signed package, reject replay or downgrade, preserve local project
 data, require post-launch health confirmation and roll back after a crash or missing
