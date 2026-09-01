@@ -38,6 +38,10 @@ if "$update_helper" >/dev/null 2>&1; then
   echo "Update helper must fail closed without an explicit command" >&2
   exit 1
 fi
+if "$semantic_recognizer" </dev/null >/dev/null 2>&1; then
+  echo "Semantic recognizer must fail closed without a Runtime-issued request" >&2
+  exit 1
+fi
 if "$update_helper" discover \
   --discovery-config "$update_discovery" \
   --trust-config "$update_trust" \

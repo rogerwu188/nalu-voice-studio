@@ -81,7 +81,8 @@ fi
 # unsigned nested code and apply the wrong entitlements to helpers.
 codesign --force --options runtime --timestamp --sign "$signing_identity" "$runtime"
 codesign --force --options runtime --timestamp --sign "$signing_identity" "$visual_analyzer"
-codesign --force --options runtime --timestamp --sign "$signing_identity" "$semantic_recognizer"
+codesign --force --options runtime --timestamp --entitlements "$entitlements" \
+  --sign "$signing_identity" "$semantic_recognizer"
 codesign --force --options runtime --timestamp --sign "$signing_identity" "$update_helper"
 codesign --force --options runtime --timestamp --sign "$signing_identity" "$executable"
 codesign \

@@ -101,5 +101,7 @@ cp "$app_root/Info.plist" "$bundle/Contents/Info.plist"
   -c "Set :CFBundleVersion $build_number" \
   "$bundle/Contents/Info.plist"
 
+codesign --force --sign - --entitlements "$app_root/NaluVoiceStudio.entitlements" \
+  "$bundle/Contents/Resources/recognizers/nalu-semantic-recognizer"
 codesign --force --deep --sign - "$bundle"
 echo "$bundle"

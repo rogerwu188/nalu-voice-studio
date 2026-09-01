@@ -71,7 +71,8 @@ chmod 755 \
 chmod 755 "$output_bundle/Contents/Resources/updater/nalu-update-helper"
 
 codesign --force --sign - "$output_bundle/Contents/Resources/analyzers/nalu-visual-analyzer"
-codesign --force --sign - "$output_bundle/Contents/Resources/recognizers/nalu-semantic-recognizer"
+codesign --force --sign - --entitlements "$repo_root/apps/macos/NaluVoiceStudio.entitlements" \
+  "$output_bundle/Contents/Resources/recognizers/nalu-semantic-recognizer"
 codesign --force --sign - "$output_bundle/Contents/Resources/updater/nalu-update-helper"
 codesign --force --sign - "$output_bundle/Contents/Resources/runtime/nalu-runtime"
 codesign --force --sign - "$output_bundle/Contents/MacOS/NaluVoiceStudio"

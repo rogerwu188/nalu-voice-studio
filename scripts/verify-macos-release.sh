@@ -34,6 +34,12 @@ test -f "$development_handoff"
 test -f "$bundle/Contents/Resources/runtime-resources/configs/qingshan-upstream.json"
 test -f "$bundle/Contents/Resources/runtime-resources/vendor/qingshan/LICENSE"
 
+semantic_entitlements="$(mktemp)"
+trap 'rm -f "$semantic_entitlements"' EXIT
+codesign -d --entitlements :- "$semantic_recognizer" >"$semantic_entitlements" 2>/dev/null
+[[ "$(/usr/bin/plutil -extract com.apple.security.personal-information.speech-recognition raw \
+  "$semantic_entitlements")" == "true" ]]
+
 bundle_id="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$plist")"
 version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$plist")"
 build="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$plist")"
