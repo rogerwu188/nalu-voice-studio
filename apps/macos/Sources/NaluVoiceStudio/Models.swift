@@ -1049,6 +1049,29 @@ struct FeedbackReviewBundle: Codable, Sendable {
     }
 }
 
+struct FeedbackReleaseReadinessCheck: Codable, Identifiable, Sendable {
+    let id: String
+    let status: String
+    let explanation: String
+}
+
+struct FeedbackGovernedReleaseReadiness: Codable, Sendable {
+    let feedbackID: String
+    let feedbackStatus: String
+    let checks: [FeedbackReleaseReadinessCheck]
+    let readyForAuthorizedRollout: Bool
+    let released: Bool
+    let releaseClaimed: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case checks, released
+        case feedbackID = "feedback_id"
+        case feedbackStatus = "feedback_status"
+        case readyForAuthorizedRollout = "ready_for_authorized_rollout"
+        case releaseClaimed = "release_claimed"
+    }
+}
+
 struct MemoryPersonDraft: Codable, Sendable {
     let name: String
     let relationship: String

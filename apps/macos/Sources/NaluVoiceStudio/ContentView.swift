@@ -1726,28 +1726,61 @@ struct ContentView: View {
             if selectedProject?.audienceMode == "child", feedbackShareAuthorized {
                 Toggle("监护人同意提交这条改进意见", isOn: $feedbackGuardianApproved)
             }
+            if let readiness = model.feedbackReleaseReadiness {
+                VStack(alignment: .leading, spacing: 10) {
+                    Label("这条意见的改进进度", systemImage: "checklist")
+                        .font(.headline)
+                    Text(
+                        readiness.readyForAuthorizedRollout
+                            ? "发布前证据已齐，但仍未发布。"
+                            : "已经记录，不代表已经修好。"
+                    )
+                    .font(.title3.bold())
+                    .foregroundStyle(readiness.released ? .green : .orange)
+                    ForEach(readiness.checks) { check in
+                        Label(
+                            check.explanation,
+                            systemImage: check.status == "satisfied"
+                                ? "checkmark.circle.fill" : "clock.badge.exclamationmark"
+                        )
+                        .foregroundStyle(check.status == "satisfied" ? .green : .secondary)
+                    }
+                    Button("朗读改进进度", systemImage: "speaker.wave.2.fill") {
+                        model.readFeedbackReleaseReadiness()
+                    }
+                    .controlSize(.large)
+                }
+                .padding(14)
+                .background(.quaternary, in: RoundedRectangle(cornerRadius: 14))
+                .accessibilityElement(children: .contain)
+            }
             HStack {
                 Button("取消", role: .cancel) { isPresentingFeedback = false }
                 Spacer()
-                Button("保存意见") {
-                    Task {
-                        if await model.saveFeedback(
-                            category: feedbackCategory,
-                            shareAuthorized: feedbackShareAuthorized,
-                            guardianApproval: feedbackGuardianApproved
-                        ) {
-                            isPresentingFeedback = false
-                            feedbackShareAuthorized = false
-                            feedbackGuardianApproved = false
+                if model.feedbackReleaseReadiness == nil {
+                    Button("保存意见") {
+                        Task {
+                            if await model.saveFeedback(
+                                category: feedbackCategory,
+                                shareAuthorized: feedbackShareAuthorized,
+                                guardianApproval: feedbackGuardianApproved
+                            ) {
+                                feedbackShareAuthorized = false
+                                feedbackGuardianApproved = false
+                            }
                         }
                     }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(
+                        model.feedbackDraftText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                            || (selectedProject?.audienceMode == "child"
+                                && feedbackShareAuthorized && !feedbackGuardianApproved)
+                    )
+                } else {
+                    Button("完成") { isPresentingFeedback = false }
+                        .buttonStyle(.borderedProminent)
+                        .keyboardShortcut(.defaultAction)
                 }
-                .buttonStyle(.borderedProminent)
-                .disabled(
-                    model.feedbackDraftText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                        || (selectedProject?.audienceMode == "child"
-                            && feedbackShareAuthorized && !feedbackGuardianApproved)
-                )
             }
         }
         .padding(28)

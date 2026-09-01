@@ -94,6 +94,7 @@ final class VoiceInterviewViewModel {
     var feedbackDraftText = ""
     var isCapturingFeedback = false
     var feedbackWasDictated = false
+    var feedbackReleaseReadiness: FeedbackGovernedReleaseReadiness?
     var comfortPreferences = VoiceInterviewViewModel.loadComfortPreferences()
     var planningVoiceLabel: String? { planningVoiceFlow.mode?.prompt }
 
@@ -279,6 +280,7 @@ final class VoiceInterviewViewModel {
     }
 
     func beginFeedbackDictation() async {
+        feedbackReleaseReadiness = nil
         isCapturingFeedback = true
         feedbackWasDictated = false
         messages.append(
@@ -354,11 +356,38 @@ final class VoiceInterviewViewModel {
                     text: responseText
                 )
             )
+            do {
+                let readiness = try await runtime.feedbackReleaseReadiness(
+                    feedbackID: saved.id
+                )
+                feedbackReleaseReadiness = readiness
+                let missingCount = readiness.checks.filter { $0.status == "missing" }.count
+                let readinessText = readiness.readyForAuthorizedRollout
+                    ? "这条意见的发布前证据已经齐全，但还没有真正发布。仍需管理员授权、真实分阶段发布和安装后健康确认。"
+                    : "这条意见已经记下，目前还有 \(missingCount) 项流程没有完成。Nalu 不会把已记录或已审核误说成已经修好。"
+                messages.append(.init(speaker: .nalu, text: readinessText))
+                speechPlayback.speak(readinessText, rate: comfortPreferences.speechRate)
+            } catch {
+                errorMessage = "意见已保存，但暂时无法读取改进进度：\(error.localizedDescription)"
+            }
             return true
         } catch {
             errorMessage = error.localizedDescription
             return false
         }
+    }
+
+    func readFeedbackReleaseReadiness() {
+        guard let readiness = feedbackReleaseReadiness else { return }
+        let missing = readiness.checks.filter { $0.status == "missing" }
+        let summary: String
+        if readiness.readyForAuthorizedRollout {
+            summary = "发布前证据已经齐全，但这条意见还没有发布。还需要管理员授权、真实分阶段发布和安装后健康确认。"
+        } else {
+            let first = missing.prefix(3).map(\.explanation).joined(separator: "；")
+            summary = "这条意见还没有修好。目前缺少 \(missing.count) 项。\(first)"
+        }
+        speechPlayback.speak(summary, rate: comfortPreferences.speechRate)
     }
 
     func beginLibraryVoiceIntake(kind: String) async {

@@ -170,6 +170,12 @@ actor RuntimeClient {
         try await post("v1/feedback/\(feedbackID)/review-bundle", body: draft)
     }
 
+    func feedbackReleaseReadiness(
+        feedbackID: String
+    ) async throws -> FeedbackGovernedReleaseReadiness {
+        try await get("v1/feedback/\(feedbackID)/release-readiness")
+    }
+
     func createMemoryCard(projectID: String, draft: MemoryCardDraft) async throws -> MemoryCard {
         try await post("v1/projects/\(projectID)/memory-cards", body: draft)
     }
