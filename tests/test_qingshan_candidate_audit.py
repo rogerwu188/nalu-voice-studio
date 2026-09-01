@@ -35,6 +35,16 @@ def test_candidate_audit_is_quarantined_and_fail_closed() -> None:
     assert any(item.startswith("nonportable_absolute_path:") for item in audit["failures"])
 
 
+def test_latest_release_is_covered_only_by_active_or_reviewed_record() -> None:
+    checker = load_checker()
+    manifest = {"release": "stable"}
+    audit = {"candidate_release": "reviewed"}
+
+    assert checker.release_requires_review("stable", manifest, audit) is False
+    assert checker.release_requires_review("reviewed", manifest, audit) is False
+    assert checker.release_requires_review("new", manifest, audit) is True
+
+
 def test_candidate_audit_rejects_false_promotion_and_unknown_failures() -> None:
     checker = load_checker()
     manifest = json.loads(checker.MANIFEST_PATH.read_text())

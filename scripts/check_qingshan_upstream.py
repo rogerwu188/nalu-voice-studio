@@ -105,6 +105,16 @@ def latest_release(repository: str) -> dict:
         return json.loads(response.read())
 
 
+def release_requires_review(
+    latest_tag: str, manifest: dict, candidate_audit: dict
+) -> bool:
+    """Return whether discovery found a release not covered by either trusted record."""
+    return latest_tag not in {
+        manifest.get("release"),
+        candidate_audit.get("candidate_release"),
+    }
+
+
 def write_output(name: str, value: str) -> None:
     output = os.environ.get("GITHUB_OUTPUT")
     if output:
@@ -138,11 +148,16 @@ def main() -> int:
     if args.check_latest:
         latest = latest_release(manifest["repository"])
         tag = latest["tag_name"]
-        available = tag != manifest["release"]
-        write_output("update_available", str(available).lower())
+        review_required = release_requires_review(tag, manifest, candidate_audit)
+        # Keep the existing output name for workflow compatibility. It means an
+        # unaudited release is available, not merely that the stable pin is older.
+        write_output("update_available", str(review_required).lower())
         write_output("latest_tag", tag)
         write_output("latest_url", latest["html_url"])
-        print(f"Latest upstream release: {tag}; update_available={available}")
+        print(
+            f"Latest upstream release: {tag}; "
+            f"review_required={review_required}"
+        )
     return 0
 
 

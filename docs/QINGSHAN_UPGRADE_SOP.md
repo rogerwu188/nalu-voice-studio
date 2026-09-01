@@ -36,12 +36,12 @@ It may support local contract work, but cannot authorize a paid request. Any add
 changed failure is unreviewed drift and fails closed. The exception must be removed—not
 carried forward—when the corrected upstream release is promoted.
 
-The latest reviewed candidate is `v2026.09.01.3` at commit
-`c58c43b5536370835cc39e0be099a8b62324b7de`. Its three incremental fixes preserve
-grouped-unit duration at the paid boundary, honor explicit noncombat classification and
-bind delivery resolution to the episode/native contract. Nalu productized those semantics
-in its own immutable compiler and pre-I/O submitter contract without promoting or running
-the quarantined candidate. An isolated checkout still fails the upstream
+The latest reviewed candidate is `v2026.09.01.7` at commit
+`9c40a28d07ee9c48aed9307cbc7726a1bd992379`. It retains the earlier grouped-unit
+duration, explicit noncombat and native-delivery-resolution fixes and adds shared
+Seedance/H3 execution semantics, provider projection checks, prompt coverage and native/
+release loudness gates. Nalu reviews those contracts independently without promoting or
+running the quarantined candidate. An isolated checkout still fails the upstream
 registry-integrity function:
 69 gates, 66 coded/runtime-bound gates, eight missing registered paths and one
 host-specific absolute test path. The upstream validator can accidentally accept that
@@ -51,3 +51,5 @@ rejects every absolute registered path before considering promotion.
 the exact candidate tree, registry digest and failure list. CI validates that the record
 remains `QUARANTINED`, cannot replace the active pin, cannot authorize paid execution
 and does not misreport the unrun complete registered suite as passing.
+Daily discovery treats both the active pin and this exact reviewed candidate as covered;
+only a third, unaudited tag opens a new deduplicated upgrade issue.
