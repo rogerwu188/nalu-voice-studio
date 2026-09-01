@@ -1363,6 +1363,14 @@ def test_apple_speech_runner_binds_executable_master_and_local_only_result(
     ):
         runner.recognize(master_path, source_master_sha256=master_sha)
 
+    response["network_used"] = False
+    response["segments"][0]["confidence"] = math.inf
+    with (
+        patch("nalu_runtime.semantic_recognizer.subprocess.run", side_effect=completed),
+        pytest.raises(SemanticRecognizerError, match="segment is invalid"),
+    ):
+        runner.recognize(master_path, source_master_sha256=master_sha)
+
 
 def test_postproduction_lineage_rejects_unadmitted_shot_and_blocks_release(
     tmp_path: Path,

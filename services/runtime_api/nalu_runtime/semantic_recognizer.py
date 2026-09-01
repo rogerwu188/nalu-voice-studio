@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
 import subprocess
 from dataclasses import dataclass
@@ -129,6 +130,36 @@ class AppleSpeechRecognizer:
             or not recognizer_version
         ):
             raise SemanticRecognizerError("Apple Speech recognizer returned incomplete evidence")
+        if len(transcript) > 200000 or len(segments) > 10000:
+            raise SemanticRecognizerError("Apple Speech recognizer output exceeded content limits")
+        for segment in segments:
+            if not isinstance(segment, dict):
+                raise SemanticRecognizerError("Apple Speech recognizer segment is invalid")
+            start = segment.get("start_seconds")
+            end = segment.get("end_seconds")
+            text = segment.get("text")
+            confidence = segment.get("confidence")
+            if (
+                not isinstance(start, (int, float))
+                or isinstance(start, bool)
+                or not math.isfinite(start)
+                or start < 0
+                or not isinstance(end, (int, float))
+                or isinstance(end, bool)
+                or not math.isfinite(end)
+                or end <= start
+                or not isinstance(text, str)
+                or not text.strip()
+                or len(text) > 4000
+                or confidence is not None
+                and (
+                    not isinstance(confidence, (int, float))
+                    or isinstance(confidence, bool)
+                    or not math.isfinite(confidence)
+                    or not 0 <= confidence <= 1
+                )
+            ):
+                raise SemanticRecognizerError("Apple Speech recognizer segment is invalid")
         if _file_sha256(self.binary_path) != executable_sha256:
             raise SemanticRecognizerError("Apple Speech recognizer changed during execution")
         try:
