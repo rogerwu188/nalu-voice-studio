@@ -199,14 +199,14 @@ struct PublicationLearningView: View {
             HStack(alignment: .top, spacing: 12) {
                 Image(systemName: latest == nil ? "chart.line.uptrend.xyaxis" : "checkmark.seal.fill")
                     .font(.title)
-                    .foregroundStyle(latest == nil ? .secondary : .green)
+                    .foregroundStyle(latest == nil ? Color.secondary : Color.green)
                     .frame(width: 36)
                 VStack(alignment: .leading, spacing: 4) {
                     Text("播出反馈与下一集建议")
                         .font(.title2.bold())
                     Text(latest == nil ? "还没有经过核验的播出反馈" : "发行身份已核验 · 只读")
                         .font(.headline)
-                        .foregroundStyle(latest == nil ? .secondary : .green)
+                        .foregroundStyle(latest == nil ? Color.secondary : Color.green)
                 }
                 Spacer()
                 if isLoading {
