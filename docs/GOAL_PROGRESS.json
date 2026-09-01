@@ -11,26 +11,26 @@
     "TODO": 1,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "6a68892df668d5f9695bff26b0a6fb15c3388519",
-  "last_advanced_at": "2026-09-01T10:03:00Z",
+  "observed_head": "013086a78b17a98b6f83082b9edbebd7358135e4",
+  "last_advanced_at": "2026-09-01T10:12:00Z",
   "last_closed_checkpoint": {
-    "id": "sop-10-release-metrics-director-strategy-core",
+    "id": "sop-10-publication-learning-export-restore-core",
     "sop": "SOP-10",
-    "product_commit": "210b5c750ddee8abd946ed8dddbfba54a2bd1b06",
-    "evidence_commit": "e3dd387251e8b7cac4cd86d28d68495097487546",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33493012088",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33493012088/artifacts/9794733903",
+    "product_commit": "6a68892df668d5f9695bff26b0a6fb15c3388519",
+    "evidence_commit": "PENDING",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33494844711",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33494844711/artifacts/9795485341",
     "result": "PASS"
   },
   "current_checkpoint": {
     "sop": "SOP-10",
-    "status": "AWAITING_CI",
-    "summary": "Product commit 6a68892 evolves project export v20 to preserve publication source metadata, identities, metric snapshots and director strategies with atomic clean-database restore, stale-path remapping, v1-v19 compatibility and tamper rejection. Local lint, 116 tests, OpenAPI compatibility and real HTTP smoke pass; GitHub architecture and packaged-runtime evidence is pending."
+    "status": "IN_PROGRESS",
+    "summary": "Project export v20 now preserves publication identities, metric snapshots and director strategies with atomic restore, stale-path remapping and v1-v19 compatibility; all Runtime and macOS architecture CI plus independent artifact verification passed. Real platform verification remains authorization-gated, while a native read-only learning presentation is still unblocked."
   },
   "next_action": {
     "sop": "SOP-10",
-    "id": "publication-learning-export-restore-core",
-    "summary": "Wait for product commit 6a68892 to pass Runtime, Apple Silicon, Intel and Universal CI, then independently verify the final packaged artifact and bind the exact evidence before selecting the next unblocked SOP item.",
+    "id": "native-publication-learning-presentation-core",
+    "summary": "Expose restored publication state, metric-window summaries and versioned next-episode director advice in a read-only, voice-readable native macOS experience without asking older adults or children to fill a professional metrics form or enabling any platform write.",
     "requires_user_authorization": false
   },
   "blocking_conditions": [

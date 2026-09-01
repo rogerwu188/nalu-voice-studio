@@ -965,9 +965,32 @@ Current evidence:
   No real provider lookup, publication, account write or paid call was performed. Still
   required before `PASS`: explicit user-authorized real platform accounts, test-channel
   publication and identity/metrics reconciliation against those remote systems on the
-  same signed and notarized candidate. Project export/restore must also preserve the new
-  learning records before this state is considered recoverable. Dry-run or local
-  verifier evidence is not a publication claim.
+  same signed and notarized candidate. Dry-run or local verifier evidence is not a
+  publication claim.
+- Commit `6a68892` evolves portable project export to v20. It preserves only the
+  completed production-source rows needed by the project’s publication identities,
+  immutable metric snapshots and complete director-strategy revision history. Import
+  verifies every inner digest and project/run/episode linkage before one atomic
+  transaction, rejects cross-project data and recomputed outer-envelope tampering, and
+  remaps stale old-machine production paths beneath the new local data root. A dedicated
+  v19 downgrade/restore case proves earlier backups remain accepted without the new
+  tables. All 116 Runtime tests, lint, OpenAPI compatibility, real HTTP smoke, SOP and
+  progress audits passed in GitHub CI run `33494844711`; Apple Silicon, Intel and
+  Universal builds, bundled-Runtime smoke, staged update and populated rollback also
+  passed.
+- The exact Universal artifact `9795485341` has GitHub artifact digest
+  `3bcde6e190bab8e1b7f992885b108560040d6518faf4f7eb01f585f4755ef72f`.
+  A fresh independent download passed a complete ZIP integrity scan and had inner ZIP
+  SHA-256 `698a57930564f1fb7cbdf246f8128bf4ed312569fe7213067392291528af9485`;
+  staged-update and rollback evidence-file SHA-256 values were
+  `f4d1812efdc2193c1a1bbf7df6bd012013fd06fb8ac6b8d160b03f48e36777a6`
+  and `9849a6abdf73de75195d88b0427af83b7abd62caeb86bc61d11eb9e95317003e`.
+  Independent extraction, strict deep signature verification and the Universal release
+  verifier passed. The native executable and bundled Runtime both contain arm64 and
+  x86_64 slices; the Runtime SHA-256 is
+  `035e43b8e1afbfa31791ca4519b2774f74eb9020d7438769875232ad58b2e610`.
+  This is ad-hoc signature evidence, not Developer ID or notarization evidence, and
+  closes the portable-learning-state checkpoint rather than SOP-10.
 
 ## SOP-11 · macOS packaging, updates and operations — IN_PROGRESS
 
