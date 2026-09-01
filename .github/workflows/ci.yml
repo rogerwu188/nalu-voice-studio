@@ -28,6 +28,7 @@ jobs:
       - run: python scripts/export-openapi.py --check
       - run: python scripts/audit_product_sop.py --json
       - run: python scripts/audit_goal_progress.py --json
+      - run: python scripts/audit_release_acceptance.py --json
       - run: python scripts/check_qingshan_upstream.py
       - name: Reproduce quarantined Qingshan candidate audit
         run: python scripts/audit_qingshan_candidate.py --json

@@ -21,8 +21,10 @@ def test_repository_goal_progress_is_consistent_with_product_sop() -> None:
     assert result["project_complete"] is False
     assert result["current_checkpoint"] == progress["current_checkpoint"]["sop"]
     assert result["next_action"] == progress["next_action"]["id"]
-    assert progress["next_action"]["requires_user_authorization"] is True
-    assert progress["waiting_authorization"]["id"]
+    if progress["next_action"]["requires_user_authorization"]:
+        assert progress["waiting_authorization"]["id"]
+    else:
+        assert progress["waiting_authorization"] is None
 
 
 def test_nonexistent_evidence_commit_is_rejected() -> None:
@@ -55,6 +57,7 @@ def test_execution_cannot_pause_while_safe_work_exists() -> None:
 def test_authorization_state_must_match_next_action() -> None:
     progress, sop_text = repository_inputs()
     missing_request = copy.deepcopy(progress)
+    missing_request["next_action"]["requires_user_authorization"] = True
     missing_request["waiting_authorization"] = None
     result = audit_goal_progress(missing_request, sop_text)
     assert result["status"] == "FAIL"
@@ -62,6 +65,10 @@ def test_authorization_state_must_match_next_action() -> None:
 
     stale_request = copy.deepcopy(progress)
     stale_request["next_action"]["requires_user_authorization"] = False
+    stale_request["waiting_authorization"] = {
+        "id": "stale-request",
+        "requested_action": "This request should have been cleared.",
+    }
     result = audit_goal_progress(stale_request, sop_text)
     assert result["status"] == "FAIL"
     assert "waiting_authorization must be null when the next action is safe" in result["failures"]

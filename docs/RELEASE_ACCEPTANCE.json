@@ -1,0 +1,16 @@
+{
+  "schema_version": "nalu.release-acceptance/v1",
+  "status": "NOT_READY",
+  "completion_eligible": false,
+  "candidate": null,
+  "required_gates": {
+    "signed_notarized_installation": {"status": "BLOCKED", "evidence": null},
+    "real_provider_reconciliation": {"status": "BLOCKED", "evidence": null},
+    "real_publication_reconciliation": {"status": "BLOCKED", "evidence": null},
+    "human_accessibility_acceptance": {"status": "BLOCKED", "evidence": null},
+    "seven_scenario_e2e": {"status": "BLOCKED", "evidence": null},
+    "clean_install_upgrade_rollback": {"status": "BLOCKED", "evidence": null},
+    "no_open_p0_p1": {"status": "BLOCKED", "evidence": null},
+    "all_sops_same_candidate": {"status": "BLOCKED", "evidence": null}
+  }
+}
