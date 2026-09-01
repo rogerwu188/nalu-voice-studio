@@ -11,29 +11,35 @@
     "TODO": 1,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "53cb81188ab00953cedf8f23b2bf12c0c19cf429",
-  "last_advanced_at": "2026-09-01T11:23:00Z",
+  "observed_head": "5df174687b3ef7fdd60eafe9709fca700bd4569a",
+  "last_advanced_at": "2026-09-01T11:42:00Z",
   "last_closed_checkpoint": {
-    "id": "publication-learning-accessibility-contract",
+    "id": "publication-learning-artifact-accessibility-gate",
     "sop": "SOP-10",
-    "product_commit": "fa0eee84700eec3e3487df33b294c3a607f35033",
-    "evidence_commit": "53cb81188ab00953cedf8f23b2bf12c0c19cf429",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33500996286",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33500996286/artifacts/9798019635",
+    "product_commit": "e2c631ac593f608cbbd85222f604edf01d7b362d",
+    "evidence_commit": "5df174687b3ef7fdd60eafe9709fca700bd4569a",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33502330720",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33502330720/artifacts/9798500816",
     "result": "PASS"
   },
   "current_checkpoint": {
     "sop": "SOP-10",
     "status": "IN_PROGRESS",
-    "summary": "The native macOS app presents digest-verified publication metrics and versioned next-episode advice as a large-text read-only card with speech readback. Deterministic client and packaged-Runtime fixtures prove the safe read path. The card now has unique stable accessibility identifiers, coherent Chinese VoiceOver labels, large-text wrapping and read-only control hints; tests and independent Universal binary inspection passed. Actual-window visual/readback/VoiceOver review and authorized real-platform verification are still missing."
+    "summary": "The native macOS app presents digest-verified publication metrics and versioned next-episode advice as a large-text read-only card with speech readback. Deterministic client and packaged-Runtime fixtures prove the safe read path. The card has unique stable accessibility identifiers, coherent Chinese VoiceOver labels, large-text wrapping and read-only control hints; every architecture artifact now fails release verification if this contract is absent. Actual-window visual/readback/VoiceOver review and authorized real-platform verification are still missing."
   },
   "next_action": {
-    "sop": "SOP-10",
-    "id": "publication-learning-artifact-accessibility-gate",
-    "summary": "Promote the seven publication-learning accessibility identifiers into the macOS release verifier so every architecture artifact fails CI if the native accessibility contract is stripped or omitted, while clearly retaining actual VoiceOver observation as a separate human gate.",
+    "sop": "SOP-07",
+    "id": "qingshan-upstream-current-release-recheck",
+    "summary": "Recheck the current Qingshan release feed and exact quarantined capability/gate evidence, productizing a corrected release only if its complete portable registry and tests pass; retain the existing pin and paid-execution block otherwise.",
     "requires_user_authorization": false
   },
   "blocking_conditions": [
+    {
+      "id": "downloaded-native-app-window-qa",
+      "sops": ["SOP-02", "SOP-10"],
+      "requires_user_authorization": true,
+      "continue_other_work": true
+    },
     {
       "id": "paid-realtime-and-provider-qa",
       "sops": ["SOP-02", "SOP-08"],
