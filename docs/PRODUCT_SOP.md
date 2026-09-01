@@ -1190,6 +1190,29 @@ Current evidence:
   staged-update and rollback evidence-file SHA-256 values are
   `421459959ce53f1ce2df6a795640ade85377c0cd88abce237115750615610b95` and
   `38a26a564440fa731addbff275d18ad8b2780d0a43aac551ce755a2efd54235d`.
+- Commit `837a1dc`, GitHub CI run `33477408218`: schema migration 18 and project-export
+  v13 add immutable administrator reconciliation for export transactions left in
+  `submitting` or `ambiguous`. It requires the original idempotency key, exact policy and
+  payload digest plus explicit confirmation, then invokes a separate read-only verifier;
+  it never calls issue creation again. A verified receipt atomically confirms the stored
+  export, while verified absence atomically rejects it. Both records state that creation
+  was not retried and reconciliation performed no external write. Wrong keys, digests or
+  confirmations fail before verification; exact replay does not re-query, conflicting
+  replay, malformed results and recomputed backup tampering fail closed. Provider response
+  bodies and verification evidence are reduced to bounded, non-secret digests/receipts.
+  The distributed verifier denies every call; found/absent tests used injected local
+  fixtures and contacted no external service. All 105 Runtime tests, OpenAPI compatibility,
+  real HTTP smoke, Swift tests, both architecture builds/smokes, staged update,
+  ten-episode schema-18 restart/rollback and universal merge passed. Universal artifact
+  `9788809600` has GitHub digest
+  `sha256:ecf6a3096ce4f2d9f25da1741f4dcb6ced151ee8cf1105c52b590d3ae9444807`;
+  its downloaded inner ZIP SHA-256 is
+  `81b8dcea473c511c285d45d661d93c09038319871d5e50b39d7f6eb5346d1520`.
+  Independent inspection reconfirmed the disabled packaged policy at SHA-256
+  `96475ba5a2908b74f2e04db512d6c097abe73453d360871cc0149287480c1146`;
+  staged-update and rollback evidence-file SHA-256 values are
+  `f37511b3721dee767ed72e1a3dac7e7af5b565b94f894863abbad410d8f7c365` and
+  `554d7c48bb1579c48ba99c11fb2fe277f312c0f448500fe867baf98644dfc05b`.
 - Still required before `PASS`: administrator-authorized external issue export, agent
   development integration after human triage, independently obtained rather than locally
   supplied review/CI/Apple/installation receipts, a real Developer ID/notarized staged

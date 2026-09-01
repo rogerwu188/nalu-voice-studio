@@ -11,26 +11,26 @@
     "TODO": 1,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "e0bbcd77976ca5e9b1c785e18bbc5bf7933855cf",
-  "last_advanced_at": "2026-09-01T06:11:00Z",
+  "observed_head": "837a1dc798a57cd26a16a3e1323df3ab49ada8bc",
+  "last_advanced_at": "2026-09-01T06:33:25Z",
   "last_closed_checkpoint": {
-    "id": "sop-13-feedback-export-transaction-core",
+    "id": "sop-13-feedback-export-reconciliation-core",
     "sop": "SOP-13",
-    "product_commit": "e0bbcd77976ca5e9b1c785e18bbc5bf7933855cf",
-    "evidence_commit": "be143faa2c08bf5074d3e34e02558fbdc1ff4531",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33475858943",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33475858943/artifacts/9788268553",
+    "product_commit": "837a1dc798a57cd26a16a3e1323df3ab49ada8bc",
+    "evidence_commit": "PENDING",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33477408218",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33477408218/artifacts/9788809600",
     "result": "PASS"
   },
   "current_checkpoint": {
     "sop": "SOP-13",
     "status": "IN_PROGRESS",
-    "summary": "Authorized review bundles and human triage now feed a disabled-by-default, persistent issue-export transaction boundary that quarantines ambiguous results and cannot contact a real service in the distributed application. SOP-13 remains open for authorized real export, reconciliation, development integration, independently obtained receipts and a signed/notarized rollout."
+    "summary": "Uncertain feedback exports now have an immutable read-only reconciliation path that confirms or rejects without retrying issue creation; both the production exporter and verifier remain disabled in the distributed application. SOP-13 remains open for authorized real export, development integration, independently obtained receipts and a signed/notarized rollout."
   },
   "next_action": {
     "sop": "SOP-13",
-    "id": "feedback-export-reconciliation-core",
-    "summary": "Implement an immutable administrator reconciliation path for submitting or ambiguous feedback exports: verify an independently supplied allowlisted remote issue receipt, confirm or reject the local transaction without retrying the external write, preserve the evidence through backup/restore, and test only with local fixtures.",
+    "id": "feedback-development-work-order-core",
+    "summary": "Implement an immutable, human-approved local development work order that binds one accepted triage and confirmed export receipt to scoped acceptance tests and privacy/accessibility requirements, while keeping report text inert and forbidding automatic tool use, branch creation, code edits, merge, signing or release.",
     "requires_user_authorization": false
   },
   "blocking_conditions": [
