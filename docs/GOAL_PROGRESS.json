@@ -11,26 +11,26 @@
     "TODO": 1,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "577ff14f94b1aa6cf91592aa85d7f8d8c403e802",
-  "last_advanced_at": "2026-09-01T10:41:00Z",
+  "observed_head": "356a2a5f222556d9c9ea311068558228ba8e626b",
+  "last_advanced_at": "2026-09-01T10:56:00Z",
   "last_closed_checkpoint": {
-    "id": "publication-learning-native-client-integration-tests",
+    "id": "publication-learning-native-qa-fixture",
     "sop": "SOP-10",
-    "product_commit": "b4587a776b9f01e4c433cb67885fb55068b77121",
-    "evidence_commit": "577ff14f94b1aa6cf91592aa85d7f8d8c403e802",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33497842560",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33497842560/artifacts/9796643058",
+    "product_commit": "201e87922ff95260012ba92473f18a1f73162e66",
+    "evidence_commit": "356a2a5f222556d9c9ea311068558228ba8e626b",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33499198671",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33499198671/artifacts/9797143801",
     "result": "PASS"
   },
   "current_checkpoint": {
     "sop": "SOP-10",
     "status": "IN_PROGRESS",
-    "summary": "The native macOS app presents digest-verified publication metrics and versioned next-episode advice as a large-text read-only card with speech readback. Deterministic native HTTP fixtures now prove the exact strategy-list and metric-fetch sequence plus fail-closed rejection of write-capable or digest-mismatched responses. Runtime, Swift, Apple Silicon, Intel, Universal, staged-update and rollback CI plus independent artifact verification passed; an isolated populated-data actual-window accessibility check and authorized real-platform verification are still missing."
+    "summary": "The native macOS app presents digest-verified publication metrics and versioned next-episode advice as a large-text read-only card with speech readback. Deterministic native HTTP fixtures prove the exact read sequence and fail-closed validation; a temporary-directory-only populated SQLite fixture can now be selected explicitly without touching the user's library or attaching to an unrelated Runtime. Runtime, Swift, Apple Silicon, Intel, Universal, staged-update and rollback CI plus independent artifact verification passed; packaged-Runtime fixture smoke, actual-window readback/VoiceOver review and authorized real-platform verification are still missing."
   },
   "next_action": {
     "sop": "SOP-10",
-    "id": "publication-learning-native-qa-fixture",
-    "summary": "Add an explicitly enabled, temporary-directory-only local QA data root and deterministic publication-learning fixture generator so actual-window large-text, readback and VoiceOver checks cannot touch a user's SQLite database or contact a provider.",
+    "id": "publication-learning-packaged-runtime-fixture-smoke",
+    "summary": "Run the generated publication-learning SQLite fixture through the Runtime embedded in every macOS build and the merged Universal artifact, asserting digest-valid read-only strategy and metrics responses before requesting confirmation to launch the downloaded app for actual-window accessibility QA.",
     "requires_user_authorization": false
   },
   "blocking_conditions": [
