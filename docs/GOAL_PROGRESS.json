@@ -17,7 +17,7 @@
     "id": "sop-07-qingshan-v2026-09-01-candidate-quarantine-audit",
     "sop": "SOP-07",
     "product_commit": "a567ee54dc70b6792dcc8bd2518539c27beb4ff2",
-    "evidence_commit": "8b7eff8dc27df11947ed5e340d5d134498b040c8",
+    "evidence_commit": "8b7eff874975412130ec9601322a869b80571968",
     "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33489248611",
     "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33489248611/artifacts/9793232570",
     "result": "PASS"
