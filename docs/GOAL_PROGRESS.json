@@ -17,7 +17,7 @@
     "id": "sop-11-verified-update-discovery-core",
     "sop": "SOP-11",
     "product_commit": "e8be5e3bc0c34adb528620ef1b2f5d0595c53fad",
-    "evidence_commit": "PENDING",
+    "evidence_commit": "1e568464e6a8639468882a493cd81e8c716fd32c",
     "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33471853902",
     "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33471853902/artifacts/9786896858",
     "result": "PASS"
