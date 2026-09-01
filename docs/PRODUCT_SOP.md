@@ -1304,6 +1304,25 @@ Current evidence:
   staged-update and rollback evidence-file SHA-256 values are
   `c502ca98acbc9e4231cfcc80fa2ba43b69315b34ec72b9693272f65dfc03f251` and
   `19e3de652d0a8d42fcd257d1ddf80550886a81f24d284c99ec0dde36c91ddc38`.
+- Commit `8ad807e`, GitHub CI run `33484426958`: project-export v18 now binds every
+  new local release-evidence linkage to the immutable verified development-result
+  record. Repository, pull-request URL, commit and test-evidence digest must match
+  exactly; the linkage request and record hash-bind the development-result digest.
+  Import validates both records independently and then cross-validates them, so a
+  recomputed backup that substitutes a different review URL is rejected. Backups
+  through v17 remain compatible and no SQLite schema migration was required. All 111
+  Runtime tests, OpenAPI compatibility, real HTTP smoke, Swift tests, arm64/x86_64
+  builds and bundle smokes, staged update, ten-episode schema-22 restart/rollback and
+  universal merge passed. Universal artifact `9791377499` has GitHub digest
+  `sha256:cb522bbf7aa6c0768ee0a096caa460ab90858b95e612a9bb53d6e2fe67966c12`;
+  its downloaded inner ZIP SHA-256 is
+  `50dd23aa7a93243592f61a8be211a4494b7da490c7db1a87a77ed04157d63c98`.
+  Independent inspection reconfirmed the disabled handoff and issue-export policies at
+  SHA-256 `b4836edda2f612f20b0e7221177d3d346f15eb64887b1eca804d0050dd2bd14e`
+  and `96475ba5a2908b74f2e04db512d6c097abe73453d360871cc0149287480c1146`;
+  staged-update and rollback evidence-file SHA-256 values are
+  `7b58b93f477e8684a091f6957be6293e9d56abf48fe283072a78a46abb2d21bc` and
+  `da7cf2fb1850b6f289de0b2e31a75607b3c637f86bef28d594e4196a984f5d4a`.
 - Still required before `PASS`: administrator-authorized external issue export, agent
   development integration after human triage, independently obtained rather than locally
   supplied review/CI/Apple/installation receipts, a real Developer ID/notarized staged
