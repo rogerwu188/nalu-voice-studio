@@ -930,6 +930,31 @@ Current evidence:
   master and real consented references; native-window/accessibility repetition after the
   Mac is unlocked; and
   original-resolution human audiovisual review on the same release candidate.
+- Commit `1fb6757` removes client assertions as semantic-ASR release authority. The
+  Runtime now requires a registered local recognizer execution against the exact sealed
+  master, independently fingerprints its decoded audio, hashes the recognizer executable
+  and complete timestamped output, and stores a nested canonical execution digest inside
+  the immutable QA report. Missing recognizers, mismatched client claims, different
+  master/audio, invalid executable digests and any network-used execution fail closed.
+  Stored reports are revalidated against the current sealed master; even an attacker who
+  recomputes both the nested and outer report digests cannot turn network recognition or
+  a different audio fingerprint into release evidence. Old `/v1` response consumers
+  remain schema-compatible, while old reports without execution evidence cannot authorize
+  completion or release. All 130 Runtime tests, lint, OpenAPI freshness/backward
+  compatibility, real HTTP smoke, SOP/progress audits, Swift tests, independent arm64 and
+  x86_64 builds/smokes, and universal merge passed in GitHub CI run `33506251878`
+  (jobs `99850917149`, `99850917480`, `99850917671`, `99852261808`).
+- Exact universal artifact `9799897045` has GitHub digest
+  `48d4a3002c0914880cc7697cf63c9dbbc37a59dcc2e854a071978fff984f66e7` and inner ZIP
+  SHA-256 `3b3119eaffe3abc0d657295ee593ddd3b74fa0e71b0339cabd10dcb2f859872f`.
+  Its bundled Runtime SHA-256 is
+  `753811281d8525acdacb060cedd6b8c61f07038e5399ca7828b44d839501da45`, contains both
+  arm64 and x86_64 slices, and its recursive PyInstaller archive lists
+  `nalu_runtime.semantic_recognizer`, `nalu_runtime.engine` and `nalu_runtime.app`.
+  The downloaded application was not launched because user confirmation for executing
+  newly downloaded software remains pending. This closes only the untrusted-provenance
+  checkpoint: a packaged production Apple on-device recognizer, real-master semantic QA
+  and original-resolution human audiovisual review remain required for SOP-09 `PASS`.
 
 ## SOP-10 · Controlled release and learning loop — IN_PROGRESS
 
