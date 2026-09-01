@@ -15,7 +15,14 @@ from pathlib import Path
 
 
 def run(*arguments: str, check: bool = True) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(arguments, check=check, capture_output=True, text=True)
+    result = subprocess.run(arguments, check=False, capture_output=True, text=True)
+    if check and result.returncode != 0:
+        command = " ".join(arguments)
+        raise RuntimeError(
+            f"command failed ({result.returncode}): {command}\n"
+            f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+        )
+    return result
 
 
 def digest(path: Path) -> str:
@@ -87,12 +94,14 @@ def main() -> int:
         package = root / "Nalu-Voice-Studio-update.zip"
         run("/usr/bin/ditto", "-c", "-k", "--keepParent", str(candidate), str(package))
         signer = root / "qa-update-fixture-signer"
+        signer_main = root / "main.swift"
+        shutil.copy2(repository / "scripts/qa-update-fixture-signer.swift", signer_main)
         sources = sorted((repository / "apps/macos/Sources/NaluUpdateCore").glob("*.swift"))
         run(
             "/usr/bin/xcrun",
             "swiftc",
             *(str(path) for path in sources),
-            str(repository / "scripts/qa-update-fixture-signer.swift"),
+            str(signer_main),
             "-o",
             str(signer),
         )
