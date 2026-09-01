@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, Literal, Protocol
 from urllib.parse import urlsplit
 
 
@@ -86,6 +86,23 @@ class DevelopmentHandoffTransport(Protocol):
     ) -> DevelopmentHandoffTransportReceipt: ...
 
 
+@dataclass(frozen=True)
+class DevelopmentHandoffLookup:
+    outcome: Literal["found", "absent"]
+    receipt: DevelopmentHandoffTransportReceipt | None
+    evidence: dict[str, Any]
+
+
+class DevelopmentHandoffReconciliationVerifier(Protocol):
+    def lookup_work_order(
+        self,
+        *,
+        endpoint: str,
+        payload_sha256: str,
+        idempotency_key: str,
+    ) -> DevelopmentHandoffLookup: ...
+
+
 class DisabledDevelopmentHandoffTransport:
     def submit_work_order(
         self,
@@ -96,4 +113,17 @@ class DisabledDevelopmentHandoffTransport:
     ) -> DevelopmentHandoffTransportReceipt:
         raise DevelopmentHandoffPolicyError(
             "no authorized development handoff transport is configured"
+        )
+
+
+class DisabledDevelopmentHandoffReconciliationVerifier:
+    def lookup_work_order(
+        self,
+        *,
+        endpoint: str,
+        payload_sha256: str,
+        idempotency_key: str,
+    ) -> DevelopmentHandoffLookup:
+        raise DevelopmentHandoffPolicyError(
+            "no authorized development handoff reconciliation verifier is configured"
         )

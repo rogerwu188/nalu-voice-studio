@@ -12,7 +12,9 @@ from .continuity import audit_continuity
 from .database import Database
 from .development_handoff import (
     DevelopmentHandoffPolicy,
+    DevelopmentHandoffReconciliationVerifier,
     DevelopmentHandoffTransport,
+    DisabledDevelopmentHandoffReconciliationVerifier,
     DisabledDevelopmentHandoffTransport,
 )
 from .engine import ProductionService
@@ -52,6 +54,8 @@ from .models import (
     FeedbackCreate,
     FeedbackDevelopmentHandoffCreate,
     FeedbackDevelopmentHandoffReceipt,
+    FeedbackDevelopmentHandoffReconciliationCreate,
+    FeedbackDevelopmentHandoffReconciliationRecord,
     FeedbackDevelopmentWorkOrder,
     FeedbackDevelopmentWorkOrderCreate,
     FeedbackExternalExportCreate,
@@ -137,6 +141,9 @@ def create_app(
     issue_tracker_reconciliation_verifier: IssueTrackerReconciliationVerifier | None = None,
     development_handoff_policy: DevelopmentHandoffPolicy | None = None,
     development_handoff_transport: DevelopmentHandoffTransport | None = None,
+    development_handoff_reconciliation_verifier: (
+        DevelopmentHandoffReconciliationVerifier | None
+    ) = None,
 ) -> FastAPI:
     repository_root = Path(
         os.environ.get("NALU_REPOSITORY_ROOT", Path(__file__).resolve().parents[3])
@@ -184,6 +191,10 @@ def create_app(
     development_handoff_transport = (
         development_handoff_transport or DisabledDevelopmentHandoffTransport()
     )
+    development_handoff_reconciliation_verifier = (
+        development_handoff_reconciliation_verifier
+        or DisabledDevelopmentHandoffReconciliationVerifier()
+    )
 
     app = FastAPI(
         title="Nalu Voice Studio Runtime API",
@@ -198,6 +209,9 @@ def create_app(
     app.state.issue_tracker_reconciliation_verifier = issue_tracker_reconciliation_verifier
     app.state.development_handoff_policy = development_handoff_policy
     app.state.development_handoff_transport = development_handoff_transport
+    app.state.development_handoff_reconciliation_verifier = (
+        development_handoff_reconciliation_verifier
+    )
 
     @app.exception_handler(NotFoundError)
     async def not_found_handler(_request, exc: NotFoundError):
@@ -382,6 +396,33 @@ def create_app(
         feedback_id: str,
     ) -> FeedbackDevelopmentHandoffReceipt:
         return repository.get_feedback_development_handoff(feedback_id)
+
+    @app.post(
+        "/v1/feedback/{feedback_id}/development-handoff/reconciliation",
+        response_model=FeedbackDevelopmentHandoffReconciliationRecord,
+        status_code=201,
+    )
+    def reconcile_feedback_development_handoff(
+        feedback_id: str,
+        request: FeedbackDevelopmentHandoffReconciliationCreate,
+        idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    ) -> FeedbackDevelopmentHandoffReconciliationRecord:
+        return repository.reconcile_feedback_development_handoff(
+            feedback_id,
+            request,
+            idempotency_key,
+            development_handoff_policy,
+            development_handoff_reconciliation_verifier,
+        )
+
+    @app.get(
+        "/v1/feedback/{feedback_id}/development-handoff/reconciliation",
+        response_model=FeedbackDevelopmentHandoffReconciliationRecord,
+    )
+    def get_feedback_development_handoff_reconciliation(
+        feedback_id: str,
+    ) -> FeedbackDevelopmentHandoffReconciliationRecord:
+        return repository.get_feedback_development_handoff_reconciliation(feedback_id)
 
     @app.post(
         "/v1/feedback/{feedback_id}/release-linkage",

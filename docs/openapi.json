@@ -1872,6 +1872,178 @@
         "title": "FeedbackDevelopmentHandoffReceipt",
         "type": "object"
       },
+      "FeedbackDevelopmentHandoffReconciliationCreate": {
+        "properties": {
+          "confirmation_text": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Confirmation Text",
+            "type": "string"
+          },
+          "payload_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Payload Sha256",
+            "type": "string"
+          },
+          "reconciled_at": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Reconciled At",
+            "type": "string"
+          },
+          "reconciled_by": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Reconciled By",
+            "type": "string"
+          }
+        },
+        "required": [
+          "payload_sha256",
+          "confirmation_text",
+          "reconciled_by",
+          "reconciled_at"
+        ],
+        "title": "FeedbackDevelopmentHandoffReconciliationCreate",
+        "type": "object"
+      },
+      "FeedbackDevelopmentHandoffReconciliationRecord": {
+        "properties": {
+          "confirmation_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Confirmation Sha256",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "external_write_performed": {
+            "const": false,
+            "default": false,
+            "title": "External Write Performed",
+            "type": "boolean"
+          },
+          "feedback_id": {
+            "title": "Feedback Id",
+            "type": "string"
+          },
+          "handoff_request_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Handoff Request Sha256",
+            "type": "string"
+          },
+          "idempotency_key_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Idempotency Key Sha256",
+            "type": "string"
+          },
+          "outcome": {
+            "enum": [
+              "confirmed",
+              "verified_absent"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          },
+          "payload_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Payload Sha256",
+            "type": "string"
+          },
+          "read_only_verification_performed": {
+            "const": true,
+            "default": true,
+            "title": "Read Only Verification Performed",
+            "type": "boolean"
+          },
+          "reconciled_at": {
+            "title": "Reconciled At",
+            "type": "string"
+          },
+          "reconciled_by": {
+            "title": "Reconciled By",
+            "type": "string"
+          },
+          "record_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Record Sha256",
+            "type": "string"
+          },
+          "remote_task_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remote Task Id"
+          },
+          "remote_task_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remote Task Url"
+          },
+          "request_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Request Sha256",
+            "type": "string"
+          },
+          "response_sha256": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Response Sha256"
+          },
+          "schema_version": {
+            "const": "nalu.feedback-development-handoff-reconciliation/v1",
+            "default": "nalu.feedback-development-handoff-reconciliation/v1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "verification_evidence_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Verification Evidence Sha256",
+            "type": "string"
+          },
+          "work_order_submission_retried": {
+            "const": false,
+            "default": false,
+            "title": "Work Order Submission Retried",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "feedback_id",
+          "handoff_request_sha256",
+          "payload_sha256",
+          "outcome",
+          "verification_evidence_sha256",
+          "reconciled_by",
+          "reconciled_at",
+          "idempotency_key_sha256",
+          "confirmation_sha256",
+          "request_sha256",
+          "record_sha256",
+          "created_at"
+        ],
+        "title": "FeedbackDevelopmentHandoffReconciliationRecord",
+        "type": "object"
+      },
       "FeedbackDevelopmentWorkOrder": {
         "properties": {
           "acceptance_tests": {
@@ -5295,7 +5467,7 @@
             "type": "string"
           },
           "schema_version": {
-            "default": "nalu.project-export/v15",
+            "default": "nalu.project-export/v16",
             "enum": [
               "nalu.project-export/v1",
               "nalu.project-export/v2",
@@ -5311,7 +5483,8 @@
               "nalu.project-export/v12",
               "nalu.project-export/v13",
               "nalu.project-export/v14",
-              "nalu.project-export/v15"
+              "nalu.project-export/v15",
+              "nalu.project-export/v16"
             ],
             "title": "Schema Version",
             "type": "string"
@@ -8175,6 +8348,108 @@
           }
         },
         "summary": "Handoff Feedback To Development"
+      }
+    },
+    "/v1/feedback/{feedback_id}/development-handoff/reconciliation": {
+      "get": {
+        "operationId": "get_feedback_development_handoff_reconciliation_v1_feedback__feedback_id__development_handoff_reconciliation_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "feedback_id",
+            "required": true,
+            "schema": {
+              "title": "Feedback Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackDevelopmentHandoffReconciliationRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Feedback Development Handoff Reconciliation"
+      },
+      "post": {
+        "operationId": "reconcile_feedback_development_handoff_v1_feedback__feedback_id__development_handoff_reconciliation_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "feedback_id",
+            "required": true,
+            "schema": {
+              "title": "Feedback Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedbackDevelopmentHandoffReconciliationCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackDevelopmentHandoffReconciliationRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reconcile Feedback Development Handoff"
       }
     },
     "/v1/feedback/{feedback_id}/development-work-order": {

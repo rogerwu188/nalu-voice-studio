@@ -5,6 +5,7 @@ import pytest
 from nalu_runtime.development_handoff import (
     DevelopmentHandoffPolicy,
     DevelopmentHandoffPolicyError,
+    DisabledDevelopmentHandoffReconciliationVerifier,
     DisabledDevelopmentHandoffTransport,
 )
 
@@ -32,6 +33,12 @@ def test_packaged_development_handoff_is_disabled_and_target_free() -> None:
         DisabledDevelopmentHandoffTransport().submit_work_order(
             endpoint="https://developer.example.test/api/development-work-orders",
             payload={},
+            idempotency_key="disabled-handoff-0001",
+        )
+    with pytest.raises(DevelopmentHandoffPolicyError):
+        DisabledDevelopmentHandoffReconciliationVerifier().lookup_work_order(
+            endpoint="https://developer.example.test/api/development-work-orders",
+            payload_sha256="0" * 64,
             idempotency_key="disabled-handoff-0001",
         )
 

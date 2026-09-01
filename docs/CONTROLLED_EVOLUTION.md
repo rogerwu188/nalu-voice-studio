@@ -97,6 +97,15 @@ confirmed replay makes no second call. Any timeout, malformed receipt or uncerta
 becomes `ambiguous`, and automatic retry is forbidden. Automated tests use injected local
 fixtures only, so this boundary is not evidence of a real development-agent handoff.
 
+An uncertain development handoff is never submitted again. A separate read-only verifier
+must receive the original idempotency key, exact payload digest and same allowlisted policy
+after another explicit administrator confirmation. It may return a bounded credential-free
+HTTPS receipt or independently verify absence. Nalu atomically changes the transaction to
+`confirmed` or `rejected` and stores an immutable reconciliation which states that work-
+order submission was not retried and reconciliation made no external write. Exact replay
+does not query again. The packaged verifier denies all calls; found/absent tests inject
+local fixtures only and therefore do not claim a real remote lookup.
+
 A separate local `qa_evidence_linked` receipt can bind the immutable review-bundle hash
 to one reviewed 40-character change commit, the exact successful CI head and artifact,
 an installed Developer ID/notarization/Gatekeeper receipt and an older-build rollback

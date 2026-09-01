@@ -12,7 +12,11 @@ from uuid import uuid4
 from .continuity import ending_hooks_match_review
 from .continuity_extraction import extract_semantic_ending_continuity
 from .database import Database
-from .development_handoff import DevelopmentHandoffPolicy, DevelopmentHandoffTransport
+from .development_handoff import (
+    DevelopmentHandoffPolicy,
+    DevelopmentHandoffReconciliationVerifier,
+    DevelopmentHandoffTransport,
+)
 from .feedback_export import (
     FeedbackExportPolicy,
     IssueTrackerReconciliationVerifier,
@@ -45,6 +49,8 @@ from .models import (
     FeedbackCreate,
     FeedbackDevelopmentHandoffCreate,
     FeedbackDevelopmentHandoffReceipt,
+    FeedbackDevelopmentHandoffReconciliationCreate,
+    FeedbackDevelopmentHandoffReconciliationRecord,
     FeedbackDevelopmentWorkOrder,
     FeedbackDevelopmentWorkOrderCreate,
     FeedbackExternalExportCreate,
@@ -551,6 +557,12 @@ class Repository:
                    WHERE f.project_id = ?""",
                 (project_id,),
             ),
+            "feedback_development_handoff_reconciliations": (
+                """SELECT r.* FROM feedback_development_handoff_reconciliations r
+                   JOIN feedback_items f ON f.id = r.feedback_id
+                   WHERE f.project_id = ?""",
+                (project_id,),
+            ),
             "memory_cards": (
                 "SELECT * FROM memory_cards WHERE project_id = ?",
                 (project_id,),
@@ -807,6 +819,13 @@ class Repository:
                 "created_at",
                 "updated_at",
             ),
+            "feedback_development_handoff_reconciliations": (
+                "feedback_id",
+                "request_sha256",
+                "record_json",
+                "record_sha256",
+                "created_at",
+            ),
             "memory_cards": (
                 "id",
                 "project_id",
@@ -993,6 +1012,24 @@ class Repository:
             "nalu.project-export/v14",
         }:
             allowed_columns.pop("feedback_development_handoffs")
+        if backup.schema_version in {
+            "nalu.project-export/v1",
+            "nalu.project-export/v2",
+            "nalu.project-export/v3",
+            "nalu.project-export/v4",
+            "nalu.project-export/v5",
+            "nalu.project-export/v6",
+            "nalu.project-export/v7",
+            "nalu.project-export/v8",
+            "nalu.project-export/v9",
+            "nalu.project-export/v10",
+            "nalu.project-export/v11",
+            "nalu.project-export/v12",
+            "nalu.project-export/v13",
+            "nalu.project-export/v14",
+            "nalu.project-export/v15",
+        }:
+            allowed_columns.pop("feedback_development_handoff_reconciliations")
         if backup.schema_version in {
             "nalu.project-export/v1",
             "nalu.project-export/v2",
@@ -1397,6 +1434,7 @@ class Repository:
             ):
                 raise ConflictError("development work order request digest does not match")
             feedback_development_work_orders[work_order.feedback_id] = work_order
+        feedback_development_handoffs: dict[str, dict[str, Any]] = {}
         for row in backup.payload.get("feedback_development_handoffs", []):
             work_order = feedback_development_work_orders.get(row.get("feedback_id"))
             try:
@@ -1437,7 +1475,12 @@ class Repository:
                 "request_sha256"
             ):
                 raise ConflictError("development handoff request digest does not match")
-            if row.get("state") not in {"submitting", "ambiguous", "confirmed"}:
+            if row.get("state") not in {
+                "submitting",
+                "ambiguous",
+                "confirmed",
+                "rejected",
+            }:
                 raise ConflictError("project export contains invalid development handoff state")
             receipt_fields = (
                 row.get("response_json"),
@@ -1470,6 +1513,63 @@ class Repository:
                     raise ConflictError("confirmed development handoff receipt is invalid")
             elif any(value is not None for value in receipt_fields):
                 raise ConflictError("unconfirmed development handoff contains a receipt")
+            feedback_development_handoffs[row["feedback_id"]] = row
+        for row in backup.payload.get(
+            "feedback_development_handoff_reconciliations", []
+        ):
+            try:
+                record_body = decode(row.get("record_json", ""))
+                record = FeedbackDevelopmentHandoffReconciliationRecord.model_validate(
+                    {**record_body, "record_sha256": row.get("record_sha256")}
+                )
+            except (TypeError, json.JSONDecodeError, ValueError) as exc:
+                raise ConflictError(
+                    "project export contains invalid development handoff reconciliation"
+                ) from exc
+            handoff = feedback_development_handoffs.get(row.get("feedback_id"))
+            if (
+                handoff is None
+                or record.feedback_id != row.get("feedback_id")
+                or record.handoff_request_sha256 != handoff.get("request_sha256")
+                or record.payload_sha256 != handoff.get("payload_sha256")
+                or record.idempotency_key_sha256
+                != handoff.get("idempotency_key_sha256")
+                or record.request_sha256 != row.get("request_sha256")
+                or hashlib.sha256(encode(record_body).encode()).hexdigest()
+                != row.get("record_sha256")
+            ):
+                raise ConflictError(
+                    "project export contains tampered development handoff reconciliation"
+                )
+            reconciliation_request = {
+                "feedback_id": record.feedback_id,
+                "handoff_request_sha256": record.handoff_request_sha256,
+                "payload_sha256": record.payload_sha256,
+                "reconciled_by": record.reconciled_by,
+                "reconciled_at": record.reconciled_at,
+                "idempotency_key_sha256": record.idempotency_key_sha256,
+                "confirmation_sha256": record.confirmation_sha256,
+            }
+            if (
+                hashlib.sha256(encode(reconciliation_request).encode()).hexdigest()
+                != record.request_sha256
+            ):
+                raise ConflictError(
+                    "development handoff reconciliation request digest does not match"
+                )
+            if record.outcome == "confirmed" and (
+                handoff.get("state") != "confirmed"
+                or record.remote_task_id != handoff.get("remote_task_id")
+                or record.remote_task_url != handoff.get("remote_task_url")
+                or record.response_sha256 != handoff.get("response_sha256")
+            ):
+                raise ConflictError(
+                    "confirmed development handoff reconciliation does not match receipt"
+                )
+            if record.outcome == "verified_absent" and handoff.get("state") != "rejected":
+                raise ConflictError(
+                    "absent development handoff reconciliation does not match state"
+                )
         if any(
             row.get("project_id") != project_id or row.get("asset_id") not in asset_ids
             for row in backup.payload.get("memory_cards", [])
@@ -2704,6 +2804,241 @@ class Repository:
             created_at=row["created_at"],
             updated_at=row["updated_at"],
         )
+
+    @staticmethod
+    def _explicit_development_handoff_reconciliation_confirmation(value: str) -> bool:
+        normalized = "".join(value.lower().split())
+        return any(
+            phrase in normalized
+            for phrase in (
+                "我确认核对开发交接结果",
+                "我同意保存开发交接对账",
+                "确认开发工单对账",
+            )
+        )
+
+    def reconcile_feedback_development_handoff(
+        self,
+        feedback_id: str,
+        request: FeedbackDevelopmentHandoffReconciliationCreate,
+        idempotency_key: str | None,
+        policy: DevelopmentHandoffPolicy,
+        verifier: DevelopmentHandoffReconciliationVerifier,
+    ) -> FeedbackDevelopmentHandoffReconciliationRecord:
+        policy.validate()
+        if not policy.enabled or not policy.administrator_authorized:
+            raise ConflictError("development handoff reconciliation is disabled")
+        if idempotency_key is None or not 16 <= len(idempotency_key.strip()) <= 200:
+            raise ConflictError("a stable 16-200 character idempotency key is required")
+        if idempotency_key != idempotency_key.strip():
+            raise ConflictError("idempotency key must not have surrounding whitespace")
+        if not self._explicit_development_handoff_reconciliation_confirmation(
+            request.confirmation_text
+        ):
+            raise ConflictError(
+                "development handoff reconciliation requires explicit confirmation"
+            )
+        self.get_feedback(feedback_id)
+        with self.db.connect() as connection:
+            handoff = connection.execute(
+                "SELECT * FROM feedback_development_handoffs WHERE feedback_id = ?",
+                (feedback_id,),
+            ).fetchone()
+        if handoff is None:
+            raise NotFoundError("feedback development handoff not found")
+        if request.payload_sha256 != handoff["payload_sha256"]:
+            raise ConflictError("development handoff reconciliation payload digest differs")
+        idempotency_key_sha256 = hashlib.sha256(idempotency_key.encode()).hexdigest()
+        if idempotency_key_sha256 != handoff["idempotency_key_sha256"]:
+            raise ConflictError(
+                "development handoff reconciliation idempotency key does not match"
+            )
+        policy_body = {
+            "schema_version": policy.schema_version,
+            "enabled": policy.enabled,
+            "administrator_authorized": policy.administrator_authorized,
+            "provider": policy.provider,
+            "endpoint": policy.endpoint,
+            "max_payload_bytes": policy.max_payload_bytes,
+        }
+        if hashlib.sha256(encode(policy_body).encode()).hexdigest() != handoff[
+            "policy_sha256"
+        ]:
+            raise ConflictError("development handoff reconciliation policy differs")
+        reconciled_by, _ = self._redact_feedback_message(request.reconciled_by)
+        confirmation_sha256 = hashlib.sha256(
+            request.confirmation_text.strip().encode()
+        ).hexdigest()
+        request_body = {
+            "feedback_id": feedback_id,
+            "handoff_request_sha256": handoff["request_sha256"],
+            "payload_sha256": request.payload_sha256,
+            "reconciled_by": reconciled_by,
+            "reconciled_at": request.reconciled_at,
+            "idempotency_key_sha256": idempotency_key_sha256,
+            "confirmation_sha256": confirmation_sha256,
+        }
+        request_sha256 = hashlib.sha256(encode(request_body).encode()).hexdigest()
+        with self.db.connect() as connection:
+            existing = connection.execute(
+                """SELECT * FROM feedback_development_handoff_reconciliations
+                   WHERE feedback_id = ?""",
+                (feedback_id,),
+            ).fetchone()
+        if existing is not None:
+            if existing["request_sha256"] != request_sha256:
+                raise ConflictError(
+                    "development handoff already has different reconciliation"
+                )
+            return self.get_feedback_development_handoff_reconciliation(feedback_id)
+        if handoff["state"] not in {"submitting", "ambiguous"}:
+            raise ConflictError("only an uncertain development handoff can be reconciled")
+
+        try:
+            lookup = verifier.lookup_work_order(
+                endpoint=policy.endpoint,
+                payload_sha256=request.payload_sha256,
+                idempotency_key=idempotency_key,
+            )
+        except Exception as exc:
+            raise ConflictError(
+                "development handoff reconciliation could not determine the outcome"
+            ) from exc
+        evidence_json = encode(lookup.evidence)
+        if not lookup.evidence or len(evidence_json.encode()) > policy.max_payload_bytes:
+            raise ConflictError(
+                "development handoff reconciliation evidence is missing or too large"
+            )
+        evidence_sha256 = hashlib.sha256(evidence_json.encode()).hexdigest()
+        remote_task_id: str | None = None
+        remote_task_url: str | None = None
+        response_json: str | None = None
+        response_sha256: str | None = None
+        if lookup.outcome == "found" and lookup.receipt is not None:
+            receipt = lookup.receipt
+            parsed = urlsplit(receipt.remote_task_url)
+            if (
+                not receipt.remote_task_id
+                or len(receipt.remote_task_id) > 160
+                or parsed.scheme != "https"
+                or not parsed.hostname
+                or parsed.username is not None
+                or parsed.password is not None
+                or parsed.query
+                or parsed.fragment
+            ):
+                raise ConflictError(
+                    "development handoff reconciliation returned an invalid receipt"
+                )
+            response_json = encode(
+                {
+                    "remote_task_id": receipt.remote_task_id,
+                    "remote_task_url": receipt.remote_task_url,
+                }
+            )
+            if len(response_json.encode()) > policy.max_payload_bytes:
+                raise ConflictError(
+                    "development handoff reconciliation response is too large"
+                )
+            response_sha256 = hashlib.sha256(response_json.encode()).hexdigest()
+            remote_task_id = receipt.remote_task_id
+            remote_task_url = receipt.remote_task_url
+            outcome = "confirmed"
+            new_state = "confirmed"
+            error = None
+        elif lookup.outcome == "absent" and lookup.receipt is None:
+            outcome = "verified_absent"
+            new_state = "rejected"
+            error = "verified_absent"
+        else:
+            raise ConflictError(
+                "development handoff reconciliation result is internally inconsistent"
+            )
+
+        now = utc_now()
+        record_body = {
+            "schema_version": "nalu.feedback-development-handoff-reconciliation/v1",
+            "feedback_id": feedback_id,
+            "handoff_request_sha256": handoff["request_sha256"],
+            "payload_sha256": request.payload_sha256,
+            "outcome": outcome,
+            "remote_task_id": remote_task_id,
+            "remote_task_url": remote_task_url,
+            "response_sha256": response_sha256,
+            "verification_evidence_sha256": evidence_sha256,
+            "read_only_verification_performed": True,
+            "work_order_submission_retried": False,
+            "external_write_performed": False,
+            "reconciled_by": reconciled_by,
+            "reconciled_at": request.reconciled_at,
+            "idempotency_key_sha256": idempotency_key_sha256,
+            "confirmation_sha256": confirmation_sha256,
+            "request_sha256": request_sha256,
+            "created_at": now,
+        }
+        record_sha256 = hashlib.sha256(encode(record_body).encode()).hexdigest()
+        try:
+            with self.db.connect() as connection:
+                connection.execute("BEGIN IMMEDIATE")
+                updated = connection.execute(
+                    """UPDATE feedback_development_handoffs
+                       SET state = ?, response_json = ?, response_sha256 = ?,
+                           remote_task_id = ?, remote_task_url = ?, error = ?, updated_at = ?
+                       WHERE feedback_id = ? AND state IN ('submitting', 'ambiguous')""",
+                    (
+                        new_state,
+                        response_json,
+                        response_sha256,
+                        remote_task_id,
+                        remote_task_url,
+                        error,
+                        now,
+                        feedback_id,
+                    ),
+                )
+                if updated.rowcount != 1:
+                    raise ConflictError(
+                        "development handoff state changed during reconciliation"
+                    )
+                connection.execute(
+                    """INSERT INTO feedback_development_handoff_reconciliations
+                       VALUES (?, ?, ?, ?, ?)""",
+                    (
+                        feedback_id,
+                        request_sha256,
+                        encode(record_body),
+                        record_sha256,
+                        now,
+                    ),
+                )
+                connection.commit()
+        except sqlite3.IntegrityError as exc:
+            raise ConflictError(
+                "development handoff was reconciled concurrently"
+            ) from exc
+        record_body["record_sha256"] = record_sha256
+        return FeedbackDevelopmentHandoffReconciliationRecord.model_validate(record_body)
+
+    def get_feedback_development_handoff_reconciliation(
+        self, feedback_id: str
+    ) -> FeedbackDevelopmentHandoffReconciliationRecord:
+        self.get_feedback(feedback_id)
+        with self.db.connect() as connection:
+            row = connection.execute(
+                """SELECT * FROM feedback_development_handoff_reconciliations
+                   WHERE feedback_id = ?""",
+                (feedback_id,),
+            ).fetchone()
+        if row is None:
+            raise NotFoundError("feedback development handoff reconciliation not found")
+        stored = decode(row["record_json"])
+        if (
+            hashlib.sha256(encode(stored).encode()).hexdigest() != row["record_sha256"]
+            or stored.get("request_sha256") != row["request_sha256"]
+        ):
+            raise ConflictError("stored development handoff reconciliation digest mismatch")
+        stored["record_sha256"] = row["record_sha256"]
+        return FeedbackDevelopmentHandoffReconciliationRecord.model_validate(stored)
 
     def create_feedback_release_linkage(
         self,

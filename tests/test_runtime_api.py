@@ -13,6 +13,7 @@ import pytest
 from fastapi.testclient import TestClient
 from nalu_runtime.app import create_app
 from nalu_runtime.development_handoff import (
+    DevelopmentHandoffLookup,
     DevelopmentHandoffPolicy,
     DevelopmentHandoffTransportReceipt,
 )
@@ -367,7 +368,7 @@ def test_feedback_review_bundle_is_local_redacted_immutable_and_exported(
     assert bundle["attachments"] == []
     assert bundle["diagnostics"] == {
         "runtime_version": "0.1.0",
-        "schema_version": "20",
+        "schema_version": "21",
         "screen": "family-materials",
     }
     assert bundle["redaction_applied"] is True
@@ -385,7 +386,7 @@ def test_feedback_review_bundle_is_local_redacted_immutable_and_exported(
     assert api.get(f"/v1/feedback/{feedback['id']}/review-bundle").json() == bundle
 
     backup = api.get(f"/v1/projects/{project['id']}/export").json()
-    assert backup["schema_version"] == "nalu.project-export/v15"
+    assert backup["schema_version"] == "nalu.project-export/v16"
     assert (
         backup["payload"]["feedback_review_bundles"][0]["bundle_sha256"] == bundle["bundle_sha256"]
     )
@@ -540,7 +541,7 @@ def test_feedback_release_linkage_is_hash_bound_immutable_and_never_claims_relea
     assert current_feedback["status"] == "ready_for_review"
 
     backup = api.get(f"/v1/projects/{project['id']}/export").json()
-    assert backup["schema_version"] == "nalu.project-export/v15"
+    assert backup["schema_version"] == "nalu.project-export/v16"
     assert backup["payload"]["feedback_release_linkages"][0]["linkage_sha256"] == linkage[
         "linkage_sha256"
     ]
@@ -659,7 +660,7 @@ def test_feedback_triage_is_human_confirmed_inert_immutable_and_exported(
     assert current_feedback["status"] == "ready_for_review"
 
     backup = api.get(f"/v1/projects/{project['id']}/export").json()
-    assert backup["schema_version"] == "nalu.project-export/v15"
+    assert backup["schema_version"] == "nalu.project-export/v16"
     assert backup["payload"]["feedback_triage_records"][0]["record_sha256"] == triage[
         "record_sha256"
     ]
@@ -717,6 +718,29 @@ def test_feedback_external_export_is_authorized_idempotent_and_ambiguity_safe(
                 response={"task": "dev-42", "credential": "secret"},
             )
 
+    class RecordingHandoffVerifier:
+        def __init__(self) -> None:
+            self.calls: list[dict] = []
+            self.outcome = "found"
+
+        def lookup_work_order(self, **kwargs) -> DevelopmentHandoffLookup:
+            self.calls.append(kwargs)
+            if self.outcome == "absent":
+                return DevelopmentHandoffLookup(
+                    outcome="absent",
+                    receipt=None,
+                    evidence={"source": "injected_read_only_fixture", "matched": False},
+                )
+            return DevelopmentHandoffLookup(
+                outcome="found",
+                receipt=DevelopmentHandoffTransportReceipt(
+                    remote_task_id="dev-84",
+                    remote_task_url="https://developer.example.test/tasks/dev-84",
+                    response={"task": "dev-84", "state": "accepted"},
+                ),
+                evidence={"source": "injected_read_only_fixture", "matched": True},
+            )
+
     policy = FeedbackExportPolicy(
         enabled=True,
         administrator_authorized=True,
@@ -730,6 +754,7 @@ def test_feedback_external_export_is_authorized_idempotent_and_ambiguity_safe(
         endpoint="https://developer.example.test/api/development-work-orders",
     )
     handoff_transport = RecordingHandoffTransport()
+    handoff_verifier = RecordingHandoffVerifier()
     app = create_app(
         tmp_path / "export.sqlite3",
         tmp_path / "export-data",
@@ -737,6 +762,7 @@ def test_feedback_external_export_is_authorized_idempotent_and_ambiguity_safe(
         issue_tracker_transport=transport,
         development_handoff_policy=handoff_policy,
         development_handoff_transport=handoff_transport,
+        development_handoff_reconciliation_verifier=handoff_verifier,
     )
     api = TestClient(app)
 
@@ -912,7 +938,7 @@ def test_feedback_external_export_is_authorized_idempotent_and_ambiguity_safe(
     assert len(handoff_transport.calls) == 1
 
     backup = api.get(f"/v1/projects/{project['id']}/export").json()
-    assert backup["schema_version"] == "nalu.project-export/v15"
+    assert backup["schema_version"] == "nalu.project-export/v16"
     restored = client(tmp_path / "export-restored")
     assert restored.post("/v1/project-imports", json=backup).status_code == 201
     assert restored.get(endpoint).json() == receipt
@@ -924,6 +950,7 @@ def test_feedback_external_export_is_authorized_idempotent_and_ambiguity_safe(
     legacy_v12["payload"].pop("feedback_external_reconciliations")
     legacy_v12["payload"].pop("feedback_development_work_orders")
     legacy_v12["payload"].pop("feedback_development_handoffs")
+    legacy_v12["payload"].pop("feedback_development_handoff_reconciliations")
     legacy_v12["payload_sha256"] = hashlib.sha256(
         json.dumps(legacy_v12["payload"], ensure_ascii=False, sort_keys=True).encode()
     ).hexdigest()
@@ -991,7 +1018,7 @@ def test_feedback_external_export_is_authorized_idempotent_and_ambiguity_safe(
         == 409
     )
 
-    _, feedback3, triage3 = reviewed_feedback("开发交接歧义")
+    project3, feedback3, triage3 = reviewed_feedback("开发交接歧义")
     bundle3 = api.get(f"/v1/feedback/{feedback3['id']}/review-bundle").json()
     export3 = api.post(
         f"/v1/feedback/{feedback3['id']}/external-export",
@@ -1043,6 +1070,150 @@ def test_feedback_external_export_is_authorized_idempotent_and_ambiguity_safe(
     assert ambiguous_handoff["response_json"] is None
     assert ambiguous_handoff["remote_task_id"] is None
     handoff_transport.fail = False
+
+    handoff_reconciliation_endpoint = f"{handoff3_endpoint}/reconciliation"
+    handoff_reconciliation_request = {
+        "payload_sha256": ambiguous_handoff["payload_sha256"],
+        "confirmation_text": "我确认核对开发交接结果",
+        "reconciled_by": "maintainer",
+        "reconciled_at": "2026-09-01T07:20:00Z",
+    }
+    assert (
+        api.post(
+            handoff_reconciliation_endpoint,
+            json={**handoff_reconciliation_request, "payload_sha256": "0" * 64},
+            headers=handoff3_headers,
+        ).status_code
+        == 409
+    )
+    assert handoff_verifier.calls == []
+    reconciled_handoff = api.post(
+        handoff_reconciliation_endpoint,
+        json=handoff_reconciliation_request,
+        headers=handoff3_headers,
+    )
+    assert reconciled_handoff.status_code == 201
+    handoff_reconciliation = reconciled_handoff.json()
+    assert handoff_reconciliation["outcome"] == "confirmed"
+    assert handoff_reconciliation["remote_task_id"] == "dev-84"
+    assert handoff_reconciliation["work_order_submission_retried"] is False
+    assert handoff_reconciliation["external_write_performed"] is False
+    assert len(handoff_verifier.calls) == 1
+    assert len(handoff_transport.calls) == calls_after_ambiguous
+    assert api.get(handoff3_endpoint).json()["remote_task_id"] == "dev-84"
+    assert (
+        api.get(handoff_reconciliation_endpoint).json() == handoff_reconciliation
+    )
+    assert (
+        api.post(
+            handoff_reconciliation_endpoint,
+            json=handoff_reconciliation_request,
+            headers=handoff3_headers,
+        ).json()
+        == handoff_reconciliation
+    )
+    assert len(handoff_verifier.calls) == 1
+
+    handoff_reconciliation_backup = api.get(
+        f"/v1/projects/{project3['id']}/export"
+    ).json()
+    restored_handoff_reconciliation = client(tmp_path / "handoff-reconciled-restored")
+    assert (
+        restored_handoff_reconciliation.post(
+            "/v1/project-imports", json=handoff_reconciliation_backup
+        ).status_code
+        == 201
+    )
+    assert (
+        restored_handoff_reconciliation.get(handoff_reconciliation_endpoint).json()
+        == handoff_reconciliation
+    )
+    tampered_handoff_reconciliation = deepcopy(handoff_reconciliation_backup)
+    reconciliation_row = tampered_handoff_reconciliation["payload"][
+        "feedback_development_handoff_reconciliations"
+    ][0]
+    reconciliation_body = json.loads(reconciliation_row["record_json"])
+    reconciliation_body["remote_task_id"] = "dev-tampered"
+    reconciliation_row["record_json"] = json.dumps(
+        reconciliation_body, ensure_ascii=False, sort_keys=True
+    )
+    reconciliation_row["record_sha256"] = hashlib.sha256(
+        reconciliation_row["record_json"].encode()
+    ).hexdigest()
+    tampered_handoff_reconciliation["payload_sha256"] = hashlib.sha256(
+        json.dumps(
+            tampered_handoff_reconciliation["payload"],
+            ensure_ascii=False,
+            sort_keys=True,
+        ).encode()
+    ).hexdigest()
+    assert (
+        client(tmp_path / "handoff-reconciliation-tampered")
+        .post("/v1/project-imports", json=tampered_handoff_reconciliation)
+        .status_code
+        == 409
+    )
+
+    _, feedback4, triage4 = reviewed_feedback("开发交接确认不存在")
+    bundle4 = api.get(f"/v1/feedback/{feedback4['id']}/review-bundle").json()
+    export4 = api.post(
+        f"/v1/feedback/{feedback4['id']}/external-export",
+        json={
+            "review_bundle_sha256": bundle4["bundle_sha256"],
+            "triage_record_sha256": triage4["record_sha256"],
+            "confirmation_text": "我确认导出问题单",
+        },
+        headers={"Idempotency-Key": "external-export-handoff-absent"},
+    ).json()
+    work_order4 = api.post(
+        f"/v1/feedback/{feedback4['id']}/development-work-order",
+        json={
+            **work_order_request,
+            "triage_record_sha256": triage4["record_sha256"],
+            "export_request_sha256": export4["request_sha256"],
+        },
+        headers={"Idempotency-Key": "development-work-order-absent"},
+    ).json()
+    handoff_transport.fail = True
+    handoff4_endpoint = f"/v1/feedback/{feedback4['id']}/development-handoff"
+    handoff4_headers = {"Idempotency-Key": "development-handoff-absent"}
+    assert (
+        api.post(
+            handoff4_endpoint,
+            json={
+                "work_order_sha256": work_order4["record_sha256"],
+                "confirmation_text": "我确认交给开发人员",
+            },
+            headers=handoff4_headers,
+        ).status_code
+        == 409
+    )
+    with app.state.repository.db.connect() as connection:
+        handoff4_payload_sha256 = connection.execute(
+            "SELECT payload_sha256 FROM feedback_development_handoffs WHERE feedback_id = ?",
+            (feedback4["id"],),
+        ).fetchone()[0]
+    handoff_verifier.outcome = "absent"
+    absent_handoff_reconciliation = api.post(
+        f"{handoff4_endpoint}/reconciliation",
+        json={
+            "payload_sha256": handoff4_payload_sha256,
+            "confirmation_text": "我确认核对开发交接结果",
+            "reconciled_by": "maintainer",
+            "reconciled_at": "2026-09-01T07:30:00Z",
+        },
+        headers=handoff4_headers,
+    )
+    assert absent_handoff_reconciliation.status_code == 201
+    assert absent_handoff_reconciliation.json()["outcome"] == "verified_absent"
+    assert api.get(handoff4_endpoint).status_code == 409
+    with app.state.repository.db.connect() as connection:
+        assert connection.execute(
+            "SELECT state FROM feedback_development_handoffs WHERE feedback_id = ?",
+            (feedback4["id"],),
+        ).fetchone()[0] == "rejected"
+    handoff_transport.fail = False
+    handoff_verifier.outcome = "found"
 
     ambiguous_transport = RecordingTransport(fail=True)
 
@@ -1217,6 +1388,7 @@ def test_feedback_external_export_is_authorized_idempotent_and_ambiguity_safe(
     legacy_v13["schema_version"] = "nalu.project-export/v13"
     legacy_v13["payload"].pop("feedback_development_work_orders")
     legacy_v13["payload"].pop("feedback_development_handoffs")
+    legacy_v13["payload"].pop("feedback_development_handoff_reconciliations")
     legacy_v13["payload_sha256"] = hashlib.sha256(
         json.dumps(legacy_v13["payload"], ensure_ascii=False, sort_keys=True).encode()
     ).hexdigest()
@@ -1437,7 +1609,7 @@ def test_memory_card_requires_explicit_confirmation_and_keeps_evidence(tmp_path:
     assert confirmations[0]["spoken_confirmation"] == "我确认这张记忆卡并归档"
 
     backup = api.get(f"/v1/projects/{project['id']}/export").json()
-    assert backup["schema_version"] == "nalu.project-export/v15"
+    assert backup["schema_version"] == "nalu.project-export/v16"
     assert backup["payload"]["memory_cards"][0]["asset_id"] == asset["id"]
 
     other = api.post("/v1/projects", json={"title": "另一个项目"}).json()
@@ -1791,6 +1963,7 @@ def test_project_rename_archive_export_and_restore(tmp_path: Path) -> None:
     legacy["payload"].pop("feedback_external_reconciliations")
     legacy["payload"].pop("feedback_development_work_orders")
     legacy["payload"].pop("feedback_development_handoffs")
+    legacy["payload"].pop("feedback_development_handoff_reconciliations")
     legacy["payload"].pop("memory_cards")
     legacy["payload"].pop("memory_card_revisions")
     legacy["payload"].pop("memory_card_confirmation_records")
@@ -1890,7 +2063,7 @@ def test_database_migration_preserves_existing_database(tmp_path: Path) -> None:
         connection.execute("INSERT INTO legacy_marker VALUES ('preserve-me')")
 
     api = create_app(database_path, tmp_path / "data")
-    assert api.state.repository.db.schema_version() == 20
+    assert api.state.repository.db.schema_version() == 21
     with sqlite3.connect(database_path) as connection:
         marker = connection.execute("SELECT value FROM legacy_marker").fetchone()[0]
         approval_table = connection.execute(
@@ -1942,7 +2115,7 @@ def test_populated_v1_database_upgrades_without_project_loss(tmp_path: Path) -> 
         connection.execute("DELETE FROM schema_migrations WHERE version >= 2")
 
     after = TestClient(create_app(database_path, data_root))
-    assert after.app.state.repository.db.schema_version() == 20
+    assert after.app.state.repository.db.schema_version() == 21
     assert after.get(f"/v1/projects/{project['id']}").json()["title"] == "我的一生"
     assert after.get(f"/v1/episodes/{episode['id']}").json()["approved_script_revision"] == 1
     approvals = after.get(f"/v1/episodes/{episode['id']}/script-approvals").json()
@@ -2138,6 +2311,7 @@ def test_project_season_and_episode_asset_scope_inheritance(tmp_path: Path) -> N
     legacy_v3["payload"].pop("feedback_external_reconciliations")
     legacy_v3["payload"].pop("feedback_development_work_orders")
     legacy_v3["payload"].pop("feedback_development_handoffs")
+    legacy_v3["payload"].pop("feedback_development_handoff_reconciliations")
     legacy_v3["payload"].pop("memory_cards")
     legacy_v3["payload"].pop("memory_card_revisions")
     legacy_v3["payload"].pop("memory_card_confirmation_records")
@@ -2209,7 +2383,7 @@ def test_complete_privacy_export_and_confirmed_project_deletion(tmp_path: Path) 
         assert {"project-export.json", "privacy-manifest.json", media_name} <= names
         assert archive.read(media_name) == b"private-photo-bytes"
         project_backup = json.loads(archive.read("project-export.json"))
-        assert project_backup["schema_version"] == "nalu.project-export/v15"
+        assert project_backup["schema_version"] == "nalu.project-export/v16"
         assert project_backup["payload"]["asset_consent_records"][0]["action_type"] == "granted"
         manifest = json.loads(archive.read("privacy-manifest.json"))
         assert manifest["database_included"] is False
