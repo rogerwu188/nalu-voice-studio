@@ -21,7 +21,8 @@ def test_repository_goal_progress_is_consistent_with_product_sop() -> None:
     assert result["project_complete"] is False
     assert result["current_checkpoint"] == progress["current_checkpoint"]["sop"]
     assert result["next_action"] == progress["next_action"]["id"]
-    assert progress["next_action"]["requires_user_authorization"] is False
+    assert progress["next_action"]["requires_user_authorization"] is True
+    assert progress["waiting_authorization"]["id"]
 
 
 def test_nonexistent_evidence_commit_is_rejected() -> None:
@@ -49,6 +50,21 @@ def test_execution_cannot_pause_while_safe_work_exists() -> None:
     result = audit_goal_progress(progress, sop_text)
     assert result["status"] == "FAIL"
     assert "execution cannot pause while a safe next action exists" in result["failures"]
+
+
+def test_authorization_state_must_match_next_action() -> None:
+    progress, sop_text = repository_inputs()
+    missing_request = copy.deepcopy(progress)
+    missing_request["waiting_authorization"] = None
+    result = audit_goal_progress(missing_request, sop_text)
+    assert result["status"] == "FAIL"
+    assert "authorized next action must include waiting_authorization" in result["failures"]
+
+    stale_request = copy.deepcopy(progress)
+    stale_request["next_action"]["requires_user_authorization"] = False
+    result = audit_goal_progress(stale_request, sop_text)
+    assert result["status"] == "FAIL"
+    assert "waiting_authorization must be null when the next action is safe" in result["failures"]
 
 
 def test_paid_and_external_idempotency_guards_cannot_be_relaxed() -> None:

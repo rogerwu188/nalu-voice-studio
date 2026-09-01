@@ -93,6 +93,17 @@ def audit_goal_progress(
     if not isinstance(next_action.get("requires_user_authorization"), bool):
         failures.append("next action must declare whether user authorization is required")
 
+    waiting_authorization = progress.get("waiting_authorization")
+    if next_action.get("requires_user_authorization") is True:
+        if not isinstance(waiting_authorization, dict):
+            failures.append("authorized next action must include waiting_authorization")
+        elif not waiting_authorization.get("id") or not waiting_authorization.get(
+            "requested_action"
+        ):
+            failures.append("waiting_authorization must identify the requested action")
+    elif waiting_authorization is not None:
+        failures.append("waiting_authorization must be null when the next action is safe")
+
     execution = progress.get("execution_policy") or {}
     required_execution_guards = (
         "checkpoint_requires_implementation_tests_native_qa_docs_commit_push_ci_evidence",
