@@ -2882,6 +2882,18 @@
             "title": "Created At",
             "type": "string"
           },
+          "development_result_sha256": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Development Result Sha256"
+          },
           "feedback_id": {
             "title": "Feedback Id",
             "type": "string"
@@ -5666,7 +5678,7 @@
             "type": "string"
           },
           "schema_version": {
-            "default": "nalu.project-export/v17",
+            "default": "nalu.project-export/v18",
             "enum": [
               "nalu.project-export/v1",
               "nalu.project-export/v2",
@@ -5684,7 +5696,8 @@
               "nalu.project-export/v14",
               "nalu.project-export/v15",
               "nalu.project-export/v16",
-              "nalu.project-export/v17"
+              "nalu.project-export/v17",
+              "nalu.project-export/v18"
             ],
             "title": "Schema Version",
             "type": "string"

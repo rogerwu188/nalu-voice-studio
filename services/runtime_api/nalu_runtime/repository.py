@@ -1206,6 +1206,7 @@ class Repository:
             ):
                 raise ConflictError("project export contains a tampered feedback bundle")
             feedback_bundle_digests[row.get("feedback_id")] = row.get("bundle_sha256")
+        feedback_release_linkages: dict[Any, FeedbackReleaseLinkage] = {}
         for row in backup.payload.get("feedback_release_linkages", []):
             try:
                 linkage_body = decode(row.get("linkage_json", ""))
@@ -1236,10 +1237,15 @@ class Repository:
                 "idempotency_key_sha256": validated.idempotency_key_sha256,
                 "evidence": evidence.model_dump(mode="json"),
             }
+            if validated.development_result_sha256 is not None:
+                request_body["development_result_sha256"] = (
+                    validated.development_result_sha256
+                )
             if hashlib.sha256(encode(request_body).encode()).hexdigest() != row.get(
                 "request_sha256"
             ):
                 raise ConflictError("release linkage request digest does not match its evidence")
+            feedback_release_linkages[row.get("feedback_id")] = validated
         feedback_triage_digests: dict[Any, Any] = {}
         for row in backup.payload.get("feedback_triage_records", []):
             try:
@@ -1605,6 +1611,7 @@ class Repository:
                 raise ConflictError(
                     "absent development handoff reconciliation does not match state"
                 )
+        feedback_development_results: dict[Any, FeedbackDevelopmentResultRecord] = {}
         for row in backup.payload.get("feedback_development_results", []):
             try:
                 record_body = decode(row.get("record_json", ""))
@@ -1662,6 +1669,21 @@ class Repository:
                 != record.request_sha256
             ):
                 raise ConflictError("development result request digest does not match")
+            feedback_development_results[row.get("feedback_id")] = record
+        for feedback_id, linkage in feedback_release_linkages.items():
+            result = feedback_development_results.get(feedback_id)
+            if backup.schema_version == "nalu.project-export/v18" and (
+                result is None
+                or linkage.development_result_sha256 != result.record_sha256
+                or linkage.reviewed_change.repository_url != result.repository_url
+                or linkage.reviewed_change.review_url != result.review_url
+                or linkage.reviewed_change.commit_sha != result.commit_sha
+                or linkage.reviewed_change.test_evidence_sha256
+                != result.test_evidence_sha256
+            ):
+                raise ConflictError(
+                    "release linkage does not match the verified development result"
+                )
         if any(
             row.get("project_id") != project_id or row.get("asset_id") not in asset_ids
             for row in backup.payload.get("memory_cards", [])
@@ -3324,11 +3346,29 @@ class Repository:
         if request.review_bundle_sha256 != bundle.bundle_sha256:
             raise ConflictError("review bundle digest does not match the immutable local bundle")
         self._validate_feedback_release_evidence(request)
+        try:
+            development_result = self.get_feedback_development_result(feedback_id)
+        except NotFoundError as exc:
+            raise ConflictError(
+                "release evidence requires an independently verified development result"
+            ) from exc
+        if (
+            request.reviewed_change.repository_url
+            != development_result.repository_url
+            or request.reviewed_change.review_url != development_result.review_url
+            or request.reviewed_change.commit_sha != development_result.commit_sha
+            or request.reviewed_change.test_evidence_sha256
+            != development_result.test_evidence_sha256
+        ):
+            raise ConflictError(
+                "reviewed change does not match the verified development result"
+            )
 
         idempotency_key_sha256 = hashlib.sha256(idempotency_key.encode()).hexdigest()
         request_body = {
             "feedback_id": feedback_id,
             "idempotency_key_sha256": idempotency_key_sha256,
+            "development_result_sha256": development_result.record_sha256,
             "evidence": request.model_dump(mode="json"),
         }
         request_sha256 = hashlib.sha256(encode(request_body).encode()).hexdigest()
@@ -3350,6 +3390,7 @@ class Repository:
         linkage_body = {
             "schema_version": "nalu.feedback-release-linkage/v1",
             "feedback_id": feedback_id,
+            "development_result_sha256": development_result.record_sha256,
             **request.model_dump(mode="json"),
             "status": "qa_evidence_linked",
             "release_claimed": False,

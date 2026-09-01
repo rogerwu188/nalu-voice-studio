@@ -387,7 +387,7 @@ def test_feedback_review_bundle_is_local_redacted_immutable_and_exported(
     assert api.get(f"/v1/feedback/{feedback['id']}/review-bundle").json() == bundle
 
     backup = api.get(f"/v1/projects/{project['id']}/export").json()
-    assert backup["schema_version"] == "nalu.project-export/v17"
+    assert backup["schema_version"] == "nalu.project-export/v18"
     assert (
         backup["payload"]["feedback_review_bundles"][0]["bundle_sha256"] == bundle["bundle_sha256"]
     )
@@ -516,6 +516,60 @@ def test_feedback_release_linkage_is_hash_bound_immutable_and_never_claims_relea
         ).status_code
         == 409
     )
+    assert (
+        api.post(
+            endpoint,
+            json=request,
+            headers={"Idempotency-Key": "release-linkage-0001"},
+        ).status_code
+        == 409
+    )
+
+    development_result_body = {
+        "schema_version": "nalu.feedback-development-result/v1",
+        "feedback_id": feedback["id"],
+        "handoff_request_sha256": "1" * 64,
+        "handoff_response_sha256": "2" * 64,
+        "remote_task_id": "dev-release-fixture",
+        "repository_url": "https://github.com/example/nalu",
+        "branch_name": "fix/read-aloud",
+        "commit_sha": commit_sha,
+        "review_url": "https://github.com/example/nalu/pull/42",
+        "test_evidence_sha256": "c" * 64,
+        "verification_evidence_sha256": "3" * 64,
+        "verified_by": "test-fixture",
+        "verified_at": "2026-09-01T00:50:00Z",
+        "read_only_verification_performed": True,
+        "report_text_treated_as_inert": True,
+        "repository_checkout_performed": False,
+        "tool_calls": [],
+        "code_executed": False,
+        "merge_performed": False,
+        "signing_performed": False,
+        "release_performed": False,
+        "external_write_performed": False,
+        "idempotency_key_sha256": "4" * 64,
+        "confirmation_sha256": "5" * 64,
+        "request_sha256": "6" * 64,
+        "created_at": "2026-09-01T00:50:00Z",
+    }
+    development_result_json = json.dumps(
+        development_result_body, ensure_ascii=False, sort_keys=True
+    )
+    development_result_sha256 = hashlib.sha256(
+        development_result_json.encode()
+    ).hexdigest()
+    with api.app.state.repository.db.connect() as connection:
+        connection.execute(
+            "INSERT INTO feedback_development_results VALUES (?, ?, ?, ?, ?)",
+            (
+                feedback["id"],
+                development_result_body["request_sha256"],
+                development_result_json,
+                development_result_sha256,
+                development_result_body["created_at"],
+            ),
+        )
 
     headers = {"Idempotency-Key": "release-linkage-0001"}
     created = api.post(endpoint, json=request, headers=headers)
@@ -524,6 +578,7 @@ def test_feedback_release_linkage_is_hash_bound_immutable_and_never_claims_relea
     assert linkage["status"] == "qa_evidence_linked"
     assert linkage["release_claimed"] is False
     assert linkage["network_call_performed"] is False
+    assert linkage["development_result_sha256"] == development_result_sha256
     assert linkage["idempotency_key_sha256"] == hashlib.sha256(
         b"release-linkage-0001"
     ).hexdigest()
@@ -542,15 +597,25 @@ def test_feedback_release_linkage_is_hash_bound_immutable_and_never_claims_relea
     assert current_feedback["status"] == "ready_for_review"
 
     backup = api.get(f"/v1/projects/{project['id']}/export").json()
-    assert backup["schema_version"] == "nalu.project-export/v17"
+    assert backup["schema_version"] == "nalu.project-export/v18"
     assert backup["payload"]["feedback_release_linkages"][0]["linkage_sha256"] == linkage[
         "linkage_sha256"
     ]
+    legacy_backup = deepcopy(backup)
+    legacy_backup["schema_version"] = "nalu.project-export/v16"
+    legacy_backup["payload"].pop("feedback_development_results")
+    legacy_backup["payload_sha256"] = hashlib.sha256(
+        json.dumps(
+            legacy_backup["payload"], ensure_ascii=False, sort_keys=True
+        ).encode()
+    ).hexdigest()
     restored_api = client(tmp_path / "release-linkage-restored")
-    assert restored_api.post("/v1/project-imports", json=backup).status_code == 201
+    assert (
+        restored_api.post("/v1/project-imports", json=legacy_backup).status_code
+        == 201
+    )
     assert restored_api.get(endpoint).json() == linkage
-
-    tampered = deepcopy(backup)
+    tampered = deepcopy(legacy_backup)
     row = tampered["payload"]["feedback_release_linkages"][0]
     body = json.loads(row["linkage_json"])
     body["release_claimed"] = True
@@ -661,7 +726,7 @@ def test_feedback_triage_is_human_confirmed_inert_immutable_and_exported(
     assert current_feedback["status"] == "ready_for_review"
 
     backup = api.get(f"/v1/projects/{project['id']}/export").json()
-    assert backup["schema_version"] == "nalu.project-export/v17"
+    assert backup["schema_version"] == "nalu.project-export/v18"
     assert backup["payload"]["feedback_triage_records"][0]["record_sha256"] == triage[
         "record_sha256"
     ]
@@ -1019,14 +1084,133 @@ def test_feedback_external_export_is_authorized_idempotent_and_ambiguity_safe(
         == 409
     )
 
+    release_endpoint = f"/v1/feedback/{feedback['id']}/release-linkage"
+    release_request = {
+        "review_bundle_sha256": bundle["bundle_sha256"],
+        "reviewed_change": {
+            "repository_url": development_result["repository_url"],
+            "commit_sha": development_result["commit_sha"],
+            "review_url": development_result["review_url"],
+            "approved_by": "maintainer-a",
+            "approved_at": "2026-09-01T08:00:00Z",
+            "test_evidence_sha256": development_result["test_evidence_sha256"],
+        },
+        "ci": {
+            "run_url": "https://github.com/example/nalu/actions/runs/42",
+            "head_sha": development_result["commit_sha"],
+            "conclusion": "success",
+            "artifact_sha256": "c" * 64,
+            "completed_at": "2026-09-01T08:10:00Z",
+        },
+        "installed_release": {
+            "version": "0.2.0",
+            "build": 20,
+            "product_commit": development_result["commit_sha"],
+            "artifact_sha256": "c" * 64,
+            "provenance_sha256": "d" * 64,
+            "developer_id_team_id": "AB12CD34EF",
+            "notarization_submission_id": "12345678-1234-1234-1234-123456789abc",
+            "code_signature_verified": True,
+            "notarization_verified": True,
+            "gatekeeper_accepted": True,
+            "installed_at": "2026-09-01T08:20:00Z",
+        },
+        "rollback": {
+            "previous_version": "0.1.0",
+            "previous_build": 10,
+            "evidence_sha256": "e" * 64,
+            "project_data_preserved": True,
+            "verified_at": "2026-09-01T08:30:00Z",
+        },
+    }
+    unrelated_release = deepcopy(release_request)
+    unrelated_release["reviewed_change"]["review_url"] = (
+        "https://github.com/example/nalu/pull/43"
+    )
+    release_headers = {"Idempotency-Key": "release-linkage-result-0001"}
+    assert (
+        api.post(
+            release_endpoint, json=unrelated_release, headers=release_headers
+        ).status_code
+        == 409
+    )
+    created_release = api.post(
+        release_endpoint, json=release_request, headers=release_headers
+    )
+    assert created_release.status_code == 201
+    release_linkage = created_release.json()
+    assert (
+        release_linkage["development_result_sha256"]
+        == development_result["record_sha256"]
+    )
+    assert release_linkage["release_claimed"] is False
+    assert api.get(release_endpoint).json() == release_linkage
+
     backup = api.get(f"/v1/projects/{project['id']}/export").json()
-    assert backup["schema_version"] == "nalu.project-export/v17"
+    assert backup["schema_version"] == "nalu.project-export/v18"
     restored = client(tmp_path / "export-restored")
     assert restored.post("/v1/project-imports", json=backup).status_code == 201
     assert restored.get(endpoint).json() == receipt
     assert restored.get(work_order_endpoint).json() == work_order
     assert restored.get(handoff_endpoint).json() == handoff
     assert restored.get(result_endpoint).json() == development_result
+    assert restored.get(release_endpoint).json() == release_linkage
+
+    mismatched_release_backup = deepcopy(backup)
+    mismatched_release_row = mismatched_release_backup["payload"][
+        "feedback_release_linkages"
+    ][0]
+    mismatched_release_body = json.loads(mismatched_release_row["linkage_json"])
+    mismatched_release_body["reviewed_change"]["review_url"] = (
+        "https://github.com/example/nalu/pull/43"
+    )
+    release_evidence = {
+        key: mismatched_release_body[key]
+        for key in (
+            "review_bundle_sha256",
+            "reviewed_change",
+            "ci",
+            "installed_release",
+            "rollback",
+        )
+    }
+    mismatched_release_request = {
+        "feedback_id": feedback["id"],
+        "idempotency_key_sha256": mismatched_release_body[
+            "idempotency_key_sha256"
+        ],
+        "development_result_sha256": mismatched_release_body[
+            "development_result_sha256"
+        ],
+        "evidence": release_evidence,
+    }
+    mismatched_release_body["request_sha256"] = hashlib.sha256(
+        json.dumps(
+            mismatched_release_request, ensure_ascii=False, sort_keys=True
+        ).encode()
+    ).hexdigest()
+    mismatched_release_row["request_sha256"] = mismatched_release_body[
+        "request_sha256"
+    ]
+    mismatched_release_row["linkage_json"] = json.dumps(
+        mismatched_release_body, ensure_ascii=False, sort_keys=True
+    )
+    mismatched_release_row["linkage_sha256"] = hashlib.sha256(
+        mismatched_release_row["linkage_json"].encode()
+    ).hexdigest()
+    mismatched_release_backup["payload_sha256"] = hashlib.sha256(
+        json.dumps(
+            mismatched_release_backup["payload"],
+            ensure_ascii=False,
+            sort_keys=True,
+        ).encode()
+    ).hexdigest()
+    assert (
+        client(tmp_path / "mismatched-release-result-backup")
+        .post("/v1/project-imports", json=mismatched_release_backup)
+        .status_code
+        == 409
+    )
 
     legacy_v12 = deepcopy(backup)
     legacy_v12["schema_version"] = "nalu.project-export/v12"
@@ -1716,7 +1900,7 @@ def test_memory_card_requires_explicit_confirmation_and_keeps_evidence(tmp_path:
     assert confirmations[0]["spoken_confirmation"] == "我确认这张记忆卡并归档"
 
     backup = api.get(f"/v1/projects/{project['id']}/export").json()
-    assert backup["schema_version"] == "nalu.project-export/v17"
+    assert backup["schema_version"] == "nalu.project-export/v18"
     assert backup["payload"]["memory_cards"][0]["asset_id"] == asset["id"]
 
     other = api.post("/v1/projects", json={"title": "另一个项目"}).json()
@@ -2492,7 +2676,7 @@ def test_complete_privacy_export_and_confirmed_project_deletion(tmp_path: Path) 
         assert {"project-export.json", "privacy-manifest.json", media_name} <= names
         assert archive.read(media_name) == b"private-photo-bytes"
         project_backup = json.loads(archive.read("project-export.json"))
-        assert project_backup["schema_version"] == "nalu.project-export/v17"
+        assert project_backup["schema_version"] == "nalu.project-export/v18"
         assert project_backup["payload"]["asset_consent_records"][0]["action_type"] == "granted"
         manifest = json.loads(archive.read("privacy-manifest.json"))
         assert manifest["database_included"] is False

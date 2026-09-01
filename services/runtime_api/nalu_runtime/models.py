@@ -158,7 +158,8 @@ class ProjectExport(BaseModel):
         "nalu.project-export/v15",
         "nalu.project-export/v16",
         "nalu.project-export/v17",
-    ] = "nalu.project-export/v17"
+        "nalu.project-export/v18",
+    ] = "nalu.project-export/v18"
     exported_at: str
     payload: dict[str, Any]
     payload_sha256: str
@@ -696,6 +697,9 @@ class FeedbackReleaseLinkage(FeedbackReleaseLinkageCreate):
         "nalu.feedback-release-linkage/v1"
     )
     feedback_id: str
+    development_result_sha256: str | None = Field(
+        default=None, pattern=r"^[0-9a-f]{64}$"
+    )
     status: Literal["qa_evidence_linked"] = "qa_evidence_linked"
     release_claimed: Literal[False] = False
     network_call_performed: Literal[False] = False

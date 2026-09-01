@@ -119,7 +119,8 @@ packaged verifier denies every call. Injected fixtures prove only the local trus
 not that a real development result exists.
 
 A separate local `qa_evidence_linked` receipt can bind the immutable review-bundle hash
-to one reviewed 40-character change commit, the exact successful CI head and artifact,
+and verified development-result digest to that result's exact repository, review URL,
+40-character change commit and test digest, plus the matching successful CI head and artifact,
 an installed Developer ID/notarization/Gatekeeper receipt and an older-build rollback
 rehearsal that preserved project data. The receipt is immutable, hash-chained, project-
 exported and idempotent; its key is stored only as a SHA-256. It performs no network call,
