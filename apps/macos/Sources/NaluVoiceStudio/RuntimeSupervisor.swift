@@ -9,6 +9,56 @@ enum RuntimeStartupPolicy {
         maximumWaitSeconds * 1_000 / Int(pollIntervalMilliseconds)
 }
 
+enum RuntimeApplicationSupportResolver {
+    static let localQAFlag = "NALU_ENABLE_LOCAL_QA"
+    static let localQAPath = "NALU_LOCAL_QA_APPLICATION_SUPPORT"
+
+    static func resolve(
+        inherited: [String: String],
+        defaultURL: URL,
+        temporaryDirectory: URL = FileManager.default.temporaryDirectory,
+        fileManager: FileManager = .default
+    ) throws -> URL {
+        guard inherited[localQAFlag] == "1" else { return defaultURL }
+        guard let rawPath = inherited[localQAPath], !rawPath.isEmpty else {
+            throw RuntimeApplicationSupportError.missingLocalQAPath
+        }
+
+        let candidate = URL(fileURLWithPath: rawPath, isDirectory: true)
+            .standardizedFileURL.resolvingSymlinksInPath()
+        let temporaryRoot = temporaryDirectory.standardizedFileURL.resolvingSymlinksInPath()
+        let prefix = temporaryRoot.path.hasSuffix("/")
+            ? temporaryRoot.path : temporaryRoot.path + "/"
+        guard candidate.path.hasPrefix(prefix) else {
+            throw RuntimeApplicationSupportError.localQAPathOutsideTemporaryDirectory
+        }
+        var isDirectory: ObjCBool = false
+        guard fileManager.fileExists(atPath: candidate.path, isDirectory: &isDirectory),
+              isDirectory.boolValue
+        else {
+            throw RuntimeApplicationSupportError.localQAPathDoesNotExist
+        }
+        return candidate
+    }
+}
+
+enum RuntimeApplicationSupportError: LocalizedError {
+    case missingLocalQAPath
+    case localQAPathOutsideTemporaryDirectory
+    case localQAPathDoesNotExist
+
+    var errorDescription: String? {
+        switch self {
+        case .missingLocalQAPath:
+            "已启用本地 QA，但没有指定隔离资料目录。"
+        case .localQAPathOutsideTemporaryDirectory:
+            "本地 QA 资料目录必须位于 macOS 临时目录内。"
+        case .localQAPathDoesNotExist:
+            "本地 QA 资料目录不存在或不是文件夹。"
+        }
+    }
+}
+
 @MainActor
 final class RuntimeTerminationSignal: NSObject {
     private let notificationCenter: NotificationCenter
@@ -63,7 +113,11 @@ final class RuntimeSupervisor {
     }
 
     func start() async throws {
+        let inheritedEnvironment = ProcessInfo.processInfo.environment
         if await runtimeIsHealthy() {
+            if inheritedEnvironment[RuntimeApplicationSupportResolver.localQAFlag] == "1" {
+                throw RuntimeSupervisorError.localQARuntimeAlreadyRunning
+            }
             isReady = true
             return
         }
@@ -75,12 +129,16 @@ final class RuntimeSupervisor {
             throw RuntimeSupervisorError.runtimeMissing(executable.path)
         }
 
-        let applicationSupport = try FileManager.default.url(
+        let defaultApplicationSupport = try FileManager.default.url(
             for: .applicationSupportDirectory,
             in: .userDomainMask,
             appropriateFor: nil,
             create: true
         ).appending(path: "Nalu Voice Studio", directoryHint: .isDirectory)
+        let applicationSupport = try RuntimeApplicationSupportResolver.resolve(
+            inherited: inheritedEnvironment,
+            defaultURL: defaultApplicationSupport
+        )
         try FileManager.default.createDirectory(
             at: applicationSupport, withIntermediateDirectories: true
         )
@@ -91,7 +149,7 @@ final class RuntimeSupervisor {
         let process = Process()
         process.executableURL = executable
         process.environment = RuntimeEnvironmentBuilder.build(
-            inherited: ProcessInfo.processInfo.environment,
+            inherited: inheritedEnvironment,
             applicationSupport: applicationSupport,
             resources: resources
         )
@@ -132,12 +190,15 @@ enum RuntimeSupervisorError: LocalizedError {
     case resourcesMissing
     case runtimeMissing(String)
     case startupTimedOut
+    case localQARuntimeAlreadyRunning
 
     var errorDescription: String? {
         switch self {
         case .resourcesMissing: "应用资源目录不存在。"
         case .runtimeMissing(let path): "内置制片厂 Runtime 不存在：\(path)"
         case .startupTimedOut: "内置制片厂启动超时。"
+        case .localQARuntimeAlreadyRunning:
+            "本地 QA 不能连接已经运行的制片厂。请先退出其他 Nalu 窗口，再重新打开 QA。"
         }
     }
 }

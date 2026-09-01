@@ -44,4 +44,59 @@ final class RuntimeEnvironmentTests: XCTestCase {
         XCTAssertNil(environment["PRIVATE_TOKEN"])
         XCTAssertEqual(environment["NALU_DATABASE_PATH"], "/tmp/Nalu Support/nalu.sqlite3")
     }
+
+    func testLocalQARootRequiresExplicitFlagAndExistingTemporaryDirectory() throws {
+        let fileManager = FileManager.default
+        let temporaryRoot = fileManager.temporaryDirectory
+            .appending(path: "nalu-runtime-root-tests-\(UUID().uuidString)", directoryHint: .isDirectory)
+        let fixture = temporaryRoot.appending(path: "fixture", directoryHint: .isDirectory)
+        try fileManager.createDirectory(at: fixture, withIntermediateDirectories: true)
+        defer { try? fileManager.removeItem(at: temporaryRoot) }
+        let defaultURL = URL(fileURLWithPath: "/Users/example/Library/Application Support/Nalu Voice Studio")
+
+        XCTAssertEqual(
+            try RuntimeApplicationSupportResolver.resolve(
+                inherited: [RuntimeApplicationSupportResolver.localQAPath: fixture.path],
+                defaultURL: defaultURL,
+                temporaryDirectory: temporaryRoot
+            ),
+            defaultURL
+        )
+        XCTAssertEqual(
+            try RuntimeApplicationSupportResolver.resolve(
+                inherited: [
+                    RuntimeApplicationSupportResolver.localQAFlag: "1",
+                    RuntimeApplicationSupportResolver.localQAPath: fixture.path,
+                ],
+                defaultURL: defaultURL,
+                temporaryDirectory: temporaryRoot
+            ),
+            fixture.standardizedFileURL.resolvingSymlinksInPath()
+        )
+    }
+
+    func testLocalQARootFailsClosedOutsideTemporaryDirectory() throws {
+        let temporaryRoot = FileManager.default.temporaryDirectory
+            .appending(path: "nalu-runtime-root-tests-\(UUID().uuidString)", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: temporaryRoot, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: temporaryRoot) }
+
+        XCTAssertThrowsError(
+            try RuntimeApplicationSupportResolver.resolve(
+                inherited: [
+                    RuntimeApplicationSupportResolver.localQAFlag: "1",
+                    RuntimeApplicationSupportResolver.localQAPath: "/Users/example/Nalu QA",
+                ],
+                defaultURL: URL(fileURLWithPath: "/tmp/default"),
+                temporaryDirectory: temporaryRoot
+            )
+        )
+        XCTAssertThrowsError(
+            try RuntimeApplicationSupportResolver.resolve(
+                inherited: [RuntimeApplicationSupportResolver.localQAFlag: "1"],
+                defaultURL: URL(fileURLWithPath: "/tmp/default"),
+                temporaryDirectory: temporaryRoot
+            )
+        )
+    }
 }

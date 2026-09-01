@@ -58,6 +58,34 @@ Nalu only explains it here. Even after a recommendation appears, applying it sti
 creating a new script revision and completing the existing user or guardian approval
 flow.
 
+## Isolated native-window QA fixture
+
+The repository includes a local-only fixture generator for the large-text, readback and
+VoiceOver review. It creates a brand-new SQLite database with one two-episode project,
+one immutable metrics snapshot and one next-episode strategy:
+
+```bash
+qa_root="$(mktemp -d)"
+uv run python scripts/create-native-publication-learning-fixture.py --root "$qa_root"
+```
+
+Quit every other Nalu instance first, then launch the release-candidate executable with
+the two explicit QA variables printed by the generator:
+
+```bash
+NALU_ENABLE_LOCAL_QA=1 \
+NALU_LOCAL_QA_APPLICATION_SUPPORT="$qa_root" \
+  "/path/to/Nalu Voice Studio.app/Contents/MacOS/NaluVoiceStudio"
+```
+
+The native app accepts this override only when the flag is exactly `1`, the directory
+already exists, and its symlink-resolved path is a child of the operating system's
+temporary directory. An invalid path fails closed instead of falling back to the user's
+real Application Support database. If a Runtime is already listening on Nalu's loopback
+port, QA also fails closed instead of attaching to possibly unrelated data. Fixture
+creation refuses a non-empty directory and performs no provider lookup, paid call,
+production or publication. It is test data, not real-platform evidence.
+
 ## Explicit non-claims
 
 Offline fixtures prove the contract, restart persistence, mismatch rejection,
