@@ -2,6 +2,32 @@ import Foundation
 import Testing
 @testable import NaluVoiceStudio
 
+private final class PublicationLearningURLProtocol: URLProtocol, @unchecked Sendable {
+    static var responses: [String: Data] = [:]
+    static var requestedPaths: [String] = []
+
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+    override func startLoading() {
+        let path = request.url?.path ?? ""
+        Self.requestedPaths.append(path)
+        let body = Self.responses[path] ?? Data(#"{"detail":"missing fixture"}"#.utf8)
+        let status = Self.responses[path] == nil ? 404 : 200
+        let response = HTTPURLResponse(
+            url: request.url!,
+            statusCode: status,
+            httpVersion: "HTTP/1.1",
+            headerFields: ["Content-Type": "application/json"]
+        )!
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: body)
+        client?.urlProtocolDidFinishLoading(self)
+    }
+
+    override func stopLoading() {}
+}
+
 struct PublicationLearningPresentationTests {
     @Test func decodesVerifiedMetricsAndVersionedStrategy() throws {
         let metrics = try JSONDecoder().decode(
@@ -67,6 +93,60 @@ struct PublicationLearningPresentationTests {
                 metrics: unsafe,
                 projectID: "prj_1"
             )
+        }
+    }
+
+    @Test func nativeClientLoadsBothReadOnlyEndpointsAndFailsClosed() async throws {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [PublicationLearningURLProtocol.self]
+        let client = RuntimeClient(
+            baseURL: URL(string: "http://127.0.0.1:8765")!,
+            session: URLSession(configuration: configuration)
+        )
+        let strategyList = "[\(strategyJSON)]"
+        PublicationLearningURLProtocol.responses = [
+            "/v1/projects/prj_1/director-strategies": Data(strategyList.utf8),
+            "/v1/publication-metrics/met_1": Data(metricsJSON.utf8),
+        ]
+        PublicationLearningURLProtocol.requestedPaths = []
+
+        let records = try await client.publicationLearning(projectID: "prj_1")
+
+        #expect(records.count == 1)
+        #expect(records[0].strategy.revision == 2)
+        #expect(PublicationLearningURLProtocol.requestedPaths == [
+            "/v1/projects/prj_1/director-strategies",
+            "/v1/publication-metrics/met_1",
+        ])
+
+        let unsafeMetrics = metricsJSON.replacingOccurrences(
+            of: #""external_write_performed":false"#,
+            with: #""external_write_performed":true"#
+        )
+        PublicationLearningURLProtocol.responses[
+            "/v1/publication-metrics/met_1"
+        ] = Data(unsafeMetrics.utf8)
+
+        do {
+            _ = try await client.publicationLearning(projectID: "prj_1")
+            Issue.record("A write-capable metric response must fail closed")
+        } catch {
+            #expect(error is PublicationLearningValidationError)
+        }
+
+        let mismatchedStrategy = strategyJSON.replacingOccurrences(
+            of: String(repeating: "e", count: 64),
+            with: String(repeating: "0", count: 64)
+        )
+        PublicationLearningURLProtocol.responses = [
+            "/v1/projects/prj_1/director-strategies": Data("[\(mismatchedStrategy)]".utf8),
+            "/v1/publication-metrics/met_1": Data(metricsJSON.utf8),
+        ]
+        do {
+            _ = try await client.publicationLearning(projectID: "prj_1")
+            Issue.record("A digest-mismatched strategy must fail closed")
+        } catch {
+            #expect(error is PublicationLearningValidationError)
         }
     }
 

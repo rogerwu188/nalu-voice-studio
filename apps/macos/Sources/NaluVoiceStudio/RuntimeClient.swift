@@ -7,8 +7,15 @@ actor RuntimeClient {
     private let decoder = JSONDecoder()
     private let encoder = JSONEncoder()
 
-    init(baseURL: URL = URL(string: "http://127.0.0.1:8765")!) {
+    init(
+        baseURL: URL = URL(string: "http://127.0.0.1:8765")!,
+        session: URLSession? = nil
+    ) {
         self.baseURL = baseURL
+        if let session {
+            self.session = session
+            return
+        }
         let configuration = URLSessionConfiguration.ephemeral
         configuration.timeoutIntervalForRequest = 10
         self.session = URLSession(configuration: configuration)
