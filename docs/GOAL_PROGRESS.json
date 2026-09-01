@@ -11,26 +11,26 @@
     "TODO": 1,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "5df174687b3ef7fdd60eafe9709fca700bd4569a",
-  "last_advanced_at": "2026-09-01T11:42:00Z",
+  "observed_head": "792d8c5a41631dd3ae385efc555a03e3d3a3660d",
+  "last_advanced_at": "2026-09-01T12:01:11Z",
   "last_closed_checkpoint": {
-    "id": "publication-learning-artifact-accessibility-gate",
-    "sop": "SOP-10",
-    "product_commit": "e2c631ac593f608cbbd85222f604edf01d7b362d",
-    "evidence_commit": "5df174687b3ef7fdd60eafe9709fca700bd4569a",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33502330720",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33502330720/artifacts/9798500816",
+    "id": "qingshan-v2026.09.01.3-semantic-boundary",
+    "sop": "SOP-07",
+    "product_commit": "9bef1ee10a84b2826f6d858120cf68926d2bb8da",
+    "evidence_commit": "792d8c5a41631dd3ae385efc555a03e3d3a3660d",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33504514059",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33504514059/artifacts/9799233262",
     "result": "PASS"
   },
   "current_checkpoint": {
-    "sop": "SOP-10",
+    "sop": "SOP-09",
     "status": "IN_PROGRESS",
-    "summary": "The native macOS app presents digest-verified publication metrics and versioned next-episode advice as a large-text read-only card with speech readback. Deterministic client and packaged-Runtime fixtures prove the safe read path. The card has unique stable accessibility identifiers, coherent Chinese VoiceOver labels, large-text wrapping and read-only control hints; every architecture artifact now fails release verification if this contract is absent. Actual-window visual/readback/VoiceOver review and authorized real-platform verification are still missing."
+    "summary": "Rendered masters already have sealed structural, decoded-media, semantic-ASR and authored shot-boundary reports, but semantic recognition provenance is still supplied as a client assertion. The next checkpoint must bind recognition to the exact master/audio and a locally executed approved recognizer before the report can satisfy a release gate."
   },
   "next_action": {
-    "sop": "SOP-07",
-    "id": "qingshan-upstream-current-release-recheck",
-    "summary": "Recheck the current Qingshan release feed and exact quarantined capability/gate evidence, productizing a corrected release only if its complete portable registry and tests pass; retain the existing pin and paid-execution block otherwise.",
+    "sop": "SOP-09",
+    "id": "semantic-asr-provenance-hardening",
+    "summary": "Replace bare semantic-ASR provenance assertions with a digest-bound local recognizer evidence contract tied to the exact sealed master/audio, approved recognizer identity/version and immutable output, while remaining fail-closed when no approved local recognizer is installed.",
     "requires_user_authorization": false
   },
   "blocking_conditions": [
