@@ -11,8 +11,8 @@
     "TODO": 1,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "1349636ab1e9f046bd0bc0e770a3bfc3bfaa95e1",
-  "last_advanced_at": "2026-09-01T09:24:00Z",
+  "observed_head": "210b5c750ddee8abd946ed8dddbfba54a2bd1b06",
+  "last_advanced_at": "2026-09-01T09:52:00Z",
   "last_closed_checkpoint": {
     "id": "sop-07-qingshan-candidate-isolated-audit-automation-core",
     "sop": "SOP-07",
@@ -24,13 +24,13 @@
   },
   "current_checkpoint": {
     "sop": "SOP-10",
-    "status": "IN_PROGRESS",
-    "summary": "The corrected v2026.09.01 candidate quarantine is reproducible on clean Linux and packaged macOS artifacts, with nine exact failures and no active-pin or paid-path mutation. SOP-07 remains incomplete. The next safe checkpoint builds the local, versioned learning loop without claiming publication."
+    "status": "AWAITING_CI",
+    "summary": "Product commit 210b5c7 adds the fail-closed publication identity and metrics verifier boundary, SQLite migration 24, immutable metrics snapshots and versioned next-episode strategies. Local lint, 116 tests, restart persistence, OpenAPI compatibility and real HTTP smoke pass; GitHub architecture and packaged-runtime evidence is still pending."
   },
   "next_action": {
     "sop": "SOP-10",
     "id": "release-metrics-director-strategy-core",
-    "summary": "Add local versioned publication-metrics snapshots and deterministic next-episode director-strategy revisions that require a verified publication identity, preserve provenance and cannot trigger publication or production.",
+    "summary": "Wait for product commit 210b5c7 to pass Runtime, Apple Silicon, Intel and universal CI; then download and verify the packaged artifact before recording SOP-10 evidence. Real platform publication remains separately authorization-gated.",
     "requires_user_authorization": false
   },
   "blocking_conditions": [
