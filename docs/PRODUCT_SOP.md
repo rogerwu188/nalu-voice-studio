@@ -1115,6 +1115,26 @@ Current evidence:
   This closes the code-level accessibility contract only. The app has not been launched
   for actual-window visual/readback/VoiceOver observation, so SOP-10 remains
   `IN_PROGRESS`.
+- Commit `e2c631a` promotes the seven stable publication-learning identifiers into the
+  release verifier. Every arm64, x86_64 and Universal candidate now fails before signing
+  acceptance if its native executable omits any identifier. CI run `33502330720` passed
+  that gate for both architecture builds and the merged Universal candidate together
+  with 118 Runtime tests, 48 XCTest cases, 28 Swift Testing cases, packaged-learning
+  smoke, staged update and populated rollback.
+- Universal artifact `9798500816` has GitHub artifact digest
+  `6a4bcb1e57fc130ba66b9446f5d102a1de6ecba9ef734f93cfbb05320823d23f`.
+  A fresh independent download passed complete ZIP integrity with inner ZIP SHA-256
+  `8bf6f404b9768161f105476409d303d53bf8c864119f4fc7bb6b2377c520eff8`;
+  staged-update, rollback and packaged-learning evidence SHA-256 values were
+  `4a91c1b7e50c2662ae4be8eed7a3d65d19dca840726e90a7f9adb1bcb458ec99`,
+  `b779abb74053da89051df7f957247039115aa5e7d2d4a7bbbc62526df8b2595c`
+  and `ec405c22c4e8bd9b05b44d97379ee1246c58edc4e706d8eb7df7196fca220103`.
+  The updated verifier passed independently with Universal enforcement and strict deep
+  signature verification. Native executable and Runtime SHA-256 values are
+  `c0c9c13b51cc0c67c19d2a978ac7ad11b0b22f2c740ad8e00a4f543652559051`
+  and `55f1b155daf537ce8e6f82acf86edea5940c699f99dd368bd6c74f7f7b9d9953`.
+  Static contract preservation is now a permanent release gate, but it still is not an
+  actual VoiceOver/readback/layout observation. SOP-10 remains `IN_PROGRESS`.
 
 ## SOP-11 · macOS packaging, updates and operations — IN_PROGRESS
 
