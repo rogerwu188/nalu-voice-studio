@@ -556,6 +556,19 @@ MIGRATIONS = (
         );
         """,
     ),
+    (
+        22,
+        "feedback_development_results",
+        """
+        CREATE TABLE IF NOT EXISTS feedback_development_results (
+          feedback_id TEXT PRIMARY KEY REFERENCES feedback_items(id) ON DELETE CASCADE,
+          request_sha256 TEXT NOT NULL,
+          record_json TEXT NOT NULL,
+          record_sha256 TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        );
+        """,
+    ),
 )
 
 

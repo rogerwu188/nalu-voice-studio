@@ -116,6 +116,8 @@ backup boundaries and deletion behavior.
 - `GET /v1/feedback/{feedback_id}/development-handoff`
 - `POST /v1/feedback/{feedback_id}/development-handoff/reconciliation`
 - `GET /v1/feedback/{feedback_id}/development-handoff/reconciliation`
+- `POST /v1/feedback/{feedback_id}/development-result`
+- `GET /v1/feedback/{feedback_id}/development-result`
 - `POST /v1/feedback/{feedback_id}/release-linkage`
 - `GET /v1/feedback/{feedback_id}/release-linkage`
 - `POST /v1/projects/{project_id}/memory-cards`

@@ -157,7 +157,8 @@ class ProjectExport(BaseModel):
         "nalu.project-export/v14",
         "nalu.project-export/v15",
         "nalu.project-export/v16",
-    ] = "nalu.project-export/v16"
+        "nalu.project-export/v17",
+    ] = "nalu.project-export/v17"
     exported_at: str
     payload: dict[str, Any]
     payload_sha256: str
@@ -588,6 +589,45 @@ class FeedbackDevelopmentHandoffReconciliationRecord(BaseModel):
         ):
             raise ValueError("verified-absent reconciliation cannot contain a receipt")
         return self
+
+
+class FeedbackDevelopmentResultCreate(BaseModel):
+    handoff_request_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    confirmation_text: str = Field(min_length=1, max_length=300)
+    verified_by: str = Field(min_length=1, max_length=160)
+    verified_at: str = Field(min_length=1, max_length=80)
+
+
+class FeedbackDevelopmentResultRecord(BaseModel):
+    schema_version: Literal["nalu.feedback-development-result/v1"] = (
+        "nalu.feedback-development-result/v1"
+    )
+    feedback_id: str
+    handoff_request_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    handoff_response_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    remote_task_id: str
+    repository_url: str
+    branch_name: str
+    commit_sha: str = Field(pattern=r"^[0-9a-f]{40}$")
+    review_url: str
+    test_evidence_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    verification_evidence_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    verified_by: str
+    verified_at: str
+    read_only_verification_performed: Literal[True] = True
+    report_text_treated_as_inert: Literal[True] = True
+    repository_checkout_performed: Literal[False] = False
+    tool_calls: list[str] = Field(default_factory=list, max_length=0)
+    code_executed: Literal[False] = False
+    merge_performed: Literal[False] = False
+    signing_performed: Literal[False] = False
+    release_performed: Literal[False] = False
+    external_write_performed: Literal[False] = False
+    idempotency_key_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    confirmation_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    request_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    record_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    created_at: str
 
 
 class ReviewedChangeEvidence(BaseModel):

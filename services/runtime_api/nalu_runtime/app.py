@@ -17,6 +17,10 @@ from .development_handoff import (
     DisabledDevelopmentHandoffReconciliationVerifier,
     DisabledDevelopmentHandoffTransport,
 )
+from .development_result import (
+    DevelopmentResultVerifier,
+    DisabledDevelopmentResultVerifier,
+)
 from .engine import ProductionService
 from .feedback_export import (
     DisabledIssueTrackerReconciliationVerifier,
@@ -56,6 +60,8 @@ from .models import (
     FeedbackDevelopmentHandoffReceipt,
     FeedbackDevelopmentHandoffReconciliationCreate,
     FeedbackDevelopmentHandoffReconciliationRecord,
+    FeedbackDevelopmentResultCreate,
+    FeedbackDevelopmentResultRecord,
     FeedbackDevelopmentWorkOrder,
     FeedbackDevelopmentWorkOrderCreate,
     FeedbackExternalExportCreate,
@@ -144,6 +150,7 @@ def create_app(
     development_handoff_reconciliation_verifier: (
         DevelopmentHandoffReconciliationVerifier | None
     ) = None,
+    development_result_verifier: DevelopmentResultVerifier | None = None,
 ) -> FastAPI:
     repository_root = Path(
         os.environ.get("NALU_REPOSITORY_ROOT", Path(__file__).resolve().parents[3])
@@ -195,6 +202,9 @@ def create_app(
         development_handoff_reconciliation_verifier
         or DisabledDevelopmentHandoffReconciliationVerifier()
     )
+    development_result_verifier = (
+        development_result_verifier or DisabledDevelopmentResultVerifier()
+    )
 
     app = FastAPI(
         title="Nalu Voice Studio Runtime API",
@@ -212,6 +222,7 @@ def create_app(
     app.state.development_handoff_reconciliation_verifier = (
         development_handoff_reconciliation_verifier
     )
+    app.state.development_result_verifier = development_result_verifier
 
     @app.exception_handler(NotFoundError)
     async def not_found_handler(_request, exc: NotFoundError):
@@ -423,6 +434,33 @@ def create_app(
         feedback_id: str,
     ) -> FeedbackDevelopmentHandoffReconciliationRecord:
         return repository.get_feedback_development_handoff_reconciliation(feedback_id)
+
+    @app.post(
+        "/v1/feedback/{feedback_id}/development-result",
+        response_model=FeedbackDevelopmentResultRecord,
+        status_code=201,
+    )
+    def verify_feedback_development_result(
+        feedback_id: str,
+        request: FeedbackDevelopmentResultCreate,
+        idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    ) -> FeedbackDevelopmentResultRecord:
+        return repository.verify_feedback_development_result(
+            feedback_id,
+            request,
+            idempotency_key,
+            development_handoff_policy,
+            development_result_verifier,
+        )
+
+    @app.get(
+        "/v1/feedback/{feedback_id}/development-result",
+        response_model=FeedbackDevelopmentResultRecord,
+    )
+    def get_feedback_development_result(
+        feedback_id: str,
+    ) -> FeedbackDevelopmentResultRecord:
+        return repository.get_feedback_development_result(feedback_id)
 
     @app.post(
         "/v1/feedback/{feedback_id}/release-linkage",

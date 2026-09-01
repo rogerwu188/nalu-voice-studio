@@ -17,6 +17,7 @@ from .development_handoff import (
     DevelopmentHandoffReconciliationVerifier,
     DevelopmentHandoffTransport,
 )
+from .development_result import DevelopmentResultVerifier
 from .feedback_export import (
     FeedbackExportPolicy,
     IssueTrackerReconciliationVerifier,
@@ -51,6 +52,8 @@ from .models import (
     FeedbackDevelopmentHandoffReceipt,
     FeedbackDevelopmentHandoffReconciliationCreate,
     FeedbackDevelopmentHandoffReconciliationRecord,
+    FeedbackDevelopmentResultCreate,
+    FeedbackDevelopmentResultRecord,
     FeedbackDevelopmentWorkOrder,
     FeedbackDevelopmentWorkOrderCreate,
     FeedbackExternalExportCreate,
@@ -563,6 +566,12 @@ class Repository:
                    WHERE f.project_id = ?""",
                 (project_id,),
             ),
+            "feedback_development_results": (
+                """SELECT d.* FROM feedback_development_results d
+                   JOIN feedback_items f ON f.id = d.feedback_id
+                   WHERE f.project_id = ?""",
+                (project_id,),
+            ),
             "memory_cards": (
                 "SELECT * FROM memory_cards WHERE project_id = ?",
                 (project_id,),
@@ -826,6 +835,13 @@ class Repository:
                 "record_sha256",
                 "created_at",
             ),
+            "feedback_development_results": (
+                "feedback_id",
+                "request_sha256",
+                "record_json",
+                "record_sha256",
+                "created_at",
+            ),
             "memory_cards": (
                 "id",
                 "project_id",
@@ -1030,6 +1046,25 @@ class Repository:
             "nalu.project-export/v15",
         }:
             allowed_columns.pop("feedback_development_handoff_reconciliations")
+        if backup.schema_version in {
+            "nalu.project-export/v1",
+            "nalu.project-export/v2",
+            "nalu.project-export/v3",
+            "nalu.project-export/v4",
+            "nalu.project-export/v5",
+            "nalu.project-export/v6",
+            "nalu.project-export/v7",
+            "nalu.project-export/v8",
+            "nalu.project-export/v9",
+            "nalu.project-export/v10",
+            "nalu.project-export/v11",
+            "nalu.project-export/v12",
+            "nalu.project-export/v13",
+            "nalu.project-export/v14",
+            "nalu.project-export/v15",
+            "nalu.project-export/v16",
+        }:
+            allowed_columns.pop("feedback_development_results")
         if backup.schema_version in {
             "nalu.project-export/v1",
             "nalu.project-export/v2",
@@ -1570,6 +1605,63 @@ class Repository:
                 raise ConflictError(
                     "absent development handoff reconciliation does not match state"
                 )
+        for row in backup.payload.get("feedback_development_results", []):
+            try:
+                record_body = decode(row.get("record_json", ""))
+                record = FeedbackDevelopmentResultRecord.model_validate(
+                    {**record_body, "record_sha256": row.get("record_sha256")}
+                )
+            except (TypeError, json.JSONDecodeError, ValueError) as exc:
+                raise ConflictError(
+                    "project export contains invalid development result"
+                ) from exc
+            handoff = feedback_development_handoffs.get(row.get("feedback_id"))
+            work_order = feedback_development_work_orders.get(row.get("feedback_id"))
+            review_url = urlsplit(record.review_url)
+            expected_repository_url = (
+                f"https://github.com/{work_order.repository}" if work_order else None
+            )
+            if (
+                handoff is None
+                or work_order is None
+                or handoff.get("state") != "confirmed"
+                or record.feedback_id != row.get("feedback_id")
+                or record.handoff_request_sha256 != handoff.get("request_sha256")
+                or record.handoff_response_sha256 != handoff.get("response_sha256")
+                or record.remote_task_id != handoff.get("remote_task_id")
+                or record.repository_url != expected_repository_url
+                or review_url.scheme != "https"
+                or review_url.hostname != "github.com"
+                or not re.fullmatch(
+                    rf"/{re.escape(work_order.repository)}/pull/[1-9][0-9]*",
+                    review_url.path,
+                )
+                or review_url.query
+                or review_url.fragment
+                or not re.fullmatch(
+                    r"(?=.{1,200}$)(?:[A-Za-z0-9._-]+/)*[A-Za-z0-9._-]+",
+                    record.branch_name,
+                )
+                or ".." in record.branch_name
+                or record.request_sha256 != row.get("request_sha256")
+                or hashlib.sha256(encode(record_body).encode()).hexdigest()
+                != row.get("record_sha256")
+            ):
+                raise ConflictError("project export contains tampered development result")
+            result_request = {
+                "feedback_id": record.feedback_id,
+                "handoff_request_sha256": record.handoff_request_sha256,
+                "handoff_response_sha256": record.handoff_response_sha256,
+                "verified_by": record.verified_by,
+                "verified_at": record.verified_at,
+                "idempotency_key_sha256": record.idempotency_key_sha256,
+                "confirmation_sha256": record.confirmation_sha256,
+            }
+            if (
+                hashlib.sha256(encode(result_request).encode()).hexdigest()
+                != record.request_sha256
+            ):
+                raise ConflictError("development result request digest does not match")
         if any(
             row.get("project_id") != project_id or row.get("asset_id") not in asset_ids
             for row in backup.payload.get("memory_cards", [])
@@ -3039,6 +3131,180 @@ class Repository:
             raise ConflictError("stored development handoff reconciliation digest mismatch")
         stored["record_sha256"] = row["record_sha256"]
         return FeedbackDevelopmentHandoffReconciliationRecord.model_validate(stored)
+
+    @staticmethod
+    def _explicit_development_result_confirmation(value: str) -> bool:
+        normalized = "".join(value.lower().split())
+        return any(
+            phrase in normalized
+            for phrase in (
+                "我确认只读核对开发结果",
+                "我同意保存开发结果证据",
+                "确认开发结果核验",
+            )
+        )
+
+    def verify_feedback_development_result(
+        self,
+        feedback_id: str,
+        request: FeedbackDevelopmentResultCreate,
+        idempotency_key: str | None,
+        policy: DevelopmentHandoffPolicy,
+        verifier: DevelopmentResultVerifier,
+    ) -> FeedbackDevelopmentResultRecord:
+        policy.validate()
+        if not policy.enabled or not policy.administrator_authorized:
+            raise ConflictError("development result verification is disabled")
+        if idempotency_key is None or not 16 <= len(idempotency_key.strip()) <= 200:
+            raise ConflictError("a stable 16-200 character idempotency key is required")
+        if idempotency_key != idempotency_key.strip():
+            raise ConflictError("idempotency key must not have surrounding whitespace")
+        if not self._explicit_development_result_confirmation(request.confirmation_text):
+            raise ConflictError("development result verification requires confirmation")
+        handoff = self.get_feedback_development_handoff(feedback_id)
+        if (
+            handoff.state != "confirmed"
+            or not handoff.remote_task_id
+            or not handoff.remote_task_url
+            or not handoff.response_sha256
+        ):
+            raise ConflictError("development result requires a confirmed handoff")
+        if request.handoff_request_sha256 != handoff.request_sha256:
+            raise ConflictError("development result handoff digest does not match")
+        work_order = self.get_feedback_development_work_order(feedback_id)
+        verified_by, _ = self._redact_feedback_message(request.verified_by.strip())
+        if not verified_by:
+            raise ConflictError("development result verifier identity is required")
+        idempotency_key_sha256 = hashlib.sha256(idempotency_key.encode()).hexdigest()
+        confirmation_sha256 = hashlib.sha256(
+            request.confirmation_text.strip().encode()
+        ).hexdigest()
+        request_body = {
+            "feedback_id": feedback_id,
+            "handoff_request_sha256": handoff.request_sha256,
+            "handoff_response_sha256": handoff.response_sha256,
+            "verified_by": verified_by,
+            "verified_at": request.verified_at,
+            "idempotency_key_sha256": idempotency_key_sha256,
+            "confirmation_sha256": confirmation_sha256,
+        }
+        request_sha256 = hashlib.sha256(encode(request_body).encode()).hexdigest()
+        with self.db.connect() as connection:
+            existing = connection.execute(
+                "SELECT * FROM feedback_development_results WHERE feedback_id = ?",
+                (feedback_id,),
+            ).fetchone()
+        if existing is not None:
+            if existing["request_sha256"] != request_sha256:
+                raise ConflictError("feedback already has a different development result")
+            return self.get_feedback_development_result(feedback_id)
+
+        try:
+            result = verifier.lookup_result(
+                endpoint=policy.endpoint,
+                remote_task_id=handoff.remote_task_id,
+                remote_task_url=handoff.remote_task_url,
+            )
+        except Exception as exc:
+            raise ConflictError(
+                "development result could not be independently verified"
+            ) from exc
+        expected_repository_url = f"https://github.com/{work_order.repository}"
+        repository_url = urlsplit(result.repository_url)
+        review_url = urlsplit(result.review_url)
+        if (
+            result.repository_url != expected_repository_url
+            or repository_url.scheme != "https"
+            or repository_url.hostname != "github.com"
+            or repository_url.query
+            or repository_url.fragment
+            or review_url.scheme != "https"
+            or review_url.hostname != "github.com"
+            or not re.fullmatch(
+                rf"/{re.escape(work_order.repository)}/pull/[1-9][0-9]*",
+                review_url.path,
+            )
+            or review_url.query
+            or review_url.fragment
+            or not re.fullmatch(
+                r"(?=.{1,200}$)(?:[A-Za-z0-9._-]+/)*[A-Za-z0-9._-]+",
+                result.branch_name,
+            )
+            or ".." in result.branch_name
+            or not re.fullmatch(r"[0-9a-f]{40}", result.commit_sha)
+            or not re.fullmatch(r"[0-9a-f]{64}", result.test_evidence_sha256)
+        ):
+            raise ConflictError("development result contains invalid bounded evidence")
+        evidence_json = encode(result.evidence)
+        if not result.evidence or len(evidence_json.encode()) > policy.max_payload_bytes:
+            raise ConflictError("development result verification evidence is missing or too large")
+        evidence_sha256 = hashlib.sha256(evidence_json.encode()).hexdigest()
+        now = utc_now()
+        record_body = {
+            "schema_version": "nalu.feedback-development-result/v1",
+            "feedback_id": feedback_id,
+            "handoff_request_sha256": handoff.request_sha256,
+            "handoff_response_sha256": handoff.response_sha256,
+            "remote_task_id": handoff.remote_task_id,
+            "repository_url": result.repository_url,
+            "branch_name": result.branch_name,
+            "commit_sha": result.commit_sha,
+            "review_url": result.review_url,
+            "test_evidence_sha256": result.test_evidence_sha256,
+            "verification_evidence_sha256": evidence_sha256,
+            "verified_by": verified_by,
+            "verified_at": request.verified_at,
+            "read_only_verification_performed": True,
+            "report_text_treated_as_inert": True,
+            "repository_checkout_performed": False,
+            "tool_calls": [],
+            "code_executed": False,
+            "merge_performed": False,
+            "signing_performed": False,
+            "release_performed": False,
+            "external_write_performed": False,
+            "idempotency_key_sha256": idempotency_key_sha256,
+            "confirmation_sha256": confirmation_sha256,
+            "request_sha256": request_sha256,
+            "created_at": now,
+        }
+        record_sha256 = hashlib.sha256(encode(record_body).encode()).hexdigest()
+        try:
+            with self.db.connect() as connection:
+                connection.execute(
+                    "INSERT INTO feedback_development_results VALUES (?, ?, ?, ?, ?)",
+                    (
+                        feedback_id,
+                        request_sha256,
+                        encode(record_body),
+                        record_sha256,
+                        now,
+                    ),
+                )
+        except sqlite3.IntegrityError as exc:
+            raise ConflictError("development result was recorded concurrently") from exc
+        record_body["record_sha256"] = record_sha256
+        return FeedbackDevelopmentResultRecord.model_validate(record_body)
+
+    def get_feedback_development_result(
+        self, feedback_id: str
+    ) -> FeedbackDevelopmentResultRecord:
+        self.get_feedback(feedback_id)
+        with self.db.connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM feedback_development_results WHERE feedback_id = ?",
+                (feedback_id,),
+            ).fetchone()
+        if row is None:
+            raise NotFoundError("feedback development result not found")
+        stored = decode(row["record_json"])
+        if (
+            hashlib.sha256(encode(stored).encode()).hexdigest() != row["record_sha256"]
+            or stored.get("request_sha256") != row["request_sha256"]
+        ):
+            raise ConflictError("stored development result digest mismatch")
+        stored["record_sha256"] = row["record_sha256"]
+        return FeedbackDevelopmentResultRecord.model_validate(stored)
 
     def create_feedback_release_linkage(
         self,

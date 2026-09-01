@@ -2044,6 +2044,205 @@
         "title": "FeedbackDevelopmentHandoffReconciliationRecord",
         "type": "object"
       },
+      "FeedbackDevelopmentResultCreate": {
+        "properties": {
+          "confirmation_text": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Confirmation Text",
+            "type": "string"
+          },
+          "handoff_request_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Handoff Request Sha256",
+            "type": "string"
+          },
+          "verified_at": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Verified At",
+            "type": "string"
+          },
+          "verified_by": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Verified By",
+            "type": "string"
+          }
+        },
+        "required": [
+          "handoff_request_sha256",
+          "confirmation_text",
+          "verified_by",
+          "verified_at"
+        ],
+        "title": "FeedbackDevelopmentResultCreate",
+        "type": "object"
+      },
+      "FeedbackDevelopmentResultRecord": {
+        "properties": {
+          "branch_name": {
+            "title": "Branch Name",
+            "type": "string"
+          },
+          "code_executed": {
+            "const": false,
+            "default": false,
+            "title": "Code Executed",
+            "type": "boolean"
+          },
+          "commit_sha": {
+            "pattern": "^[0-9a-f]{40}$",
+            "title": "Commit Sha",
+            "type": "string"
+          },
+          "confirmation_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Confirmation Sha256",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "external_write_performed": {
+            "const": false,
+            "default": false,
+            "title": "External Write Performed",
+            "type": "boolean"
+          },
+          "feedback_id": {
+            "title": "Feedback Id",
+            "type": "string"
+          },
+          "handoff_request_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Handoff Request Sha256",
+            "type": "string"
+          },
+          "handoff_response_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Handoff Response Sha256",
+            "type": "string"
+          },
+          "idempotency_key_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Idempotency Key Sha256",
+            "type": "string"
+          },
+          "merge_performed": {
+            "const": false,
+            "default": false,
+            "title": "Merge Performed",
+            "type": "boolean"
+          },
+          "read_only_verification_performed": {
+            "const": true,
+            "default": true,
+            "title": "Read Only Verification Performed",
+            "type": "boolean"
+          },
+          "record_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Record Sha256",
+            "type": "string"
+          },
+          "release_performed": {
+            "const": false,
+            "default": false,
+            "title": "Release Performed",
+            "type": "boolean"
+          },
+          "remote_task_id": {
+            "title": "Remote Task Id",
+            "type": "string"
+          },
+          "report_text_treated_as_inert": {
+            "const": true,
+            "default": true,
+            "title": "Report Text Treated As Inert",
+            "type": "boolean"
+          },
+          "repository_checkout_performed": {
+            "const": false,
+            "default": false,
+            "title": "Repository Checkout Performed",
+            "type": "boolean"
+          },
+          "repository_url": {
+            "title": "Repository Url",
+            "type": "string"
+          },
+          "request_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Request Sha256",
+            "type": "string"
+          },
+          "review_url": {
+            "title": "Review Url",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "nalu.feedback-development-result/v1",
+            "default": "nalu.feedback-development-result/v1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "signing_performed": {
+            "const": false,
+            "default": false,
+            "title": "Signing Performed",
+            "type": "boolean"
+          },
+          "test_evidence_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Test Evidence Sha256",
+            "type": "string"
+          },
+          "tool_calls": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 0,
+            "title": "Tool Calls",
+            "type": "array"
+          },
+          "verification_evidence_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Verification Evidence Sha256",
+            "type": "string"
+          },
+          "verified_at": {
+            "title": "Verified At",
+            "type": "string"
+          },
+          "verified_by": {
+            "title": "Verified By",
+            "type": "string"
+          }
+        },
+        "required": [
+          "feedback_id",
+          "handoff_request_sha256",
+          "handoff_response_sha256",
+          "remote_task_id",
+          "repository_url",
+          "branch_name",
+          "commit_sha",
+          "review_url",
+          "test_evidence_sha256",
+          "verification_evidence_sha256",
+          "verified_by",
+          "verified_at",
+          "idempotency_key_sha256",
+          "confirmation_sha256",
+          "request_sha256",
+          "record_sha256",
+          "created_at"
+        ],
+        "title": "FeedbackDevelopmentResultRecord",
+        "type": "object"
+      },
       "FeedbackDevelopmentWorkOrder": {
         "properties": {
           "acceptance_tests": {
@@ -5467,7 +5666,7 @@
             "type": "string"
           },
           "schema_version": {
-            "default": "nalu.project-export/v16",
+            "default": "nalu.project-export/v17",
             "enum": [
               "nalu.project-export/v1",
               "nalu.project-export/v2",
@@ -5484,7 +5683,8 @@
               "nalu.project-export/v13",
               "nalu.project-export/v14",
               "nalu.project-export/v15",
-              "nalu.project-export/v16"
+              "nalu.project-export/v16",
+              "nalu.project-export/v17"
             ],
             "title": "Schema Version",
             "type": "string"
@@ -8450,6 +8650,108 @@
           }
         },
         "summary": "Reconcile Feedback Development Handoff"
+      }
+    },
+    "/v1/feedback/{feedback_id}/development-result": {
+      "get": {
+        "operationId": "get_feedback_development_result_v1_feedback__feedback_id__development_result_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "feedback_id",
+            "required": true,
+            "schema": {
+              "title": "Feedback Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackDevelopmentResultRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Feedback Development Result"
+      },
+      "post": {
+        "operationId": "verify_feedback_development_result_v1_feedback__feedback_id__development_result_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "feedback_id",
+            "required": true,
+            "schema": {
+              "title": "Feedback Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedbackDevelopmentResultCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackDevelopmentResultRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Verify Feedback Development Result"
       }
     },
     "/v1/feedback/{feedback_id}/development-work-order": {

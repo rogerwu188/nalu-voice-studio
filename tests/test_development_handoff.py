@@ -8,6 +8,10 @@ from nalu_runtime.development_handoff import (
     DisabledDevelopmentHandoffReconciliationVerifier,
     DisabledDevelopmentHandoffTransport,
 )
+from nalu_runtime.development_result import (
+    DevelopmentResultVerificationError,
+    DisabledDevelopmentResultVerifier,
+)
 
 
 def write_policy(path: Path, **changes) -> Path:
@@ -40,6 +44,12 @@ def test_packaged_development_handoff_is_disabled_and_target_free() -> None:
             endpoint="https://developer.example.test/api/development-work-orders",
             payload_sha256="0" * 64,
             idempotency_key="disabled-handoff-0001",
+        )
+    with pytest.raises(DevelopmentResultVerificationError):
+        DisabledDevelopmentResultVerifier().lookup_result(
+            endpoint="https://developer.example.test/api/development-work-orders",
+            remote_task_id="dev-42",
+            remote_task_url="https://developer.example.test/tasks/dev-42",
         )
 
 

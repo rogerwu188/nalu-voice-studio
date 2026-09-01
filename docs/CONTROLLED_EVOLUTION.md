@@ -106,6 +106,18 @@ order submission was not retried and reconciliation made no external write. Exac
 does not query again. The packaged verifier denies all calls; found/absent tests inject
 local fixtures only and therefore do not claim a real remote lookup.
 
+A confirmed handoff may next be associated with one immutable development-result
+record, but only through a separately injected read-only verifier and another explicit
+administrator confirmation. Nalu requires the exact handoff digest and stable
+idempotency key, then bounds the result to the approved GitHub repository, a safe branch
+name, one pull-request URL, one 40-character commit and one test-evidence digest. Raw
+verifier evidence is never interpreted or stored; only its SHA-256 is retained. This
+operation does not check out a repository, execute report text or code, invoke tools,
+merge, sign, release or perform an external write. Exact replay returns the stored record
+without querying again, export/import revalidates the complete hash chain, and the
+packaged verifier denies every call. Injected fixtures prove only the local trust boundary,
+not that a real development result exists.
+
 A separate local `qa_evidence_linked` receipt can bind the immutable review-bundle hash
 to one reviewed 40-character change commit, the exact successful CI head and artifact,
 an installed Developer ID/notarization/Gatekeeper receipt and an older-build rollback
@@ -134,6 +146,8 @@ Developer ID/notarized candidate and authorized rollout evidence.
   verification fails if a distributed bundle silently enables it.
 - The packaged `configs/development-handoff.json` must also stay disabled and target-free;
   a work order alone never authorizes code, merge, signing or release activity.
+- A development-result receipt is read-only evidence. It cannot authorize checkout,
+  code execution, merge, signing, release or publication.
 - No project media is attached automatically.
 - Diagnostics use an allowlist; full logs and SQLite are forbidden attachments.
 - Similar reports may be clustered only after redaction. Counts do not override
