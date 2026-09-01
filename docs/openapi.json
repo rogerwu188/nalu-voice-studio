@@ -1728,6 +1728,278 @@
         "title": "FeedbackCreate",
         "type": "object"
       },
+      "FeedbackDevelopmentWorkOrder": {
+        "properties": {
+          "acceptance_tests": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Acceptance Tests",
+            "type": "array"
+          },
+          "accessibility_requirements": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Accessibility Requirements",
+            "type": "array"
+          },
+          "approved_at": {
+            "title": "Approved At",
+            "type": "string"
+          },
+          "approved_by": {
+            "title": "Approved By",
+            "type": "string"
+          },
+          "branch_created": {
+            "const": false,
+            "default": false,
+            "title": "Branch Created",
+            "type": "boolean"
+          },
+          "code_change_performed": {
+            "const": false,
+            "default": false,
+            "title": "Code Change Performed",
+            "type": "boolean"
+          },
+          "confirmation_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Confirmation Sha256",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "export_request_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Export Request Sha256",
+            "type": "string"
+          },
+          "feedback_id": {
+            "title": "Feedback Id",
+            "type": "string"
+          },
+          "idempotency_key_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Idempotency Key Sha256",
+            "type": "string"
+          },
+          "merge_performed": {
+            "const": false,
+            "default": false,
+            "title": "Merge Performed",
+            "type": "boolean"
+          },
+          "network_call_performed": {
+            "const": false,
+            "default": false,
+            "title": "Network Call Performed",
+            "type": "boolean"
+          },
+          "privacy_requirements": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Privacy Requirements",
+            "type": "array"
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Id"
+          },
+          "record_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Record Sha256",
+            "type": "string"
+          },
+          "release_performed": {
+            "const": false,
+            "default": false,
+            "title": "Release Performed",
+            "type": "boolean"
+          },
+          "remote_issue_id": {
+            "title": "Remote Issue Id",
+            "type": "string"
+          },
+          "remote_issue_url": {
+            "title": "Remote Issue Url",
+            "type": "string"
+          },
+          "report_text_treated_as_inert": {
+            "const": true,
+            "default": true,
+            "title": "Report Text Treated As Inert",
+            "type": "boolean"
+          },
+          "repository": {
+            "title": "Repository",
+            "type": "string"
+          },
+          "request_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Request Sha256",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "nalu.feedback-development-work-order/v1",
+            "default": "nalu.feedback-development-work-order/v1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "signing_performed": {
+            "const": false,
+            "default": false,
+            "title": "Signing Performed",
+            "type": "boolean"
+          },
+          "status": {
+            "const": "approved_local",
+            "default": "approved_local",
+            "title": "Status",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "tool_calls": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 0,
+            "title": "Tool Calls",
+            "type": "array"
+          },
+          "triage_record_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Triage Record Sha256",
+            "type": "string"
+          }
+        },
+        "required": [
+          "feedback_id",
+          "project_id",
+          "repository",
+          "remote_issue_id",
+          "remote_issue_url",
+          "triage_record_sha256",
+          "export_request_sha256",
+          "title",
+          "scope",
+          "acceptance_tests",
+          "privacy_requirements",
+          "accessibility_requirements",
+          "approved_by",
+          "approved_at",
+          "idempotency_key_sha256",
+          "confirmation_sha256",
+          "request_sha256",
+          "record_sha256",
+          "created_at"
+        ],
+        "title": "FeedbackDevelopmentWorkOrder",
+        "type": "object"
+      },
+      "FeedbackDevelopmentWorkOrderCreate": {
+        "properties": {
+          "acceptance_tests": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Acceptance Tests",
+            "type": "array"
+          },
+          "accessibility_requirements": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Accessibility Requirements",
+            "type": "array"
+          },
+          "approved_at": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Approved At",
+            "type": "string"
+          },
+          "approved_by": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Approved By",
+            "type": "string"
+          },
+          "confirmation_text": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Confirmation Text",
+            "type": "string"
+          },
+          "export_request_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Export Request Sha256",
+            "type": "string"
+          },
+          "privacy_requirements": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Privacy Requirements",
+            "type": "array"
+          },
+          "scope": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Scope",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "triage_record_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Triage Record Sha256",
+            "type": "string"
+          }
+        },
+        "required": [
+          "triage_record_sha256",
+          "export_request_sha256",
+          "title",
+          "scope",
+          "acceptance_tests",
+          "privacy_requirements",
+          "accessibility_requirements",
+          "approved_by",
+          "approved_at",
+          "confirmation_text"
+        ],
+        "title": "FeedbackDevelopmentWorkOrderCreate",
+        "type": "object"
+      },
       "FeedbackExternalExportCreate": {
         "properties": {
           "confirmation_text": {
@@ -4879,7 +5151,7 @@
             "type": "string"
           },
           "schema_version": {
-            "default": "nalu.project-export/v13",
+            "default": "nalu.project-export/v14",
             "enum": [
               "nalu.project-export/v1",
               "nalu.project-export/v2",
@@ -4893,7 +5165,8 @@
               "nalu.project-export/v10",
               "nalu.project-export/v11",
               "nalu.project-export/v12",
-              "nalu.project-export/v13"
+              "nalu.project-export/v13",
+              "nalu.project-export/v14"
             ],
             "title": "Schema Version",
             "type": "string"
@@ -7655,6 +7928,108 @@
           }
         },
         "summary": "Create Feedback"
+      }
+    },
+    "/v1/feedback/{feedback_id}/development-work-order": {
+      "get": {
+        "operationId": "get_feedback_development_work_order_v1_feedback__feedback_id__development_work_order_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "feedback_id",
+            "required": true,
+            "schema": {
+              "title": "Feedback Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackDevelopmentWorkOrder"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Feedback Development Work Order"
+      },
+      "post": {
+        "operationId": "create_feedback_development_work_order_v1_feedback__feedback_id__development_work_order_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "feedback_id",
+            "required": true,
+            "schema": {
+              "title": "Feedback Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedbackDevelopmentWorkOrderCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackDevelopmentWorkOrder"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Feedback Development Work Order"
       }
     },
     "/v1/feedback/{feedback_id}/external-export": {

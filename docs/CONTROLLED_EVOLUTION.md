@@ -76,6 +76,14 @@ external write was performed by reconciliation. Exact replay reads the stored re
 The distributed verifier denies all calls, and automated tests inject only local fixtures,
 so this mechanism does not claim that a real remote lookup has occurred.
 
+After an accepted human triage and confirmed export receipt, a maintainer may approve one
+immutable local development work order. It binds the exact triage and export hashes to a
+redacted title and scope, concrete acceptance tests, privacy requirements and accessibility
+requirements. Report and prompt-like text remain inert data: the record has no tool calls
+and literal false values for branch creation, code edits, merge, signing, release and
+network activity. The work order authorizes no development operation by itself; a later
+agent/maintainer handoff must remain separately governed and reviewed.
+
 A separate local `qa_evidence_linked` receipt can bind the immutable review-bundle hash
 to one reviewed 40-character change commit, the exact successful CI head and artifact,
 an installed Developer ID/notarization/Gatekeeper receipt and an older-build rollback

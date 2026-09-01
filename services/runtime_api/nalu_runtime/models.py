@@ -154,7 +154,8 @@ class ProjectExport(BaseModel):
         "nalu.project-export/v11",
         "nalu.project-export/v12",
         "nalu.project-export/v13",
-    ] = "nalu.project-export/v13"
+        "nalu.project-export/v14",
+    ] = "nalu.project-export/v14"
     exported_at: str
     payload: dict[str, Any]
     payload_sha256: str
@@ -466,6 +467,53 @@ class FeedbackExternalReconciliationRecord(BaseModel):
         ):
             raise ValueError("verified-absent reconciliation cannot contain a receipt")
         return self
+
+
+class FeedbackDevelopmentWorkOrderCreate(BaseModel):
+    triage_record_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    export_request_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    title: str = Field(min_length=1, max_length=200)
+    scope: str = Field(min_length=1, max_length=4000)
+    acceptance_tests: list[str] = Field(min_length=1, max_length=20)
+    privacy_requirements: list[str] = Field(min_length=1, max_length=20)
+    accessibility_requirements: list[str] = Field(min_length=1, max_length=20)
+    approved_by: str = Field(min_length=1, max_length=160)
+    approved_at: str = Field(min_length=1, max_length=80)
+    confirmation_text: str = Field(min_length=1, max_length=300)
+
+
+class FeedbackDevelopmentWorkOrder(BaseModel):
+    schema_version: Literal["nalu.feedback-development-work-order/v1"] = (
+        "nalu.feedback-development-work-order/v1"
+    )
+    feedback_id: str
+    project_id: str | None
+    repository: str
+    remote_issue_id: str
+    remote_issue_url: str
+    triage_record_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    export_request_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    title: str
+    scope: str
+    acceptance_tests: list[str]
+    privacy_requirements: list[str]
+    accessibility_requirements: list[str]
+    approved_by: str
+    approved_at: str
+    status: Literal["approved_local"] = "approved_local"
+    report_text_treated_as_inert: Literal[True] = True
+    tool_calls: list[str] = Field(default_factory=list, max_length=0)
+    branch_created: Literal[False] = False
+    code_change_performed: Literal[False] = False
+    merge_performed: Literal[False] = False
+    signing_performed: Literal[False] = False
+    release_performed: Literal[False] = False
+    network_call_performed: Literal[False] = False
+    idempotency_key_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    confirmation_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    request_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    record_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    created_at: str
 
 
 class ReviewedChangeEvidence(BaseModel):

@@ -45,6 +45,8 @@ from .models import (
     EpisodeProductionProgress,
     EpisodeTransitionRequest,
     FeedbackCreate,
+    FeedbackDevelopmentWorkOrder,
+    FeedbackDevelopmentWorkOrderCreate,
     FeedbackExternalExportCreate,
     FeedbackExternalExportReceipt,
     FeedbackExternalReconciliationCreate,
@@ -304,6 +306,29 @@ def create_app(
         feedback_id: str,
     ) -> FeedbackExternalReconciliationRecord:
         return repository.get_feedback_external_reconciliation(feedback_id)
+
+    @app.post(
+        "/v1/feedback/{feedback_id}/development-work-order",
+        response_model=FeedbackDevelopmentWorkOrder,
+        status_code=201,
+    )
+    def create_feedback_development_work_order(
+        feedback_id: str,
+        request: FeedbackDevelopmentWorkOrderCreate,
+        idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    ) -> FeedbackDevelopmentWorkOrder:
+        return repository.create_feedback_development_work_order(
+            feedback_id, request, idempotency_key
+        )
+
+    @app.get(
+        "/v1/feedback/{feedback_id}/development-work-order",
+        response_model=FeedbackDevelopmentWorkOrder,
+    )
+    def get_feedback_development_work_order(
+        feedback_id: str,
+    ) -> FeedbackDevelopmentWorkOrder:
+        return repository.get_feedback_development_work_order(feedback_id)
 
     @app.post(
         "/v1/feedback/{feedback_id}/release-linkage",

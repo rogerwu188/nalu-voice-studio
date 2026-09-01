@@ -42,6 +42,8 @@ from .models import (
     EpisodeStatus,
     EpisodeTransitionRequest,
     FeedbackCreate,
+    FeedbackDevelopmentWorkOrder,
+    FeedbackDevelopmentWorkOrderCreate,
     FeedbackExternalExportCreate,
     FeedbackExternalExportReceipt,
     FeedbackExternalReconciliationCreate,
@@ -534,6 +536,12 @@ class Repository:
                    WHERE f.project_id = ?""",
                 (project_id,),
             ),
+            "feedback_development_work_orders": (
+                """SELECT w.* FROM feedback_development_work_orders w
+                   JOIN feedback_items f ON f.id = w.feedback_id
+                   WHERE f.project_id = ?""",
+                (project_id,),
+            ),
             "memory_cards": (
                 "SELECT * FROM memory_cards WHERE project_id = ?",
                 (project_id,),
@@ -765,6 +773,13 @@ class Repository:
                 "record_sha256",
                 "created_at",
             ),
+            "feedback_development_work_orders": (
+                "feedback_id",
+                "request_sha256",
+                "record_json",
+                "record_sha256",
+                "created_at",
+            ),
             "memory_cards": (
                 "id",
                 "project_id",
@@ -918,6 +933,22 @@ class Repository:
             "nalu.project-export/v12",
         }:
             allowed_columns.pop("feedback_external_reconciliations")
+        if backup.schema_version in {
+            "nalu.project-export/v1",
+            "nalu.project-export/v2",
+            "nalu.project-export/v3",
+            "nalu.project-export/v4",
+            "nalu.project-export/v5",
+            "nalu.project-export/v6",
+            "nalu.project-export/v7",
+            "nalu.project-export/v8",
+            "nalu.project-export/v9",
+            "nalu.project-export/v10",
+            "nalu.project-export/v11",
+            "nalu.project-export/v12",
+            "nalu.project-export/v13",
+        }:
+            allowed_columns.pop("feedback_development_work_orders")
         if backup.schema_version in {
             "nalu.project-export/v1",
             "nalu.project-export/v2",
@@ -1199,7 +1230,8 @@ class Repository:
                     or remote_url.query
                     or remote_url.fragment
                     or (
-                        backup.schema_version == "nalu.project-export/v13"
+                        backup.schema_version
+                        in {"nalu.project-export/v13", "nalu.project-export/v14"}
                         and response
                         != {
                             "remote_issue_id": row.get("remote_issue_id"),
@@ -1265,6 +1297,56 @@ class Repository:
                 raise ConflictError("confirmed reconciliation does not match export receipt")
             if record.outcome == "verified_absent" and export.get("state") != "rejected":
                 raise ConflictError("absent reconciliation does not match export state")
+        for row in backup.payload.get("feedback_development_work_orders", []):
+            try:
+                record_body = decode(row.get("record_json", ""))
+                work_order = FeedbackDevelopmentWorkOrder.model_validate(
+                    {**record_body, "record_sha256": row.get("record_sha256")}
+                )
+            except (TypeError, json.JSONDecodeError, ValueError) as exc:
+                raise ConflictError("project export contains invalid development work order") from exc
+            export = feedback_external_exports.get(row.get("feedback_id"))
+            if export is None:
+                raise ConflictError("development work order has no external export")
+            try:
+                export_policy = FeedbackExportPolicy(**decode(export.get("policy_json", "")))
+                export_policy.validate()
+            except (TypeError, json.JSONDecodeError, ValueError) as exc:
+                raise ConflictError("development work order export policy is invalid") from exc
+            if (
+                work_order.feedback_id != row.get("feedback_id")
+                or work_order.project_id != project_id
+                or work_order.triage_record_sha256
+                != feedback_triage_digests.get(row.get("feedback_id"))
+                or work_order.export_request_sha256 != export.get("request_sha256")
+                or export.get("state") != "confirmed"
+                or work_order.repository != export_policy.repository
+                or work_order.remote_issue_id != export.get("remote_issue_id")
+                or work_order.remote_issue_url != export.get("remote_issue_url")
+                or work_order.request_sha256 != row.get("request_sha256")
+                or hashlib.sha256(encode(record_body).encode()).hexdigest()
+                != row.get("record_sha256")
+            ):
+                raise ConflictError("project export contains tampered development work order")
+            work_order_request = {
+                "feedback_id": work_order.feedback_id,
+                "triage_record_sha256": work_order.triage_record_sha256,
+                "export_request_sha256": work_order.export_request_sha256,
+                "title": work_order.title,
+                "scope": work_order.scope,
+                "acceptance_tests": work_order.acceptance_tests,
+                "privacy_requirements": work_order.privacy_requirements,
+                "accessibility_requirements": work_order.accessibility_requirements,
+                "approved_by": work_order.approved_by,
+                "approved_at": work_order.approved_at,
+                "idempotency_key_sha256": work_order.idempotency_key_sha256,
+                "confirmation_sha256": work_order.confirmation_sha256,
+            }
+            if (
+                hashlib.sha256(encode(work_order_request).encode()).hexdigest()
+                != work_order.request_sha256
+            ):
+                raise ConflictError("development work order request digest does not match")
         if any(
             row.get("project_id") != project_id or row.get("asset_id") not in asset_ids
             for row in backup.payload.get("memory_cards", [])
@@ -2085,6 +2167,162 @@ class Repository:
             raise ConflictError("stored feedback reconciliation digest mismatch")
         stored["record_sha256"] = row["record_sha256"]
         return FeedbackExternalReconciliationRecord.model_validate(stored)
+
+    @staticmethod
+    def _explicit_work_order_confirmation(value: str) -> bool:
+        normalized = "".join(value.lower().split())
+        return any(
+            phrase in normalized
+            for phrase in ("我确认创建开发工单", "我同意进入人工开发", "确认开发范围")
+        )
+
+    def _clean_work_order_list(self, values: list[str], field: str) -> list[str]:
+        cleaned: list[str] = []
+        for value in values:
+            normalized, _ = self._redact_feedback_message(value.strip())
+            if not normalized or len(normalized) > 500:
+                raise ConflictError(f"{field} entries must contain 1-500 characters")
+            if normalized not in cleaned:
+                cleaned.append(normalized)
+        if not cleaned:
+            raise ConflictError(f"{field} must contain at least one requirement")
+        return cleaned
+
+    def create_feedback_development_work_order(
+        self,
+        feedback_id: str,
+        request: FeedbackDevelopmentWorkOrderCreate,
+        idempotency_key: str | None,
+    ) -> FeedbackDevelopmentWorkOrder:
+        feedback = self.get_feedback(feedback_id)
+        if not feedback.share_authorized or feedback.status != "ready_for_review":
+            raise ConflictError("local-only feedback cannot create a development work order")
+        if idempotency_key is None or not 16 <= len(idempotency_key.strip()) <= 200:
+            raise ConflictError("a stable 16-200 character idempotency key is required")
+        if idempotency_key != idempotency_key.strip():
+            raise ConflictError("idempotency key must not have surrounding whitespace")
+        if not self._explicit_work_order_confirmation(request.confirmation_text):
+            raise ConflictError("development work order requires explicit human approval")
+        triage = self.get_feedback_triage_record(feedback_id)
+        if triage.disposition != "accepted":
+            raise ConflictError("only accepted human triage can create a development work order")
+        if request.triage_record_sha256 != triage.record_sha256:
+            raise ConflictError("work order triage digest does not match")
+        export = self.get_feedback_external_export(feedback_id)
+        if request.export_request_sha256 != export.request_sha256:
+            raise ConflictError("work order export receipt does not match")
+
+        title, _ = self._redact_feedback_message(request.title.strip())
+        scope, _ = self._redact_feedback_message(request.scope.strip())
+        approved_by, _ = self._redact_feedback_message(request.approved_by.strip())
+        if not title or not scope or not approved_by:
+            raise ConflictError("work order title, scope and approver are required")
+        acceptance_tests = self._clean_work_order_list(
+            request.acceptance_tests, "acceptance_tests"
+        )
+        privacy_requirements = self._clean_work_order_list(
+            request.privacy_requirements, "privacy_requirements"
+        )
+        accessibility_requirements = self._clean_work_order_list(
+            request.accessibility_requirements, "accessibility_requirements"
+        )
+        idempotency_key_sha256 = hashlib.sha256(idempotency_key.encode()).hexdigest()
+        confirmation_sha256 = hashlib.sha256(
+            request.confirmation_text.strip().encode()
+        ).hexdigest()
+        request_body = {
+            "feedback_id": feedback_id,
+            "triage_record_sha256": triage.record_sha256,
+            "export_request_sha256": export.request_sha256,
+            "title": title,
+            "scope": scope,
+            "acceptance_tests": acceptance_tests,
+            "privacy_requirements": privacy_requirements,
+            "accessibility_requirements": accessibility_requirements,
+            "approved_by": approved_by,
+            "approved_at": request.approved_at,
+            "idempotency_key_sha256": idempotency_key_sha256,
+            "confirmation_sha256": confirmation_sha256,
+        }
+        request_sha256 = hashlib.sha256(encode(request_body).encode()).hexdigest()
+        with self.db.connect() as connection:
+            existing = connection.execute(
+                "SELECT * FROM feedback_development_work_orders WHERE feedback_id = ?",
+                (feedback_id,),
+            ).fetchone()
+        if existing is not None:
+            if existing["request_sha256"] != request_sha256:
+                raise ConflictError("feedback already has a different development work order")
+            return self.get_feedback_development_work_order(feedback_id)
+
+        now = utc_now()
+        record_body = {
+            "schema_version": "nalu.feedback-development-work-order/v1",
+            "feedback_id": feedback_id,
+            "project_id": feedback.project_id,
+            "repository": export.repository,
+            "remote_issue_id": export.remote_issue_id,
+            "remote_issue_url": export.remote_issue_url,
+            "triage_record_sha256": triage.record_sha256,
+            "export_request_sha256": export.request_sha256,
+            "title": title,
+            "scope": scope,
+            "acceptance_tests": acceptance_tests,
+            "privacy_requirements": privacy_requirements,
+            "accessibility_requirements": accessibility_requirements,
+            "approved_by": approved_by,
+            "approved_at": request.approved_at,
+            "status": "approved_local",
+            "report_text_treated_as_inert": True,
+            "tool_calls": [],
+            "branch_created": False,
+            "code_change_performed": False,
+            "merge_performed": False,
+            "signing_performed": False,
+            "release_performed": False,
+            "network_call_performed": False,
+            "idempotency_key_sha256": idempotency_key_sha256,
+            "confirmation_sha256": confirmation_sha256,
+            "request_sha256": request_sha256,
+            "created_at": now,
+        }
+        record_sha256 = hashlib.sha256(encode(record_body).encode()).hexdigest()
+        try:
+            with self.db.connect() as connection:
+                connection.execute(
+                    "INSERT INTO feedback_development_work_orders VALUES (?, ?, ?, ?, ?)",
+                    (
+                        feedback_id,
+                        request_sha256,
+                        encode(record_body),
+                        record_sha256,
+                        now,
+                    ),
+                )
+        except sqlite3.IntegrityError as exc:
+            raise ConflictError("development work order was created concurrently") from exc
+        record_body["record_sha256"] = record_sha256
+        return FeedbackDevelopmentWorkOrder.model_validate(record_body)
+
+    def get_feedback_development_work_order(
+        self, feedback_id: str
+    ) -> FeedbackDevelopmentWorkOrder:
+        self.get_feedback(feedback_id)
+        with self.db.connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM feedback_development_work_orders WHERE feedback_id = ?",
+                (feedback_id,),
+            ).fetchone()
+        if row is None:
+            raise NotFoundError("feedback development work order not found")
+        stored = decode(row["record_json"])
+        if (
+            hashlib.sha256(encode(stored).encode()).hexdigest() != row["record_sha256"]
+            or stored.get("request_sha256") != row["request_sha256"]
+        ):
+            raise ConflictError("stored development work order digest mismatch")
+        stored["record_sha256"] = row["record_sha256"]
+        return FeedbackDevelopmentWorkOrder.model_validate(stored)
 
     def create_feedback_release_linkage(
         self,
