@@ -102,6 +102,12 @@ binds the installed build, discovery policy and complete trust policy; replay wi
 inputs fails closed. Supplying a public key without an authorized origin leaves discovery
 disabled. No CI or local fixture test contacts a production update service.
 
+Release verification also requires the seven stable native accessibility identifiers
+for the publication-learning card, its four content regions, refresh and spoken-readback
+control. This catches a missing or stripped accessibility implementation in every arm64,
+x86_64 and Universal artifact. It is a static packaging gate only: it does not replace
+Accessibility Inspector, actual large-text layout or VoiceOver/readback observation.
+
 ## Developer ID release
 
 Import a `Developer ID Application` certificate into the active keychain and create a

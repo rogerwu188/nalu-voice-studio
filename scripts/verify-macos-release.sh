@@ -47,6 +47,22 @@ build="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$plist")"
 [[ "$(/usr/bin/plutil -extract administrator_authorized raw "$development_handoff")" == "false" ]]
 [[ -z "$(/usr/bin/plutil -extract endpoint raw "$development_handoff")" ]]
 
+publication_accessibility_ids=(
+  "nalu.publication-learning.card"
+  "nalu.publication-learning.metrics"
+  "nalu.publication-learning.observations"
+  "nalu.publication-learning.directives"
+  "nalu.publication-learning.read-latest"
+  "nalu.publication-learning.refresh"
+  "nalu.publication-learning.safety"
+)
+for identifier in "${publication_accessibility_ids[@]}"; do
+  if ! /usr/bin/grep -Fqx -- "$identifier" < <(/usr/bin/strings "$executable"); then
+    echo "发布包缺少原生播出反馈可访问性标识：$identifier" >&2
+    exit 1
+  fi
+done
+
 codesign --verify --deep --strict --verbose=2 "$bundle"
 if [[ "$require_universal" == "true" ]]; then
   lipo "$executable" -verify_arch arm64 x86_64
