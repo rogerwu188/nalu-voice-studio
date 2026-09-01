@@ -11,29 +11,33 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "6df59f60c8f17329cfbb0ce863d42286109f3391",
-  "last_advanced_at": "2026-09-01T23:15:17Z",
+  "observed_head": "19acdfc741d3360c5c8653fcd3690eea04036e10",
+  "last_advanced_at": "2026-09-01T23:38:14Z",
   "last_closed_checkpoint": {
-    "id": "gate-specific-release-evidence-schema",
-    "sop": "SOP-12",
-    "product_commit": "1c2fe5b67897be5b9f2c1d2db09698837b3a4c4e",
-    "evidence_commit": "2e85c1a60b53e262629e03cecbeac9b2ea5fc25b",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33512639151",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33512639151/artifacts/9802348871",
+    "id": "qingshan-09017-contract-productization",
+    "sop": "SOP-07",
+    "product_commit": "76b7283077aedccd8470088f1441c839ba7d6bb7",
+    "evidence_commit": "19acdfc741d3360c5c8653fcd3690eea04036e10",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33571104271",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33571104271/artifacts/9825078541",
     "result": "PASS"
   },
   "current_checkpoint": {
-    "sop": "SOP-07",
-    "status": "IN_PROGRESS",
-    "summary": "Qingshan v2026.09.01.7 was discovered and reproduced by exact tag and commit. Its nine registry-integrity failures remain, so the stable pin and paid-execution prohibition are unchanged while safe contract deltas are productized."
+    "sop": "SOP-09",
+    "status": "BLOCKED",
+    "summary": "The v2026.09.01.7 quarantine/productization checkpoint is closed with full CI evidence. Actual on-device recognition now requires explicit permission to launch the downloaded CI application and approve the macOS Speech prompt."
   },
   "next_action": {
-    "sop": "SOP-07",
-    "id": "qingshan-09017-contract-productization",
-    "summary": "Bind the v2026.09.01.7 quarantine evidence, correct latest-release detection, productize safe provider and loudness contracts, then run full offline QA and CI without provider credentials.",
-    "requires_user_authorization": false
+    "sop": "SOP-09",
+    "id": "real-apple-speech-permission-and-master-qa",
+    "summary": "After explicit user confirmation, launch the exact downloaded Nalu CI application, approve only macOS Speech recognition, run a synthetic local Mandarin final-master fixture through the packaged helper and Runtime, verify no network fallback, and preserve cleanup/evidence without using provider or publication credentials.",
+    "requires_user_authorization": true
   },
-  "waiting_authorization": null,
+  "waiting_authorization": {
+    "id": "launch-downloaded-ci-app-and-speech-permission",
+    "requested_action": "Confirm that Codex may launch the exact downloaded Nalu CI application and interact with the macOS Speech recognition permission prompt for local-only QA.",
+    "paid_or_external_write": false
+  },
   "blocking_conditions": [
     {
       "id": "downloaded-native-app-window-qa",
