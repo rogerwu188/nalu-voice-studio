@@ -1213,6 +1213,28 @@ Current evidence:
   staged-update and rollback evidence-file SHA-256 values are
   `f37511b3721dee767ed72e1a3dac7e7af5b565b94f894863abbad410d8f7c365` and
   `554d7c48bb1579c48ba99c11fb2fe277f312c0f448500fe867baf98644dfc05b`.
+- Commit `6442f60`, GitHub CI run `33478553480`: schema migration 19 and project-export
+  v14 add an immutable, explicitly confirmed local development work order after an
+  accepted human triage and a confirmed issue-export receipt. The record binds the exact
+  triage/export digests and remote issue identity to a scoped title, implementation scope,
+  acceptance tests and privacy/accessibility requirements. Report text remains inert;
+  `tool_calls` is empty and branch creation, code change, merge, signing, release and
+  network-call flags are literal false. Missing or changed confirmation/idempotency,
+  cross-project or unconfirmed inputs, secret-bearing content, conflicting replay and
+  recomputed backup tampering fail closed. This checkpoint creates no branch, invokes no
+  development agent and makes no external call. All 105 Runtime tests, OpenAPI
+  compatibility, real HTTP smoke, Swift tests, both architecture builds/smokes, staged
+  update, ten-episode schema-19 restart/rollback and universal merge passed. Universal
+  artifact `9789180440` has GitHub digest
+  `sha256:68397199c7eba6f6b30638457563ee901868857555dac7d47f5b3dd751b5682b`;
+  its downloaded inner ZIP SHA-256 is
+  `46c0e70388a852d2d783c3c32dc684792514187d859f05703e9e62182d9cb14c`.
+  Independent inspection reconfirmed the disabled, unauthorized and target-free packaged
+  feedback-export policy at SHA-256
+  `96475ba5a2908b74f2e04db512d6c097abe73453d360871cc0149287480c1146`;
+  staged-update and rollback evidence-file SHA-256 values are
+  `174a03a11adcd6667f436ec1466be0181b29bddc4f05933efc2004f6e33bcbee` and
+  `f15ec1320dc19dca999c41e4922bc54b433846eda1b867a15b898222e319fca5`.
 - Still required before `PASS`: administrator-authorized external issue export, agent
   development integration after human triage, independently obtained rather than locally
   supplied review/CI/Apple/installation receipts, a real Developer ID/notarized staged
