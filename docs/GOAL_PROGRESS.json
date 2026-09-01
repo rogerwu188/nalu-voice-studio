@@ -11,26 +11,26 @@
     "TODO": 1,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "e8be5e3bc0c34adb528620ef1b2f5d0595c53fad",
-  "last_advanced_at": "2026-09-01T05:08:30Z",
+  "observed_head": "fd6633cdd7750f139c41baec2ce2d22daf36efe0",
+  "last_advanced_at": "2026-09-01T05:28:00Z",
   "last_closed_checkpoint": {
-    "id": "sop-11-verified-update-discovery-core",
-    "sop": "SOP-11",
-    "product_commit": "e8be5e3bc0c34adb528620ef1b2f5d0595c53fad",
-    "evidence_commit": "1e568464e6a8639468882a493cd81e8c716fd32c",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33471853902",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33471853902/artifacts/9786896858",
+    "id": "sop-13-feedback-release-linkage-core",
+    "sop": "SOP-13",
+    "product_commit": "fd6633cdd7750f139c41baec2ce2d22daf36efe0",
+    "evidence_commit": "PENDING",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33473090642",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33473090642/artifacts/9787326974",
     "result": "PASS"
   },
   "current_checkpoint": {
-    "sop": "SOP-11",
+    "sop": "SOP-13",
     "status": "IN_PROGRESS",
-    "summary": "The packaged universal helper now includes fail-closed Ed25519 staging plus disabled-by-default, exact-origin HTTPS discovery with bounded atomic downloads and persistent idempotency. SOP-11 remains open for an authorized real origin, production key, Developer ID/notarized candidate and clean-Mac old-to-new QA."
+    "summary": "Local immutable feedback evidence can now bind a review bundle to matching reviewed-change, CI artifact, installed signed-release and rollback receipts while remaining ready_for_review and never claiming rollout. SOP-13 remains open for governed triage, independently obtained receipts, a real signed/notarized staged update and authorized rollout."
   },
   "next_action": {
     "sop": "SOP-13",
-    "id": "feedback-release-linkage-core",
-    "summary": "Implement a local fail-closed evidence chain linking a feedback report to a reviewed change, exact CI run and installed signed release receipt without exporting, merging, signing, publishing or marking feedback released; add tamper, mismatch, rollback and idempotency tests.",
+    "id": "feedback-triage-review-core",
+    "summary": "Implement an immutable local triage and human-review record for authorized redacted feedback, treating report text as inert data and producing priority, duplicate and disposition evidence without running tools, editing code, exporting externally or changing release status; add injection, tamper, idempotency and backup/restore tests.",
     "requires_user_authorization": false
   },
   "blocking_conditions": [

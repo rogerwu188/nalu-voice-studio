@@ -1132,6 +1132,26 @@ Current evidence:
   the offline, fail-closed Ed25519 verification and health-gated rollback primitive needed
   by the governed pipeline. It deliberately has no feedback-to-change linkage and cannot
   mark a report released merely because an unrelated valid package was installed.
+- Commit `fd6633c`, GitHub CI run `33473090642`: schema migration 15 and project-export
+  v10 add one immutable local `qa_evidence_linked` record joining the exact review-bundle
+  digest to a reviewed 40-character commit, the matching successful CI head and artifact,
+  an installed Developer ID/notarization/Gatekeeper receipt and an older-build rollback
+  rehearsal that preserved project data. It rejects missing or changed idempotency keys,
+  digest/commit/artifact mismatches, unverified signing facts, non-older rollback builds,
+  recomputed export tampering and changed replays. The raw idempotency key is not stored.
+  The record performs no network call, leaves feedback at `ready_for_review` and has a
+  literal `release_claimed: false`; locally supplied receipts therefore cannot claim an
+  actual rollout. All 95 Runtime tests, OpenAPI compatibility, real HTTP smoke, arm64 and
+  x86_64 Swift/build/bundle smoke, staged update, populated ten-episode restart/rollback
+  and universal merge passed. Universal artifact `9787326974` has GitHub digest
+  `sha256:92f18541e8d407e8ba6da133d09d8622bbb8c1d1753f10e074b96e1a7cdfed03`;
+  its downloaded inner ZIP SHA-256 is
+  `385b8853462f0bd65624acbd412c32b98576c101b0d140456a71ab611c226d5e`.
+  Independent inspection confirmed a universal Runtime and schema-15 staged/rollback
+  reports with evidence-file SHA-256 values
+  `5f1907d73a9f00bdefe4948f1427ad1a153ef53f0066d2d599bb2a7615b17ca3` and
+  `46381bdd3fa0fc785c3a9e7ee245ad82e15cc3aec5a86398bb55b7993d228dc2`.
 - Still required before `PASS`: administrator-authorized external issue export, agent
-  triage integration, cryptographic report → reviewed change → release linkage, a real
-  Developer ID/notarized staged update and end-to-end improvement/rollback QA.
+  triage integration, independently obtained rather than locally supplied review/CI/
+  Apple/installation receipts, a real Developer ID/notarized staged update and end-to-end
+  improvement/rollback QA. No feedback may become `released` before those facts reconcile.
