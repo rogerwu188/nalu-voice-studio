@@ -7,6 +7,8 @@ runtime="$bundle/Contents/Resources/runtime/nalu-runtime"
 runtime_resources="$bundle/Contents/Resources/runtime-resources"
 visual_analyzer="$bundle/Contents/Resources/analyzers/nalu-visual-analyzer"
 update_helper="$bundle/Contents/Resources/updater/nalu-update-helper"
+update_trust="$bundle/Contents/Resources/update-trust.json"
+update_discovery="$bundle/Contents/Resources/update-discovery.json"
 smoke_root="$(mktemp -d)"
 runtime_pid=""
 
@@ -21,11 +23,22 @@ trap cleanup EXIT
 test -x "$runtime"
 test -x "$visual_analyzer"
 test -x "$update_helper"
+test -f "$update_trust"
+test -f "$update_discovery"
 test -f "$runtime_resources/configs/qingshan-upstream.json"
 test -f "$runtime_resources/vendor/qingshan/LICENSE"
 "$repo_root/scripts/verify-macos-release.sh" "$bundle"
 if "$update_helper" >/dev/null 2>&1; then
   echo "Update helper must fail closed without an explicit command" >&2
+  exit 1
+fi
+if "$update_helper" discover \
+  --discovery-config "$update_discovery" \
+  --trust-config "$update_trust" \
+  --installed-build 1 \
+  --state-root "$smoke_root/update-state" \
+  --idempotency-key smoke-disabled-discovery-0001 >/dev/null 2>&1; then
+  echo "Packaged update discovery must remain disabled without an authorized origin" >&2
   exit 1
 fi
 

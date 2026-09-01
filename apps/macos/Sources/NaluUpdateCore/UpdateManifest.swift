@@ -156,6 +156,37 @@ public enum UpdateManifestVerifier {
         installedBuild: UInt64,
         now: Date = Date()
     ) throws -> VerifiedUpdate {
+        let manifestSHA256 = try verifyManifest(
+            manifest: manifest,
+            trust: trust,
+            installedBuild: installedBuild,
+            now: now
+        )
+        guard packageURL.isFileURL,
+              FileManager.default.fileExists(atPath: packageURL.path)
+        else { throw UpdateVerificationError.packageMissing }
+        let values = try packageURL.resourceValues(forKeys: [.fileSizeKey, .isRegularFileKey])
+        guard values.isRegularFile == true,
+              let fileSize = values.fileSize,
+              fileSize >= 0,
+              UInt64(fileSize) == manifest.packageSize
+        else { throw UpdateVerificationError.packageSizeMismatch }
+        guard try sha256(of: packageURL) == manifest.packageSHA256 else {
+            throw UpdateVerificationError.packageDigestMismatch
+        }
+        return VerifiedUpdate(
+            manifest: manifest,
+            manifestSHA256: manifestSHA256,
+            packageURL: packageURL
+        )
+    }
+
+    public static func verifyManifest(
+        manifest: UpdateManifest,
+        trust: UpdateTrustConfiguration,
+        installedBuild: UInt64,
+        now: Date = Date()
+    ) throws -> String {
         guard trust.enabled else { throw UpdateVerificationError.updatesDisabled }
         guard trust.schemaVersion == "nalu.update-trust/v1",
               trust.channel == "stable" || trust.channel == "test",
@@ -192,23 +223,7 @@ public enum UpdateManifestVerifier {
               let publicKey = try? Curve25519.Signing.PublicKey(rawRepresentation: publicKeyData),
               publicKey.isValidSignature(signature, for: try manifest.canonicalPayload())
         else { throw UpdateVerificationError.invalidSignature }
-        guard packageURL.isFileURL,
-              FileManager.default.fileExists(atPath: packageURL.path)
-        else { throw UpdateVerificationError.packageMissing }
-        let values = try packageURL.resourceValues(forKeys: [.fileSizeKey, .isRegularFileKey])
-        guard values.isRegularFile == true,
-              let fileSize = values.fileSize,
-              fileSize >= 0,
-              UInt64(fileSize) == manifest.packageSize
-        else { throw UpdateVerificationError.packageSizeMismatch }
-        guard try sha256(of: packageURL) == manifest.packageSHA256 else {
-            throw UpdateVerificationError.packageDigestMismatch
-        }
-        return VerifiedUpdate(
-            manifest: manifest,
-            manifestSHA256: sha256(try manifest.canonicalPayload()),
-            packageURL: packageURL
-        )
+        return sha256(try manifest.canonicalPayload())
     }
 
     public static func sha256(of url: URL) throws -> String {

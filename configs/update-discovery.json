@@ -1,0 +1,7 @@
+{
+  "schema_version": "nalu.update-discovery/v1",
+  "enabled": false,
+  "origin": "",
+  "max_manifest_bytes": 65536,
+  "max_package_bytes": 2147483648
+}

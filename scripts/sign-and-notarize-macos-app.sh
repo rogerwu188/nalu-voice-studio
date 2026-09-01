@@ -9,6 +9,7 @@ notary_keychain="${NALU_NOTARY_KEYCHAIN:-}"
 entitlements="${NALU_ENTITLEMENTS_PATH:-$repo_root/apps/macos/NaluVoiceStudio.entitlements}"
 update_public_key="${NALU_UPDATE_PUBLIC_KEY_BASE64:-}"
 update_channel="${NALU_UPDATE_CHANNEL:-stable}"
+update_origin="${NALU_UPDATE_ORIGIN:-}"
 
 if [[ ! -d "$bundle" ]]; then
   echo "找不到应用：$bundle" >&2
@@ -27,6 +28,7 @@ runtime="$bundle/Contents/Resources/runtime/nalu-runtime"
 executable="$bundle/Contents/MacOS/NaluVoiceStudio"
 update_helper="$bundle/Contents/Resources/updater/nalu-update-helper"
 update_trust="$bundle/Contents/Resources/update-trust.json"
+update_discovery="$bundle/Contents/Resources/update-discovery.json"
 visual_analyzer="$bundle/Contents/Resources/analyzers/nalu-visual-analyzer"
 for signed_path in "$runtime" "$executable" "$update_helper" "$visual_analyzer"; do
   if [[ ! -f "$signed_path" ]]; then
@@ -36,6 +38,10 @@ for signed_path in "$runtime" "$executable" "$update_helper" "$visual_analyzer";
 done
 if [[ ! -f "$update_trust" ]]; then
   echo "发布包缺少更新信任配置：$update_trust" >&2
+  exit 1
+fi
+if [[ ! -f "$update_discovery" ]]; then
+  echo "发布包缺少更新发现配置：$update_discovery" >&2
   exit 1
 fi
 if [[ -z "$update_public_key" ]]; then
@@ -57,6 +63,17 @@ fi
 /usr/bin/plutil -replace channel -string "$update_channel" "$update_trust"
 /usr/bin/plutil -replace public_key_base64 -string "$update_public_key" "$update_trust"
 /usr/bin/plutil -replace require_notarization -bool YES "$update_trust"
+if [[ -n "$update_origin" ]]; then
+  if [[ ! "$update_origin" =~ ^https://[A-Za-z0-9.-]+(:[0-9]{1,5})?/([A-Za-z0-9._~-]+/)*$ ]]; then
+    echo "NALU_UPDATE_ORIGIN 必须是无凭据、无查询或片段且以 / 结尾的 HTTPS 源。" >&2
+    exit 1
+  fi
+  /usr/bin/plutil -replace enabled -bool YES "$update_discovery"
+  /usr/bin/plutil -replace origin -string "$update_origin" "$update_discovery"
+else
+  /usr/bin/plutil -replace enabled -bool NO "$update_discovery"
+  /usr/bin/plutil -replace origin -string "" "$update_discovery"
+fi
 
 # Sign from the inside out. Avoid --deep for production signing because it can hide
 # unsigned nested code and apply the wrong entitlements to helpers.

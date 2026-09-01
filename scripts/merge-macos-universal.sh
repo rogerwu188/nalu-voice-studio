@@ -35,6 +35,10 @@ lipo "$intel_analyzer" -verify_arch x86_64
 lipo "$arm_update_helper" -verify_arch arm64
 lipo "$intel_update_helper" -verify_arch x86_64
 cmp "$arm_bundle/Contents/Info.plist" "$intel_bundle/Contents/Info.plist"
+cmp "$arm_bundle/Contents/Resources/update-trust.json" \
+  "$intel_bundle/Contents/Resources/update-trust.json"
+cmp "$arm_bundle/Contents/Resources/update-discovery.json" \
+  "$intel_bundle/Contents/Resources/update-discovery.json"
 diff -qr \
   "$arm_bundle/Contents/Resources/runtime-resources" \
   "$intel_bundle/Contents/Resources/runtime-resources"

@@ -16,5 +16,6 @@ let package = Package(
         .executableTarget(name: "NaluUpdateHelper", dependencies: ["NaluUpdateCore"]),
         .testTarget(name: "NaluVoiceStudioTests", dependencies: ["NaluVoiceStudio"]),
         .testTarget(name: "NaluUpdateCoreTests", dependencies: ["NaluUpdateCore"]),
+        .testTarget(name: "NaluUpdateHelperTests", dependencies: ["NaluUpdateHelper"]),
     ]
 )

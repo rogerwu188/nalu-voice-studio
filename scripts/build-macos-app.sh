@@ -60,7 +60,7 @@ swiftc -parse-as-library \
 
 swiftc \
   "$app_root"/Sources/NaluUpdateCore/*.swift \
-  "$app_root/Sources/NaluUpdateHelper/main.swift" \
+  "$app_root"/Sources/NaluUpdateHelper/*.swift \
   -o "$update_helper_path"
 
 if [[ -d "$bundle" && "$bundle" == "$output_root/"* ]]; then
@@ -80,6 +80,8 @@ cp "$update_helper_path" \
   "$bundle/Contents/Resources/updater/nalu-update-helper"
 cp "$repo_root/configs/update-trust.json" \
   "$bundle/Contents/Resources/update-trust.json"
+cp "$repo_root/configs/update-discovery.json" \
+  "$bundle/Contents/Resources/update-discovery.json"
 cp -R "$repo_root/configs" "$bundle/Contents/Resources/runtime-resources/configs"
 cp -R "$repo_root/vendor" "$bundle/Contents/Resources/runtime-resources/vendor"
 cp "$app_root/Info.plist" "$bundle/Contents/Info.plist"

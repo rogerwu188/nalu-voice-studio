@@ -39,7 +39,7 @@ private enum HelperError: Error, LocalizedError {
     var errorDescription: String? {
         switch self {
         case .usage:
-            "Usage: nalu-update-helper verify|stage|confirm|recover --key value ..."
+            "Usage: nalu-update-helper discover|verify|stage|confirm|recover --key value ..."
         case .missing(let key): "Missing --\(key)."
         case .invalidBuild: "The installed build is invalid."
         case .extractionFailed: "The update package could not be extracted."
@@ -52,7 +52,7 @@ private func decode<T: Decodable>(_ type: T.Type, at url: URL) throws -> T {
     try JSONDecoder().decode(type, from: Data(contentsOf: url))
 }
 
-private func encode(_ record: UpdateTransactionRecord) throws {
+private func encode<T: Encodable>(_ record: T) throws {
     let encoder = JSONEncoder()
     encoder.outputFormatting = [.sortedKeys]
     FileHandle.standardOutput.write(try encoder.encode(record))
@@ -106,6 +106,30 @@ private func extract(_ package: URL, into root: URL) throws -> URL {
 private func run() throws {
     let arguments = try Arguments(Array(CommandLine.arguments.dropFirst()))
     switch arguments.command {
+    case "discover":
+        let discovery = try decode(
+            UpdateDiscoveryConfiguration.self,
+            at: URL(fileURLWithPath: try arguments.require("discovery-config"))
+        )
+        let trust = try decode(
+            UpdateTrustConfiguration.self,
+            at: URL(fileURLWithPath: try arguments.require("trust-config"))
+        )
+        guard let build = UInt64(try arguments.require("installed-build")) else {
+            throw HelperError.invalidBuild
+        }
+        let stateRoot = URL(fileURLWithPath: try arguments.require("state-root"))
+            .appendingPathComponent("discovery", isDirectory: true)
+        let transaction = try UpdateDiscoveryTransaction(
+            root: stateRoot,
+            fetcher: BoundedHTTPSFetcher()
+        )
+        try encode(try transaction.discover(
+            configuration: discovery,
+            trust: trust,
+            installedBuild: build,
+            idempotencyKey: try arguments.require("idempotency-key")
+        ))
     case "verify":
         let (verified, _) = try verifiedUpdate(arguments)
         print("{\"manifest_sha256\":\"\(verified.manifestSHA256)\",\"status\":\"verified\"}")
