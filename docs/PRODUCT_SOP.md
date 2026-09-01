@@ -1427,6 +1427,25 @@ Current evidence:
   `sha256:70670bc3a08be82cccf14d205b1dae1febc4104a15cb6becb3a32614942ac619`.
   This is an anti-false-completion checkpoint, not signed/notarized or real E2E evidence,
   so SOP-12 remains `IN_PROGRESS`.
+- Commit `1c2fe5b`, GitHub CI run `33512639151`: release evidence is now validated by
+  gate type, not merely by a shared URL and digest. Developer ID evidence must include
+  team, notarization, hardened-runtime, staple and Gatekeeper facts; provider evidence
+  must reconcile real task IDs, receipt digests, exact currency/cost and zero ambiguous
+  transactions; publication evidence must reconcile real IDs and receipts; human QA must
+  include VoiceOver, Accessibility Inspector, older-adult and guardian/child sessions;
+  all seven exact SOP-12 scenarios must individually be `PASS`; clean install, populated
+  ten-episode upgrade/rollback, zero P0/P1 and all fourteen same-candidate SOP states are
+  separately required. Automated negatives reject a missing provider receipt and reject
+  `STRUCTURE_REHEARSED` as a scenario result, while a complete synthetic contract fixture
+  proves the schema can reach `completion_eligible: true` only when every required field
+  is present. All 138 Runtime tests, real HTTP smoke, offline rehearsal, architecture
+  builds/smokes, staged update, populated rollback and universal merge passed. Runtime QA
+  artifact `9802348871` has GitHub digest
+  `sha256:a571bb23e8450980f46a9ddc503cd4ff24bed98f29215f91a9694191341e278f`;
+  universal artifact `9802512109` has GitHub digest
+  `sha256:97999fc6d68109b9c8610afe434177c254bd8af66332f443eb0d1f0fadcadd4e`.
+  The repository manifest still truthfully reports `NOT_READY`; no real receipt, signed
+  installation, human review or publication is claimed, so SOP-12 remains `IN_PROGRESS`.
 
 ## SOP-13 · Controlled product evolution — IN_PROGRESS
 
