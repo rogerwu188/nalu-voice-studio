@@ -40,6 +40,24 @@ learning data. A production package path belongs to the old machine, so import n
 trusts or reuses it: the restored completed source row receives an inert path beneath the
 new local data root. Versions v1 through v19 remain importable without learning tables.
 
+## Native macOS presentation
+
+The macOS application reads the versioned strategies and their digest-bound metric
+snapshots from the local Runtime. It rejects the entire presentation if the project,
+snapshot identity or digest does not match, or if either record says that a publish,
+production or external-write action occurred. The latest verified revision appears as a
+large-text, read-only card with the platform, metric window, views, completion rate,
+plain-language observations and up to three next-episode directives. The card adapts its
+metric layout for larger text and can read the complete summary and safety boundary
+aloud.
+
+There is deliberately no professional metrics form, apply button, publish control or
+production trigger in this experience. An older adult or child does not need to copy
+platform numbers. An authorized integration creates the immutable evidence elsewhere;
+Nalu only explains it here. Even after a recommendation appears, applying it still means
+creating a new script revision and completing the existing user or guardian approval
+flow.
+
 ## Explicit non-claims
 
 Offline fixtures prove the contract, restart persistence, mismatch rejection,

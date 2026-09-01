@@ -278,6 +278,27 @@ actor RuntimeClient {
         try await get("v1/seasons/\(seasonID)/production-progress")
     }
 
+    func publicationLearning(projectID: String) async throws -> [PublicationLearningRecord] {
+        let strategies: [DirectorStrategyRevision] = try await get(
+            "v1/projects/\(projectID)/director-strategies"
+        )
+        var records: [PublicationLearningRecord] = []
+        records.reserveCapacity(strategies.count)
+        for strategy in strategies {
+            let metrics: PublicationMetricsSnapshot = try await get(
+                "v1/publication-metrics/\(strategy.sourceMetricsID)"
+            )
+            records.append(
+                try PublicationLearningRecord(
+                    validating: strategy,
+                    metrics: metrics,
+                    projectID: projectID
+                )
+            )
+        }
+        return records
+    }
+
     func cancelProductionRun(runID: String) async throws -> ProductionRun {
         try await post(
             "v1/production-runs/\(runID)/cancel",

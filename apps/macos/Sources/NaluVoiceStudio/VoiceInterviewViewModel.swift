@@ -33,6 +33,9 @@ final class VoiceInterviewViewModel {
     var productionRunActionInProgress: String?
     var semanticMediaQARunInProgress: String?
     var semanticMediaQAStatusByRunID: [String: String] = [:]
+    var publicationLearning: [PublicationLearningPresentation] = []
+    var publicationLearningIsLoading = false
+    var publicationLearningWarning: String?
     private var pendingVoiceRunCancellationID: String?
     var selectedEpisodeID: String?
     var messages: [InterviewMessage] = [
@@ -516,6 +519,8 @@ final class VoiceInterviewViewModel {
         selectedProjectID = projectID
         pendingVoiceRunCancellationID = nil
         memoryConflictReports = [:]
+        publicationLearning = []
+        publicationLearningWarning = nil
         do {
             assets = try await runtime.listAssets(projectID: projectID)
             memoryCards = try await runtime.listMemoryCards(projectID: projectID)
@@ -558,9 +563,45 @@ final class VoiceInterviewViewModel {
                 episodeLogline = ""
                 episodeOutlineSummary = ""
             }
+            await refreshPublicationLearning(projectID: projectID)
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    func refreshPublicationLearning() async {
+        guard let selectedProjectID else { return }
+        await refreshPublicationLearning(projectID: selectedProjectID)
+    }
+
+    private func refreshPublicationLearning(projectID: String) async {
+        publicationLearningIsLoading = true
+        defer {
+            if selectedProjectID == projectID { publicationLearningIsLoading = false }
+        }
+        do {
+            let records = try await runtime.publicationLearning(projectID: projectID)
+            guard selectedProjectID == projectID else { return }
+            publicationLearning = records.map { record in
+                PublicationLearningPresentation(
+                    record: record,
+                    targetEpisode: episodes.first(where: {
+                        $0.id == record.strategy.targetEpisodeID
+                    })
+                )
+            }
+            publicationLearningWarning = nil
+        } catch {
+            guard selectedProjectID == projectID else { return }
+            publicationLearning = []
+            publicationLearningWarning = "反馈记录暂时无法安全核验；没有触发发布、制作或付费操作。"
+        }
+    }
+
+    func speakLatestPublicationLearning() {
+        guard let latest = publicationLearning.last else { return }
+        messages.append(.init(speaker: .nalu, text: latest.spokenSummary))
+        speechPlayback.speak(latest.spokenSummary, rate: comfortPreferences.speechRate)
     }
 
     func refreshProductionProgress(seasonID: String) async {
@@ -1366,6 +1407,8 @@ final class VoiceInterviewViewModel {
                 memoryCards = []
                 memoryConflictReports = [:]
                 libraryEntities = []
+                publicationLearning = []
+                publicationLearningWarning = nil
             }
         } catch {
             errorMessage = error.localizedDescription

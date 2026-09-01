@@ -392,6 +392,18 @@ struct ContentView: View {
                 Divider()
             }
             if selectedProject != nil {
+                PublicationLearningView(
+                    items: model.publicationLearning,
+                    isLoading: model.publicationLearningIsLoading,
+                    warning: model.publicationLearningWarning,
+                    onReadLatest: model.speakLatestPublicationLearning,
+                    onRefresh: { Task { await model.refreshPublicationLearning() } }
+                )
+                .padding(.horizontal, 24)
+                .padding(.vertical, 12)
+                Divider()
+            }
+            if selectedProject != nil {
                 Button {
                     beginAutomaticAssetImport()
                 } label: {
