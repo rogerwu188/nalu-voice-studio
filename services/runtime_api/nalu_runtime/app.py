@@ -12,8 +12,10 @@ from .continuity import audit_continuity
 from .database import Database
 from .engine import ProductionService
 from .feedback_export import (
+    DisabledIssueTrackerReconciliationVerifier,
     DisabledIssueTrackerTransport,
     FeedbackExportPolicy,
+    IssueTrackerReconciliationVerifier,
     IssueTrackerTransport,
 )
 from .models import (
@@ -45,6 +47,8 @@ from .models import (
     FeedbackCreate,
     FeedbackExternalExportCreate,
     FeedbackExternalExportReceipt,
+    FeedbackExternalReconciliationCreate,
+    FeedbackExternalReconciliationRecord,
     FeedbackItem,
     FeedbackReleaseLinkage,
     FeedbackReleaseLinkageCreate,
@@ -121,6 +125,7 @@ def create_app(
     data_root: Path | None = None,
     feedback_export_policy: FeedbackExportPolicy | None = None,
     issue_tracker_transport: IssueTrackerTransport | None = None,
+    issue_tracker_reconciliation_verifier: IssueTrackerReconciliationVerifier | None = None,
 ) -> FastAPI:
     repository_root = Path(
         os.environ.get("NALU_REPOSITORY_ROOT", Path(__file__).resolve().parents[3])
@@ -149,6 +154,10 @@ def create_app(
             else FeedbackExportPolicy()
         )
     issue_tracker_transport = issue_tracker_transport or DisabledIssueTrackerTransport()
+    issue_tracker_reconciliation_verifier = (
+        issue_tracker_reconciliation_verifier
+        or DisabledIssueTrackerReconciliationVerifier()
+    )
 
     app = FastAPI(
         title="Nalu Voice Studio Runtime API",
@@ -160,6 +169,7 @@ def create_app(
     app.state.remote_task_submitter = remote_task_submitter
     app.state.feedback_export_policy = feedback_export_policy
     app.state.issue_tracker_transport = issue_tracker_transport
+    app.state.issue_tracker_reconciliation_verifier = issue_tracker_reconciliation_verifier
 
     @app.exception_handler(NotFoundError)
     async def not_found_handler(_request, exc: NotFoundError):
@@ -267,6 +277,33 @@ def create_app(
     )
     def get_feedback_external_export(feedback_id: str) -> FeedbackExternalExportReceipt:
         return repository.get_feedback_external_export(feedback_id)
+
+    @app.post(
+        "/v1/feedback/{feedback_id}/external-export/reconciliation",
+        response_model=FeedbackExternalReconciliationRecord,
+        status_code=201,
+    )
+    def reconcile_feedback_external_export(
+        feedback_id: str,
+        request: FeedbackExternalReconciliationCreate,
+        idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    ) -> FeedbackExternalReconciliationRecord:
+        return repository.reconcile_feedback_external_export(
+            feedback_id,
+            request,
+            idempotency_key,
+            feedback_export_policy,
+            issue_tracker_reconciliation_verifier,
+        )
+
+    @app.get(
+        "/v1/feedback/{feedback_id}/external-export/reconciliation",
+        response_model=FeedbackExternalReconciliationRecord,
+    )
+    def get_feedback_external_reconciliation(
+        feedback_id: str,
+    ) -> FeedbackExternalReconciliationRecord:
+        return repository.get_feedback_external_reconciliation(feedback_id)
 
     @app.post(
         "/v1/feedback/{feedback_id}/release-linkage",

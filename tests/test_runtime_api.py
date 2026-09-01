@@ -12,7 +12,11 @@ from urllib.parse import unquote, urlparse
 import pytest
 from fastapi.testclient import TestClient
 from nalu_runtime.app import create_app
-from nalu_runtime.feedback_export import FeedbackExportPolicy, IssueTrackerReceipt
+from nalu_runtime.feedback_export import (
+    FeedbackExportPolicy,
+    IssueTrackerLookup,
+    IssueTrackerReceipt,
+)
 from nalu_runtime.qingshan_adapter import QingshanAdapterError
 
 
@@ -359,7 +363,7 @@ def test_feedback_review_bundle_is_local_redacted_immutable_and_exported(
     assert bundle["attachments"] == []
     assert bundle["diagnostics"] == {
         "runtime_version": "0.1.0",
-        "schema_version": "17",
+        "schema_version": "18",
         "screen": "family-materials",
     }
     assert bundle["redaction_applied"] is True
@@ -377,7 +381,7 @@ def test_feedback_review_bundle_is_local_redacted_immutable_and_exported(
     assert api.get(f"/v1/feedback/{feedback['id']}/review-bundle").json() == bundle
 
     backup = api.get(f"/v1/projects/{project['id']}/export").json()
-    assert backup["schema_version"] == "nalu.project-export/v12"
+    assert backup["schema_version"] == "nalu.project-export/v13"
     assert (
         backup["payload"]["feedback_review_bundles"][0]["bundle_sha256"] == bundle["bundle_sha256"]
     )
@@ -532,7 +536,7 @@ def test_feedback_release_linkage_is_hash_bound_immutable_and_never_claims_relea
     assert current_feedback["status"] == "ready_for_review"
 
     backup = api.get(f"/v1/projects/{project['id']}/export").json()
-    assert backup["schema_version"] == "nalu.project-export/v12"
+    assert backup["schema_version"] == "nalu.project-export/v13"
     assert backup["payload"]["feedback_release_linkages"][0]["linkage_sha256"] == linkage[
         "linkage_sha256"
     ]
@@ -651,7 +655,7 @@ def test_feedback_triage_is_human_confirmed_inert_immutable_and_exported(
     assert current_feedback["status"] == "ready_for_review"
 
     backup = api.get(f"/v1/projects/{project['id']}/export").json()
-    assert backup["schema_version"] == "nalu.project-export/v12"
+    assert backup["schema_version"] == "nalu.project-export/v13"
     assert backup["payload"]["feedback_triage_records"][0]["record_sha256"] == triage[
         "record_sha256"
     ]
@@ -691,7 +695,7 @@ def test_feedback_external_export_is_authorized_idempotent_and_ambiguity_safe(
             return IssueTrackerReceipt(
                 remote_issue_id="42",
                 remote_issue_url="https://github.com/example/nalu/issues/42",
-                response={"number": 42, "state": "open"},
+                response={"number": 42, "state": "open", "access_token": "secret"},
             )
 
     policy = FeedbackExportPolicy(
@@ -709,9 +713,11 @@ def test_feedback_external_export_is_authorized_idempotent_and_ambiguity_safe(
     )
     api = TestClient(app)
 
-    def reviewed_feedback(title: str) -> tuple[dict, dict, dict]:
-        project = api.post("/v1/projects", json={"title": title}).json()
-        feedback = api.post(
+    def reviewed_feedback(
+        title: str, target_api: TestClient = api
+    ) -> tuple[dict, dict, dict]:
+        project = target_api.post("/v1/projects", json={"title": title}).json()
+        feedback = target_api.post(
             "/v1/feedback",
             json={
                 "project_id": project["id"],
@@ -720,7 +726,7 @@ def test_feedback_external_export_is_authorized_idempotent_and_ambiguity_safe(
                 "share_authorized": True,
             },
         ).json()
-        bundle = api.post(
+        bundle = target_api.post(
             f"/v1/feedback/{feedback['id']}/review-bundle",
             json={
                 "prepared_by": "本机用户",
@@ -730,7 +736,7 @@ def test_feedback_external_export_is_authorized_idempotent_and_ambiguity_safe(
                 "confirmation_text": "我确认生成审核包",
             },
         ).json()
-        triage = api.post(
+        triage = target_api.post(
             f"/v1/feedback/{feedback['id']}/triage",
             json={
                 "review_bundle_sha256": bundle["bundle_sha256"],
@@ -786,12 +792,23 @@ def test_feedback_external_export_is_authorized_idempotent_and_ambiguity_safe(
         b"external-export-0001"
     ).hexdigest()
     assert "external-export-0001" not in json.dumps(stored, ensure_ascii=False)
+    assert "access_token" not in stored["response_json"]
 
     backup = api.get(f"/v1/projects/{project['id']}/export").json()
-    assert backup["schema_version"] == "nalu.project-export/v12"
+    assert backup["schema_version"] == "nalu.project-export/v13"
     restored = client(tmp_path / "export-restored")
     assert restored.post("/v1/project-imports", json=backup).status_code == 201
     assert restored.get(endpoint).json() == receipt
+
+    legacy_v12 = deepcopy(backup)
+    legacy_v12["schema_version"] = "nalu.project-export/v12"
+    legacy_v12["payload"].pop("feedback_external_reconciliations")
+    legacy_v12["payload_sha256"] = hashlib.sha256(
+        json.dumps(legacy_v12["payload"], ensure_ascii=False, sort_keys=True).encode()
+    ).hexdigest()
+    legacy_restored = client(tmp_path / "export-v12-restored")
+    assert legacy_restored.post("/v1/project-imports", json=legacy_v12).status_code == 201
+    assert legacy_restored.get(endpoint).json() == receipt
 
     tampered = deepcopy(backup)
     row = tampered["payload"]["feedback_external_exports"][0]
@@ -810,11 +827,30 @@ def test_feedback_external_export_is_authorized_idempotent_and_ambiguity_safe(
     )
 
     ambiguous_transport = RecordingTransport(fail=True)
+
+    class RecordingVerifier:
+        def __init__(self) -> None:
+            self.calls: list[dict] = []
+
+        def lookup_issue(self, **kwargs) -> IssueTrackerLookup:
+            self.calls.append(kwargs)
+            return IssueTrackerLookup(
+                outcome="found",
+                receipt=IssueTrackerReceipt(
+                    remote_issue_id="84",
+                    remote_issue_url="https://github.com/example/nalu/issues/84",
+                    response={"number": 84, "state": "open"},
+                ),
+                evidence={"source": "injected_read_only_fixture", "matched": True},
+            )
+
+    verifier = RecordingVerifier()
     ambiguous_app = create_app(
         tmp_path / "ambiguous.sqlite3",
         tmp_path / "ambiguous-data",
         feedback_export_policy=policy,
         issue_tracker_transport=ambiguous_transport,
+        issue_tracker_reconciliation_verifier=verifier,
     )
     ambiguous_api = TestClient(ambiguous_app)
     project2 = ambiguous_api.post("/v1/projects", json={"title": "歧义结果"}).json()
@@ -870,6 +906,197 @@ def test_feedback_external_export_is_authorized_idempotent_and_ambiguity_safe(
         == 409
     )
     assert len(ambiguous_transport.calls) == 1
+
+    reconciliation_endpoint = f"{ambiguous_endpoint}/reconciliation"
+    with ambiguous_app.state.repository.db.connect() as connection:
+        ambiguous_payload_sha256 = connection.execute(
+            "SELECT payload_sha256 FROM feedback_external_exports WHERE feedback_id = ?",
+            (feedback2["id"],),
+        ).fetchone()[0]
+    reconciliation_request = {
+        "payload_sha256": ambiguous_payload_sha256,
+        "confirmation_text": "我确认核对导出结果",
+        "reconciled_by": "maintainer",
+        "reconciled_at": "2026-09-01T06:30:00Z",
+    }
+    assert (
+        ambiguous_api.post(
+            reconciliation_endpoint, json=reconciliation_request
+        ).status_code
+        == 409
+    )
+    assert (
+        ambiguous_api.post(
+            reconciliation_endpoint,
+            json={**reconciliation_request, "payload_sha256": "0" * 64},
+            headers=ambiguous_headers,
+        ).status_code
+        == 409
+    )
+    assert (
+        ambiguous_api.post(
+            reconciliation_endpoint,
+            json={**reconciliation_request, "confirmation_text": "大概核对过了"},
+            headers=ambiguous_headers,
+        ).status_code
+        == 409
+    )
+    assert (
+        ambiguous_api.post(
+            reconciliation_endpoint,
+            json=reconciliation_request,
+            headers={"Idempotency-Key": "different-export-key"},
+        ).status_code
+        == 409
+    )
+    assert verifier.calls == []
+    reconciled = ambiguous_api.post(
+        reconciliation_endpoint,
+        json=reconciliation_request,
+        headers=ambiguous_headers,
+    )
+    assert reconciled.status_code == 201
+    assert reconciled.json()["outcome"] == "confirmed"
+    assert reconciled.json()["remote_issue_id"] == "84"
+    assert reconciled.json()["read_only_verification_performed"] is True
+    assert reconciled.json()["issue_creation_retried"] is False
+    assert reconciled.json()["external_write_performed"] is False
+    assert len(verifier.calls) == 1
+    assert len(ambiguous_transport.calls) == 1
+    assert ambiguous_api.get(ambiguous_endpoint).json()["remote_issue_id"] == "84"
+    assert ambiguous_api.get(reconciliation_endpoint).json() == reconciled.json()
+    replayed_reconciliation = ambiguous_api.post(
+        reconciliation_endpoint,
+        json=reconciliation_request,
+        headers=ambiguous_headers,
+    )
+    assert replayed_reconciliation.json() == reconciled.json()
+    assert len(verifier.calls) == 1
+    assert (
+        ambiguous_api.post(
+            reconciliation_endpoint,
+            json={**reconciliation_request, "reconciled_by": "another maintainer"},
+            headers=ambiguous_headers,
+        ).status_code
+        == 409
+    )
+
+    reconciled_backup = ambiguous_api.get(
+        f"/v1/projects/{project2['id']}/export"
+    ).json()
+    restored_reconciliation = client(tmp_path / "reconciled-restored")
+    assert (
+        restored_reconciliation.post(
+            "/v1/project-imports", json=reconciled_backup
+        ).status_code
+        == 201
+    )
+    assert (
+        restored_reconciliation.get(reconciliation_endpoint).json() == reconciled.json()
+    )
+
+    tampered_reconciliation = deepcopy(reconciled_backup)
+    reconciliation_row = tampered_reconciliation["payload"][
+        "feedback_external_reconciliations"
+    ][0]
+    reconciliation_body = json.loads(reconciliation_row["record_json"])
+    reconciliation_body["remote_issue_id"] = "999"
+    reconciliation_row["record_json"] = json.dumps(
+        reconciliation_body, ensure_ascii=False, sort_keys=True
+    )
+    reconciliation_row["record_sha256"] = hashlib.sha256(
+        reconciliation_row["record_json"].encode()
+    ).hexdigest()
+    tampered_reconciliation["payload_sha256"] = hashlib.sha256(
+        json.dumps(
+            tampered_reconciliation["payload"], ensure_ascii=False, sort_keys=True
+        ).encode()
+    ).hexdigest()
+    assert (
+        client(tmp_path / "reconciliation-tampered")
+        .post("/v1/project-imports", json=tampered_reconciliation)
+        .status_code
+        == 409
+    )
+
+    class AbsentVerifier:
+        def __init__(self) -> None:
+            self.calls: list[dict] = []
+
+        def lookup_issue(self, **kwargs) -> IssueTrackerLookup:
+            self.calls.append(kwargs)
+            return IssueTrackerLookup(
+                outcome="absent",
+                receipt=None,
+                evidence={"source": "injected_read_only_fixture", "matched": False},
+            )
+
+    absent_transport = RecordingTransport(fail=True)
+    absent_verifier = AbsentVerifier()
+    absent_app = create_app(
+        tmp_path / "absent.sqlite3",
+        tmp_path / "absent-data",
+        feedback_export_policy=policy,
+        issue_tracker_transport=absent_transport,
+        issue_tracker_reconciliation_verifier=absent_verifier,
+    )
+    absent_api = TestClient(absent_app)
+    _, absent_feedback, absent_triage = reviewed_feedback("确认不存在", absent_api)
+    absent_bundle = absent_api.get(
+        f"/v1/feedback/{absent_feedback['id']}/review-bundle"
+    ).json()
+    absent_endpoint = f"/v1/feedback/{absent_feedback['id']}/external-export"
+    absent_export_request = {
+        "review_bundle_sha256": absent_bundle["bundle_sha256"],
+        "triage_record_sha256": absent_triage["record_sha256"],
+        "confirmation_text": "我确认导出问题单",
+    }
+    absent_headers = {"Idempotency-Key": "absent-export-0001"}
+    assert (
+        absent_api.post(
+            absent_endpoint, json=absent_export_request, headers=absent_headers
+        ).status_code
+        == 409
+    )
+    with absent_app.state.repository.db.connect() as connection:
+        absent_payload_sha256 = connection.execute(
+            "SELECT payload_sha256 FROM feedback_external_exports WHERE feedback_id = ?",
+            (absent_feedback["id"],),
+        ).fetchone()[0]
+    absent_reconciliation_request = {
+        "payload_sha256": absent_payload_sha256,
+        "confirmation_text": "我确认核对导出结果",
+        "reconciled_by": "maintainer",
+        "reconciled_at": "2026-09-01T06:35:00Z",
+    }
+    absent_reconciliation_endpoint = f"{absent_endpoint}/reconciliation"
+    absent_reconciled = absent_api.post(
+        absent_reconciliation_endpoint,
+        json=absent_reconciliation_request,
+        headers=absent_headers,
+    )
+    assert absent_reconciled.status_code == 201
+    assert absent_reconciled.json()["outcome"] == "verified_absent"
+    assert absent_api.get(absent_endpoint).status_code == 409
+    with absent_app.state.repository.db.connect() as connection:
+        assert (
+            connection.execute(
+                "SELECT state FROM feedback_external_exports WHERE feedback_id = ?",
+                (absent_feedback["id"],),
+            ).fetchone()[0]
+            == "rejected"
+        )
+    assert len(absent_transport.calls) == 1
+    assert len(absent_verifier.calls) == 1
+    assert (
+        absent_api.post(
+            absent_reconciliation_endpoint,
+            json=absent_reconciliation_request,
+            headers=absent_headers,
+        ).json()
+        == absent_reconciled.json()
+    )
+    assert len(absent_verifier.calls) == 1
 
     _, feedback3, triage3 = reviewed_feedback("并发导出")
     bundle3 = api.get(f"/v1/feedback/{feedback3['id']}/review-bundle").json()
@@ -981,7 +1208,7 @@ def test_memory_card_requires_explicit_confirmation_and_keeps_evidence(tmp_path:
     assert confirmations[0]["spoken_confirmation"] == "我确认这张记忆卡并归档"
 
     backup = api.get(f"/v1/projects/{project['id']}/export").json()
-    assert backup["schema_version"] == "nalu.project-export/v12"
+    assert backup["schema_version"] == "nalu.project-export/v13"
     assert backup["payload"]["memory_cards"][0]["asset_id"] == asset["id"]
 
     other = api.post("/v1/projects", json={"title": "另一个项目"}).json()
@@ -1332,6 +1559,7 @@ def test_project_rename_archive_export_and_restore(tmp_path: Path) -> None:
     legacy["payload"].pop("feedback_release_linkages")
     legacy["payload"].pop("feedback_triage_records")
     legacy["payload"].pop("feedback_external_exports")
+    legacy["payload"].pop("feedback_external_reconciliations")
     legacy["payload"].pop("memory_cards")
     legacy["payload"].pop("memory_card_revisions")
     legacy["payload"].pop("memory_card_confirmation_records")
@@ -1431,7 +1659,7 @@ def test_database_migration_preserves_existing_database(tmp_path: Path) -> None:
         connection.execute("INSERT INTO legacy_marker VALUES ('preserve-me')")
 
     api = create_app(database_path, tmp_path / "data")
-    assert api.state.repository.db.schema_version() == 17
+    assert api.state.repository.db.schema_version() == 18
     with sqlite3.connect(database_path) as connection:
         marker = connection.execute("SELECT value FROM legacy_marker").fetchone()[0]
         approval_table = connection.execute(
@@ -1483,7 +1711,7 @@ def test_populated_v1_database_upgrades_without_project_loss(tmp_path: Path) -> 
         connection.execute("DELETE FROM schema_migrations WHERE version >= 2")
 
     after = TestClient(create_app(database_path, data_root))
-    assert after.app.state.repository.db.schema_version() == 17
+    assert after.app.state.repository.db.schema_version() == 18
     assert after.get(f"/v1/projects/{project['id']}").json()["title"] == "我的一生"
     assert after.get(f"/v1/episodes/{episode['id']}").json()["approved_script_revision"] == 1
     approvals = after.get(f"/v1/episodes/{episode['id']}/script-approvals").json()
@@ -1676,6 +1904,7 @@ def test_project_season_and_episode_asset_scope_inheritance(tmp_path: Path) -> N
     legacy_v3["payload"].pop("feedback_release_linkages")
     legacy_v3["payload"].pop("feedback_triage_records")
     legacy_v3["payload"].pop("feedback_external_exports")
+    legacy_v3["payload"].pop("feedback_external_reconciliations")
     legacy_v3["payload"].pop("memory_cards")
     legacy_v3["payload"].pop("memory_card_revisions")
     legacy_v3["payload"].pop("memory_card_confirmation_records")
@@ -1747,7 +1976,7 @@ def test_complete_privacy_export_and_confirmed_project_deletion(tmp_path: Path) 
         assert {"project-export.json", "privacy-manifest.json", media_name} <= names
         assert archive.read(media_name) == b"private-photo-bytes"
         project_backup = json.loads(archive.read("project-export.json"))
-        assert project_backup["schema_version"] == "nalu.project-export/v12"
+        assert project_backup["schema_version"] == "nalu.project-export/v13"
         assert project_backup["payload"]["asset_consent_records"][0]["action_type"] == "granted"
         manifest = json.loads(archive.read("privacy-manifest.json"))
         assert manifest["database_included"] is False

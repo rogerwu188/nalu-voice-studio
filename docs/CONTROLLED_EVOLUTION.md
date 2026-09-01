@@ -66,6 +66,16 @@ administrator reconciles the remote system. Backup/restore verifies every policy
 request, payload and receipt digest. Local fixture tests exercise this boundary without
 contacting an external service, so they are not evidence of a real issue export.
 
+If an export stops in `submitting` or becomes `ambiguous`, Nalu never calls issue creation
+again. An administrator must provide the original idempotency key, exact payload digest,
+explicit confirmation and the same allowlisted policy to a separate read-only verifier.
+The verifier may either return a bounded HTTPS receipt or prove the issue is absent. Nalu
+then atomically records an immutable reconciliation and changes the transaction to
+`confirmed` or `rejected`; the record states that issue creation was not retried and no
+external write was performed by reconciliation. Exact replay reads the stored result.
+The distributed verifier denies all calls, and automated tests inject only local fixtures,
+so this mechanism does not claim that a real remote lookup has occurred.
+
 A separate local `qa_evidence_linked` receipt can bind the immutable review-bundle hash
 to one reviewed 40-character change commit, the exact successful CI head and artifact,
 an installed Developer ID/notarization/Gatekeeper receipt and an older-build rollback

@@ -493,6 +493,19 @@ MIGRATIONS = (
         );
         """,
     ),
+    (
+        18,
+        "feedback_external_reconciliations",
+        """
+        CREATE TABLE IF NOT EXISTS feedback_external_reconciliations (
+          feedback_id TEXT PRIMARY KEY REFERENCES feedback_items(id) ON DELETE CASCADE,
+          request_sha256 TEXT NOT NULL,
+          record_json TEXT NOT NULL,
+          record_sha256 TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        );
+        """,
+    ),
 )
 
 

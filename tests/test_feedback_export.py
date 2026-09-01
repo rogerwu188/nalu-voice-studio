@@ -2,7 +2,12 @@ import json
 from pathlib import Path
 
 import pytest
-from nalu_runtime.feedback_export import FeedbackExportPolicy, FeedbackExportPolicyError
+from nalu_runtime.feedback_export import (
+    DisabledIssueTrackerReconciliationVerifier,
+    DisabledIssueTrackerTransport,
+    FeedbackExportPolicy,
+    FeedbackExportPolicyError,
+)
 
 
 def write_policy(path: Path, **changes) -> Path:
@@ -26,6 +31,23 @@ def test_packaged_feedback_export_policy_is_disabled() -> None:
     assert policy.administrator_authorized is False
     assert policy.endpoint == ""
     assert policy.repository == ""
+
+
+def test_distributed_issue_clients_deny_write_and_reconciliation() -> None:
+    with pytest.raises(FeedbackExportPolicyError):
+        DisabledIssueTrackerTransport().create_issue(
+            endpoint="https://issues.example.test/api/issues",
+            repository="example/nalu",
+            payload={},
+            idempotency_key="disabled-export-0001",
+        )
+    with pytest.raises(FeedbackExportPolicyError):
+        DisabledIssueTrackerReconciliationVerifier().lookup_issue(
+            endpoint="https://issues.example.test/api/issues",
+            repository="example/nalu",
+            payload_sha256="0" * 64,
+            idempotency_key="disabled-export-0001",
+        )
 
 
 @pytest.mark.parametrize(

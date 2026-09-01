@@ -153,7 +153,8 @@ class ProjectExport(BaseModel):
         "nalu.project-export/v10",
         "nalu.project-export/v11",
         "nalu.project-export/v12",
-    ] = "nalu.project-export/v12"
+        "nalu.project-export/v13",
+    ] = "nalu.project-export/v13"
     exported_at: str
     payload: dict[str, Any]
     payload_sha256: str
@@ -423,6 +424,48 @@ class FeedbackExternalExportReceipt(BaseModel):
     request_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     created_at: str
     updated_at: str
+
+
+class FeedbackExternalReconciliationCreate(BaseModel):
+    payload_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    confirmation_text: str = Field(min_length=1, max_length=300)
+    reconciled_by: str = Field(min_length=1, max_length=160)
+    reconciled_at: str = Field(min_length=1, max_length=80)
+
+
+class FeedbackExternalReconciliationRecord(BaseModel):
+    schema_version: Literal["nalu.feedback-external-reconciliation/v1"] = (
+        "nalu.feedback-external-reconciliation/v1"
+    )
+    feedback_id: str
+    export_request_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    payload_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    outcome: Literal["confirmed", "verified_absent"]
+    remote_issue_id: str | None = None
+    remote_issue_url: str | None = None
+    response_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    verification_evidence_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    read_only_verification_performed: Literal[True] = True
+    issue_creation_retried: Literal[False] = False
+    external_write_performed: Literal[False] = False
+    reconciled_by: str
+    reconciled_at: str
+    idempotency_key_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    confirmation_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    request_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    record_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    created_at: str
+
+    @model_validator(mode="after")
+    def validate_outcome(self) -> FeedbackExternalReconciliationRecord:
+        receipt_fields = (self.remote_issue_id, self.remote_issue_url, self.response_sha256)
+        if self.outcome == "confirmed" and any(value is None for value in receipt_fields):
+            raise ValueError("confirmed reconciliation requires a complete receipt")
+        if self.outcome == "verified_absent" and any(
+            value is not None for value in receipt_fields
+        ):
+            raise ValueError("verified-absent reconciliation cannot contain a receipt")
+        return self
 
 
 class ReviewedChangeEvidence(BaseModel):

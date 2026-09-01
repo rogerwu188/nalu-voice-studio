@@ -4,7 +4,7 @@ import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, Literal, Protocol
 from urllib.parse import urlsplit
 
 
@@ -86,6 +86,24 @@ class IssueTrackerTransport(Protocol):
     ) -> IssueTrackerReceipt: ...
 
 
+@dataclass(frozen=True)
+class IssueTrackerLookup:
+    outcome: Literal["found", "absent"]
+    receipt: IssueTrackerReceipt | None
+    evidence: dict[str, Any]
+
+
+class IssueTrackerReconciliationVerifier(Protocol):
+    def lookup_issue(
+        self,
+        *,
+        endpoint: str,
+        repository: str,
+        payload_sha256: str,
+        idempotency_key: str,
+    ) -> IssueTrackerLookup: ...
+
+
 class DisabledIssueTrackerTransport:
     def create_issue(
         self,
@@ -96,3 +114,15 @@ class DisabledIssueTrackerTransport:
         idempotency_key: str,
     ) -> IssueTrackerReceipt:
         raise FeedbackExportPolicyError("no authorized issue tracker transport is configured")
+
+
+class DisabledIssueTrackerReconciliationVerifier:
+    def lookup_issue(
+        self,
+        *,
+        endpoint: str,
+        repository: str,
+        payload_sha256: str,
+        idempotency_key: str,
+    ) -> IssueTrackerLookup:
+        raise FeedbackExportPolicyError("no authorized issue reconciliation verifier is configured")

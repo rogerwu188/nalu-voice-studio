@@ -12,7 +12,11 @@ from uuid import uuid4
 from .continuity import ending_hooks_match_review
 from .continuity_extraction import extract_semantic_ending_continuity
 from .database import Database
-from .feedback_export import FeedbackExportPolicy, IssueTrackerTransport
+from .feedback_export import (
+    FeedbackExportPolicy,
+    IssueTrackerReconciliationVerifier,
+    IssueTrackerTransport,
+)
 from .models import (
     ApprovalCreate,
     ApprovalRecord,
@@ -40,6 +44,8 @@ from .models import (
     FeedbackCreate,
     FeedbackExternalExportCreate,
     FeedbackExternalExportReceipt,
+    FeedbackExternalReconciliationCreate,
+    FeedbackExternalReconciliationRecord,
     FeedbackItem,
     FeedbackReleaseLinkage,
     FeedbackReleaseLinkageCreate,
@@ -522,6 +528,12 @@ class Repository:
                    WHERE f.project_id = ?""",
                 (project_id,),
             ),
+            "feedback_external_reconciliations": (
+                """SELECT r.* FROM feedback_external_reconciliations r
+                   JOIN feedback_items f ON f.id = r.feedback_id
+                   WHERE f.project_id = ?""",
+                (project_id,),
+            ),
             "memory_cards": (
                 "SELECT * FROM memory_cards WHERE project_id = ?",
                 (project_id,),
@@ -746,6 +758,13 @@ class Repository:
                 "created_at",
                 "updated_at",
             ),
+            "feedback_external_reconciliations": (
+                "feedback_id",
+                "request_sha256",
+                "record_json",
+                "record_sha256",
+                "created_at",
+            ),
             "memory_cards": (
                 "id",
                 "project_id",
@@ -884,6 +903,21 @@ class Repository:
             "nalu.project-export/v11",
         }:
             allowed_columns.pop("feedback_external_exports")
+        if backup.schema_version in {
+            "nalu.project-export/v1",
+            "nalu.project-export/v2",
+            "nalu.project-export/v3",
+            "nalu.project-export/v4",
+            "nalu.project-export/v5",
+            "nalu.project-export/v6",
+            "nalu.project-export/v7",
+            "nalu.project-export/v8",
+            "nalu.project-export/v9",
+            "nalu.project-export/v10",
+            "nalu.project-export/v11",
+            "nalu.project-export/v12",
+        }:
+            allowed_columns.pop("feedback_external_reconciliations")
         if backup.schema_version in {
             "nalu.project-export/v1",
             "nalu.project-export/v2",
@@ -1107,6 +1141,7 @@ class Repository:
             if hashlib.sha256(encode(request_body).encode()).hexdigest() != triage.request_sha256:
                 raise ConflictError("feedback triage request digest does not match its evidence")
             feedback_triage_digests[row.get("feedback_id")] = row.get("record_sha256")
+        feedback_external_exports: dict[Any, dict[str, Any]] = {}
         for row in backup.payload.get("feedback_external_exports", []):
             try:
                 policy_body = decode(row.get("policy_json", ""))
@@ -1140,7 +1175,12 @@ class Repository:
                 "request_sha256"
             ):
                 raise ConflictError("external export request digest does not match")
-            if row.get("state") not in {"submitting", "ambiguous", "confirmed"}:
+            if row.get("state") not in {
+                "submitting",
+                "ambiguous",
+                "confirmed",
+                "rejected",
+            }:
                 raise ConflictError("project export contains invalid external export state")
             if row.get("state") == "confirmed":
                 try:
@@ -1158,6 +1198,14 @@ class Repository:
                     or remote_url.password is not None
                     or remote_url.query
                     or remote_url.fragment
+                    or (
+                        backup.schema_version == "nalu.project-export/v13"
+                        and response
+                        != {
+                            "remote_issue_id": row.get("remote_issue_id"),
+                            "remote_issue_url": row.get("remote_issue_url"),
+                        }
+                    )
                 ):
                     raise ConflictError("confirmed external export receipt is invalid")
             elif any(
@@ -1170,6 +1218,53 @@ class Repository:
                 )
             ):
                 raise ConflictError("unconfirmed external export contains a receipt")
+            feedback_external_exports[row.get("feedback_id")] = row
+        for row in backup.payload.get("feedback_external_reconciliations", []):
+            try:
+                record_body = decode(row.get("record_json", ""))
+                record = FeedbackExternalReconciliationRecord.model_validate(
+                    {**record_body, "record_sha256": row.get("record_sha256")}
+                )
+            except (TypeError, json.JSONDecodeError, ValueError) as exc:
+                raise ConflictError(
+                    "project export contains invalid external reconciliation"
+                ) from exc
+            export = feedback_external_exports.get(row.get("feedback_id"))
+            if (
+                export is None
+                or record.feedback_id != row.get("feedback_id")
+                or record.export_request_sha256 != export.get("request_sha256")
+                or record.payload_sha256 != export.get("payload_sha256")
+                or record.idempotency_key_sha256
+                != export.get("idempotency_key_sha256")
+                or record.request_sha256 != row.get("request_sha256")
+                or hashlib.sha256(encode(record_body).encode()).hexdigest()
+                != row.get("record_sha256")
+            ):
+                raise ConflictError("project export contains tampered external reconciliation")
+            reconciliation_request = {
+                "feedback_id": record.feedback_id,
+                "export_request_sha256": record.export_request_sha256,
+                "payload_sha256": record.payload_sha256,
+                "reconciled_by": record.reconciled_by,
+                "reconciled_at": record.reconciled_at,
+                "idempotency_key_sha256": record.idempotency_key_sha256,
+                "confirmation_sha256": record.confirmation_sha256,
+            }
+            if (
+                hashlib.sha256(encode(reconciliation_request).encode()).hexdigest()
+                != record.request_sha256
+            ):
+                raise ConflictError("external reconciliation request digest does not match")
+            if record.outcome == "confirmed" and (
+                export.get("state") != "confirmed"
+                or record.remote_issue_id != export.get("remote_issue_id")
+                or record.remote_issue_url != export.get("remote_issue_url")
+                or record.response_sha256 != export.get("response_sha256")
+            ):
+                raise ConflictError("confirmed reconciliation does not match export receipt")
+            if record.outcome == "verified_absent" and export.get("state") != "rejected":
+                raise ConflictError("absent reconciliation does not match export state")
         if any(
             row.get("project_id") != project_id or row.get("asset_id") not in asset_ids
             for row in backup.payload.get("memory_cards", [])
@@ -1679,7 +1774,12 @@ class Repository:
                 or parsed.fragment
             ):
                 raise ValueError("issue tracker returned an invalid receipt")
-            response_json = encode(receipt.response)
+            response_json = encode(
+                {
+                    "remote_issue_id": receipt.remote_issue_id,
+                    "remote_issue_url": receipt.remote_issue_url,
+                }
+            )
             if len(response_json.encode()) > policy.max_payload_bytes:
                 raise ValueError("issue tracker response exceeds the configured limit")
             response_sha256 = hashlib.sha256(response_json.encode()).hexdigest()
@@ -1728,10 +1828,22 @@ class Repository:
             raise NotFoundError("feedback external export not found")
         if row["state"] != "confirmed":
             raise ConflictError("feedback export is not confirmed")
+        try:
+            response = decode(row["response_json"])
+            remote_url = urlsplit(row["remote_issue_url"])
+        except (TypeError, json.JSONDecodeError) as exc:
+            raise ConflictError("stored feedback export receipt is unreadable") from exc
         if (
             hashlib.sha256(row["payload_json"].encode()).hexdigest() != row["payload_sha256"]
-            or hashlib.sha256(row["response_json"].encode()).hexdigest()
+            or hashlib.sha256(encode(response).encode()).hexdigest()
             != row["response_sha256"]
+            or not row["remote_issue_id"]
+            or remote_url.scheme != "https"
+            or not remote_url.hostname
+            or remote_url.username is not None
+            or remote_url.password is not None
+            or remote_url.query
+            or remote_url.fragment
         ):
             raise ConflictError("stored feedback export digest mismatch")
         return FeedbackExternalExportReceipt(
@@ -1761,6 +1873,218 @@ class Repository:
         except (TypeError, json.JSONDecodeError, ValueError) as exc:
             raise ConflictError("stored feedback export policy target is invalid") from exc
         return policy.repository
+
+    @staticmethod
+    def _explicit_feedback_reconciliation_confirmation(value: str) -> bool:
+        normalized = "".join(value.lower().split())
+        return any(
+            phrase in normalized
+            for phrase in ("我确认核对导出结果", "我同意保存对账结果", "确认问题单对账")
+        )
+
+    def reconcile_feedback_external_export(
+        self,
+        feedback_id: str,
+        request: FeedbackExternalReconciliationCreate,
+        idempotency_key: str | None,
+        policy: FeedbackExportPolicy,
+        verifier: IssueTrackerReconciliationVerifier,
+    ) -> FeedbackExternalReconciliationRecord:
+        policy.validate()
+        if not policy.enabled or not policy.administrator_authorized:
+            raise ConflictError("external feedback reconciliation is disabled")
+        if idempotency_key is None or not 16 <= len(idempotency_key.strip()) <= 200:
+            raise ConflictError("the original stable idempotency key is required")
+        if idempotency_key != idempotency_key.strip():
+            raise ConflictError("idempotency key must not have surrounding whitespace")
+        if not self._explicit_feedback_reconciliation_confirmation(
+            request.confirmation_text
+        ):
+            raise ConflictError("external feedback reconciliation requires confirmation")
+        self.get_feedback(feedback_id)
+        with self.db.connect() as connection:
+            export = connection.execute(
+                "SELECT * FROM feedback_external_exports WHERE feedback_id = ?",
+                (feedback_id,),
+            ).fetchone()
+        if export is None:
+            raise NotFoundError("feedback external export not found")
+        if request.payload_sha256 != export["payload_sha256"]:
+            raise ConflictError("reconciliation payload digest does not match")
+        idempotency_key_sha256 = hashlib.sha256(idempotency_key.encode()).hexdigest()
+        if idempotency_key_sha256 != export["idempotency_key_sha256"]:
+            raise ConflictError("reconciliation idempotency key does not match the export")
+        policy_body = {
+            "schema_version": policy.schema_version,
+            "enabled": policy.enabled,
+            "administrator_authorized": policy.administrator_authorized,
+            "provider": policy.provider,
+            "endpoint": policy.endpoint,
+            "repository": policy.repository,
+            "max_payload_bytes": policy.max_payload_bytes,
+        }
+        if hashlib.sha256(encode(policy_body).encode()).hexdigest() != export[
+            "policy_sha256"
+        ]:
+            raise ConflictError("reconciliation policy differs from the export policy")
+        reconciled_by, _ = self._redact_feedback_message(request.reconciled_by)
+        confirmation_sha256 = hashlib.sha256(
+            request.confirmation_text.strip().encode()
+        ).hexdigest()
+        request_body = {
+            "feedback_id": feedback_id,
+            "export_request_sha256": export["request_sha256"],
+            "payload_sha256": request.payload_sha256,
+            "reconciled_by": reconciled_by,
+            "reconciled_at": request.reconciled_at,
+            "idempotency_key_sha256": idempotency_key_sha256,
+            "confirmation_sha256": confirmation_sha256,
+        }
+        request_sha256 = hashlib.sha256(encode(request_body).encode()).hexdigest()
+        with self.db.connect() as connection:
+            existing = connection.execute(
+                "SELECT * FROM feedback_external_reconciliations WHERE feedback_id = ?",
+                (feedback_id,),
+            ).fetchone()
+        if existing is not None:
+            if existing["request_sha256"] != request_sha256:
+                raise ConflictError("feedback export already has different reconciliation")
+            return self.get_feedback_external_reconciliation(feedback_id)
+        if export["state"] not in {"submitting", "ambiguous"}:
+            raise ConflictError("only an uncertain feedback export can be reconciled")
+
+        try:
+            lookup = verifier.lookup_issue(
+                endpoint=policy.endpoint,
+                repository=policy.repository,
+                payload_sha256=request.payload_sha256,
+                idempotency_key=idempotency_key,
+            )
+        except Exception as exc:
+            raise ConflictError(
+                "issue reconciliation could not independently determine the outcome"
+            ) from exc
+        evidence_json = encode(lookup.evidence)
+        if not lookup.evidence or len(evidence_json.encode()) > policy.max_payload_bytes:
+            raise ConflictError("issue reconciliation evidence is missing or too large")
+        evidence_sha256 = hashlib.sha256(evidence_json.encode()).hexdigest()
+        remote_issue_id: str | None = None
+        remote_issue_url: str | None = None
+        response_json: str | None = None
+        response_sha256: str | None = None
+        if lookup.outcome == "found" and lookup.receipt is not None:
+            receipt = lookup.receipt
+            parsed = urlsplit(receipt.remote_issue_url)
+            if (
+                not receipt.remote_issue_id
+                or len(receipt.remote_issue_id) > 160
+                or parsed.scheme != "https"
+                or not parsed.hostname
+                or parsed.username is not None
+                or parsed.password is not None
+                or parsed.query
+                or parsed.fragment
+            ):
+                raise ConflictError("reconciliation returned an invalid issue receipt")
+            response_json = encode(
+                {
+                    "remote_issue_id": receipt.remote_issue_id,
+                    "remote_issue_url": receipt.remote_issue_url,
+                }
+            )
+            if len(response_json.encode()) > policy.max_payload_bytes:
+                raise ConflictError("reconciliation response exceeds the configured limit")
+            response_sha256 = hashlib.sha256(response_json.encode()).hexdigest()
+            remote_issue_id = receipt.remote_issue_id
+            remote_issue_url = receipt.remote_issue_url
+            outcome = "confirmed"
+            new_state = "confirmed"
+            error = None
+        elif lookup.outcome == "absent" and lookup.receipt is None:
+            outcome = "verified_absent"
+            new_state = "rejected"
+            error = "verified_absent"
+        else:
+            raise ConflictError("reconciliation lookup result is internally inconsistent")
+
+        now = utc_now()
+        record_body = {
+            "schema_version": "nalu.feedback-external-reconciliation/v1",
+            "feedback_id": feedback_id,
+            "export_request_sha256": export["request_sha256"],
+            "payload_sha256": request.payload_sha256,
+            "outcome": outcome,
+            "remote_issue_id": remote_issue_id,
+            "remote_issue_url": remote_issue_url,
+            "response_sha256": response_sha256,
+            "verification_evidence_sha256": evidence_sha256,
+            "read_only_verification_performed": True,
+            "issue_creation_retried": False,
+            "external_write_performed": False,
+            "reconciled_by": reconciled_by,
+            "reconciled_at": request.reconciled_at,
+            "idempotency_key_sha256": idempotency_key_sha256,
+            "confirmation_sha256": confirmation_sha256,
+            "request_sha256": request_sha256,
+            "created_at": now,
+        }
+        record_sha256 = hashlib.sha256(encode(record_body).encode()).hexdigest()
+        try:
+            with self.db.connect() as connection:
+                connection.execute("BEGIN IMMEDIATE")
+                updated = connection.execute(
+                    """UPDATE feedback_external_exports
+                       SET state = ?, response_json = ?, response_sha256 = ?,
+                           remote_issue_id = ?, remote_issue_url = ?, error = ?, updated_at = ?
+                       WHERE feedback_id = ? AND state IN ('submitting', 'ambiguous')""",
+                    (
+                        new_state,
+                        response_json,
+                        response_sha256,
+                        remote_issue_id,
+                        remote_issue_url,
+                        error,
+                        now,
+                        feedback_id,
+                    ),
+                )
+                if updated.rowcount != 1:
+                    raise ConflictError("feedback export state changed during reconciliation")
+                connection.execute(
+                    "INSERT INTO feedback_external_reconciliations VALUES (?, ?, ?, ?, ?)",
+                    (
+                        feedback_id,
+                        request_sha256,
+                        encode(record_body),
+                        record_sha256,
+                        now,
+                    ),
+                )
+                connection.commit()
+        except sqlite3.IntegrityError as exc:
+            raise ConflictError("feedback export was reconciled concurrently") from exc
+        record_body["record_sha256"] = record_sha256
+        return FeedbackExternalReconciliationRecord.model_validate(record_body)
+
+    def get_feedback_external_reconciliation(
+        self, feedback_id: str
+    ) -> FeedbackExternalReconciliationRecord:
+        self.get_feedback(feedback_id)
+        with self.db.connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM feedback_external_reconciliations WHERE feedback_id = ?",
+                (feedback_id,),
+            ).fetchone()
+        if row is None:
+            raise NotFoundError("feedback external reconciliation not found")
+        stored = decode(row["record_json"])
+        if (
+            hashlib.sha256(encode(stored).encode()).hexdigest() != row["record_sha256"]
+            or stored.get("request_sha256") != row["request_sha256"]
+        ):
+            raise ConflictError("stored feedback reconciliation digest mismatch")
+        stored["record_sha256"] = row["record_sha256"]
+        return FeedbackExternalReconciliationRecord.model_validate(stored)
 
     def create_feedback_release_linkage(
         self,
