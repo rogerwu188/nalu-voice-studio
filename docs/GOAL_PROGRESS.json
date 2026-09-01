@@ -11,26 +11,26 @@
     "TODO": 1,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "d3537f23f31a7a653fb1628d8888e7b5c5fa3d24",
-  "last_advanced_at": "2026-09-01T10:28:04Z",
+  "observed_head": "577ff14f94b1aa6cf91592aa85d7f8d8c403e802",
+  "last_advanced_at": "2026-09-01T10:41:00Z",
   "last_closed_checkpoint": {
-    "id": "sop-10-publication-learning-export-restore-core",
+    "id": "publication-learning-native-client-integration-tests",
     "sop": "SOP-10",
-    "product_commit": "6a68892df668d5f9695bff26b0a6fb15c3388519",
-    "evidence_commit": "3a22e08944a9a439f774eadf5d249138b9d06c94",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33494844711",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33494844711/artifacts/9795485341",
+    "product_commit": "b4587a776b9f01e4c433cb67885fb55068b77121",
+    "evidence_commit": "577ff14f94b1aa6cf91592aa85d7f8d8c403e802",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33497842560",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33497842560/artifacts/9796643058",
     "result": "PASS"
   },
   "current_checkpoint": {
     "sop": "SOP-10",
     "status": "IN_PROGRESS",
-    "summary": "The native macOS app now presents digest-verified publication metrics and versioned next-episode advice as a large-text read-only card with speech readback, while rejecting cross-project or write-capable records. Runtime, Swift, Apple Silicon, Intel, Universal, staged-update and rollback CI plus independent artifact verification passed; an actual-window populated-fixture accessibility check and authorized real-platform verification are still missing."
+    "summary": "The native macOS app presents digest-verified publication metrics and versioned next-episode advice as a large-text read-only card with speech readback. Deterministic native HTTP fixtures now prove the exact strategy-list and metric-fetch sequence plus fail-closed rejection of write-capable or digest-mismatched responses. Runtime, Swift, Apple Silicon, Intel, Universal, staged-update and rollback CI plus independent artifact verification passed; an isolated populated-data actual-window accessibility check and authorized real-platform verification are still missing."
   },
   "next_action": {
     "sop": "SOP-10",
-    "id": "publication-learning-native-client-integration-tests",
-    "summary": "Add deterministic macOS client integration fixtures for strategy-list and digest-bound metric lookup, including mismatched digest, cross-project and write-capable response rejection, before seeking action-time approval for actual-window accessibility QA.",
+    "id": "publication-learning-native-qa-fixture",
+    "summary": "Add an explicitly enabled, temporary-directory-only local QA data root and deterministic publication-learning fixture generator so actual-window large-text, readback and VoiceOver checks cannot touch a user's SQLite database or contact a provider.",
     "requires_user_authorization": false
   },
   "blocking_conditions": [
