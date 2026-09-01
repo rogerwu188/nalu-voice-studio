@@ -21,6 +21,47 @@ from nalu_runtime.publication_learning import (
     PublicationMetricsVerification,
     PublicationVerification,
 )
+from nalu_runtime.semantic_recognizer import LocalSemanticRecognition
+
+
+class DeterministicSemanticRecognizer:
+    def __init__(self) -> None:
+        self.transcript = "回家"
+        self.source_master_sha256_override: str | None = None
+        self.decoded_audio_fingerprint_override: str | None = None
+        self.network_used = False
+        self.calls = 0
+
+    def recognize(
+        self, master_path: Path, *, source_master_sha256: str
+    ) -> LocalSemanticRecognition:
+        self.calls += 1
+        return LocalSemanticRecognition(
+            transcript=self.transcript,
+            segments=[
+                {
+                    "start_seconds": 0.1,
+                    "end_seconds": 1.8,
+                    "text": self.transcript,
+                    "confidence": 0.95,
+                }
+            ],
+            recognizer_id="apple-speech-on-device",
+            recognizer_version="macOS-test-double",
+            locale="zh-CN",
+            generated_at="2026-08-31T00:20:00Z",
+            source_master_sha256=(
+                self.source_master_sha256_override or source_master_sha256
+            ),
+            decoded_audio_fingerprint=(
+                self.decoded_audio_fingerprint_override
+                or audio_energy_fingerprint(master_path)
+            ),
+            recognizer_executable_sha256=hashlib.sha256(
+                b"deterministic-local-semantic-recognizer-fixture"
+            ).hexdigest(),
+            network_used=self.network_used,
+        )
 
 
 def client(tmp_path: Path, publication_learning_verifier=None) -> TestClient:
@@ -29,6 +70,7 @@ def client(tmp_path: Path, publication_learning_verifier=None) -> TestClient:
             tmp_path / "test.sqlite3",
             tmp_path / "data",
             publication_learning_verifier=publication_learning_verifier,
+            semantic_recognizer=DeterministicSemanticRecognizer(),
         )
     )
 
@@ -643,6 +685,34 @@ def semantic_qa_payload(master_sha: str, *, transcript: str = "回家") -> dict:
     }
 
 
+def prepare_semantic_qa_fixture(api: TestClient) -> tuple[dict, str]:
+    _, episode, _ = approved_episode_with_library(api)
+    run = api.post(
+        f"/v1/episodes/{episode['id']}/production-runs", json={"dry_run": True}
+    ).json()
+    api.app.state.repository.update_run_status(run["id"], RunStatus.QA_REVIEW)
+    exports = Path(run["package_path"]).parent / "qingshan-workspace" / "exports"
+    master = create_playable_mp4(exports / "E01_MASTER.mp4")
+    master_sha = hashlib.sha256(master).hexdigest()
+    (exports / "E01_zh-CN.vtt").write_text(
+        "WEBVTT\n\n00:00.100 --> 00:01.800\n回家\n", encoding="utf-8"
+    )
+    write_shot_manifest(run, exports)
+    api.post(
+        f"/v1/production-runs/{run['id']}/rendered-output-seal",
+        json=seal_payload(include_shot_manifest=True),
+    ).raise_for_status()
+    assert (
+        api.post(f"/v1/production-runs/{run['id']}/media-structure-qa").json()["status"]
+        == "PASS"
+    )
+    assert (
+        api.post(f"/v1/production-runs/{run['id']}/decoded-media-qa").json()["status"]
+        == "PASS"
+    )
+    return run, master_sha
+
+
 def test_sealed_outputs_survive_library_edits_and_detect_file_tampering(
     tmp_path: Path,
 ) -> None:
@@ -780,6 +850,14 @@ def test_verified_seal_and_human_qa_complete_atomically_and_retry_safely(
     ).json()
     assert semantic_qa["status"] == "PASS"
     assert semantic_qa["semantic_asr"]["recall"] == 1.0
+    execution = semantic_qa["recognizer_execution"]
+    assert execution["source_master_sha256"] == master_sha
+    assert execution["local_recognition"] is True
+    assert execution["network_used"] is False
+    assert len(execution["decoded_audio_fingerprint"]) == 64
+    assert len(execution["recognizer_executable_sha256"]) == 64
+    assert len(execution["recognizer_output_sha256"]) == 64
+    assert len(execution["evidence_sha256"]) == 64
     assert semantic_qa["shot_boundaries"]["passed_boundary_count"] == 1
     lineage_qa = api.post(f"/v1/production-runs/{run['id']}/postproduction-lineage-qa").json()
     assert lineage_qa["status"] == "PASS"
@@ -1105,6 +1183,7 @@ def test_semantic_asr_and_authored_boundary_failures_are_release_blocking(
         api.post(f"/v1/production-runs/{run['id']}/media-structure-qa").json()["status"] == "PASS"
     )
     assert api.post(f"/v1/production-runs/{run['id']}/decoded-media-qa").json()["status"] == "PASS"
+    api.app.state.production.semantic_recognizer.transcript = "天气不错"
     failed = api.post(
         f"/v1/production-runs/{run['id']}/semantic-media-qa",
         json=semantic_qa_payload(master_sha, transcript="天气不错"),
@@ -1120,12 +1199,110 @@ def test_semantic_asr_and_authored_boundary_failures_are_release_blocking(
         "semantic_asr",
         "shot_boundary",
     ]
+    api.app.state.production.semantic_recognizer.transcript = "回家"
     changed = api.post(
         f"/v1/production-runs/{run['id']}/semantic-media-qa",
         json=semantic_qa_payload(master_sha, transcript="回家"),
     )
     assert changed.status_code == 409
     assert "different evidence" in changed.text
+
+
+def test_semantic_qa_fails_closed_without_runtime_registered_recognizer(
+    tmp_path: Path,
+) -> None:
+    api = TestClient(create_app(tmp_path / "test.sqlite3", tmp_path / "data"))
+    run, master_sha = prepare_semantic_qa_fixture(api)
+
+    response = api.post(
+        f"/v1/production-runs/{run['id']}/semantic-media-qa",
+        json=semantic_qa_payload(master_sha),
+    )
+
+    assert response.status_code == 409
+    assert "approved local semantic recognizer is not configured" in response.text
+
+
+def test_semantic_qa_rejects_client_claims_and_untrusted_execution_provenance(
+    tmp_path: Path,
+) -> None:
+    api = client(tmp_path)
+    run, master_sha = prepare_semantic_qa_fixture(api)
+    recognizer = api.app.state.production.semantic_recognizer
+
+    mismatch = api.post(
+        f"/v1/production-runs/{run['id']}/semantic-media-qa",
+        json=semantic_qa_payload(master_sha, transcript="客户端伪造文本"),
+    )
+    assert mismatch.status_code == 409
+    assert "does not match local recognizer output" in mismatch.text
+
+    recognizer.decoded_audio_fingerprint_override = "0" * 64
+    wrong_audio = api.post(
+        f"/v1/production-runs/{run['id']}/semantic-media-qa",
+        json=semantic_qa_payload(master_sha),
+    )
+    assert wrong_audio.status_code == 409
+    assert "different decoded audio" in wrong_audio.text
+
+    recognizer.decoded_audio_fingerprint_override = None
+    recognizer.network_used = True
+    networked = api.post(
+        f"/v1/production-runs/{run['id']}/semantic-media-qa",
+        json=semantic_qa_payload(master_sha),
+    )
+    assert networked.status_code == 409
+    assert "local-only recognition execution" in networked.text
+
+
+def test_stored_semantic_qa_rejects_rehashed_execution_provenance_tampering(
+    tmp_path: Path,
+) -> None:
+    api = client(tmp_path)
+    run, master_sha = prepare_semantic_qa_fixture(api)
+    created = api.post(
+        f"/v1/production-runs/{run['id']}/semantic-media-qa",
+        json=semantic_qa_payload(master_sha),
+    )
+    assert created.status_code == 200
+    report_path = Path(run["package_path"]).parent / "semantic-media-qa.json"
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+
+    def canonical_sha256(value: dict) -> str:
+        return hashlib.sha256(
+            json.dumps(
+                value,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8")
+        ).hexdigest()
+
+    execution = report["recognizer_execution"]
+    execution["network_used"] = True
+    execution["evidence_sha256"] = canonical_sha256(
+        {key: value for key, value in execution.items() if key != "evidence_sha256"}
+    )
+    report["report_sha256"] = canonical_sha256(
+        {key: value for key, value in report.items() if key != "report_sha256"}
+    )
+    report_path.write_text(json.dumps(report, ensure_ascii=False), encoding="utf-8")
+    network_tamper = api.get(f"/v1/production-runs/{run['id']}/semantic-media-qa")
+    assert network_tamper.status_code == 409
+    assert "not proven local-only" in network_tamper.text
+
+    execution["network_used"] = False
+    execution["decoded_audio_fingerprint"] = "0" * 64
+    execution["evidence_sha256"] = canonical_sha256(
+        {key: value for key, value in execution.items() if key != "evidence_sha256"}
+    )
+    report["report_sha256"] = canonical_sha256(
+        {key: value for key, value in report.items() if key != "report_sha256"}
+    )
+    report_path.write_text(json.dumps(report, ensure_ascii=False), encoding="utf-8")
+    audio_tamper = api.get(f"/v1/production-runs/{run['id']}/semantic-media-qa")
+    assert audio_tamper.status_code == 409
+    assert "decoded audio fingerprint mismatch" in audio_tamper.text
 
 
 def test_postproduction_lineage_rejects_unadmitted_shot_and_blocks_release(

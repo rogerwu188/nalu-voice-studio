@@ -153,6 +153,7 @@ from .release_evidence import (
 )
 from .remote_submitter import DurableRemoteTaskSubmitter
 from .repository import ConflictError, NotFoundError, Repository
+from .semantic_recognizer import LocalSemanticRecognizer
 from .storage_diagnostics import inspect_storage
 
 
@@ -170,6 +171,7 @@ def create_app(
     development_result_verifier: DevelopmentResultVerifier | None = None,
     release_evidence_verifier: ReleaseEvidenceVerifier | None = None,
     publication_learning_verifier: PublicationLearningVerifier | None = None,
+    semantic_recognizer: LocalSemanticRecognizer | None = None,
 ) -> FastAPI:
     repository_root = Path(
         os.environ.get("NALU_REPOSITORY_ROOT", Path(__file__).resolve().parents[3])
@@ -182,7 +184,13 @@ def create_app(
     database.initialize()
     repository = Repository(database)
     remote_task_submitter = DurableRemoteTaskSubmitter(repository)
-    production = ProductionService(repository, data_root, repository_root, remote_task_submitter)
+    production = ProductionService(
+        repository,
+        data_root,
+        repository_root,
+        remote_task_submitter,
+        semantic_recognizer=semantic_recognizer,
+    )
     asset_service = AssetService(repository, data_root)
     privacy_service = ProjectPrivacyService(repository, asset_service, data_root)
     if feedback_export_policy is None:

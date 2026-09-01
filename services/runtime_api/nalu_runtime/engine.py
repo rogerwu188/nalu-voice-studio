@@ -57,7 +57,7 @@ from .models import (
     SemanticMediaQARequest,
     VisualContinuityQAReport,
 )
-from .postproduction_lineage_qa import inspect_postproduction_lineage
+from .postproduction_lineage_qa import audio_energy_fingerprint, inspect_postproduction_lineage
 from .postproduction_materializer import (
     PostproductionMaterializationError,
     materialize_postproduction,
@@ -69,6 +69,11 @@ from .remote_submitter import DurableRemoteTaskSubmitter
 from .repository import ConflictError, Repository, new_id, utc_now
 from .secure_files import harden_tree, secure_directory, secure_file
 from .semantic_media_qa import inspect_semantic_asr, inspect_shot_boundaries
+from .semantic_recognizer import (
+    DisabledLocalSemanticRecognizer,
+    LocalSemanticRecognizer,
+    SemanticRecognizerError,
+)
 from .visual_continuity_qa import inspect_visual_continuity
 
 EPISODE_PROGRESS = {
@@ -309,6 +314,7 @@ class ProductionService:
         repository_root: Path,
         remote_task_submitter: DurableRemoteTaskSubmitter,
         visual_analyzer: VisualAnalyzerRunner | None = None,
+        semantic_recognizer: LocalSemanticRecognizer | None = None,
     ):
         self.repository = repository
         self.remote_task_submitter = remote_task_submitter
@@ -320,6 +326,7 @@ class ProductionService:
         self.visual_analyzer = visual_analyzer or AppleVisionAnalyzer(
             Path(configured_analyzer) if configured_analyzer else None
         )
+        self.semantic_recognizer = semantic_recognizer or DisabledLocalSemanticRecognizer()
 
     def _model_policy(self) -> dict:
         policy_path = self.repository_root / "configs" / "model-policy.json"
@@ -337,6 +344,12 @@ class ProductionService:
     def _canonical_sha256(value: dict | list) -> str:
         encoded = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
         return hashlib.sha256(encoded.encode()).hexdigest()
+
+    @staticmethod
+    def _is_sha256(value: object) -> bool:
+        return isinstance(value, str) and len(value) == 64 and all(
+            character in "0123456789abcdef" for character in value
+        )
 
     def _run_directory(self, run: ProductionRun) -> Path:
         run_directory = Path(run.package_path).resolve().parent
@@ -1319,14 +1332,77 @@ class ProductionService:
         ):
             raise ConflictError("prior media QA belongs to a different output seal")
         exports = self._run_directory(run) / "qingshan-workspace" / "exports"
+        master_path = exports / masters[0].relative_path
+        try:
+            recognition = self.semantic_recognizer.recognize(
+                master_path,
+                source_master_sha256=masters[0].sha256,
+            )
+        except SemanticRecognizerError as exc:
+            raise ConflictError(str(exc)) from exc
+        decoded_audio_fingerprint = audio_energy_fingerprint(master_path)
+        claimed_segments = [segment.model_dump(mode="json") for segment in request.segments]
+        recognition_claims = (
+            request.transcript,
+            claimed_segments,
+            request.recognizer_id,
+            request.recognizer_version,
+            request.locale,
+            request.local_recognition,
+            request.generated_at,
+        )
+        executed_claims = (
+            recognition.transcript,
+            recognition.segments,
+            recognition.recognizer_id,
+            recognition.recognizer_version,
+            recognition.locale,
+            recognition.local_recognition,
+            recognition.generated_at,
+        )
+        if recognition_claims != executed_claims:
+            raise ConflictError("semantic QA request does not match local recognizer output")
+        if recognition.source_master_sha256 != masters[0].sha256:
+            raise ConflictError("local recognizer output belongs to a different master")
+        if recognition.decoded_audio_fingerprint != decoded_audio_fingerprint:
+            raise ConflictError("local recognizer output belongs to different decoded audio")
+        executable_sha256 = recognition.recognizer_executable_sha256
+        if len(executable_sha256) != 64 or any(
+            character not in "0123456789abcdef" for character in executable_sha256
+        ):
+            raise ConflictError("local recognizer executable digest is invalid")
+        if recognition.local_recognition is not True or recognition.network_used is not False:
+            raise ConflictError("semantic QA requires local-only recognition execution")
+        recognition_output = {
+            "transcript": recognition.transcript,
+            "segments": recognition.segments,
+            "recognizer_id": recognition.recognizer_id,
+            "recognizer_version": recognition.recognizer_version,
+            "locale": recognition.locale,
+            "generated_at": recognition.generated_at,
+        }
+        recognizer_execution_body = {
+            "schema_version": "nalu.local-semantic-recognizer-evidence/v1",
+            "source_master_sha256": masters[0].sha256,
+            "decoded_audio_fingerprint": decoded_audio_fingerprint,
+            "recognizer_executable_sha256": executable_sha256,
+            "recognizer_output": recognition_output,
+            "recognizer_output_sha256": self._canonical_sha256(recognition_output),
+            "local_recognition": True,
+            "network_used": False,
+        }
+        recognizer_execution = {
+            **recognizer_execution_body,
+            "evidence_sha256": self._canonical_sha256(recognizer_execution_body),
+        }
         duration = float(structure_qa.mp4.get("duration_seconds") or 0)
         semantic_asr = inspect_semantic_asr(
             exports / captions[0].relative_path,
-            transcript=request.transcript,
-            segments=[segment.model_dump(mode="json") for segment in request.segments],
-            recognizer_id=request.recognizer_id,
-            locale=request.locale,
-            local_recognition=request.local_recognition,
+            transcript=recognition.transcript,
+            segments=recognition.segments,
+            recognizer_id=recognition.recognizer_id,
+            locale=recognition.locale,
+            local_recognition=recognition.local_recognition,
             media_duration_seconds=duration,
         )
         shot_boundaries = inspect_shot_boundaries(
@@ -1348,6 +1424,7 @@ class ProductionService:
             "shot_manifest_sha256": shot_manifests[0].sha256,
             "recognizer_version": request.recognizer_version,
             "recognition_generated_at": request.generated_at,
+            "recognizer_execution": recognizer_execution,
             "semantic_asr": semantic_asr,
             "shot_boundaries": shot_boundaries,
             "status": "PASS" if not failures else "FAIL",
@@ -1366,6 +1443,7 @@ class ProductionService:
                 and existing.master_sha256 == report.master_sha256
                 and existing.recognizer_version == report.recognizer_version
                 and existing.recognition_generated_at == report.recognition_generated_at
+                and existing.recognizer_execution == report.recognizer_execution
                 and existing.semantic_asr == report.semantic_asr
                 and existing.shot_boundaries == report.shot_boundaries
             ):
@@ -1422,6 +1500,62 @@ class ProductionService:
             raise ConflictError("semantic media QA report digest mismatch")
         if report.run_id != run.id:
             raise ConflictError("semantic media QA report belongs to another run")
+        execution = report.recognizer_execution
+        if not isinstance(execution, dict):
+            raise ConflictError("semantic recognizer execution evidence is missing")
+        if execution.get("schema_version") != "nalu.local-semantic-recognizer-evidence/v1":
+            raise ConflictError("semantic recognizer execution schema is invalid")
+        evidence_sha256 = execution.get("evidence_sha256")
+        evidence_body = {
+            key: value for key, value in execution.items() if key != "evidence_sha256"
+        }
+        if not self._is_sha256(evidence_sha256) or (
+            self._canonical_sha256(evidence_body) != evidence_sha256
+        ):
+            raise ConflictError("semantic recognizer execution evidence digest mismatch")
+        if execution.get("source_master_sha256") != report.master_sha256:
+            raise ConflictError("semantic recognizer execution belongs to another master")
+        if execution.get("local_recognition") is not True or (
+            execution.get("network_used") is not False
+        ):
+            raise ConflictError("semantic recognizer execution is not proven local-only")
+        executable_sha256 = execution.get("recognizer_executable_sha256")
+        decoded_audio_fingerprint = execution.get("decoded_audio_fingerprint")
+        recognizer_output_sha256 = execution.get("recognizer_output_sha256")
+        if not all(
+            self._is_sha256(value)
+            for value in (
+                executable_sha256,
+                decoded_audio_fingerprint,
+                recognizer_output_sha256,
+            )
+        ):
+            raise ConflictError("semantic recognizer execution digest is invalid")
+        recognizer_output = execution.get("recognizer_output")
+        if not isinstance(recognizer_output, dict) or (
+            self._canonical_sha256(recognizer_output) != recognizer_output_sha256
+        ):
+            raise ConflictError("semantic recognizer output digest mismatch")
+        if (
+            recognizer_output.get("transcript") != report.semantic_asr.get("transcript")
+            or recognizer_output.get("recognizer_id")
+            != report.semantic_asr.get("recognizer_id")
+            or recognizer_output.get("locale") != report.semantic_asr.get("locale")
+            or recognizer_output.get("generated_at") != report.recognition_generated_at
+            or recognizer_output.get("recognizer_version") != report.recognizer_version
+        ):
+            raise ConflictError("semantic recognizer output does not match QA report")
+        master_path, master = self.sealed_master_path(run_id)
+        if master.sha256 != report.master_sha256:
+            raise ConflictError("semantic media QA belongs to a different sealed master")
+        try:
+            observed_audio_fingerprint = audio_energy_fingerprint(master_path)
+        except (OSError, RuntimeError, ValueError) as exc:
+            raise ConflictError(
+                "sealed master audio cannot be decoded for semantic evidence verification"
+            ) from exc
+        if observed_audio_fingerprint != decoded_audio_fingerprint:
+            raise ConflictError("semantic recognizer decoded audio fingerprint mismatch")
         return report
 
     def create_release_package(self, run_id: str, request: ReleasePackageCreate) -> ReleasePackage:

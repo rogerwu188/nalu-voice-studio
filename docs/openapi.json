@@ -7707,6 +7707,18 @@
             "title": "Recognition Generated At",
             "type": "string"
           },
+          "recognizer_execution": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recognizer Execution"
+          },
           "recognizer_version": {
             "title": "Recognizer Version",
             "type": "string"

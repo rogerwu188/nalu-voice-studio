@@ -1674,6 +1674,7 @@ class SemanticMediaQAReport(BaseModel):
     shot_manifest_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     recognizer_version: str
     recognition_generated_at: str
+    recognizer_execution: dict[str, Any] | None = None
     semantic_asr: dict[str, Any]
     shot_boundaries: dict[str, Any]
     status: Literal["PASS", "FAIL"]
