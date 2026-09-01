@@ -1169,6 +1169,27 @@ Current evidence:
   evidence-file SHA-256 values
   `a0367c122e5138186e5b96914206885bf194e859eabb90ad06644eab10701028` and
   `d6414b8d7c56084456d30af0474a7c266ef40fe4eef164ca27ed74cbc3ba4c21`.
+- Commit `e0bbcd7`, GitHub CI run `33475858943`: schema migration 17 and project-export
+  v12 add a persistent, idempotent issue-export transaction boundary after authorized
+  bundle review and human triage. The distributed administrator policy is disabled and
+  target-free, and the distributed transport denies I/O. An injected local fixture proves
+  the bounded redacted payload has no attachments, persists before I/O, stores only the
+  idempotency-key hash, replays a confirmed result without another call, rejects changed
+  inputs and quarantines an uncertain outcome without automatic retry. Concurrent requests
+  make at most one transport call; policy/endpoint/repository traversal, receipt and
+  backup/restore tampering fail closed. No external service was contacted. All 104 Runtime
+  tests, OpenAPI compatibility, real HTTP smoke, Swift tests, both architecture builds and
+  bundled smokes, staged update, ten-episode schema-17 restart/rollback and universal merge
+  passed. Release verification now rejects a packaged feedback-export policy unless it is
+  disabled, unauthorized and target-free. Universal artifact `9788268553` has GitHub
+  digest `sha256:6e008093793611ea6e26fee97d65881c5ce202781f3962e2351b047c2abf00c8`;
+  its downloaded inner ZIP SHA-256 is
+  `1b1769f8b24d9b8e8ecb7337a823c3dce920e648abe4748740469f5184f0f47e`.
+  Independent archive inspection found the disabled packaged policy at SHA-256
+  `96475ba5a2908b74f2e04db512d6c097abe73453d360871cc0149287480c1146`;
+  staged-update and rollback evidence-file SHA-256 values are
+  `421459959ce53f1ce2df6a795640ade85377c0cd88abce237115750615610b95` and
+  `38a26a564440fa731addbff275d18ad8b2780d0a43aac551ce755a2efd54235d`.
 - Still required before `PASS`: administrator-authorized external issue export, agent
   development integration after human triage, independently obtained rather than locally
   supplied review/CI/Apple/installation receipts, a real Developer ID/notarized staged
