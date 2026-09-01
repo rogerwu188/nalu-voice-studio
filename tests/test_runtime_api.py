@@ -388,7 +388,7 @@ def test_feedback_review_bundle_is_local_redacted_immutable_and_exported(
     assert api.get(f"/v1/feedback/{feedback['id']}/review-bundle").json() == bundle
 
     backup = api.get(f"/v1/projects/{project['id']}/export").json()
-    assert backup["schema_version"] == "nalu.project-export/v19"
+    assert backup["schema_version"] == "nalu.project-export/v20"
     assert (
         backup["payload"]["feedback_review_bundles"][0]["bundle_sha256"] == bundle["bundle_sha256"]
     )
@@ -598,7 +598,7 @@ def test_feedback_release_linkage_is_hash_bound_immutable_and_never_claims_relea
     assert current_feedback["status"] == "ready_for_review"
 
     backup = api.get(f"/v1/projects/{project['id']}/export").json()
-    assert backup["schema_version"] == "nalu.project-export/v19"
+    assert backup["schema_version"] == "nalu.project-export/v20"
     assert backup["payload"]["feedback_release_linkages"][0]["linkage_sha256"] == linkage[
         "linkage_sha256"
     ]
@@ -606,6 +606,13 @@ def test_feedback_release_linkage_is_hash_bound_immutable_and_never_claims_relea
     legacy_backup["schema_version"] = "nalu.project-export/v16"
     legacy_backup["payload"].pop("feedback_development_results")
     legacy_backup["payload"].pop("feedback_release_evidence_reconciliations")
+    for table in (
+        "production_runs",
+        "publication_reconciliations",
+        "publication_metric_snapshots",
+        "director_strategy_revisions",
+    ):
+        legacy_backup["payload"].pop(table)
     legacy_backup["payload_sha256"] = hashlib.sha256(
         json.dumps(
             legacy_backup["payload"], ensure_ascii=False, sort_keys=True
@@ -728,7 +735,7 @@ def test_feedback_triage_is_human_confirmed_inert_immutable_and_exported(
     assert current_feedback["status"] == "ready_for_review"
 
     backup = api.get(f"/v1/projects/{project['id']}/export").json()
-    assert backup["schema_version"] == "nalu.project-export/v19"
+    assert backup["schema_version"] == "nalu.project-export/v20"
     assert backup["payload"]["feedback_triage_records"][0]["record_sha256"] == triage[
         "record_sha256"
     ]
@@ -1259,7 +1266,7 @@ def test_feedback_external_export_is_authorized_idempotent_and_ambiguity_safe(
     assert len(release_evidence_verifier.calls) == 2
 
     backup = api.get(f"/v1/projects/{project['id']}/export").json()
-    assert backup["schema_version"] == "nalu.project-export/v19"
+    assert backup["schema_version"] == "nalu.project-export/v20"
     restored = client(tmp_path / "export-restored")
     assert restored.post("/v1/project-imports", json=backup).status_code == 201
     assert restored.get(endpoint).json() == receipt
@@ -1363,6 +1370,13 @@ def test_feedback_external_export_is_authorized_idempotent_and_ambiguity_safe(
     legacy_v12["payload"].pop("feedback_development_handoff_reconciliations")
     legacy_v12["payload"].pop("feedback_development_results")
     legacy_v12["payload"].pop("feedback_release_evidence_reconciliations")
+    for table in (
+        "production_runs",
+        "publication_reconciliations",
+        "publication_metric_snapshots",
+        "director_strategy_revisions",
+    ):
+        legacy_v12["payload"].pop(table)
     legacy_v12["payload_sha256"] = hashlib.sha256(
         json.dumps(legacy_v12["payload"], ensure_ascii=False, sort_keys=True).encode()
     ).hexdigest()
@@ -1825,6 +1839,13 @@ def test_feedback_external_export_is_authorized_idempotent_and_ambiguity_safe(
     legacy_v13["payload"].pop("feedback_development_handoff_reconciliations")
     legacy_v13["payload"].pop("feedback_development_results")
     legacy_v13["payload"].pop("feedback_release_evidence_reconciliations")
+    for table in (
+        "production_runs",
+        "publication_reconciliations",
+        "publication_metric_snapshots",
+        "director_strategy_revisions",
+    ):
+        legacy_v13["payload"].pop(table)
     legacy_v13["payload_sha256"] = hashlib.sha256(
         json.dumps(legacy_v13["payload"], ensure_ascii=False, sort_keys=True).encode()
     ).hexdigest()
@@ -2045,7 +2066,7 @@ def test_memory_card_requires_explicit_confirmation_and_keeps_evidence(tmp_path:
     assert confirmations[0]["spoken_confirmation"] == "我确认这张记忆卡并归档"
 
     backup = api.get(f"/v1/projects/{project['id']}/export").json()
-    assert backup["schema_version"] == "nalu.project-export/v19"
+    assert backup["schema_version"] == "nalu.project-export/v20"
     assert backup["payload"]["memory_cards"][0]["asset_id"] == asset["id"]
 
     other = api.post("/v1/projects", json={"title": "另一个项目"}).json()
@@ -2409,6 +2430,10 @@ def test_project_rename_archive_export_and_restore(tmp_path: Path) -> None:
     legacy["payload"].pop("library_entity_revisions")
     legacy["payload"].pop("library_entity_confirmation_records")
     legacy["payload"].pop("continuity_extraction_confirmation_records")
+    legacy["payload"].pop("production_runs")
+    legacy["payload"].pop("publication_reconciliations")
+    legacy["payload"].pop("publication_metric_snapshots")
+    legacy["payload"].pop("director_strategy_revisions")
     legacy["payload"]["projects"][0].pop("creative_format")
     legacy["payload"]["projects"][0].pop("production_pipeline")
     canonical = json.dumps(legacy["payload"], ensure_ascii=False, sort_keys=True)
@@ -2759,6 +2784,10 @@ def test_project_season_and_episode_asset_scope_inheritance(tmp_path: Path) -> N
     legacy_v3["payload"].pop("library_entity_revisions")
     legacy_v3["payload"].pop("library_entity_confirmation_records")
     legacy_v3["payload"].pop("continuity_extraction_confirmation_records")
+    legacy_v3["payload"].pop("production_runs")
+    legacy_v3["payload"].pop("publication_reconciliations")
+    legacy_v3["payload"].pop("publication_metric_snapshots")
+    legacy_v3["payload"].pop("director_strategy_revisions")
     legacy_v3["payload"]["projects"][0].pop("creative_format")
     legacy_v3["payload"]["projects"][0].pop("production_pipeline")
     for asset in legacy_v3["payload"]["assets"]:
@@ -2823,7 +2852,7 @@ def test_complete_privacy_export_and_confirmed_project_deletion(tmp_path: Path) 
         assert {"project-export.json", "privacy-manifest.json", media_name} <= names
         assert archive.read(media_name) == b"private-photo-bytes"
         project_backup = json.loads(archive.read("project-export.json"))
-        assert project_backup["schema_version"] == "nalu.project-export/v19"
+        assert project_backup["schema_version"] == "nalu.project-export/v20"
         assert project_backup["payload"]["asset_consent_records"][0]["action_type"] == "granted"
         manifest = json.loads(archive.read("privacy-manifest.json"))
         assert manifest["database_included"] is False

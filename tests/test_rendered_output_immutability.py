@@ -6,6 +6,7 @@ import threading
 import urllib.parse
 from array import array
 from concurrent.futures import ThreadPoolExecutor
+from copy import deepcopy
 from fractions import Fraction
 from pathlib import Path
 from unittest.mock import patch
@@ -1946,6 +1947,83 @@ def test_completed_media_qa_creates_offline_release_package_without_publishing(
             json={**metrics_request, "publication_record_sha256": "f" * 64},
         )
         assert wrong_metrics.status_code == 409
+
+        backup = verified_api.get(
+            f"/v1/projects/{package['project_id']}/export"
+        ).json()
+        assert backup["schema_version"] == "nalu.project-export/v20"
+        assert [row["id"] for row in backup["payload"]["production_runs"]] == [
+            run["id"]
+        ]
+        assert len(backup["payload"]["publication_reconciliations"]) == 1
+        assert len(backup["payload"]["publication_metric_snapshots"]) == 1
+        assert len(backup["payload"]["director_strategy_revisions"]) == 1
+        with client(tmp_path / "publication-learning-restored") as restored_api:
+            restored = restored_api.post("/v1/project-imports", json=backup)
+            assert restored.status_code == 201
+            assert restored_api.get(
+                f"/v1/production-runs/{run['id']}/publication-reconciliation/youtube"
+            ).json() == publication_record
+            assert restored_api.get(
+                f"/v1/publication-metrics/{result['metrics']['id']}"
+            ).json() == result["metrics"]
+            assert restored_api.get(
+                f"/v1/projects/{package['project_id']}/director-strategies"
+            ).json() == [result["strategy"]]
+            restored_run = restored_api.get(
+                f"/v1/production-runs/{run['id']}"
+            ).json()
+            assert "restored-publication-sources" in restored_run["package_path"]
+            assert restored_run["package_path"] != run["package_path"]
+
+        legacy_v19 = deepcopy(backup)
+        legacy_v19["schema_version"] = "nalu.project-export/v19"
+        for table in (
+            "production_runs",
+            "publication_reconciliations",
+            "publication_metric_snapshots",
+            "director_strategy_revisions",
+        ):
+            legacy_v19["payload"].pop(table)
+        legacy_v19["payload_sha256"] = hashlib.sha256(
+            json.dumps(
+                legacy_v19["payload"], ensure_ascii=False, sort_keys=True
+            ).encode()
+        ).hexdigest()
+        with client(tmp_path / "publication-learning-v19") as legacy_api:
+            assert legacy_api.post(
+                "/v1/project-imports", json=legacy_v19
+            ).status_code == 201
+            assert legacy_api.get(
+                f"/v1/projects/{package['project_id']}/director-strategies"
+            ).json() == []
+
+        tampered_backup = deepcopy(backup)
+        snapshot_body = json.loads(
+            tampered_backup["payload"]["publication_metric_snapshots"][0][
+                "snapshot_json"
+            ]
+        )
+        snapshot_body["project_id"] = "project_from_another_backup"
+        tampered_backup["payload"]["publication_metric_snapshots"][0][
+            "snapshot_json"
+        ] = json.dumps(snapshot_body, ensure_ascii=False, sort_keys=True)
+        tampered_backup["payload"]["publication_metric_snapshots"][0][
+            "snapshot_sha256"
+        ] = hashlib.sha256(
+            tampered_backup["payload"]["publication_metric_snapshots"][0][
+                "snapshot_json"
+            ].encode()
+        ).hexdigest()
+        tampered_backup["payload_sha256"] = hashlib.sha256(
+            json.dumps(
+                tampered_backup["payload"], ensure_ascii=False, sort_keys=True
+            ).encode()
+        ).hexdigest()
+        with client(tmp_path / "publication-learning-tampered") as tampered_api:
+            rejected = tampered_api.post("/v1/project-imports", json=tampered_backup)
+            assert rejected.status_code == 409
+            assert "tampered publication metrics" in rejected.text
 
     with api.app.state.repository.db.connect() as connection:
         connection.execute(

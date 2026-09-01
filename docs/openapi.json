@@ -5997,7 +5997,7 @@
             "type": "string"
           },
           "schema_version": {
-            "default": "nalu.project-export/v19",
+            "default": "nalu.project-export/v20",
             "enum": [
               "nalu.project-export/v1",
               "nalu.project-export/v2",
@@ -6017,7 +6017,8 @@
               "nalu.project-export/v16",
               "nalu.project-export/v17",
               "nalu.project-export/v18",
-              "nalu.project-export/v19"
+              "nalu.project-export/v19",
+              "nalu.project-export/v20"
             ],
             "title": "Schema Version",
             "type": "string"

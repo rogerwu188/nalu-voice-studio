@@ -36,9 +36,13 @@ in macOS Keychain, not SQLite, project exports or production packages.
 Use Nalu's project export rather than copying a live SQLite file. An export is a
 versioned JSON envelope with a SHA-256 digest and currently contains the project,
 seasons, episodes, script revisions, approval records, asset registry and
-continuity snapshots, including versioned season-plan approvals. Import verifies
-the format version and digest, rejects unknown tables, columns and cross-project
-references, and restores the project atomically into a clean local database.
+continuity snapshots, including versioned season-plan approvals. Version 20 also
+preserves verified publication identities, read-only metric snapshots and versioned
+next-episode strategies together with their minimal completed production-source
+metadata. Import verifies the format version, outer and inner digests, rejects unknown
+tables, columns and cross-project references, and restores the project atomically into
+a clean local database. Old production-package paths are never trusted on another
+machine; restored learning-source rows receive inert paths under the new data root.
 
 The ordinary JSON project backup preserves asset records and managed local file
 references, but intentionally does not embed media. Use the native **Privacy

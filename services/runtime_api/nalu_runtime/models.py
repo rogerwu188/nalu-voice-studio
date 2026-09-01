@@ -160,7 +160,8 @@ class ProjectExport(BaseModel):
         "nalu.project-export/v17",
         "nalu.project-export/v18",
         "nalu.project-export/v19",
-    ] = "nalu.project-export/v19"
+        "nalu.project-export/v20",
+    ] = "nalu.project-export/v20"
     exported_at: str
     payload: dict[str, Any]
     payload_sha256: str

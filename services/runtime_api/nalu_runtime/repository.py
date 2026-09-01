@@ -627,6 +627,27 @@ class Repository:
                    WHERE e.project_id = ?""",
                 (project_id,),
             ),
+            "production_runs": (
+                """SELECT r.* FROM production_runs r
+                   WHERE r.project_id = ? AND EXISTS (
+                     SELECT 1 FROM publication_reconciliations p WHERE p.run_id = r.id
+                   )""",
+                (project_id,),
+            ),
+            "publication_reconciliations": (
+                """SELECT p.* FROM publication_reconciliations p
+                   JOIN production_runs r ON r.id = p.run_id WHERE r.project_id = ?""",
+                (project_id,),
+            ),
+            "publication_metric_snapshots": (
+                """SELECT m.* FROM publication_metric_snapshots m
+                   JOIN production_runs r ON r.id = m.run_id WHERE r.project_id = ?""",
+                (project_id,),
+            ),
+            "director_strategy_revisions": (
+                "SELECT * FROM director_strategy_revisions WHERE project_id = ?",
+                (project_id,),
+            ),
         }
         payload: dict[str, list[dict[str, Any]]] = {}
         with self.db.connect() as connection:
@@ -941,6 +962,53 @@ class Repository:
                 "review_channel",
                 "created_at",
             ),
+            "production_runs": (
+                "id",
+                "project_id",
+                "season_id",
+                "episode_id",
+                "status",
+                "dry_run",
+                "requested_model",
+                "estimated_budget_credits",
+                "package_path",
+                "error",
+                "created_at",
+                "updated_at",
+            ),
+            "publication_reconciliations": (
+                "run_id",
+                "platform",
+                "remote_publication_id",
+                "request_sha256",
+                "idempotency_key_sha256",
+                "record_json",
+                "record_sha256",
+                "created_at",
+            ),
+            "publication_metric_snapshots": (
+                "id",
+                "run_id",
+                "platform",
+                "remote_publication_id",
+                "window_start",
+                "window_end",
+                "request_sha256",
+                "idempotency_key_sha256",
+                "snapshot_json",
+                "snapshot_sha256",
+                "created_at",
+            ),
+            "director_strategy_revisions": (
+                "id",
+                "project_id",
+                "target_episode_id",
+                "source_metrics_id",
+                "revision",
+                "strategy_json",
+                "strategy_sha256",
+                "created_at",
+            ),
         }
         if backup.schema_version in {
             "nalu.project-export/v1",
@@ -1097,8 +1165,16 @@ class Repository:
             "nalu.project-export/v16",
         }:
             allowed_columns.pop("feedback_development_results")
-        if backup.schema_version != "nalu.project-export/v19":
+        if backup.schema_version not in {
+            "nalu.project-export/v19",
+            "nalu.project-export/v20",
+        }:
             allowed_columns.pop("feedback_release_evidence_reconciliations")
+        if backup.schema_version != "nalu.project-export/v20":
+            allowed_columns.pop("production_runs")
+            allowed_columns.pop("publication_reconciliations")
+            allowed_columns.pop("publication_metric_snapshots")
+            allowed_columns.pop("director_strategy_revisions")
         if backup.schema_version in {
             "nalu.project-export/v1",
             "nalu.project-export/v2",
@@ -1709,6 +1785,7 @@ class Repository:
             if backup.schema_version in {
                 "nalu.project-export/v18",
                 "nalu.project-export/v19",
+                "nalu.project-export/v20",
             } and (
                 result is None
                 or linkage.development_result_sha256 != result.record_sha256
@@ -1793,6 +1870,115 @@ class Repository:
             raise ConflictError(
                 "project export contains a library confirmation from another project"
             )
+        learning_run_ids = {
+            row.get("id") for row in backup.payload.get("production_runs", [])
+        }
+        learning_runs = {
+            row.get("id"): row for row in backup.payload.get("production_runs", [])
+        }
+        if any(
+            row.get("project_id") != project_id
+            or row.get("season_id") not in season_ids
+            or row.get("episode_id") not in episode_ids
+            or row.get("status") != RunStatus.COMPLETED
+            or row.get("dry_run") not in {0, 1}
+            or not isinstance(row.get("package_path"), str)
+            or not row.get("package_path")
+            for row in backup.payload.get("production_runs", [])
+        ):
+            raise ConflictError("project export contains an invalid publication source run")
+        publication_records: dict[tuple[Any, Any], PublicationReconciliationRecord] = {}
+        for row in backup.payload.get("publication_reconciliations", []):
+            try:
+                record_body = decode(row.get("record_json", ""))
+                record = PublicationReconciliationRecord.model_validate(
+                    {**record_body, "record_sha256": row.get("record_sha256")}
+                )
+            except (TypeError, ValueError, json.JSONDecodeError) as exc:
+                raise ConflictError(
+                    "project export contains invalid publication reconciliation"
+                ) from exc
+            source_run = learning_runs.get(row.get("run_id"))
+            if (
+                source_run is None
+                or record.run_id != row.get("run_id")
+                or record.project_id != project_id
+                or record.episode_id != source_run.get("episode_id")
+                or record.platform != row.get("platform")
+                or record.remote_publication_id != row.get("remote_publication_id")
+                or record.request_sha256 != row.get("request_sha256")
+                or record.idempotency_key_sha256 != row.get("idempotency_key_sha256")
+                or record.created_at != row.get("created_at")
+                or hashlib.sha256(encode(record_body).encode()).hexdigest()
+                != row.get("record_sha256")
+            ):
+                raise ConflictError(
+                    "project export contains tampered publication reconciliation"
+                )
+            publication_records[(record.run_id, record.platform)] = record
+        metric_records: dict[Any, PublicationMetricsSnapshot] = {}
+        for row in backup.payload.get("publication_metric_snapshots", []):
+            try:
+                snapshot_body = decode(row.get("snapshot_json", ""))
+                snapshot = PublicationMetricsSnapshot.model_validate(
+                    {**snapshot_body, "snapshot_sha256": row.get("snapshot_sha256")}
+                )
+            except (TypeError, ValueError, json.JSONDecodeError) as exc:
+                raise ConflictError("project export contains invalid publication metrics") from exc
+            source_run = learning_runs.get(row.get("run_id"))
+            publication = publication_records.get(
+                (row.get("run_id"), row.get("platform"))
+            )
+            if (
+                source_run is None
+                or publication is None
+                or snapshot.id != row.get("id")
+                or snapshot.run_id != row.get("run_id")
+                or snapshot.project_id != project_id
+                or snapshot.episode_id != source_run.get("episode_id")
+                or snapshot.platform != row.get("platform")
+                or snapshot.remote_publication_id != row.get("remote_publication_id")
+                or snapshot.publication_record_sha256 != publication.record_sha256
+                or snapshot.window_start != row.get("window_start")
+                or snapshot.window_end != row.get("window_end")
+                or snapshot.request_sha256 != row.get("request_sha256")
+                or snapshot.idempotency_key_sha256 != row.get("idempotency_key_sha256")
+                or snapshot.created_at != row.get("created_at")
+                or hashlib.sha256(encode(snapshot_body).encode()).hexdigest()
+                != row.get("snapshot_sha256")
+            ):
+                raise ConflictError("project export contains tampered publication metrics")
+            metric_records[snapshot.id] = snapshot
+        strategy_revisions: list[int] = []
+        for row in backup.payload.get("director_strategy_revisions", []):
+            try:
+                strategy_body = decode(row.get("strategy_json", ""))
+                strategy = DirectorStrategyRevision.model_validate(
+                    {**strategy_body, "strategy_sha256": row.get("strategy_sha256")}
+                )
+            except (TypeError, ValueError, json.JSONDecodeError) as exc:
+                raise ConflictError("project export contains invalid director strategy") from exc
+            source_metrics = metric_records.get(row.get("source_metrics_id"))
+            if (
+                source_metrics is None
+                or strategy.id != row.get("id")
+                or strategy.project_id != project_id
+                or strategy.target_episode_id not in episode_ids
+                or strategy.source_metrics_id != row.get("source_metrics_id")
+                or strategy.source_metrics_sha256 != source_metrics.snapshot_sha256
+                or strategy.revision != row.get("revision")
+                or strategy.created_at != row.get("created_at")
+                or hashlib.sha256(encode(strategy_body).encode()).hexdigest()
+                != row.get("strategy_sha256")
+            ):
+                raise ConflictError("project export contains tampered director strategy")
+            strategy_revisions.append(strategy.revision)
+        if strategy_revisions and sorted(strategy_revisions) != list(
+            range(1, len(strategy_revisions) + 1)
+        ):
+            raise ConflictError("project export contains a non-contiguous strategy history")
+        if learning_run_ids and not publication_records:
+            raise ConflictError("project export contains an unused publication source run")
         try:
             with self.db.connect() as connection:
                 connection.execute("BEGIN IMMEDIATE")
@@ -1802,9 +1988,17 @@ class Repository:
                     for row in backup.payload[table]:
                         if set(row) != set(columns):
                             raise ConflictError(f"invalid columns in project export table {table}")
+                        values = dict(row)
+                        if table == "production_runs":
+                            values["package_path"] = str(
+                                self.db.path.parent
+                                / "restored-publication-sources"
+                                / str(row["id"])
+                                / "production-package.json"
+                            )
                         connection.execute(
                             f"INSERT INTO {table} ({column_sql}) VALUES ({placeholders})",
-                            tuple(row[column] for column in columns),
+                            tuple(values[column] for column in columns),
                         )
         except ConflictError:
             raise

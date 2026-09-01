@@ -31,6 +31,15 @@ deterministic, explainable thresholds and records its observations, directives a
 immutable constraints. It never edits the target episode. Applying a recommendation
 still requires a new script revision and the normal user/guardian approval flow.
 
+Project export v20 preserves the minimal completed production-source metadata needed by
+these records, both publication identities, metric snapshots and the complete strategy
+revision history. Import validates every inner digest and project/run/episode reference
+before one atomic transaction. It rejects unknown tables, cross-project records,
+non-contiguous strategy histories and a recomputed outer backup containing changed
+learning data. A production package path belongs to the old machine, so import never
+trusts or reuses it: the restored completed source row receives an inert path beneath the
+new local data root. Versions v1 through v19 remain importable without learning tables.
+
 ## Explicit non-claims
 
 Offline fixtures prove the contract, restart persistence, mismatch rejection,
