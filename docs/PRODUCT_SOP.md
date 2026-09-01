@@ -1412,6 +1412,21 @@ Current evidence:
   This closes only the offline structural-rehearsal checkpoint; SOP-12 remains
   `IN_PROGRESS` until all scenarios run from one signed/notarized candidate with real
   authorized costs, task/receipt/publication reconciliation and human acceptance.
+- Commit `6334da1`, GitHub CI run `33511396984`: a separate
+  `nalu.release-acceptance/v1` manifest and CI audit now reject whole-product completion
+  unless all eight release gates are `PASS` and every evidence record binds the same
+  40-character source commit and universal artifact SHA-256. False completion before all
+  fourteen SOP items pass, cross-commit evidence, cross-artifact evidence and `PASS`
+  evidence smuggled into a `NOT_READY` manifest fail automated negative tests. The
+  repository manifest deliberately remains `NOT_READY` with
+  `completion_eligible: false`. All 136 Runtime tests, real HTTP smoke, offline seven-
+  scenario rehearsal, arm64/x86_64 builds, packaged smokes, staged update, populated
+  rollback and universal merge passed. Runtime QA artifact `9801839813` has GitHub digest
+  `sha256:cc0ec37f92a0172fc2973e76057b963f9fb2da76f27968fc00478e9ffea76d3d`;
+  universal artifact `9802090651` has GitHub digest
+  `sha256:70670bc3a08be82cccf14d205b1dae1febc4104a15cb6becb3a32614942ac619`.
+  This is an anti-false-completion checkpoint, not signed/notarized or real E2E evidence,
+  so SOP-12 remains `IN_PROGRESS`.
 
 ## SOP-13 · Controlled product evolution — IN_PROGRESS
 
