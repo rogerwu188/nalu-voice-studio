@@ -159,7 +159,8 @@ class ProjectExport(BaseModel):
         "nalu.project-export/v16",
         "nalu.project-export/v17",
         "nalu.project-export/v18",
-    ] = "nalu.project-export/v18"
+        "nalu.project-export/v19",
+    ] = "nalu.project-export/v19"
     exported_at: str
     payload: dict[str, Any]
     payload_sha256: str
@@ -707,6 +708,33 @@ class FeedbackReleaseLinkage(FeedbackReleaseLinkageCreate):
     idempotency_key_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     request_sha256: str
     linkage_sha256: str
+
+
+class FeedbackReleaseEvidenceReconciliationCreate(BaseModel):
+    release_linkage_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    confirmation_text: str = Field(min_length=1, max_length=300)
+
+
+class FeedbackReleaseEvidenceReconciliationRecord(BaseModel):
+    schema_version: Literal["nalu.feedback-release-evidence-reconciliation/v1"] = (
+        "nalu.feedback-release-evidence-reconciliation/v1"
+    )
+    feedback_id: str
+    release_linkage_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    status: Literal["independently_verified"] = "independently_verified"
+    verification_evidence_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    read_only_verification_performed: Literal[True] = True
+    download_performed: Literal[False] = False
+    installation_performed: Literal[False] = False
+    signing_performed: Literal[False] = False
+    notarization_performed: Literal[False] = False
+    release_performed: Literal[False] = False
+    external_write_performed: Literal[False] = False
+    release_claimed: Literal[False] = False
+    created_at: str
+    idempotency_key_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    request_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    record_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
 
 
 class MemoryPerson(BaseModel):

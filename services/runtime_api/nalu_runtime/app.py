@@ -69,6 +69,8 @@ from .models import (
     FeedbackExternalReconciliationCreate,
     FeedbackExternalReconciliationRecord,
     FeedbackItem,
+    FeedbackReleaseEvidenceReconciliationCreate,
+    FeedbackReleaseEvidenceReconciliationRecord,
     FeedbackReleaseLinkage,
     FeedbackReleaseLinkageCreate,
     FeedbackReviewBundle,
@@ -134,6 +136,10 @@ from .models import (
     VisualContinuityQAReport,
 )
 from .privacy_service import ProjectPrivacyService
+from .release_evidence import (
+    DisabledReleaseEvidenceVerifier,
+    ReleaseEvidenceVerifier,
+)
 from .remote_submitter import DurableRemoteTaskSubmitter
 from .repository import ConflictError, NotFoundError, Repository
 from .storage_diagnostics import inspect_storage
@@ -151,6 +157,7 @@ def create_app(
         DevelopmentHandoffReconciliationVerifier | None
     ) = None,
     development_result_verifier: DevelopmentResultVerifier | None = None,
+    release_evidence_verifier: ReleaseEvidenceVerifier | None = None,
 ) -> FastAPI:
     repository_root = Path(
         os.environ.get("NALU_REPOSITORY_ROOT", Path(__file__).resolve().parents[3])
@@ -205,6 +212,7 @@ def create_app(
     development_result_verifier = (
         development_result_verifier or DisabledDevelopmentResultVerifier()
     )
+    release_evidence_verifier = release_evidence_verifier or DisabledReleaseEvidenceVerifier()
 
     app = FastAPI(
         title="Nalu Voice Studio Runtime API",
@@ -223,6 +231,7 @@ def create_app(
         development_handoff_reconciliation_verifier
     )
     app.state.development_result_verifier = development_result_verifier
+    app.state.release_evidence_verifier = release_evidence_verifier
 
     @app.exception_handler(NotFoundError)
     async def not_found_handler(_request, exc: NotFoundError):
@@ -482,6 +491,32 @@ def create_app(
     )
     def get_feedback_release_linkage(feedback_id: str) -> FeedbackReleaseLinkage:
         return repository.get_feedback_release_linkage(feedback_id)
+
+    @app.post(
+        "/v1/feedback/{feedback_id}/release-evidence/reconciliation",
+        response_model=FeedbackReleaseEvidenceReconciliationRecord,
+        status_code=201,
+    )
+    def reconcile_feedback_release_evidence(
+        feedback_id: str,
+        request: FeedbackReleaseEvidenceReconciliationCreate,
+        idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    ) -> FeedbackReleaseEvidenceReconciliationRecord:
+        return repository.reconcile_feedback_release_evidence(
+            feedback_id,
+            request,
+            idempotency_key,
+            release_evidence_verifier,
+        )
+
+    @app.get(
+        "/v1/feedback/{feedback_id}/release-evidence/reconciliation",
+        response_model=FeedbackReleaseEvidenceReconciliationRecord,
+    )
+    def get_feedback_release_evidence_reconciliation(
+        feedback_id: str,
+    ) -> FeedbackReleaseEvidenceReconciliationRecord:
+        return repository.get_feedback_release_evidence_reconciliation(feedback_id)
 
     @app.post(
         "/v1/projects/{project_id}/memory-cards",

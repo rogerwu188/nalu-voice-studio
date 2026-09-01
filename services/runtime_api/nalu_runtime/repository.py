@@ -61,6 +61,8 @@ from .models import (
     FeedbackExternalReconciliationCreate,
     FeedbackExternalReconciliationRecord,
     FeedbackItem,
+    FeedbackReleaseEvidenceReconciliationCreate,
+    FeedbackReleaseEvidenceReconciliationRecord,
     FeedbackReleaseLinkage,
     FeedbackReleaseLinkageCreate,
     FeedbackReviewBundle,
@@ -104,6 +106,10 @@ from .models import (
     SeasonPlanApprovalCreate,
     SeasonPlanRevision,
     SeasonPlanUpdate,
+)
+from .release_evidence import (
+    ReleaseEvidenceVerificationError,
+    ReleaseEvidenceVerifier,
 )
 
 
@@ -572,6 +578,12 @@ class Repository:
                    WHERE f.project_id = ?""",
                 (project_id,),
             ),
+            "feedback_release_evidence_reconciliations": (
+                """SELECT r.* FROM feedback_release_evidence_reconciliations r
+                   JOIN feedback_items f ON f.id = r.feedback_id
+                   WHERE f.project_id = ?""",
+                (project_id,),
+            ),
             "memory_cards": (
                 "SELECT * FROM memory_cards WHERE project_id = ?",
                 (project_id,),
@@ -842,6 +854,13 @@ class Repository:
                 "record_sha256",
                 "created_at",
             ),
+            "feedback_release_evidence_reconciliations": (
+                "feedback_id",
+                "request_sha256",
+                "record_json",
+                "record_sha256",
+                "created_at",
+            ),
             "memory_cards": (
                 "id",
                 "project_id",
@@ -1065,6 +1084,8 @@ class Repository:
             "nalu.project-export/v16",
         }:
             allowed_columns.pop("feedback_development_results")
+        if backup.schema_version != "nalu.project-export/v19":
+            allowed_columns.pop("feedback_release_evidence_reconciliations")
         if backup.schema_version in {
             "nalu.project-export/v1",
             "nalu.project-export/v2",
@@ -1672,7 +1693,10 @@ class Repository:
             feedback_development_results[row.get("feedback_id")] = record
         for feedback_id, linkage in feedback_release_linkages.items():
             result = feedback_development_results.get(feedback_id)
-            if backup.schema_version == "nalu.project-export/v18" and (
+            if backup.schema_version in {
+                "nalu.project-export/v18",
+                "nalu.project-export/v19",
+            } and (
                 result is None
                 or linkage.development_result_sha256 != result.record_sha256
                 or linkage.reviewed_change.repository_url != result.repository_url
@@ -1683,6 +1707,37 @@ class Repository:
             ):
                 raise ConflictError(
                     "release linkage does not match the verified development result"
+                )
+        for row in backup.payload.get(
+            "feedback_release_evidence_reconciliations", []
+        ):
+            try:
+                record_body = decode(row.get("record_json", ""))
+                record = FeedbackReleaseEvidenceReconciliationRecord.model_validate(
+                    {**record_body, "record_sha256": row.get("record_sha256")}
+                )
+            except (TypeError, ValueError, json.JSONDecodeError) as exc:
+                raise ConflictError(
+                    "project export contains invalid release evidence reconciliation"
+                ) from exc
+            linkage = feedback_release_linkages.get(row.get("feedback_id"))
+            reconciliation_request = {
+                "feedback_id": record.feedback_id,
+                "release_linkage_sha256": record.release_linkage_sha256,
+                "idempotency_key_sha256": record.idempotency_key_sha256,
+            }
+            if (
+                record.feedback_id != row.get("feedback_id")
+                or linkage is None
+                or record.release_linkage_sha256 != linkage.linkage_sha256
+                or record.request_sha256 != row.get("request_sha256")
+                or hashlib.sha256(encode(record_body).encode()).hexdigest()
+                != row.get("record_sha256")
+                or hashlib.sha256(encode(reconciliation_request).encode()).hexdigest()
+                != record.request_sha256
+            ):
+                raise ConflictError(
+                    "project export contains tampered release evidence reconciliation"
                 )
         if any(
             row.get("project_id") != project_id or row.get("asset_id") not in asset_ids
@@ -3442,6 +3497,180 @@ class Repository:
             raise ConflictError("stored feedback release linkage digest mismatch")
         stored["linkage_sha256"] = row["linkage_sha256"]
         return FeedbackReleaseLinkage.model_validate(stored)
+
+    @staticmethod
+    def _explicit_release_evidence_reconciliation_confirmation(value: str) -> bool:
+        normalized = " ".join(value.strip().lower().split())
+        return normalized in {
+            "我确认只读核验这份发布证据",
+            "i confirm read-only verification of this release evidence",
+        }
+
+    def reconcile_feedback_release_evidence(
+        self,
+        feedback_id: str,
+        request: FeedbackReleaseEvidenceReconciliationCreate,
+        idempotency_key: str | None,
+        verifier: ReleaseEvidenceVerifier,
+    ) -> FeedbackReleaseEvidenceReconciliationRecord:
+        linkage = self.get_feedback_release_linkage(feedback_id)
+        if request.release_linkage_sha256 != linkage.linkage_sha256:
+            raise ConflictError("release linkage digest does not match")
+        if not self._explicit_release_evidence_reconciliation_confirmation(
+            request.confirmation_text
+        ):
+            raise ConflictError("release evidence reconciliation requires confirmation")
+        if idempotency_key is None or not 16 <= len(idempotency_key.strip()) <= 200:
+            raise ConflictError("a stable 16-200 character idempotency key is required")
+        if idempotency_key != idempotency_key.strip():
+            raise ConflictError("idempotency key must not have surrounding whitespace")
+
+        idempotency_key_sha256 = hashlib.sha256(idempotency_key.encode()).hexdigest()
+        request_body = {
+            "feedback_id": feedback_id,
+            "release_linkage_sha256": linkage.linkage_sha256,
+            "idempotency_key_sha256": idempotency_key_sha256,
+        }
+        request_sha256 = hashlib.sha256(encode(request_body).encode()).hexdigest()
+        with self.db.connect() as connection:
+            existing = connection.execute(
+                """SELECT * FROM feedback_release_evidence_reconciliations
+                   WHERE feedback_id = ?""",
+                (feedback_id,),
+            ).fetchone()
+        if existing is not None:
+            if existing["request_sha256"] != request_sha256:
+                raise ConflictError(
+                    "release evidence already has different immutable reconciliation"
+                )
+            return self.get_feedback_release_evidence_reconciliation(feedback_id)
+
+        try:
+            verified = verifier.lookup_release_evidence(
+                feedback_id=feedback_id,
+                release_linkage_sha256=linkage.linkage_sha256,
+                ci_run_url=linkage.ci.run_url,
+                artifact_sha256=linkage.ci.artifact_sha256,
+                installed_version=linkage.installed_release.version,
+                installed_build=linkage.installed_release.build,
+            )
+        except (ReleaseEvidenceVerificationError, TypeError, ValueError) as exc:
+            raise ConflictError("release evidence could not be independently verified") from exc
+
+        expected = (
+            linkage.ci.run_url,
+            linkage.ci.head_sha,
+            linkage.ci.conclusion,
+            linkage.ci.artifact_sha256,
+            linkage.ci.completed_at,
+            linkage.installed_release.version,
+            linkage.installed_release.build,
+            linkage.installed_release.product_commit,
+            linkage.installed_release.provenance_sha256,
+            linkage.installed_release.developer_id_team_id,
+            linkage.installed_release.notarization_submission_id,
+            linkage.installed_release.code_signature_verified,
+            linkage.installed_release.notarization_verified,
+            linkage.installed_release.gatekeeper_accepted,
+            linkage.installed_release.installed_at,
+            linkage.rollback.previous_version,
+            linkage.rollback.previous_build,
+            linkage.rollback.evidence_sha256,
+            linkage.rollback.project_data_preserved,
+            linkage.rollback.verified_at,
+        )
+        actual = (
+            verified.ci_run_url,
+            verified.ci_head_sha,
+            verified.ci_conclusion,
+            verified.artifact_sha256,
+            verified.ci_completed_at,
+            verified.version,
+            verified.build,
+            verified.product_commit,
+            verified.provenance_sha256,
+            verified.developer_id_team_id,
+            verified.notarization_submission_id,
+            verified.code_signature_verified,
+            verified.notarization_verified,
+            verified.gatekeeper_accepted,
+            verified.installed_at,
+            verified.previous_version,
+            verified.previous_build,
+            verified.rollback_evidence_sha256,
+            verified.project_data_preserved,
+            verified.rollback_verified_at,
+        )
+        if actual != expected:
+            raise ConflictError("independent release evidence does not match the linkage")
+        if not isinstance(verified.evidence, dict) or not verified.evidence:
+            raise ConflictError("independent release verification evidence is missing")
+        evidence_json = encode(verified.evidence)
+        if len(evidence_json.encode()) > 65536:
+            raise ConflictError("independent release verification evidence is too large")
+
+        now = utc_now()
+        record_body = {
+            "schema_version": "nalu.feedback-release-evidence-reconciliation/v1",
+            "feedback_id": feedback_id,
+            "release_linkage_sha256": linkage.linkage_sha256,
+            "status": "independently_verified",
+            "verification_evidence_sha256": hashlib.sha256(
+                evidence_json.encode()
+            ).hexdigest(),
+            "read_only_verification_performed": True,
+            "download_performed": False,
+            "installation_performed": False,
+            "signing_performed": False,
+            "notarization_performed": False,
+            "release_performed": False,
+            "external_write_performed": False,
+            "release_claimed": False,
+            "created_at": now,
+            "idempotency_key_sha256": idempotency_key_sha256,
+            "request_sha256": request_sha256,
+        }
+        record_sha256 = hashlib.sha256(encode(record_body).encode()).hexdigest()
+        with self.db.connect() as connection:
+            try:
+                connection.execute(
+                    """INSERT INTO feedback_release_evidence_reconciliations
+                       VALUES (?, ?, ?, ?, ?)""",
+                    (
+                        feedback_id,
+                        request_sha256,
+                        encode(record_body),
+                        record_sha256,
+                        now,
+                    ),
+                )
+            except sqlite3.IntegrityError as exc:
+                raise ConflictError(
+                    "release evidence was reconciled concurrently"
+                ) from exc
+        record_body["record_sha256"] = record_sha256
+        return FeedbackReleaseEvidenceReconciliationRecord.model_validate(record_body)
+
+    def get_feedback_release_evidence_reconciliation(
+        self, feedback_id: str
+    ) -> FeedbackReleaseEvidenceReconciliationRecord:
+        self.get_feedback(feedback_id)
+        with self.db.connect() as connection:
+            row = connection.execute(
+                """SELECT * FROM feedback_release_evidence_reconciliations
+                   WHERE feedback_id = ?""",
+                (feedback_id,),
+            ).fetchone()
+        if row is None:
+            raise NotFoundError("feedback release evidence reconciliation not found")
+        stored = decode(row["record_json"])
+        if (
+            hashlib.sha256(encode(stored).encode()).hexdigest() != row["record_sha256"]
+            or stored.get("request_sha256") != row["request_sha256"]
+        ):
+            raise ConflictError("stored release evidence reconciliation digest mismatch")
+        stored["record_sha256"] = row["record_sha256"]
+        return FeedbackReleaseEvidenceReconciliationRecord.model_validate(stored)
 
     def create_memory_card(self, project_id: str, request: MemoryCardCreate) -> MemoryCard:
         project = self.get_project(project_id)

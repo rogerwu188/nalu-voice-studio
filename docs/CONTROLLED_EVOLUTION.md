@@ -128,6 +128,18 @@ does not change the feedback state, and always records `release_claimed: false`.
 locally supplied verification facts, not proof that Nalu independently contacted GitHub
 or Apple, and therefore cannot advance an item to `released`.
 
+That local receipt may now be reconciled through a separate, disabled-by-default
+read-only verifier. After an exact linkage digest, explicit administrator confirmation
+and stable idempotency key, the verifier must independently return the identical CI run,
+head and artifact; installed version, build, product commit, provenance, Developer ID
+team, notarization submission, signature/notarization/Gatekeeper results; and older-build
+rollback evidence. Any difference fails closed. Nalu stores only a digest of bounded
+verification evidence and an immutable record stating that reconciliation downloaded or
+installed nothing, performed no signing, notarization, release or external write, and
+still claims no rollout. Exact replay never queries again. The packaged verifier denies
+all calls; injected fixtures validate only this local boundary, not a real GitHub, Apple
+or installed-device lookup.
+
 The packaged application now has a separate fail-closed staged-update primitive. It can
 verify an exact Ed25519-signed package, reject replay or downgrade, preserve local project
 data, require post-launch health confirmation and roll back after a crash or missing
