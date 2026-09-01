@@ -15,6 +15,7 @@
     "prompt_source",
     "asset_bindings",
     "provider_contract",
+    "paid_boundary_contract",
     "planning_defaults",
     "execution_state",
     "paid_submission_enabled",
@@ -66,6 +67,36 @@
       }
     },
     "provider_contract": { "type": "object" },
+    "paid_boundary_contract": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "duration_seconds_required",
+        "minimum_duration_seconds",
+        "maximum_duration_seconds",
+        "explicit_combat_classification_required",
+        "combat_choreography_contract_true_overrides",
+        "explicit_noncombat_overrides_negative_prompt_cues",
+        "native_resolution_contract",
+        "delivery_resolution_contract",
+        "native_resolution_must_remain_honestly_labeled",
+        "silent_upscale_forbidden"
+      ],
+      "properties": {
+        "schema_version": { "const": "nalu.qingshan-paid-boundary-contract/v1" },
+        "duration_seconds_required": { "const": true },
+        "minimum_duration_seconds": { "enum": [3, 4] },
+        "maximum_duration_seconds": { "const": 15 },
+        "explicit_combat_classification_required": { "const": true },
+        "combat_choreography_contract_true_overrides": { "const": true },
+        "explicit_noncombat_overrides_negative_prompt_cues": { "const": true },
+        "native_resolution_contract": { "enum": ["720p", "768p"] },
+        "delivery_resolution_contract": { "enum": ["720p", "768p"] },
+        "native_resolution_must_remain_honestly_labeled": { "const": true },
+        "silent_upscale_forbidden": { "const": true }
+      },
+      "additionalProperties": false
+    },
     "planning_defaults": {
       "type": "object",
       "required": [
@@ -99,6 +130,13 @@
               "native_resolution": { "const": "720p" },
               "minimum_duration_seconds": { "const": 4 }
             }
+          },
+          "paid_boundary_contract": {
+            "properties": {
+              "native_resolution_contract": { "const": "720p" },
+              "delivery_resolution_contract": { "const": "720p" },
+              "minimum_duration_seconds": { "const": 4 }
+            }
           }
         }
       },
@@ -109,6 +147,13 @@
           "planning_defaults": {
             "properties": {
               "native_resolution": { "const": "768p" },
+              "minimum_duration_seconds": { "const": 3 }
+            }
+          },
+          "paid_boundary_contract": {
+            "properties": {
+              "native_resolution_contract": { "const": "768p" },
+              "delivery_resolution_contract": { "const": "768p" },
               "minimum_duration_seconds": { "const": 3 }
             }
           }

@@ -25,7 +25,7 @@ class QingshanModelCompiler(ABC):
     """Compile an immutable Nalu package into one provider-specific planning contract."""
 
     adapter_id: str
-    adapter_version = "1.0.0"
+    adapter_version = "1.1.0"
     profile_id: str
     model: str
     native_resolution: str
@@ -35,6 +35,22 @@ class QingshanModelCompiler(ABC):
     @abstractmethod
     def provider_contract(self) -> dict[str, Any]:
         """Return constraints that are unique to the selected provider adapter."""
+
+    def paid_boundary_contract(self) -> dict[str, Any]:
+        """Return the fields that must survive every future paid task boundary."""
+        return {
+            "schema_version": "nalu.qingshan-paid-boundary-contract/v1",
+            "duration_seconds_required": True,
+            "minimum_duration_seconds": self.minimum_duration_seconds,
+            "maximum_duration_seconds": self.maximum_duration_seconds,
+            "explicit_combat_classification_required": True,
+            "combat_choreography_contract_true_overrides": True,
+            "explicit_noncombat_overrides_negative_prompt_cues": True,
+            "native_resolution_contract": self.native_resolution,
+            "delivery_resolution_contract": self.native_resolution,
+            "native_resolution_must_remain_honestly_labeled": True,
+            "silent_upscale_forbidden": True,
+        }
 
     def compile(self, package: dict[str, Any], workspace: Path) -> Path:
         policy = package.get("production_policy") or {}
@@ -87,6 +103,7 @@ class QingshanModelCompiler(ABC):
             "prompt_source": prompt_source,
             "asset_bindings": asset_bindings,
             "provider_contract": provider_contract,
+            "paid_boundary_contract": self.paid_boundary_contract(),
             "planning_defaults": {
                 "aspect_ratio": "9:16",
                 "native_resolution": self.native_resolution,
@@ -182,6 +199,44 @@ class ModelCompilerRegistry:
         model = str((package.get("production_policy") or {}).get("requested_model") or "")
         return self.compiler_for(model).compile(package, workspace)
 
+    def validate_paid_boundary_request(
+        self, model: str, request: dict[str, Any]
+    ) -> list[str]:
+        """Validate immutable semantics immediately before a provider write."""
+        try:
+            compiler = self.compiler_for(model)
+        except ModelCompilationError as exc:
+            return [str(exc)]
+        failures: list[str] = []
+        duration = request.get("duration_seconds")
+        if isinstance(duration, bool) or not isinstance(duration, (int, float)):
+            failures.append("paid request requires numeric duration_seconds")
+        elif not compiler.minimum_duration_seconds <= duration <= compiler.maximum_duration_seconds:
+            failures.append("paid request duration_seconds is outside provider limits")
+
+        declarations = [
+            request[name]
+            for name in ("fight_or_chase", "combat_or_chase")
+            if isinstance(request.get(name), bool)
+        ]
+        choreography = bool(request.get("combat_choreography_contract"))
+        if not declarations and not choreography:
+            failures.append("paid request requires explicit combat classification")
+        elif declarations and any(value != declarations[0] for value in declarations):
+            failures.append("paid request combat classifications disagree")
+        elif choreography and declarations and declarations[0] is False:
+            failures.append("combat choreography conflicts with noncombat classification")
+
+        if request.get("native_resolution_contract") != compiler.native_resolution:
+            failures.append("paid request native resolution contract is missing or changed")
+        if request.get("delivery_resolution_contract") != compiler.native_resolution:
+            failures.append("paid request delivery resolution contract is missing or changed")
+        if request.get("native_resolution_must_remain_honestly_labeled") is not True:
+            failures.append("paid request must preserve the honest native resolution label")
+        if request.get("silent_upscale_forbidden") is not True:
+            failures.append("paid request must explicitly forbid silent upscale")
+        return failures
+
     def validate_upstream_registry(self, registry_path: Path) -> list[str]:
         """Prove Nalu's compiler contracts still match the pinned Qingshan registry."""
         try:
@@ -245,6 +300,29 @@ def verify_compilation(path: Path, package: dict[str, Any]) -> list[str]:
     requested_model = (package.get("production_policy") or {}).get("requested_model")
     if compilation.get("model") != requested_model:
         failures.append("model compilation does not match requested model")
+    try:
+        compiler = ModelCompilerRegistry().compiler_for(str(requested_model or ""))
+    except ModelCompilationError:
+        failures.append("model compilation has no registered compiler")
+    else:
+        expected_planning_defaults = {
+            "aspect_ratio": "9:16",
+            "native_resolution": compiler.native_resolution,
+            "minimum_duration_seconds": compiler.minimum_duration_seconds,
+            "maximum_duration_seconds": compiler.maximum_duration_seconds,
+        }
+        if compilation.get("adapter_id") != compiler.adapter_id:
+            failures.append("model compilation adapter identity changed")
+        if compilation.get("adapter_version") != compiler.adapter_version:
+            failures.append("model compilation adapter version changed")
+        if compilation.get("profile_id") != compiler.profile_id:
+            failures.append("model compilation profile identity changed")
+        if compilation.get("provider_contract") != compiler.provider_contract():
+            failures.append("model compilation provider contract changed")
+        if compilation.get("planning_defaults") != expected_planning_defaults:
+            failures.append("model compilation planning defaults changed")
+        if compilation.get("paid_boundary_contract") != compiler.paid_boundary_contract():
+            failures.append("model compilation paid boundary contract changed")
     if compilation.get("paid_submission_enabled") is not False:
         failures.append("local model compilation must not enable paid submission")
     return failures

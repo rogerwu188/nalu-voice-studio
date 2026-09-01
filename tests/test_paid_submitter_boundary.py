@@ -20,6 +20,20 @@ def canonical_sha256(value: dict) -> str:
     return hashlib.sha256(encoded.encode()).hexdigest()
 
 
+def paid_request(prompt: str, **overrides: object) -> dict:
+    request = {
+        "prompt": prompt,
+        "duration_seconds": 6,
+        "combat_or_chase": False,
+        "native_resolution_contract": "768p",
+        "delivery_resolution_contract": "768p",
+        "native_resolution_must_remain_honestly_labeled": True,
+        "silent_upscale_forbidden": True,
+    }
+    request.update(overrides)
+    return request
+
+
 def paid_run(
     api: TestClient,
     tmp_path: Path,
@@ -125,7 +139,7 @@ def test_provider_acceptance_survives_crash_without_duplicate_charge(
             task_key="E01-U01",
             provider="giggle",
             model="MiniMax-H3",
-            request={"prompt": "离线测试，不发送"},
+            request=paid_request("离线测试，不发送"),
             transport=transport,
         )
     binding = api.app.state.repository.list_remote_task_bindings(run.id)[0]
@@ -139,7 +153,7 @@ def test_provider_acceptance_survives_crash_without_duplicate_charge(
         task_key="E01-U01",
         provider="giggle",
         model="MiniMax-H3",
-        request={"prompt": "离线测试，不发送"},
+        request=paid_request("离线测试，不发送"),
         transport=transport,
     )
     assert recovered.state == RemoteTaskState.SUBMITTED
@@ -161,7 +175,7 @@ def test_ambiguous_response_is_quarantined_and_never_auto_reposted(
         task_key="E01-U01",
         provider="giggle",
         model="MiniMax-H3",
-        request={"prompt": "离线超时测试"},
+        request=paid_request("离线超时测试"),
         transport=transport,
     )
     replay = submitter.submit_paid_task(
@@ -169,7 +183,7 @@ def test_ambiguous_response_is_quarantined_and_never_auto_reposted(
         task_key="E01-U01",
         provider="giggle",
         model="MiniMax-H3",
-        request={"prompt": "离线超时测试"},
+        request=paid_request("离线超时测试"),
         transport=transport,
     )
     assert first.state == RemoteTaskState.AMBIGUOUS_CHARGE
@@ -194,7 +208,7 @@ def test_paid_boundary_revalidates_package_approval_and_transport_guarantees(
             task_key="E01-U01",
             provider="giggle",
             model="MiniMax-H3",
-            request={"prompt": "不得发送"},
+            request=paid_request("不得发送"),
             transport=transport,
         )
     assert transport.calls == 0
@@ -207,10 +221,68 @@ def test_paid_boundary_revalidates_package_approval_and_transport_guarantees(
             task_key="E01-U01",
             provider="giggle",
             model="MiniMax-H3",
-            request={"prompt": "不得发送"},
+            request=paid_request("不得发送"),
             transport=transport,
         )
     assert transport.calls == 0
+
+
+@pytest.mark.parametrize(
+    ("overrides", "message"),
+    [
+        ({"duration_seconds": None}, "numeric duration_seconds"),
+        ({"duration_seconds": 16}, "outside provider limits"),
+        ({"combat_or_chase": None}, "explicit combat classification"),
+        (
+            {"combat_or_chase": False, "combat_choreography_contract": {"beats": ["挥拳"]}},
+            "conflicts with noncombat classification",
+        ),
+        ({"delivery_resolution_contract": "1440p"}, "delivery resolution contract"),
+        ({"silent_upscale_forbidden": False}, "forbid silent upscale"),
+    ],
+)
+def test_paid_boundary_rejects_semantic_contract_loss_before_transport(
+    tmp_path: Path, overrides: dict, message: str
+) -> None:
+    api = TestClient(create_app(tmp_path / "test.sqlite3", tmp_path / "data"))
+    run = paid_run(api, tmp_path, run_id="run_paid_semantic_contract")
+    transport = IdempotentFakeTransport()
+
+    with pytest.raises(ConflictError, match=message):
+        api.app.state.remote_task_submitter.submit_paid_task(
+            run.id,
+            task_key="E01-U01",
+            provider="giggle",
+            model="MiniMax-H3",
+            request=paid_request("不得发送", **overrides),
+            transport=transport,
+        )
+    assert transport.calls == 0
+
+
+def test_explicit_noncombat_remains_noncombat_despite_negative_prompt_words(
+    tmp_path: Path,
+) -> None:
+    api = TestClient(create_app(tmp_path / "test.sqlite3", tmp_path / "data"))
+    run = paid_run(api, tmp_path, run_id="run_paid_explicit_noncombat")
+    transport = IdempotentFakeTransport()
+    request = paid_request(
+        "普通家庭对话",
+        negative_prompt="禁止打斗、追逐和战斗化表演",
+        combat_or_chase=False,
+    )
+
+    accepted = api.app.state.remote_task_submitter.submit_paid_task(
+        run.id,
+        task_key="E01-U01",
+        provider="giggle",
+        model="MiniMax-H3",
+        request=request,
+        transport=transport,
+    )
+
+    assert accepted.state == RemoteTaskState.SUBMITTED
+    assert transport.accepted[accepted.submission_fingerprint].receipt["request"] == request
 
 
 def test_only_submitter_source_invokes_paid_transport() -> None:

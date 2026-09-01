@@ -1,9 +1,9 @@
 {
   "schema_version": "nalu.qingshan-candidate-audit/v1",
   "repository": "rogerwu188/qingshan-short-drama-production-line",
-  "candidate_release": "v2026.09.01",
-  "candidate_commit": "098361366538b74eff3985af0d28e5462cb29535",
-  "candidate_tree_sha256": "c84f4addeded3a4b1346ebd759a9f24150fd195d4eab5faceac1c39a6b82cafa",
+  "candidate_release": "v2026.09.01.3",
+  "candidate_commit": "c58c43b5536370835cc39e0be099a8b62324b7de",
+  "candidate_tree_sha256": "aac9a7ce7ce2ae905743093248b904b8a560ed30694f3338847a6c0047463763",
   "gate_registry_path": "configs/GATE_REGISTRY_v3_20260716.json",
   "gate_registry_sha256": "a6308af097da8cac3c664466ba665277970391587c44bb1dd949421901e8ac6b",
   "gate_count": 69,
@@ -25,5 +25,5 @@
   "promotion_status": "QUARANTINED",
   "paid_execution_allowed": false,
   "replaces_active_pin": false,
-  "audited_at": "2026-09-01T08:41:00Z"
+  "audited_at": "2026-09-01T12:15:00Z"
 }

@@ -3210,12 +3210,27 @@ def test_qingshan_models_use_distinct_versioned_compilers(tmp_path: Path) -> Non
     assert seedance["planning_defaults"]["native_resolution"] == "720p"
     assert seedance["planning_defaults"]["minimum_duration_seconds"] == 4
     assert seedance["provider_contract"]["exact_end_frame"] is False
+    assert seedance["paid_boundary_contract"] == {
+        "schema_version": "nalu.qingshan-paid-boundary-contract/v1",
+        "duration_seconds_required": True,
+        "minimum_duration_seconds": 4,
+        "maximum_duration_seconds": 15,
+        "explicit_combat_classification_required": True,
+        "combat_choreography_contract_true_overrides": True,
+        "explicit_noncombat_overrides_negative_prompt_cues": True,
+        "native_resolution_contract": "720p",
+        "delivery_resolution_contract": "720p",
+        "native_resolution_must_remain_honestly_labeled": True,
+        "silent_upscale_forbidden": True,
+    }
     assert h3["adapter_id"] == "nalu.qingshan.minimax-h3"
     assert h3["profile_id"] == "MINIMAX_H3_GIGGLE"
     assert h3["planning_defaults"]["native_resolution"] == "768p"
     assert h3["planning_defaults"]["minimum_duration_seconds"] == 3
     assert h3["provider_contract"]["exact_end_frame"] is True
     assert h3["provider_contract"]["maximum_image_references"] == 9
+    assert h3["paid_boundary_contract"]["native_resolution_contract"] == "768p"
+    assert h3["paid_boundary_contract"]["delivery_resolution_contract"] == "768p"
     assert seedance["compilation_sha256"] != h3["compilation_sha256"]
     assert seedance["paid_submission_enabled"] is False
     assert h3["paid_submission_enabled"] is False
@@ -3240,6 +3255,35 @@ def test_qingshan_preflight_rejects_tampered_compilation_and_package(tmp_path: P
     )
     with pytest.raises(QingshanAdapterError, match="model compilation"):
         api.app.state.production.adapter.preflight(package_path, workspace)
+
+    clean_workspace = api.app.state.production.adapter.materialize_workspace(package_path)
+    clean_manifest = json.loads(
+        (clean_workspace / "workspace-manifest.json").read_text(encoding="utf-8")
+    )
+    clean_compilation_path = clean_workspace / clean_manifest["model_compilation"]
+    clean_compilation = json.loads(clean_compilation_path.read_text(encoding="utf-8"))
+    clean_compilation["paid_boundary_contract"]["silent_upscale_forbidden"] = False
+    unsigned = {
+        key: value for key, value in clean_compilation.items() if key != "compilation_sha256"
+    }
+    clean_compilation["compilation_sha256"] = hashlib.sha256(
+        json.dumps(
+            unsigned, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+        ).encode("utf-8")
+    ).hexdigest()
+    clean_compilation_path.write_text(
+        json.dumps(clean_compilation, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    clean_manifest["model_compilation_sha256"] = hashlib.sha256(
+        clean_compilation_path.read_bytes()
+    ).hexdigest()
+    (clean_workspace / "workspace-manifest.json").write_text(
+        json.dumps(clean_manifest, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(QingshanAdapterError, match="paid boundary contract changed"):
+        api.app.state.production.adapter.preflight(package_path, clean_workspace)
 
     package = json.loads(package_path.read_text(encoding="utf-8"))
     package["approved_script"]["content"] = "被静默替换的剧本"

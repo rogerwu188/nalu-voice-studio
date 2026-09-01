@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from .models import RemoteTaskBinding, RemoteTaskState
+from .qingshan_compilers import ModelCompilerRegistry
 from .repository import ConflictError, Repository
 
 
@@ -119,6 +120,11 @@ class DurableRemoteTaskSubmitter:
             raise ConflictError("paid transport does not match the requested provider")
         if not transport.supports_idempotency:
             raise ConflictError("paid transport must guarantee provider idempotency")
+        boundary_failures = ModelCompilerRegistry().validate_paid_boundary_request(
+            model, request
+        )
+        if boundary_failures:
+            raise ConflictError("paid boundary contract failed: " + "; ".join(boundary_failures))
         request_sha256 = _canonical_sha256(request)
         submission_fingerprint = _canonical_sha256(
             {
