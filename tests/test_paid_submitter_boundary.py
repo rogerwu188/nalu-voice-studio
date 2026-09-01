@@ -231,6 +231,8 @@ def test_paid_boundary_revalidates_package_approval_and_transport_guarantees(
     ("overrides", "message"),
     [
         ({"duration_seconds": None}, "numeric duration_seconds"),
+        ({"duration_seconds": float("nan")}, "numeric duration_seconds"),
+        ({"duration_seconds": float("inf")}, "numeric duration_seconds"),
         ({"duration_seconds": 16}, "outside provider limits"),
         ({"combat_or_chase": None}, "explicit combat classification"),
         (

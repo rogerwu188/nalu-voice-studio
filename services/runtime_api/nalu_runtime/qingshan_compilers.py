@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any
@@ -209,7 +210,11 @@ class ModelCompilerRegistry:
             return [str(exc)]
         failures: list[str] = []
         duration = request.get("duration_seconds")
-        if isinstance(duration, bool) or not isinstance(duration, (int, float)):
+        if (
+            isinstance(duration, bool)
+            or not isinstance(duration, (int, float))
+            or not math.isfinite(duration)
+        ):
             failures.append("paid request requires numeric duration_seconds")
         elif not compiler.minimum_duration_seconds <= duration <= compiler.maximum_duration_seconds:
             failures.append("paid request duration_seconds is outside provider limits")
