@@ -11,26 +11,26 @@
     "TODO": 1,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "792d8c5a41631dd3ae385efc555a03e3d3a3660d",
-  "last_advanced_at": "2026-09-01T12:01:11Z",
+  "observed_head": "e8956f251d5393e7021ed6c9b194cfc8a387d267",
+  "last_advanced_at": "2026-09-01T12:19:26Z",
   "last_closed_checkpoint": {
-    "id": "qingshan-v2026.09.01.3-semantic-boundary",
-    "sop": "SOP-07",
-    "product_commit": "9bef1ee10a84b2826f6d858120cf68926d2bb8da",
-    "evidence_commit": "792d8c5a41631dd3ae385efc555a03e3d3a3660d",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33504514059",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33504514059/artifacts/9799233262",
+    "id": "semantic-asr-provenance-hardening",
+    "sop": "SOP-09",
+    "product_commit": "1fb6757ec963b0f591ee0dd494823bb2d6b3b7f4",
+    "evidence_commit": "e8956f251d5393e7021ed6c9b194cfc8a387d267",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33506251878",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33506251878/artifacts/9799897045",
     "result": "PASS"
   },
   "current_checkpoint": {
     "sop": "SOP-09",
     "status": "IN_PROGRESS",
-    "summary": "Rendered masters already have sealed structural, decoded-media, semantic-ASR and authored shot-boundary reports, but semantic recognition provenance is still supplied as a client assertion. The next checkpoint must bind recognition to the exact master/audio and a locally executed approved recognizer before the report can satisfy a release gate."
+    "summary": "Semantic QA now rejects bare client authority and requires immutable execution evidence bound to the sealed master, decoded audio, recognizer executable and output. The packaged Runtime contains that fail-closed contract, but no production Apple on-device recognizer helper is registered yet, so real semantic QA cannot pass until the next checkpoint."
   },
   "next_action": {
     "sop": "SOP-09",
-    "id": "semantic-asr-provenance-hardening",
-    "summary": "Replace bare semantic-ASR provenance assertions with a digest-bound local recognizer evidence contract tied to the exact sealed master/audio, approved recognizer identity/version and immutable output, while remaining fail-closed when no approved local recognizer is installed.",
+    "id": "packaged-apple-semantic-recognizer",
+    "summary": "Build and bundle a local-only Apple Speech recognizer helper, register its exact executable with the Runtime, move semantic transcription authority fully behind the Runtime boundary, and add fail-closed build, architecture and packaged-runtime evidence without silently falling back to cloud recognition.",
     "requires_user_authorization": false
   },
   "blocking_conditions": [
