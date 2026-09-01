@@ -11,8 +11,8 @@
     "TODO": 1,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "e3dd387251e8b7cac4cd86d28d68495097487546",
-  "last_advanced_at": "2026-09-01T09:50:00Z",
+  "observed_head": "6a68892df668d5f9695bff26b0a6fb15c3388519",
+  "last_advanced_at": "2026-09-01T10:03:00Z",
   "last_closed_checkpoint": {
     "id": "sop-10-release-metrics-director-strategy-core",
     "sop": "SOP-10",
@@ -24,13 +24,13 @@
   },
   "current_checkpoint": {
     "sop": "SOP-10",
-    "status": "IN_PROGRESS",
-    "summary": "The publication identity, immutable metric snapshot and versioned director-strategy core passed 116 tests and Runtime, Apple Silicon, Intel and Universal CI with a repository-external artifact verification. The next unblocked gap is portable backup and atomic restore of those records; real platform verification remains authorization-gated."
+    "status": "AWAITING_CI",
+    "summary": "Product commit 6a68892 evolves project export v20 to preserve publication source metadata, identities, metric snapshots and director strategies with atomic clean-database restore, stale-path remapping, v1-v19 compatibility and tamper rejection. Local lint, 116 tests, OpenAPI compatibility and real HTTP smoke pass; GitHub architecture and packaged-runtime evidence is pending."
   },
   "next_action": {
     "sop": "SOP-10",
     "id": "publication-learning-export-restore-core",
-    "summary": "Evolve the portable project export with backward compatibility so publication reconciliation identities, metric snapshots and director strategies survive an atomic clean-database restore with tamper and cross-project rejection tests.",
+    "summary": "Wait for product commit 6a68892 to pass Runtime, Apple Silicon, Intel and Universal CI, then independently verify the final packaged artifact and bind the exact evidence before selecting the next unblocked SOP item.",
     "requires_user_authorization": false
   },
   "blocking_conditions": [
