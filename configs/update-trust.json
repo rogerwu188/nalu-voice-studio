@@ -1,0 +1,7 @@
+{
+  "schema_version": "nalu.update-trust/v1",
+  "enabled": false,
+  "channel": "stable",
+  "public_key_base64": "",
+  "require_notarization": true
+}

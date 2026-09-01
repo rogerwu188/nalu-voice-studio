@@ -6,6 +6,7 @@ bundle="$repo_root/dist/Nalu Voice Studio.app"
 runtime="$bundle/Contents/Resources/runtime/nalu-runtime"
 runtime_resources="$bundle/Contents/Resources/runtime-resources"
 visual_analyzer="$bundle/Contents/Resources/analyzers/nalu-visual-analyzer"
+update_helper="$bundle/Contents/Resources/updater/nalu-update-helper"
 smoke_root="$(mktemp -d)"
 runtime_pid=""
 
@@ -19,9 +20,14 @@ trap cleanup EXIT
 
 test -x "$runtime"
 test -x "$visual_analyzer"
+test -x "$update_helper"
 test -f "$runtime_resources/configs/qingshan-upstream.json"
 test -f "$runtime_resources/vendor/qingshan/LICENSE"
 "$repo_root/scripts/verify-macos-release.sh" "$bundle"
+if "$update_helper" >/dev/null 2>&1; then
+  echo "Update helper must fail closed without an explicit command" >&2
+  exit 1
+fi
 
 NALU_DATA_ROOT="$smoke_root/data" \
 NALU_DATABASE_PATH="$smoke_root/nalu.sqlite3" \

@@ -7,10 +7,14 @@ let package = Package(
     products: [
         .executable(name: "NaluVoiceStudio", targets: ["NaluVoiceStudio"]),
         .executable(name: "NaluVisualAnalyzer", targets: ["NaluVisualAnalyzer"]),
+        .executable(name: "NaluUpdateHelper", targets: ["NaluUpdateHelper"]),
     ],
     targets: [
         .executableTarget(name: "NaluVoiceStudio"),
         .executableTarget(name: "NaluVisualAnalyzer"),
-        .testTarget(name: "NaluVoiceStudioTests", dependencies: ["NaluVoiceStudio"])
+        .target(name: "NaluUpdateCore"),
+        .executableTarget(name: "NaluUpdateHelper", dependencies: ["NaluUpdateCore"]),
+        .testTarget(name: "NaluVoiceStudioTests", dependencies: ["NaluVoiceStudio"]),
+        .testTarget(name: "NaluUpdateCoreTests", dependencies: ["NaluUpdateCore"]),
     ]
 )

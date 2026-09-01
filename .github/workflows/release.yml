@@ -134,6 +134,8 @@ jobs:
           NALU_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
           NALU_NOTARY_PROFILE: nalu-ci-notary
           NALU_NOTARY_KEYCHAIN: ${{ env.NALU_CI_KEYCHAIN }}
+          NALU_UPDATE_PUBLIC_KEY_BASE64: ${{ secrets.NALU_UPDATE_PUBLIC_KEY_BASE64 }}
+          NALU_UPDATE_CHANNEL: stable
         run: scripts/sign-and-notarize-macos-app.sh "dist/Nalu Voice Studio.app"
       - name: Verify final universal release
         env:
@@ -153,8 +155,12 @@ jobs:
           SIGNED: ${{ inputs.signed_and_notarized }}
         run: |
           python - <<'PY'
-          import hashlib, json, os, pathlib, subprocess
+          import base64, hashlib, json, os, pathlib, subprocess
           artifact = pathlib.Path("dist/Nalu-Voice-Studio-macOS.zip")
+          trust = json.loads(pathlib.Path(
+              "dist/Nalu Voice Studio.app/Contents/Resources/update-trust.json"
+          ).read_text())
+          key = trust.get("public_key_base64", "")
           provenance = {
               "schema_version": "nalu.macos-release-provenance/v1",
               "version": os.environ["RELEASE_VERSION"],
@@ -164,6 +170,11 @@ jobs:
               "architectures": ["arm64", "x86_64"],
               "artifact": artifact.name,
               "artifact_sha256": hashlib.sha256(artifact.read_bytes()).hexdigest(),
+              "update_channel": trust["channel"],
+              "updates_enabled": trust["enabled"],
+              "update_public_key_sha256": (
+                  hashlib.sha256(base64.b64decode(key)).hexdigest() if key else None
+              ),
           }
           pathlib.Path("dist/release-provenance.json").write_text(
               json.dumps(provenance, indent=2, sort_keys=True) + "\n", encoding="utf-8"

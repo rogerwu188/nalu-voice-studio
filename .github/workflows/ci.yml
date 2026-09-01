@@ -58,8 +58,10 @@ jobs:
       - run: scripts/build-macos-app.sh
       - run: scripts/verify-macos-release.sh
       - run: scripts/smoke-macos-bundle.sh
+      - run: python scripts/qa-macos-staged-update.py --app "dist/Nalu Voice Studio.app" --evidence /tmp/nalu-staged-update-arm64.json
       - run: python scripts/qa-macos-upgrade-rollback.py --app "dist/Nalu Voice Studio.app" --evidence /tmp/nalu-upgrade-rollback-arm64.json
       - run: cp /tmp/nalu-upgrade-rollback-arm64.json dist/nalu-upgrade-rollback-arm64.json
+      - run: cp /tmp/nalu-staged-update-arm64.json dist/nalu-staged-update-arm64.json
       - run: ditto -c -k --keepParent "dist/Nalu Voice Studio.app" "dist/Nalu-Voice-Studio-macOS.zip"
       - run: shasum -a 256 "dist/Nalu-Voice-Studio-macOS.zip" > "dist/Nalu-Voice-Studio-macOS.zip.sha256"
       - uses: actions/upload-artifact@v7
@@ -69,6 +71,7 @@ jobs:
             dist/Nalu-Voice-Studio-macOS.zip
             dist/Nalu-Voice-Studio-macOS.zip.sha256
             dist/nalu-upgrade-rollback-arm64.json
+            dist/nalu-staged-update-arm64.json
 
   macos-x86_64:
     runs-on: macos-15-intel
@@ -84,8 +87,10 @@ jobs:
       - run: scripts/build-macos-app.sh
       - run: scripts/verify-macos-release.sh
       - run: scripts/smoke-macos-bundle.sh
+      - run: python scripts/qa-macos-staged-update.py --app "dist/Nalu Voice Studio.app" --evidence /tmp/nalu-staged-update-x86_64.json
       - run: python scripts/qa-macos-upgrade-rollback.py --app "dist/Nalu Voice Studio.app" --evidence /tmp/nalu-upgrade-rollback-x86_64.json
       - run: cp /tmp/nalu-upgrade-rollback-x86_64.json dist/nalu-upgrade-rollback-x86_64.json
+      - run: cp /tmp/nalu-staged-update-x86_64.json dist/nalu-staged-update-x86_64.json
       - run: ditto -c -k --keepParent "dist/Nalu Voice Studio.app" "dist/Nalu-Voice-Studio-macOS.zip"
       - run: shasum -a 256 "dist/Nalu-Voice-Studio-macOS.zip" > "dist/Nalu-Voice-Studio-macOS.zip.sha256"
       - uses: actions/upload-artifact@v7
@@ -95,6 +100,7 @@ jobs:
             dist/Nalu-Voice-Studio-macOS.zip
             dist/Nalu-Voice-Studio-macOS.zip.sha256
             dist/nalu-upgrade-rollback-x86_64.json
+            dist/nalu-staged-update-x86_64.json
 
   macos-universal:
     runs-on: macos-15
@@ -114,8 +120,10 @@ jobs:
       - run: scripts/merge-macos-universal.sh ".build/universal/arm64/app/Nalu Voice Studio.app" ".build/universal/x86_64/app/Nalu Voice Studio.app" "dist/Nalu Voice Studio.app"
       - run: NALU_REQUIRE_UNIVERSAL=true scripts/verify-macos-release.sh
       - run: scripts/smoke-macos-bundle.sh
+      - run: python scripts/qa-macos-staged-update.py --app "dist/Nalu Voice Studio.app" --evidence /tmp/nalu-staged-update-universal.json
       - run: python scripts/qa-macos-upgrade-rollback.py --app "dist/Nalu Voice Studio.app" --evidence /tmp/nalu-upgrade-rollback-universal.json
       - run: cp /tmp/nalu-upgrade-rollback-universal.json dist/nalu-upgrade-rollback-universal.json
+      - run: cp /tmp/nalu-staged-update-universal.json dist/nalu-staged-update-universal.json
       - run: ditto -c -k --keepParent "dist/Nalu Voice Studio.app" "dist/Nalu-Voice-Studio-macOS.zip"
       - run: shasum -a 256 "dist/Nalu-Voice-Studio-macOS.zip" > "dist/Nalu-Voice-Studio-macOS.zip.sha256"
       - uses: actions/upload-artifact@v7
@@ -125,3 +133,4 @@ jobs:
             dist/Nalu-Voice-Studio-macOS.zip
             dist/Nalu-Voice-Studio-macOS.zip.sha256
             dist/nalu-upgrade-rollback-universal.json
+            dist/nalu-staged-update-universal.json

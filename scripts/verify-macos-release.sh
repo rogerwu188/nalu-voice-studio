@@ -13,12 +13,16 @@ plist="$bundle/Contents/Info.plist"
 runtime="$bundle/Contents/Resources/runtime/nalu-runtime"
 executable="$bundle/Contents/MacOS/NaluVoiceStudio"
 visual_analyzer="$bundle/Contents/Resources/analyzers/nalu-visual-analyzer"
+update_helper="$bundle/Contents/Resources/updater/nalu-update-helper"
+update_trust="$bundle/Contents/Resources/update-trust.json"
 
 test -d "$bundle"
 test -f "$plist"
 test -x "$runtime"
 test -x "$executable"
 test -x "$visual_analyzer"
+test -x "$update_helper"
+test -f "$update_trust"
 test -f "$bundle/Contents/Resources/runtime-resources/configs/qingshan-upstream.json"
 test -f "$bundle/Contents/Resources/runtime-resources/vendor/qingshan/LICENSE"
 
@@ -34,6 +38,7 @@ if [[ "$require_universal" == "true" ]]; then
   lipo "$executable" -verify_arch arm64 x86_64
   lipo "$runtime" -verify_arch arm64 x86_64
   lipo "$visual_analyzer" -verify_arch arm64 x86_64
+  lipo "$update_helper" -verify_arch arm64 x86_64
 fi
 authority="$(codesign -dv --verbose=4 "$bundle" 2>&1 | sed -n 's/^Authority=//p' | head -1)"
 if [[ "$require_developer_id" == "true" && "$authority" != Developer\ ID\ Application:* ]]; then
