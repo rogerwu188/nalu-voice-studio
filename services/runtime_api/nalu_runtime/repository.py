@@ -41,6 +41,8 @@ from .models import (
     FeedbackReleaseLinkageCreate,
     FeedbackReviewBundle,
     FeedbackReviewBundleCreate,
+    FeedbackTriageCreate,
+    FeedbackTriageRecord,
     LibraryEntity,
     LibraryEntityConfirmation,
     LibraryEntityConfirmationRecord,
@@ -504,6 +506,12 @@ class Repository:
                    WHERE f.project_id = ?""",
                 (project_id,),
             ),
+            "feedback_triage_records": (
+                """SELECT t.* FROM feedback_triage_records t
+                   JOIN feedback_items f ON f.id = t.feedback_id
+                   WHERE f.project_id = ?""",
+                (project_id,),
+            ),
             "memory_cards": (
                 "SELECT * FROM memory_cards WHERE project_id = ?",
                 (project_id,),
@@ -703,6 +711,13 @@ class Repository:
                 "linkage_sha256",
                 "created_at",
             ),
+            "feedback_triage_records": (
+                "feedback_id",
+                "request_sha256",
+                "record_json",
+                "record_sha256",
+                "created_at",
+            ),
             "memory_cards": (
                 "id",
                 "project_id",
@@ -814,6 +829,19 @@ class Repository:
             "nalu.project-export/v9",
         }:
             allowed_columns.pop("feedback_release_linkages")
+        if backup.schema_version in {
+            "nalu.project-export/v1",
+            "nalu.project-export/v2",
+            "nalu.project-export/v3",
+            "nalu.project-export/v4",
+            "nalu.project-export/v5",
+            "nalu.project-export/v6",
+            "nalu.project-export/v7",
+            "nalu.project-export/v8",
+            "nalu.project-export/v9",
+            "nalu.project-export/v10",
+        }:
+            allowed_columns.pop("feedback_triage_records")
         if backup.schema_version in {
             "nalu.project-export/v1",
             "nalu.project-export/v2",
@@ -989,6 +1017,52 @@ class Repository:
                 "request_sha256"
             ):
                 raise ConflictError("release linkage request digest does not match its evidence")
+        for row in backup.payload.get("feedback_triage_records", []):
+            try:
+                record_body = decode(row.get("record_json", ""))
+            except (TypeError, json.JSONDecodeError) as exc:
+                raise ConflictError("project export contains unreadable feedback triage") from exc
+            if (
+                row.get("feedback_id") not in feedback_ids
+                or record_body.get("feedback_id") != row.get("feedback_id")
+                or record_body.get("request_sha256") != row.get("request_sha256")
+                or hashlib.sha256(encode(record_body).encode()).hexdigest()
+                != row.get("record_sha256")
+            ):
+                raise ConflictError("project export contains tampered feedback triage")
+            try:
+                triage = FeedbackTriageRecord.model_validate(
+                    {**record_body, "record_sha256": row.get("record_sha256")}
+                )
+            except ValueError as exc:
+                raise ConflictError("project export contains invalid feedback triage") from exc
+            if triage.review_bundle_sha256 != feedback_bundle_digests.get(
+                row.get("feedback_id")
+            ):
+                raise ConflictError("feedback triage references a different review bundle")
+            if triage.duplicate_of_feedback_id is not None and (
+                triage.disposition != "duplicate"
+                or triage.duplicate_of_feedback_id not in feedback_ids
+                or triage.duplicate_of_feedback_id == triage.feedback_id
+            ):
+                raise ConflictError("feedback triage has an invalid duplicate reference")
+            evidence = {
+                "review_bundle_sha256": triage.review_bundle_sha256,
+                "priority": triage.priority,
+                "disposition": triage.disposition,
+                "duplicate_of_feedback_id": triage.duplicate_of_feedback_id,
+                "rationale": triage.rationale,
+                "reviewed_by": triage.reviewed_by,
+                "reviewed_at": triage.reviewed_at,
+            }
+            request_body = {
+                "feedback_id": triage.feedback_id,
+                "idempotency_key_sha256": triage.idempotency_key_sha256,
+                "confirmation_sha256": triage.confirmation_sha256,
+                "evidence": evidence,
+            }
+            if hashlib.sha256(encode(request_body).encode()).hexdigest() != triage.request_sha256:
+                raise ConflictError("feedback triage request digest does not match its evidence")
         if any(
             row.get("project_id") != project_id or row.get("asset_id") not in asset_ids
             for row in backup.payload.get("memory_cards", [])
@@ -1224,6 +1298,118 @@ class Repository:
             raise ConflictError("stored feedback review bundle digest mismatch")
         stored["bundle_sha256"] = row["bundle_sha256"]
         return FeedbackReviewBundle.model_validate(stored)
+
+    @staticmethod
+    def _explicit_feedback_triage_confirmation(value: str) -> bool:
+        normalized = "".join(value.lower().split())
+        return any(
+            phrase in normalized
+            for phrase in ("我确认这份分诊", "我同意保存分诊", "确认人工分诊结果")
+        )
+
+    def create_feedback_triage_record(
+        self,
+        feedback_id: str,
+        request: FeedbackTriageCreate,
+        idempotency_key: str | None,
+    ) -> FeedbackTriageRecord:
+        feedback = self.get_feedback(feedback_id)
+        if not feedback.share_authorized or feedback.status != "ready_for_review":
+            raise ConflictError("local-only feedback cannot be triaged for development")
+        if idempotency_key is None or not 16 <= len(idempotency_key.strip()) <= 200:
+            raise ConflictError("a stable 16-200 character idempotency key is required")
+        if idempotency_key != idempotency_key.strip():
+            raise ConflictError("idempotency key must not have surrounding whitespace")
+        if not self._explicit_feedback_triage_confirmation(request.confirmation_text):
+            raise ConflictError("feedback triage requires explicit human confirmation")
+        bundle = self.get_feedback_review_bundle(feedback_id)
+        if request.review_bundle_sha256 != bundle.bundle_sha256:
+            raise ConflictError("triage review bundle digest does not match")
+        if request.duplicate_of_feedback_id:
+            if request.duplicate_of_feedback_id == feedback_id:
+                raise ConflictError("feedback cannot be a duplicate of itself")
+            duplicate = self.get_feedback(request.duplicate_of_feedback_id)
+            if duplicate.project_id != feedback.project_id:
+                raise ConflictError("duplicate feedback must belong to the same project")
+
+        rationale, rationale_redacted = self._redact_feedback_message(request.rationale)
+        reviewed_by, reviewer_redacted = self._redact_feedback_message(request.reviewed_by)
+        idempotency_key_sha256 = hashlib.sha256(idempotency_key.encode()).hexdigest()
+        confirmation_sha256 = hashlib.sha256(
+            request.confirmation_text.strip().encode()
+        ).hexdigest()
+        evidence = {
+            "review_bundle_sha256": request.review_bundle_sha256,
+            "priority": request.priority,
+            "disposition": request.disposition,
+            "duplicate_of_feedback_id": request.duplicate_of_feedback_id,
+            "rationale": rationale,
+            "reviewed_by": reviewed_by,
+            "reviewed_at": request.reviewed_at,
+        }
+        request_body = {
+            "feedback_id": feedback_id,
+            "idempotency_key_sha256": idempotency_key_sha256,
+            "confirmation_sha256": confirmation_sha256,
+            "evidence": evidence,
+        }
+        request_sha256 = hashlib.sha256(encode(request_body).encode()).hexdigest()
+        with self.db.connect() as connection:
+            existing = connection.execute(
+                "SELECT * FROM feedback_triage_records WHERE feedback_id = ?",
+                (feedback_id,),
+            ).fetchone()
+        if existing is not None:
+            if existing["request_sha256"] != request_sha256:
+                raise ConflictError("feedback already has a different immutable triage record")
+            stored = decode(existing["record_json"])
+            if hashlib.sha256(encode(stored).encode()).hexdigest() != existing["record_sha256"]:
+                raise ConflictError("stored feedback triage record digest mismatch")
+            stored["record_sha256"] = existing["record_sha256"]
+            return FeedbackTriageRecord.model_validate(stored)
+
+        now = utc_now()
+        record_body = {
+            "schema_version": "nalu.feedback-triage/v1",
+            "feedback_id": feedback_id,
+            **evidence,
+            "status": "triaged_local",
+            "human_review_confirmed": True,
+            "redaction_applied": bool(rationale_redacted or reviewer_redacted),
+            "tool_calls": [],
+            "code_change_performed": False,
+            "network_call_performed": False,
+            "created_at": now,
+            "idempotency_key_sha256": idempotency_key_sha256,
+            "confirmation_sha256": confirmation_sha256,
+            "request_sha256": request_sha256,
+        }
+        record_sha256 = hashlib.sha256(encode(record_body).encode()).hexdigest()
+        with self.db.connect() as connection:
+            try:
+                connection.execute(
+                    "INSERT INTO feedback_triage_records VALUES (?, ?, ?, ?, ?)",
+                    (feedback_id, request_sha256, encode(record_body), record_sha256, now),
+                )
+            except sqlite3.IntegrityError as exc:
+                raise ConflictError("feedback triage was created concurrently") from exc
+        record_body["record_sha256"] = record_sha256
+        return FeedbackTriageRecord.model_validate(record_body)
+
+    def get_feedback_triage_record(self, feedback_id: str) -> FeedbackTriageRecord:
+        self.get_feedback(feedback_id)
+        with self.db.connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM feedback_triage_records WHERE feedback_id = ?",
+                (feedback_id,),
+            ).fetchone()
+        if row is None:
+            raise NotFoundError("feedback triage record not found")
+        stored = decode(row["record_json"])
+        if hashlib.sha256(encode(stored).encode()).hexdigest() != row["record_sha256"]:
+            raise ConflictError("stored feedback triage record digest mismatch")
+        stored["record_sha256"] = row["record_sha256"]
+        return FeedbackTriageRecord.model_validate(stored)
 
     def create_feedback_release_linkage(
         self,

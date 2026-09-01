@@ -2082,6 +2082,222 @@
         "title": "FeedbackReviewBundleCreate",
         "type": "object"
       },
+      "FeedbackTriageCreate": {
+        "properties": {
+          "confirmation_text": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Confirmation Text",
+            "type": "string"
+          },
+          "disposition": {
+            "enum": [
+              "accepted",
+              "needs_information",
+              "duplicate",
+              "rejected"
+            ],
+            "title": "Disposition",
+            "type": "string"
+          },
+          "duplicate_of_feedback_id": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duplicate Of Feedback Id"
+          },
+          "priority": {
+            "enum": [
+              "p0",
+              "p1",
+              "p2",
+              "p3"
+            ],
+            "title": "Priority",
+            "type": "string"
+          },
+          "rationale": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Rationale",
+            "type": "string"
+          },
+          "review_bundle_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Review Bundle Sha256",
+            "type": "string"
+          },
+          "reviewed_at": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Reviewed At",
+            "type": "string"
+          },
+          "reviewed_by": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Reviewed By",
+            "type": "string"
+          }
+        },
+        "required": [
+          "review_bundle_sha256",
+          "priority",
+          "disposition",
+          "rationale",
+          "reviewed_by",
+          "reviewed_at",
+          "confirmation_text"
+        ],
+        "title": "FeedbackTriageCreate",
+        "type": "object"
+      },
+      "FeedbackTriageRecord": {
+        "properties": {
+          "code_change_performed": {
+            "const": false,
+            "default": false,
+            "title": "Code Change Performed",
+            "type": "boolean"
+          },
+          "confirmation_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Confirmation Sha256",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "disposition": {
+            "enum": [
+              "accepted",
+              "needs_information",
+              "duplicate",
+              "rejected"
+            ],
+            "title": "Disposition",
+            "type": "string"
+          },
+          "duplicate_of_feedback_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duplicate Of Feedback Id"
+          },
+          "feedback_id": {
+            "title": "Feedback Id",
+            "type": "string"
+          },
+          "human_review_confirmed": {
+            "const": true,
+            "default": true,
+            "title": "Human Review Confirmed",
+            "type": "boolean"
+          },
+          "idempotency_key_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Idempotency Key Sha256",
+            "type": "string"
+          },
+          "network_call_performed": {
+            "const": false,
+            "default": false,
+            "title": "Network Call Performed",
+            "type": "boolean"
+          },
+          "priority": {
+            "enum": [
+              "p0",
+              "p1",
+              "p2",
+              "p3"
+            ],
+            "title": "Priority",
+            "type": "string"
+          },
+          "rationale": {
+            "title": "Rationale",
+            "type": "string"
+          },
+          "record_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Record Sha256",
+            "type": "string"
+          },
+          "redaction_applied": {
+            "title": "Redaction Applied",
+            "type": "boolean"
+          },
+          "request_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Request Sha256",
+            "type": "string"
+          },
+          "review_bundle_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Review Bundle Sha256",
+            "type": "string"
+          },
+          "reviewed_at": {
+            "title": "Reviewed At",
+            "type": "string"
+          },
+          "reviewed_by": {
+            "title": "Reviewed By",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "nalu.feedback-triage/v1",
+            "default": "nalu.feedback-triage/v1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "status": {
+            "const": "triaged_local",
+            "default": "triaged_local",
+            "title": "Status",
+            "type": "string"
+          },
+          "tool_calls": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 0,
+            "title": "Tool Calls",
+            "type": "array"
+          }
+        },
+        "required": [
+          "feedback_id",
+          "review_bundle_sha256",
+          "priority",
+          "disposition",
+          "duplicate_of_feedback_id",
+          "rationale",
+          "reviewed_by",
+          "reviewed_at",
+          "redaction_applied",
+          "created_at",
+          "idempotency_key_sha256",
+          "confirmation_sha256",
+          "request_sha256",
+          "record_sha256"
+        ],
+        "title": "FeedbackTriageRecord",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -4384,7 +4600,7 @@
             "type": "string"
           },
           "schema_version": {
-            "default": "nalu.project-export/v10",
+            "default": "nalu.project-export/v11",
             "enum": [
               "nalu.project-export/v1",
               "nalu.project-export/v2",
@@ -4395,7 +4611,8 @@
               "nalu.project-export/v7",
               "nalu.project-export/v8",
               "nalu.project-export/v9",
-              "nalu.project-export/v10"
+              "nalu.project-export/v10",
+              "nalu.project-export/v11"
             ],
             "title": "Schema Version",
             "type": "string"
@@ -7345,6 +7562,108 @@
           }
         },
         "summary": "Create Feedback Review Bundle"
+      }
+    },
+    "/v1/feedback/{feedback_id}/triage": {
+      "get": {
+        "operationId": "get_feedback_triage_record_v1_feedback__feedback_id__triage_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "feedback_id",
+            "required": true,
+            "schema": {
+              "title": "Feedback Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackTriageRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Feedback Triage Record"
+      },
+      "post": {
+        "operationId": "create_feedback_triage_record_v1_feedback__feedback_id__triage_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "feedback_id",
+            "required": true,
+            "schema": {
+              "title": "Feedback Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedbackTriageCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackTriageRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Feedback Triage Record"
       }
     },
     "/v1/library-entities/{entity_id}/confirmations": {

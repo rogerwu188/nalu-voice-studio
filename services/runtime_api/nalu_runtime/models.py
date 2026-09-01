@@ -151,7 +151,8 @@ class ProjectExport(BaseModel):
         "nalu.project-export/v8",
         "nalu.project-export/v9",
         "nalu.project-export/v10",
-    ] = "nalu.project-export/v10"
+        "nalu.project-export/v11",
+    ] = "nalu.project-export/v11"
     exported_at: str
     payload: dict[str, Any]
     payload_sha256: str
@@ -347,6 +348,56 @@ class FeedbackReviewBundle(BaseModel):
     network_call_performed: Literal[False] = False
     request_sha256: str
     bundle_sha256: str
+
+
+class FeedbackTriageCreate(BaseModel):
+    review_bundle_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    priority: Literal["p0", "p1", "p2", "p3"]
+    disposition: Literal["accepted", "needs_information", "duplicate", "rejected"]
+    duplicate_of_feedback_id: str | None = Field(default=None, max_length=80)
+    rationale: str = Field(min_length=1, max_length=4000)
+    reviewed_by: str = Field(min_length=1, max_length=160)
+    reviewed_at: str = Field(min_length=1, max_length=80)
+    confirmation_text: str = Field(min_length=1, max_length=300)
+
+    @model_validator(mode="after")
+    def validate_duplicate(self) -> FeedbackTriageCreate:
+        if self.disposition == "duplicate" and not self.duplicate_of_feedback_id:
+            raise ValueError("duplicate disposition requires another feedback ID")
+        if self.disposition != "duplicate" and self.duplicate_of_feedback_id is not None:
+            raise ValueError("only duplicate disposition may reference another feedback")
+        return self
+
+
+class FeedbackTriageRecord(BaseModel):
+    schema_version: Literal["nalu.feedback-triage/v1"] = "nalu.feedback-triage/v1"
+    feedback_id: str
+    review_bundle_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    priority: Literal["p0", "p1", "p2", "p3"]
+    disposition: Literal["accepted", "needs_information", "duplicate", "rejected"]
+    duplicate_of_feedback_id: str | None
+    rationale: str
+    reviewed_by: str
+    reviewed_at: str
+    status: Literal["triaged_local"] = "triaged_local"
+    human_review_confirmed: Literal[True] = True
+    redaction_applied: bool
+    tool_calls: list[str] = Field(default_factory=list, max_length=0)
+    code_change_performed: Literal[False] = False
+    network_call_performed: Literal[False] = False
+    created_at: str
+    idempotency_key_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    confirmation_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    request_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    record_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+
+    @model_validator(mode="after")
+    def validate_duplicate(self) -> FeedbackTriageRecord:
+        if self.disposition == "duplicate" and not self.duplicate_of_feedback_id:
+            raise ValueError("duplicate disposition requires another feedback ID")
+        if self.disposition != "duplicate" and self.duplicate_of_feedback_id is not None:
+            raise ValueError("only duplicate disposition may reference another feedback")
+        return self
 
 
 class ReviewedChangeEvidence(BaseModel):

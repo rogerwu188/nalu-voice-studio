@@ -44,6 +44,13 @@ local review bundle while deliberately leaving the item in `ready_for_review`. L
 states require an explicitly configured issue tracker and release service; preparing a
 bundle is not reported as an export.
 
+Authorized review bundles may also receive one immutable local human-triage record. It
+requires an explicit Chinese confirmation phrase and stable idempotency key, binds the
+exact review-bundle digest, redacts reviewer/rationale secrets and records priority,
+disposition and an optional same-project duplicate. Prompt-like text remains inert:
+`tool_calls` is empty and both `code_change_performed` and `network_call_performed` are
+always false. Triage does not change the feedback state or authorize development.
+
 A separate local `qa_evidence_linked` receipt can bind the immutable review-bundle hash
 to one reviewed 40-character change commit, the exact successful CI head and artifact,
 an installed Developer ID/notarization/Gatekeeper receipt and an older-build rollback

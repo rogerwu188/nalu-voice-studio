@@ -43,6 +43,8 @@ from .models import (
     FeedbackReleaseLinkageCreate,
     FeedbackReviewBundle,
     FeedbackReviewBundleCreate,
+    FeedbackTriageCreate,
+    FeedbackTriageRecord,
     InheritedContinuityResult,
     LibraryEntity,
     LibraryEntityConfirmation,
@@ -192,6 +194,27 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
     )
     def get_feedback_review_bundle(feedback_id: str) -> FeedbackReviewBundle:
         return repository.get_feedback_review_bundle(feedback_id)
+
+    @app.post(
+        "/v1/feedback/{feedback_id}/triage",
+        response_model=FeedbackTriageRecord,
+        status_code=201,
+    )
+    def create_feedback_triage_record(
+        feedback_id: str,
+        request: FeedbackTriageCreate,
+        idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    ) -> FeedbackTriageRecord:
+        return repository.create_feedback_triage_record(
+            feedback_id, request, idempotency_key
+        )
+
+    @app.get(
+        "/v1/feedback/{feedback_id}/triage",
+        response_model=FeedbackTriageRecord,
+    )
+    def get_feedback_triage_record(feedback_id: str) -> FeedbackTriageRecord:
+        return repository.get_feedback_triage_record(feedback_id)
 
     @app.post(
         "/v1/feedback/{feedback_id}/release-linkage",
