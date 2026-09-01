@@ -939,10 +939,35 @@ Current evidence:
 - Commit `654d7f5`, GitHub CI run `33300480697`: all 67 Runtime tests, OpenAPI
   compatibility, real HTTP smoke, Swift tests, full application build, bundled-Runtime
   smoke, ZIP and artifact upload passed for offline packaging and platform dry runs.
-- Still required before `PASS`: explicit user-authorized real platform accounts and test-
-  channel publication, durable remote publication identity/state reconciliation,
-  replacement publication protection against real remote IDs and versioned metrics
-  feedback. Dry-run evidence is not a publication claim.
+- Commit `210b5c7` adds a default-disabled publication-learning verifier boundary,
+  SQLite migration 24, immutable platform publication identities and metric snapshots,
+  stable idempotency protection, exact-replay handling, child guardian enforcement and
+  monotonically versioned next-episode director strategies. The strategy is advisory:
+  it cannot edit an approved script, start production, spend credits or publish.
+  Automated cases cover disabled/incorrect verifiers, identity substitution, duplicate
+  and replacement remote IDs, malformed metric windows, changed replays, restart
+  persistence and two-platform child-project consent. All 116 Runtime tests, lint,
+  OpenAPI compatibility, SOP/progress audits and real loopback HTTP smoke passed in
+  GitHub CI run `33493012088`, together with Apple Silicon, Intel and Universal macOS
+  builds, bundled-Runtime smoke, staged-update and rollback rehearsals.
+- The exact Universal artifact `9794733903` has GitHub artifact digest
+  `31f4610cdc6a2f27af8fd4ffbd46274b54849b29e33039c187ed54c838d5132a`.
+  A fresh repository-external download passed a complete ZIP integrity scan and had
+  inner ZIP SHA-256
+  `2940066f530c36f8e4a2018f853d52d527b61f4a2256ab894adca82e09cb52b3`;
+  the staged-update and rollback evidence files had SHA-256 values
+  `1c761b37048d8588974222efc5323002caebebf32cc461ead7138eb5dcdb2972`
+  and `81afb3489f307734fedd41cb60aef52e91ef27d26119f3b47e9610096bf95e52`.
+  Independent extraction, strict deep signature verification and the Universal release
+  verifier passed; both the native executable and bundled Runtime contain arm64 and
+  x86_64 slices. The signature remains ad hoc, not Developer ID or notarization evidence.
+- This closes the local publication-identity/metrics/strategy checkpoint, not SOP-10.
+  No real provider lookup, publication, account write or paid call was performed. Still
+  required before `PASS`: explicit user-authorized real platform accounts, test-channel
+  publication and identity/metrics reconciliation against those remote systems on the
+  same signed and notarized candidate. Project export/restore must also preserve the new
+  learning records before this state is considered recoverable. Dry-run or local
+  verifier evidence is not a publication claim.
 
 ## SOP-11 · macOS packaging, updates and operations — IN_PROGRESS
 
