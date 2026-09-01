@@ -1,5 +1,7 @@
 import Foundation
+#if canImport(NaluUpdateCore)
 import NaluUpdateCore
+#endif
 
 enum HTTPSFetchError: Error, LocalizedError {
     case invalidURL
