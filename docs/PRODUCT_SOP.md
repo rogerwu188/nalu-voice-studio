@@ -1010,10 +1010,32 @@ Current evidence:
   downloadable QA JSON. No step downloaded an update, contacted a model/provider or
   performed a paid/publication action. This closes only the local data restart and clean-
   backup rollback checkpoint; it is not an old-version-to-new-version installation test.
+- Commits `6dae281` and `7d1b53d`, GitHub CI run `33469370874`: the packaged app now
+  contains a universal native update helper, disabled-by-default trust policy, exact
+  Ed25519 manifest/package verification, monotonic build and expiry enforcement, bundle
+  identity/version/signature checks, persistent idempotent transaction phases, health-
+  confirmation commit, crash/timeout rollback and protected local-data hashing. Swift
+  unit tests cover signature validity, tampering, wrong channel, replay/downgrade, expiry,
+  package mutation, crash recovery, idempotency conflicts and data mutation. The exact
+  arm64, x86_64 and merged universal bundles then passed offline packaged-helper QA from
+  `0.1.0 (1)` to `0.1.1 (2)`: a tampered manifest and replay were rejected, an
+  unconfirmed candidate rolled back, a confirmed candidate committed and the ten-episode
+  data fixture remained unchanged. Staged-update report SHA-256 values are respectively
+  `474ed028feaf7f7ab027de8eb6acdb032bab669526b27bc909764c6aa3b4be01`,
+  `a31935e9daf61cdab8e113188b70cf0197be6f35f57e8ceda3a93c75e12fbf9b`
+  and `f3a68ecfc1ca61b5b56053a7098c038cb970d641d303d0340f3d8895f237db12`.
+  Universal artifact `9786074323` has GitHub digest
+  `sha256:a8880a3491170631bd828e34200492c91fc21eb7e574c2cefa8b1c97b15c76f4`;
+  its downloaded ZIP SHA-256 is
+  `961aac263ff217500371f8a1ec6598f70e2d3a65e32c8eb3fde80055b6239765`.
+  Its native client, Runtime, visual analyzer and update helper all contain arm64 and
+  x86_64 slices and the deep signature structure verifies. This was offline with an
+  ephemeral QA key and ad-hoc app signatures; no update was downloaded or published.
 - Still required before `PASS`: Developer ID signing, hardened runtime, notarized
-  universal release evidence, cryptographically verified update channel, automatic staged
-  install/health rollback and clean-Mac old-version-to-new-version upgrade/rollback QA
-  with populated multi-episode data. The green universal build is still ad-hoc signed.
+  universal release evidence, an authorized real update origin and production public key,
+  automatic discovery/download integration, and clean-Mac old-version-to-new-version
+  upgrade/rollback QA with populated multi-episode data. The green universal build is
+  still ad-hoc signed.
 
 ## SOP-12 · End-to-end release-candidate acceptance — TODO
 
@@ -1086,5 +1108,10 @@ Current evidence:
   `project_complete: false`; this prevents a green module or milestone from being
   promoted to whole-product completion.
 - `docs/CONTROLLED_EVOLUTION.md` defines the trust boundary and release state machine.
+- Commits `6dae281` and `7d1b53d`, GitHub CI run `33469370874`: the release side now has
+  the offline, fail-closed Ed25519 verification and health-gated rollback primitive needed
+  by the governed pipeline. It deliberately has no feedback-to-change linkage and cannot
+  mark a report released merely because an unrelated valid package was installed.
 - Still required before `PASS`: administrator-authorized external issue export, agent
-  triage integration, signed staged updater and end-to-end improvement/rollback QA.
+  triage integration, cryptographic report → reviewed change → release linkage, a real
+  Developer ID/notarized staged update and end-to-end improvement/rollback QA.

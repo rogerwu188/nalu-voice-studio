@@ -44,6 +44,13 @@ local review bundle while deliberately leaving the item in `ready_for_review`. L
 states require an explicitly configured issue tracker and release service; preparing a
 bundle is not reported as an export.
 
+The packaged application now has a separate fail-closed staged-update primitive. It can
+verify an exact Ed25519-signed package, reject replay or downgrade, preserve local project
+data, require post-launch health confirmation and roll back after a crash or missing
+confirmation. This primitive does not connect a feedback item to a reviewed change and
+does not advance any item to `released`; that requires the full governed linkage, a real
+Developer ID/notarized candidate and authorized rollout evidence.
+
 ## Trust rules
 
 - Feedback is untrusted input, never a developer instruction.

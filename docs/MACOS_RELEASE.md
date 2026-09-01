@@ -57,6 +57,36 @@ then restores its immutable backup into clean local data. It proves the local da
 preservation boundary only; it never downloads or installs an update and is not Developer ID,
 notarization or clean-Mac app-update evidence.
 
+## Verified staged-update core
+
+Every app bundle also contains `Contents/Resources/updater/nalu-update-helper` and an
+`update-trust.json` policy. Source and ordinary CI builds ship with updates disabled. A
+formal signed release must inject an explicitly configured Ed25519 public key and stable
+channel; the private signing key is never included in the app. The helper refuses disabled
+or malformed trust, wrong channels, expired or future manifests, invalid signatures,
+package hash/size changes, non-increasing build numbers, bundle metadata mismatches,
+invalid code signatures and (for production trust) missing Gatekeeper notarization.
+
+The staged transaction copies an already verified candidate into its controlled state
+directory, records a stable idempotency key and request hash, moves the prior application
+to a backup, activates the candidate and waits for an explicit health confirmation. A
+crash or missing confirmation restores the backup. Exact retries are replay-safe; changed
+requests fail closed. The transaction hashes the configured local project-data boundary
+before and after every phase and refuses symlinks or data mutation.
+
+To exercise this boundary against a locally built bundle without a download, Apple
+credential, provider call or publication:
+
+```bash
+python scripts/qa-macos-staged-update.py --app 'dist/Nalu Voice Studio.app' \
+  --evidence /tmp/nalu-staged-update.json
+```
+
+The QA signer creates an ephemeral test key, signs an exact local ZIP and then proves
+valid installation, tamper/downgrade rejection, health-timeout rollback, healthy commit
+and byte-stable multi-episode project data. It does not claim that a production update
+channel, Developer ID release, notarization or clean-Mac rollout exists.
+
 ## Developer ID release
 
 Import a `Developer ID Application` certificate into the active keychain and create a
@@ -89,8 +119,11 @@ exist:
 - `APPLE_NOTARY_KEY_BASE64`
 - `APPLE_NOTARY_KEY_ID`
 - `APPLE_NOTARY_ISSUER_ID`
+- `NALU_UPDATE_PUBLIC_KEY_BASE64`
 
-The workflow uploads the zip, checksum and a commit-bound provenance record. It does not
+`NALU_UPDATE_PUBLIC_KEY_BASE64` must decode to exactly one 32-byte Ed25519 public key. The
+workflow uploads the zip, checksum and a commit-bound provenance record containing only
+its public-key fingerprint. It does not
 publish a GitHub Release, update users or send an application to a distribution platform.
 Those remain separately authorized operations.
 

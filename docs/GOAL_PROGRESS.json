@@ -11,26 +11,26 @@
     "TODO": 1,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "bc1f844f877f28eece4bfc1937c2188536fa8930",
-  "last_advanced_at": "2026-08-31T21:23:57Z",
+  "observed_head": "7d1b53dc2e293eb1bb846ed1fe91e28b61e7476e",
+  "last_advanced_at": "2026-09-01T04:23:46Z",
   "last_closed_checkpoint": {
-    "id": "sop-11-packaged-upgrade-rollback-rehearsal",
+    "id": "sop-11-verified-staged-update-core",
     "sop": "SOP-11",
-    "product_commit": "bc1f844f877f28eece4bfc1937c2188536fa8930",
-    "evidence_commit": "d60ae243bd4b4097e49ed87cec25c61b7c79c894",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33439917162",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33439917162/artifacts/9776013167",
+    "product_commit": "7d1b53dc2e293eb1bb846ed1fe91e28b61e7476e",
+    "evidence_commit": "PENDING_EVIDENCE_COMMIT",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33469370874",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33469370874/artifacts/9786074323",
     "result": "PASS"
   },
   "current_checkpoint": {
     "sop": "SOP-11",
     "status": "IN_PROGRESS",
-    "summary": "The source, arm64, x86_64, universal CI and downloaded universal package all pass the ten-episode SQLite restart and clean-backup rollback rehearsal. SOP-11 remains open for a verified update channel, automatic staged install/health rollback and signed/notarized clean-Mac old-to-new QA."
+    "summary": "The packaged arm64, x86_64 and universal helper verifies exact Ed25519 manifests, rejects tamper/replay, performs persistent health-gated activation/rollback and preserves protected project data. SOP-11 remains open for a real authorized update origin, Developer ID/notarized candidate and clean-Mac old-to-new QA."
   },
   "next_action": {
     "sop": "SOP-11",
-    "id": "verified-staged-update-core",
-    "summary": "Implement a fail-closed update manifest verifier and staged local install/health rollback transaction with tamper, downgrade, crash and project-preservation tests; do not download or publish a real release without authorization.",
+    "id": "verified-update-discovery-core",
+    "summary": "Implement a disabled-by-default HTTPS update discovery/download boundary with origin allowlisting, size limits, atomic downloads, persistent idempotency and exact manifest/package verification; test only against a local fixture and do not publish or contact a real update service without authorization.",
     "requires_user_authorization": false
   },
   "blocking_conditions": [
