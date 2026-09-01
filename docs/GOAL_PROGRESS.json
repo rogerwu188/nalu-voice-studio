@@ -11,13 +11,13 @@
     "TODO": 1,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "529667994c61fda3fb23a2018449b25587426c1e",
-  "last_advanced_at": "2026-09-01T09:48:35Z",
+  "observed_head": "e3dd387251e8b7cac4cd86d28d68495097487546",
+  "last_advanced_at": "2026-09-01T09:50:00Z",
   "last_closed_checkpoint": {
     "id": "sop-10-release-metrics-director-strategy-core",
     "sop": "SOP-10",
     "product_commit": "210b5c750ddee8abd946ed8dddbfba54a2bd1b06",
-    "evidence_commit": "PENDING",
+    "evidence_commit": "e3dd387251e8b7cac4cd86d28d68495097487546",
     "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33493012088",
     "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33493012088/artifacts/9794733903",
     "result": "PASS"
