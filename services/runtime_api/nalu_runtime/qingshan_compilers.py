@@ -26,7 +26,7 @@ class QingshanModelCompiler(ABC):
     """Compile an immutable Nalu package into one provider-specific planning contract."""
 
     adapter_id: str
-    adapter_version = "1.1.0"
+    adapter_version = "1.2.0"
     profile_id: str
     model: str
     native_resolution: str
@@ -41,6 +41,10 @@ class QingshanModelCompiler(ABC):
         """Return the fields that must survive every future paid task boundary."""
         return {
             "schema_version": "nalu.qingshan-paid-boundary-contract/v1",
+            "adapter_id_required": self.adapter_id,
+            "profile_id_required": self.profile_id,
+            "model_required": self.model,
+            "provider_model_id_required": self.model,
             "duration_seconds_required": True,
             "minimum_duration_seconds": self.minimum_duration_seconds,
             "maximum_duration_seconds": self.maximum_duration_seconds,
@@ -209,6 +213,14 @@ class ModelCompilerRegistry:
         except ModelCompilationError as exc:
             return [str(exc)]
         failures: list[str] = []
+        if request.get("adapter_id") != compiler.adapter_id:
+            failures.append("paid request adapter identity is missing or changed")
+        if request.get("profile_id") != compiler.profile_id:
+            failures.append("paid request profile identity is missing or changed")
+        if request.get("model") != compiler.model:
+            failures.append("paid request model identity is missing or changed")
+        if request.get("provider_model_id") != compiler.model:
+            failures.append("paid request provider model identity is missing or changed")
         duration = request.get("duration_seconds")
         if (
             isinstance(duration, bool)

@@ -23,6 +23,10 @@ def canonical_sha256(value: dict) -> str:
 def paid_request(prompt: str, **overrides: object) -> dict:
     request = {
         "prompt": prompt,
+        "adapter_id": "nalu.qingshan.minimax-h3",
+        "profile_id": "MINIMAX_H3_GIGGLE",
+        "model": "MiniMax-H3",
+        "provider_model_id": "MiniMax-H3",
         "duration_seconds": 6,
         "combat_or_chase": False,
         "native_resolution_contract": "768p",
@@ -231,6 +235,10 @@ def test_paid_boundary_revalidates_package_approval_and_transport_guarantees(
     ("overrides", "message"),
     [
         ({"duration_seconds": None}, "numeric duration_seconds"),
+        ({"adapter_id": "nalu.qingshan.seedance2-pro"}, "adapter identity"),
+        ({"profile_id": "SEEDANCE_2_STANDARD_GIGGLE"}, "profile identity"),
+        ({"model": "seedance-2.0-pro"}, "model identity"),
+        ({"provider_model_id": "seedance-2.0-pro"}, "provider model identity"),
         ({"duration_seconds": float("nan")}, "numeric duration_seconds"),
         ({"duration_seconds": float("inf")}, "numeric duration_seconds"),
         ({"duration_seconds": 16}, "outside provider limits"),

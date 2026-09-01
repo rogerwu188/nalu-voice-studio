@@ -3212,6 +3212,10 @@ def test_qingshan_models_use_distinct_versioned_compilers(tmp_path: Path) -> Non
     assert seedance["provider_contract"]["exact_end_frame"] is False
     assert seedance["paid_boundary_contract"] == {
         "schema_version": "nalu.qingshan-paid-boundary-contract/v1",
+        "adapter_id_required": "nalu.qingshan.seedance2-pro",
+        "profile_id_required": "SEEDANCE_2_STANDARD_GIGGLE",
+        "model_required": "seedance-2.0-pro",
+        "provider_model_id_required": "seedance-2.0-pro",
         "duration_seconds_required": True,
         "minimum_duration_seconds": 4,
         "maximum_duration_seconds": 15,
