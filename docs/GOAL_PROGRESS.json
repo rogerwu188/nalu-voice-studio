@@ -11,8 +11,8 @@
     "TODO": 1,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "3a22e08944a9a439f774eadf5d249138b9d06c94",
-  "last_advanced_at": "2026-09-01T10:14:00Z",
+  "observed_head": "d3537f23f31a7a653fb1628d8888e7b5c5fa3d24",
+  "last_advanced_at": "2026-09-01T10:28:04Z",
   "last_closed_checkpoint": {
     "id": "sop-10-publication-learning-export-restore-core",
     "sop": "SOP-10",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-10",
     "status": "IN_PROGRESS",
-    "summary": "Project export v20 now preserves publication identities, metric snapshots and director strategies with atomic restore, stale-path remapping and v1-v19 compatibility; all Runtime and macOS architecture CI plus independent artifact verification passed. Real platform verification remains authorization-gated, while a native read-only learning presentation is still unblocked."
+    "summary": "The native macOS app now presents digest-verified publication metrics and versioned next-episode advice as a large-text read-only card with speech readback, while rejecting cross-project or write-capable records. Runtime, Swift, Apple Silicon, Intel, Universal, staged-update and rollback CI plus independent artifact verification passed; an actual-window populated-fixture accessibility check and authorized real-platform verification are still missing."
   },
   "next_action": {
     "sop": "SOP-10",
-    "id": "native-publication-learning-presentation-core",
-    "summary": "Expose restored publication state, metric-window summaries and versioned next-episode director advice in a read-only, voice-readable native macOS experience without asking older adults or children to fill a professional metrics form or enabling any platform write.",
+    "id": "publication-learning-native-client-integration-tests",
+    "summary": "Add deterministic macOS client integration fixtures for strategy-list and digest-bound metric lookup, including mismatched digest, cross-project and write-capable response rejection, before seeking action-time approval for actual-window accessibility QA.",
     "requires_user_authorization": false
   },
   "blocking_conditions": [

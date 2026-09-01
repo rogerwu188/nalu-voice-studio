@@ -991,6 +991,31 @@ Current evidence:
   `035e43b8e1afbfa31791ca4519b2774f74eb9020d7438769875232ad58b2e610`.
   This is ad-hoc signature evidence, not Developer ID or notarization evidence, and
   closes the portable-learning-state checkpoint rather than SOP-10.
+- Commits `4486b8a` and `d3537f2` add the native read-only publication-learning
+  presentation. The macOS client digest-checks the project, metric snapshot and strategy
+  linkage, rejects any record that claims a publish, production or external-write action,
+  and translates the verified window into large-text views, completion, observations and
+  versioned next-episode advice. It offers readback and refresh only: there is no metrics
+  form, apply button, production trigger or publish control. The first CI attempt
+  (`33496459840`) exposed and rejected a SwiftUI style-inference compile failure; the
+  concrete-color fix then passed all 116 Runtime tests, 46 XCTest cases, 26 Swift Testing
+  cases, real HTTP smoke, Apple Silicon, Intel and Universal builds, bundled-Runtime
+  smoke, staged update and populated rollback in CI run `33496733695`.
+- The exact Universal artifact `9796228956` has GitHub artifact digest
+  `ced3e47da2b5c3b732e84f2940a0210834042502298d67fea113df28b97fe391`.
+  A fresh independent download passed a complete ZIP integrity scan and had inner ZIP
+  SHA-256 `b96840cfbacfc1fa108cf6b7db02b90bbc64f1b6b1455f53aa5cc9d2c3716035`;
+  staged-update and rollback evidence-file SHA-256 values were
+  `4104dc026d9200debbbf2c7c1c4a28e7af601ed5a507de9bb34cae33ad551ba9`
+  and `4e1a8c67d041344cc69b7ba4d52c2beb8c4ce53382061cc596a06cffa8606ca7`.
+  Independent extraction, strict deep signature verification and the Universal release
+  verifier passed; the native executable and bundled Runtime contain both architectures,
+  and the Runtime SHA-256 is
+  `8932965c0d56a47428c4ec0cec1820bfa178c12def64cfbd447bbafc7525805d`.
+  This records automated native-build evidence only. It does not replace an actual-window
+  large-text/readback/VoiceOver check with a populated learning fixture, Developer ID
+  signing, notarization or authorized real-platform reconciliation, so this native
+  presentation checkpoint and SOP-10 remain `IN_PROGRESS`.
 
 ## SOP-11 · macOS packaging, updates and operations — IN_PROGRESS
 
