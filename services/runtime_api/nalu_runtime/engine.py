@@ -38,6 +38,10 @@ from .models import (
     ProductionRunCreate,
     PublicationDryRun,
     PublicationDryRunCreate,
+    PublicationMetricsLearningResult,
+    PublicationMetricsSyncCreate,
+    PublicationReconciliationCreate,
+    PublicationReconciliationRecord,
     ReleasePackage,
     ReleasePackageCreate,
     RemoteTaskState,
@@ -59,6 +63,7 @@ from .postproduction_materializer import (
     materialize_postproduction,
 )
 from .publication_adapters import publication_adapter
+from .publication_learning import PublicationLearningVerifier
 from .qingshan_adapter import QingshanAdapter, QingshanAdapterError
 from .remote_submitter import DurableRemoteTaskSubmitter
 from .repository import ConflictError, Repository, new_id, utc_now
@@ -1563,7 +1568,10 @@ class ProductionService:
     ) -> PublicationDryRun:
         run = self.repository.get_run(run_id)
         episode = self.repository.get_episode(run.episode_id)
-        if run.status != RunStatus.COMPLETED or episode.status != EpisodeStatus.READY_TO_PUBLISH:
+        if run.status != RunStatus.COMPLETED or episode.status not in {
+            EpisodeStatus.READY_TO_PUBLISH,
+            EpisodeStatus.PUBLISHED,
+        }:
             raise ConflictError("only completed, ready-to-publish episodes can prepare publishing")
         project = self.repository.get_project(run.project_id)
         if project.audience_mode == AudienceMode.CHILD and not request.guardian_approval:
@@ -1683,6 +1691,36 @@ class ProductionService:
         if dry_run.release_manifest_sha256 != package.manifest_sha256:
             raise ConflictError("publication dry-run references a different release package")
         return dry_run
+
+    def reconcile_publication(
+        self,
+        run_id: str,
+        request: PublicationReconciliationCreate,
+        idempotency_key: str | None,
+        verifier: PublicationLearningVerifier,
+    ) -> PublicationReconciliationRecord:
+        package = self.stored_release_package(run_id)
+        dry_run = self.stored_publication_dry_run(run_id, request.platform)
+        return self.repository.reconcile_publication(
+            run_id,
+            request,
+            idempotency_key,
+            verifier,
+            local_release_manifest_sha256=package.manifest_sha256,
+            publication_dry_run_sha256=dry_run.plan_sha256,
+            channel_reference=dry_run.approval.channel_reference,
+        )
+
+    def sync_publication_metrics(
+        self,
+        run_id: str,
+        request: PublicationMetricsSyncCreate,
+        idempotency_key: str | None,
+        verifier: PublicationLearningVerifier,
+    ) -> PublicationMetricsLearningResult:
+        return self.repository.sync_publication_metrics(
+            run_id, request, idempotency_key, verifier
+        )
 
     def complete_run(
         self, run_id: str, request: ProductionCompletionRequest

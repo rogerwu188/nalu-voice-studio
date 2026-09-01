@@ -1802,6 +1802,120 @@ class PublicationDryRun(BaseModel):
     plan_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
 
 
+class PublicationReconciliationCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    platform: Literal["youtube", "bilibili"]
+    remote_publication_id: str = Field(min_length=1, max_length=300)
+    release_manifest_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    confirmation_text: str = Field(min_length=1, max_length=500)
+    guardian_approval: bool = False
+
+    @field_validator("remote_publication_id", "confirmation_text")
+    @classmethod
+    def reject_blank_publication_text(cls, value: str) -> str:
+        if not value.strip() or value != value.strip():
+            raise ValueError("publication values must be non-empty without outer whitespace")
+        return value
+
+
+class PublicationReconciliationRecord(BaseModel):
+    schema_version: Literal["nalu.publication-reconciliation/v1"] = (
+        "nalu.publication-reconciliation/v1"
+    )
+    run_id: str
+    project_id: str
+    episode_id: str
+    platform: Literal["youtube", "bilibili"]
+    remote_publication_id: str
+    remote_state: Literal["published"]
+    release_manifest_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    publication_dry_run_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    channel_reference: str
+    published_at: str
+    verification_evidence_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    read_only_verification_performed: Literal[True] = True
+    publication_performed: Literal[False] = False
+    replacement_performed: Literal[False] = False
+    external_write_performed: Literal[False] = False
+    idempotency_key_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    request_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    created_at: str
+    record_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+
+
+class PublicationMetricsSyncCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    publication_record_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    window_start: str = Field(min_length=1, max_length=80)
+    window_end: str = Field(min_length=1, max_length=80)
+    confirmation_text: str = Field(min_length=1, max_length=500)
+
+    @field_validator("window_start", "window_end", "confirmation_text")
+    @classmethod
+    def reject_blank_metrics_text(cls, value: str) -> str:
+        if not value.strip() or value != value.strip():
+            raise ValueError("metrics values must be non-empty without outer whitespace")
+        return value
+
+
+class PublicationMetricsSnapshot(BaseModel):
+    schema_version: Literal["nalu.publication-metrics/v1"] = (
+        "nalu.publication-metrics/v1"
+    )
+    id: str
+    run_id: str
+    project_id: str
+    episode_id: str
+    platform: Literal["youtube", "bilibili"]
+    remote_publication_id: str
+    publication_record_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    window_start: str
+    window_end: str
+    views: int = Field(ge=0)
+    unique_viewers: int = Field(ge=0)
+    watch_time_seconds: int = Field(ge=0)
+    average_view_duration_seconds: float = Field(ge=0)
+    completion_rate: float = Field(ge=0, le=1)
+    likes: int = Field(ge=0)
+    comments: int = Field(ge=0)
+    shares: int = Field(ge=0)
+    followers_gained: int = Field(ge=0)
+    verification_evidence_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    read_only_sync_performed: Literal[True] = True
+    publication_performed: Literal[False] = False
+    production_performed: Literal[False] = False
+    external_write_performed: Literal[False] = False
+    idempotency_key_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    request_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    created_at: str
+    snapshot_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+
+
+class DirectorStrategyRevision(BaseModel):
+    schema_version: Literal["nalu.director-strategy/v1"] = "nalu.director-strategy/v1"
+    id: str
+    project_id: str
+    target_episode_id: str
+    source_metrics_id: str
+    source_metrics_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    revision: int = Field(ge=1)
+    observations: list[str] = Field(min_length=1)
+    directives: list[str] = Field(min_length=1)
+    immutable_constraints: list[str] = Field(min_length=1)
+    requires_script_revision_and_approval: Literal[True] = True
+    production_started: Literal[False] = False
+    publication_performed: Literal[False] = False
+    created_at: str
+    strategy_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+
+
+class PublicationMetricsLearningResult(BaseModel):
+    metrics: PublicationMetricsSnapshot
+    strategy: DirectorStrategyRevision
+
+
 class ProductionCompletionRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

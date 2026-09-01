@@ -16,10 +16,58 @@ from fastapi.testclient import TestClient
 from nalu_runtime.app import create_app
 from nalu_runtime.models import RunStatus
 from nalu_runtime.postproduction_lineage_qa import audio_energy_fingerprint
+from nalu_runtime.publication_learning import (
+    PublicationMetricsVerification,
+    PublicationVerification,
+)
 
 
-def client(tmp_path: Path) -> TestClient:
-    return TestClient(create_app(tmp_path / "test.sqlite3", tmp_path / "data"))
+def client(tmp_path: Path, publication_learning_verifier=None) -> TestClient:
+    return TestClient(
+        create_app(
+            tmp_path / "test.sqlite3",
+            tmp_path / "data",
+            publication_learning_verifier=publication_learning_verifier,
+        )
+    )
+
+
+class DeterministicPublicationVerifier:
+    def __init__(self, release_manifest_sha256: str):
+        self.release_manifest_sha256 = release_manifest_sha256
+        self.publication_calls = 0
+        self.metrics_calls = 0
+
+    def lookup_publication(self, **request) -> PublicationVerification:
+        self.publication_calls += 1
+        return PublicationVerification(
+            platform=request["platform"],
+            remote_publication_id=request["remote_publication_id"],
+            remote_state="published",
+            release_manifest_sha256=self.release_manifest_sha256,
+            published_at="2026-09-01T06:00:00+00:00",
+            channel_reference=request["channel_reference"],
+            evidence={"provider": "authorized-read-only-fixture", "status": "published"},
+        )
+
+    def lookup_metrics(self, **request) -> PublicationMetricsVerification:
+        self.metrics_calls += 1
+        return PublicationMetricsVerification(
+            platform=request["platform"],
+            remote_publication_id=request["remote_publication_id"],
+            window_start=request["window_start"],
+            window_end=request["window_end"],
+            views=1000,
+            unique_viewers=800,
+            watch_time_seconds=32000,
+            average_view_duration_seconds=32.0,
+            completion_rate=0.52,
+            likes=80,
+            comments=30,
+            shares=40,
+            followers_gained=12,
+            evidence={"provider": "authorized-read-only-fixture", "snapshot": "metrics-1"},
+        )
 
 
 def approved_episode_with_library(api: TestClient) -> tuple[dict, dict, dict]:
@@ -1777,6 +1825,128 @@ def test_completed_media_qa_creates_offline_release_package_without_publishing(
     assert changed_channel.status_code == 409
     assert "different approval" in changed_channel.text
 
+    season = api.get(f"/v1/projects/{package['project_id']}/seasons").json()[0]
+    next_episode = api.post(
+        f"/v1/seasons/{season['id']}/episodes",
+        json={
+            "title": "下一集",
+            "episode_number": 2,
+            "logline": "林叔继续寻找家人。",
+        },
+    ).json()
+    reconciliation_request = {
+        "platform": "youtube",
+        "remote_publication_id": "yt_verified_001",
+        "release_manifest_sha256": package["manifest_sha256"],
+        "confirmation_text": "我确认只读核验这次发行",
+    }
+    disabled = api.post(
+        f"/v1/production-runs/{run['id']}/publication-reconciliation",
+        headers={"Idempotency-Key": "publication-reconcile-001"},
+        json=reconciliation_request,
+    )
+    assert disabled.status_code == 409
+    assert "could not be independently verified" in disabled.text
+    assert api.get(f"/v1/episodes/{episode['id']}").json()["status"] == "ready_to_publish"
+
+    verifier = DeterministicPublicationVerifier(package["manifest_sha256"])
+    with client(tmp_path, verifier) as verified_api:
+        reconciled = verified_api.post(
+            f"/v1/production-runs/{run['id']}/publication-reconciliation",
+            headers={"Idempotency-Key": "publication-reconcile-001"},
+            json=reconciliation_request,
+        )
+        assert reconciled.status_code == 201
+        publication_record = reconciled.json()
+        assert publication_record["remote_state"] == "published"
+        assert publication_record["read_only_verification_performed"] is True
+        assert publication_record["publication_performed"] is False
+        assert publication_record["replacement_performed"] is False
+        assert publication_record["external_write_performed"] is False
+        assert verified_api.get(f"/v1/episodes/{episode['id']}").json()["status"] == "published"
+        replay_reconciliation = verified_api.post(
+            f"/v1/production-runs/{run['id']}/publication-reconciliation",
+            headers={"Idempotency-Key": "publication-reconcile-001"},
+            json=reconciliation_request,
+        )
+        assert replay_reconciliation.json() == publication_record
+        assert verifier.publication_calls == 1
+        replacement = verified_api.post(
+            f"/v1/production-runs/{run['id']}/publication-reconciliation",
+            headers={"Idempotency-Key": "publication-reconcile-002"},
+            json={**reconciliation_request, "remote_publication_id": "yt_replacement"},
+        )
+        assert replacement.status_code == 409
+        assert "different immutable identity" in replacement.text
+
+        metrics_request = {
+            "publication_record_sha256": publication_record["record_sha256"],
+            "window_start": "2026-09-01T00:00:00+00:00",
+            "window_end": "2026-09-08T00:00:00+00:00",
+            "confirmation_text": "我确认只读同步这次发行指标",
+        }
+        learned = verified_api.post(
+            f"/v1/production-runs/{run['id']}/publication-metrics",
+            headers={"Idempotency-Key": "publication-metrics-001"},
+            json=metrics_request,
+        )
+        assert learned.status_code == 201
+        result = learned.json()
+        assert result["metrics"]["completion_rate"] == 0.52
+        assert result["metrics"]["read_only_sync_performed"] is True
+        assert result["metrics"]["publication_performed"] is False
+        assert result["metrics"]["production_performed"] is False
+        assert result["strategy"]["target_episode_id"] == next_episode["id"]
+        assert result["strategy"]["revision"] == 1
+        assert result["strategy"]["requires_script_revision_and_approval"] is True
+        assert result["strategy"]["production_started"] is False
+        assert any("前 15 秒" in item for item in result["strategy"]["directives"])
+        assert (
+            verified_api.get(
+                f"/v1/publication-metrics/{result['metrics']['id']}"
+            ).json()
+            == result["metrics"]
+        )
+        assert verified_api.get(
+            f"/v1/projects/{package['project_id']}/director-strategies"
+        ).json() == [result["strategy"]]
+        replay_metrics = verified_api.post(
+            f"/v1/production-runs/{run['id']}/publication-metrics",
+            headers={"Idempotency-Key": "publication-metrics-001"},
+            json=metrics_request,
+        )
+        assert replay_metrics.json() == result
+        assert verifier.metrics_calls == 1
+        missing_offset = verified_api.post(
+            f"/v1/production-runs/{run['id']}/publication-metrics",
+            headers={"Idempotency-Key": "publication-metrics-002"},
+            json={
+                **metrics_request,
+                "window_start": "2026-09-09T00:00:00",
+                "window_end": "2026-09-10T00:00:00",
+            },
+        )
+        assert missing_offset.status_code == 409
+        assert "must include a UTC offset" in missing_offset.text
+        assert verifier.metrics_calls == 1
+        reused_key = verified_api.post(
+            f"/v1/production-runs/{run['id']}/publication-metrics",
+            headers={"Idempotency-Key": "publication-metrics-001"},
+            json={
+                **metrics_request,
+                "window_end": "2026-09-09T00:00:00+00:00",
+            },
+        )
+        assert reused_key.status_code == 409
+        assert "idempotency key was already used differently" in reused_key.text
+        assert verifier.metrics_calls == 1
+        wrong_metrics = verified_api.post(
+            f"/v1/production-runs/{run['id']}/publication-metrics",
+            headers={"Idempotency-Key": "publication-metrics-002"},
+            json={**metrics_request, "publication_record_sha256": "f" * 64},
+        )
+        assert wrong_metrics.status_code == 409
+
     with api.app.state.repository.db.connect() as connection:
         connection.execute(
             "UPDATE projects SET audience_mode = 'child' WHERE id = ?",
@@ -1809,6 +1979,50 @@ def test_completed_media_qa_creates_offline_release_package_without_publishing(
     assert child_with_guardian.status_code == 201
     assert child_with_guardian.json()["adapter_version"] == "nalu.bilibili-dry-run/v1"
     assert child_with_guardian.json()["approval"]["guardian_approval"] is True
+
+    bilibili_reconciliation = {
+        "platform": "bilibili",
+        "remote_publication_id": "bili_verified_001",
+        "release_manifest_sha256": package["manifest_sha256"],
+        "confirmation_text": "我确认只读核验这次发行",
+    }
+    with client(tmp_path, verifier) as child_api:
+        blocked_child_reconciliation = child_api.post(
+            f"/v1/production-runs/{run['id']}/publication-reconciliation",
+            headers={"Idempotency-Key": "bilibili-reconcile-001"},
+            json=bilibili_reconciliation,
+        )
+        assert blocked_child_reconciliation.status_code == 409
+        assert "guardian approval" in blocked_child_reconciliation.text
+    mismatched_verifier = DeterministicPublicationVerifier("0" * 64)
+    with client(tmp_path, mismatched_verifier) as mismatch_api:
+        mismatched_identity = mismatch_api.post(
+            f"/v1/production-runs/{run['id']}/publication-reconciliation",
+            headers={"Idempotency-Key": "bilibili-reconcile-001"},
+            json={**bilibili_reconciliation, "guardian_approval": True},
+        )
+        assert mismatched_identity.status_code == 409
+        assert "does not match the local package" in mismatched_identity.text
+    with client(tmp_path, verifier) as child_api:
+        reconciled_child_publication = child_api.post(
+            f"/v1/production-runs/{run['id']}/publication-reconciliation",
+            headers={"Idempotency-Key": "bilibili-reconcile-001"},
+            json={**bilibili_reconciliation, "guardian_approval": True},
+        )
+        assert reconciled_child_publication.status_code == 201
+        assert reconciled_child_publication.json()["platform"] == "bilibili"
+
+    with client(tmp_path) as restarted_api:
+        assert restarted_api.get(
+            f"/v1/production-runs/{run['id']}/publication-reconciliation/youtube"
+        ).json() == publication_record
+        assert restarted_api.get(
+            f"/v1/publication-metrics/{result['metrics']['id']}"
+        ).json() == result["metrics"]
+        assert restarted_api.get(
+            f"/v1/projects/{package['project_id']}/director-strategies"
+        ).json() == [result["strategy"]]
+        assert restarted_api.get("/health").json()["schema_version"] == "24"
 
     dry_run_path = Path(run["package_path"]).parent / "publication-dry-run-youtube.json"
     tampered = json.loads(dry_run_path.read_text(encoding="utf-8"))

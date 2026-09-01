@@ -582,6 +582,57 @@ MIGRATIONS = (
         );
         """,
     ),
+    (
+        24,
+        "publication_learning_loop",
+        """
+        CREATE TABLE IF NOT EXISTS publication_reconciliations (
+          run_id TEXT NOT NULL REFERENCES production_runs(id) ON DELETE CASCADE,
+          platform TEXT NOT NULL,
+          remote_publication_id TEXT NOT NULL,
+          request_sha256 TEXT NOT NULL,
+          idempotency_key_sha256 TEXT NOT NULL,
+          record_json TEXT NOT NULL,
+          record_sha256 TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          PRIMARY KEY(run_id, platform),
+          UNIQUE(platform, remote_publication_id),
+          UNIQUE(idempotency_key_sha256)
+        );
+        CREATE TABLE IF NOT EXISTS publication_metric_snapshots (
+          id TEXT PRIMARY KEY,
+          run_id TEXT NOT NULL REFERENCES production_runs(id) ON DELETE CASCADE,
+          platform TEXT NOT NULL,
+          remote_publication_id TEXT NOT NULL,
+          window_start TEXT NOT NULL,
+          window_end TEXT NOT NULL,
+          request_sha256 TEXT NOT NULL,
+          idempotency_key_sha256 TEXT NOT NULL,
+          snapshot_json TEXT NOT NULL,
+          snapshot_sha256 TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          UNIQUE(run_id, platform, window_start, window_end),
+          UNIQUE(idempotency_key_sha256)
+        );
+        CREATE TABLE IF NOT EXISTS director_strategy_revisions (
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+          target_episode_id TEXT NOT NULL REFERENCES episodes(id) ON DELETE CASCADE,
+          source_metrics_id TEXT NOT NULL
+            REFERENCES publication_metric_snapshots(id) ON DELETE RESTRICT,
+          revision INTEGER NOT NULL,
+          strategy_json TEXT NOT NULL,
+          strategy_sha256 TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          UNIQUE(project_id, revision),
+          UNIQUE(source_metrics_id)
+        );
+        CREATE INDEX IF NOT EXISTS publication_metrics_run_idx
+          ON publication_metric_snapshots(run_id, created_at);
+        CREATE INDEX IF NOT EXISTS director_strategy_target_idx
+          ON director_strategy_revisions(target_episode_id, revision);
+        """,
+    ),
 )
 
 

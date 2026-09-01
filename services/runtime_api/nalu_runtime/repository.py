@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import re
 import sqlite3
 from datetime import UTC, datetime
@@ -39,6 +40,7 @@ from .models import (
     ContinuitySnapshot,
     ContinuitySnapshotCreate,
     ContinuityState,
+    DirectorStrategyRevision,
     DocumentaryEvidenceItem,
     DocumentaryReadinessReport,
     Episode,
@@ -96,6 +98,11 @@ from .models import (
     ProjectPlan,
     ProjectPlanCreate,
     ProjectRename,
+    PublicationMetricsLearningResult,
+    PublicationMetricsSnapshot,
+    PublicationMetricsSyncCreate,
+    PublicationReconciliationCreate,
+    PublicationReconciliationRecord,
     RemoteTaskBinding,
     RemoteTaskState,
     RunEvent,
@@ -108,6 +115,10 @@ from .models import (
     SeasonPlanApprovalCreate,
     SeasonPlanRevision,
     SeasonPlanUpdate,
+)
+from .publication_learning import (
+    PublicationLearningVerifier,
+    PublicationVerificationError,
 )
 from .release_evidence import (
     ReleaseEvidenceVerificationError,
@@ -5835,6 +5846,489 @@ class Repository:
                 (episode_id,),
             ).fetchone()
         return self.get_run(row["id"]) if row else None
+
+    @staticmethod
+    def _stable_idempotency_key(value: str | None) -> tuple[str, str]:
+        if value is None or not 16 <= len(value.strip()) <= 200:
+            raise ConflictError("a stable 16-200 character idempotency key is required")
+        if value != value.strip():
+            raise ConflictError("idempotency key must not have surrounding whitespace")
+        return value, hashlib.sha256(value.encode()).hexdigest()
+
+    @staticmethod
+    def _publication_confirmation(value: str) -> bool:
+        return " ".join(value.strip().lower().split()) in {
+            "我确认只读核验这次发行",
+            "i confirm read-only verification of this publication",
+        }
+
+    @staticmethod
+    def _metrics_confirmation(value: str) -> bool:
+        return " ".join(value.strip().lower().split()) in {
+            "我确认只读同步这次发行指标",
+            "i confirm read-only sync of these publication metrics",
+        }
+
+    def get_publication_reconciliation(
+        self, run_id: str, platform: str
+    ) -> PublicationReconciliationRecord:
+        self.get_run(run_id)
+        with self.db.connect() as connection:
+            row = connection.execute(
+                """SELECT * FROM publication_reconciliations
+                   WHERE run_id = ? AND platform = ?""",
+                (run_id, platform),
+            ).fetchone()
+        if row is None:
+            raise NotFoundError("publication reconciliation not found")
+        stored = decode(row["record_json"])
+        if (
+            hashlib.sha256(encode(stored).encode()).hexdigest() != row["record_sha256"]
+            or stored.get("request_sha256") != row["request_sha256"]
+        ):
+            raise ConflictError("stored publication reconciliation digest mismatch")
+        stored["record_sha256"] = row["record_sha256"]
+        return PublicationReconciliationRecord.model_validate(stored)
+
+    def reconcile_publication(
+        self,
+        run_id: str,
+        request: PublicationReconciliationCreate,
+        idempotency_key: str | None,
+        verifier: PublicationLearningVerifier,
+        *,
+        local_release_manifest_sha256: str,
+        publication_dry_run_sha256: str,
+        channel_reference: str,
+    ) -> PublicationReconciliationRecord:
+        run = self.get_run(run_id)
+        episode = self.get_episode(run.episode_id)
+        project = self.get_project(run.project_id)
+        if run.status != RunStatus.COMPLETED or episode.status not in {
+            EpisodeStatus.READY_TO_PUBLISH,
+            EpisodeStatus.PUBLISHED,
+        }:
+            raise ConflictError("only a completed ready-to-publish episode can be reconciled")
+        if request.release_manifest_sha256 != local_release_manifest_sha256:
+            raise ConflictError("publication reconciliation references another release package")
+        if project.audience_mode == "child" and not request.guardian_approval:
+            raise ConflictError("child publication reconciliation requires guardian approval")
+        if not self._publication_confirmation(request.confirmation_text):
+            raise ConflictError("publication reconciliation requires read-only confirmation")
+        _, key_sha256 = self._stable_idempotency_key(idempotency_key)
+        request_body = {
+            "run_id": run_id,
+            "platform": request.platform,
+            "remote_publication_id": request.remote_publication_id,
+            "release_manifest_sha256": local_release_manifest_sha256,
+            "publication_dry_run_sha256": publication_dry_run_sha256,
+            "channel_reference": channel_reference,
+            "guardian_approval": request.guardian_approval,
+            "idempotency_key_sha256": key_sha256,
+        }
+        request_sha256 = hashlib.sha256(encode(request_body).encode()).hexdigest()
+        with self.db.connect() as connection:
+            prior_key = connection.execute(
+                """SELECT run_id, platform, request_sha256
+                   FROM publication_reconciliations WHERE idempotency_key_sha256 = ?""",
+                (key_sha256,),
+            ).fetchone()
+        if prior_key is not None:
+            if prior_key["request_sha256"] != request_sha256:
+                raise ConflictError("publication idempotency key was already used differently")
+            return self.get_publication_reconciliation(
+                prior_key["run_id"], prior_key["platform"]
+            )
+        try:
+            existing = self.get_publication_reconciliation(run_id, request.platform)
+        except NotFoundError:
+            existing = None
+        if existing is not None:
+            if existing.request_sha256 != request_sha256:
+                raise ConflictError("publication already has a different immutable identity")
+            return existing
+        try:
+            verified = verifier.lookup_publication(
+                platform=request.platform,
+                remote_publication_id=request.remote_publication_id,
+                channel_reference=channel_reference,
+                release_manifest_sha256=local_release_manifest_sha256,
+            )
+        except (PublicationVerificationError, TypeError, ValueError) as exc:
+            raise ConflictError("publication identity could not be independently verified") from exc
+        expected = (
+            request.platform,
+            request.remote_publication_id,
+            "published",
+            local_release_manifest_sha256,
+            channel_reference,
+        )
+        actual = (
+            verified.platform,
+            verified.remote_publication_id,
+            verified.remote_state,
+            verified.release_manifest_sha256,
+            verified.channel_reference,
+        )
+        if actual != expected or not verified.published_at.strip():
+            raise ConflictError("verified publication identity does not match the local package")
+        if not isinstance(verified.evidence, dict) or not verified.evidence:
+            raise ConflictError("publication verification evidence is missing")
+        evidence_json = encode(verified.evidence)
+        if len(evidence_json.encode()) > 65536:
+            raise ConflictError("publication verification evidence is too large")
+        now = utc_now()
+        record_body = {
+            "schema_version": "nalu.publication-reconciliation/v1",
+            "run_id": run.id,
+            "project_id": run.project_id,
+            "episode_id": run.episode_id,
+            "platform": request.platform,
+            "remote_publication_id": request.remote_publication_id,
+            "remote_state": "published",
+            "release_manifest_sha256": local_release_manifest_sha256,
+            "publication_dry_run_sha256": publication_dry_run_sha256,
+            "channel_reference": channel_reference,
+            "published_at": verified.published_at,
+            "verification_evidence_sha256": hashlib.sha256(evidence_json.encode()).hexdigest(),
+            "read_only_verification_performed": True,
+            "publication_performed": False,
+            "replacement_performed": False,
+            "external_write_performed": False,
+            "idempotency_key_sha256": key_sha256,
+            "request_sha256": request_sha256,
+            "created_at": now,
+        }
+        record_sha256 = hashlib.sha256(encode(record_body).encode()).hexdigest()
+        with self.db.connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            try:
+                connection.execute(
+                    "INSERT INTO publication_reconciliations VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    (
+                        run.id,
+                        request.platform,
+                        request.remote_publication_id,
+                        request_sha256,
+                        key_sha256,
+                        encode(record_body),
+                        record_sha256,
+                        now,
+                    ),
+                )
+                if episode.status == EpisodeStatus.READY_TO_PUBLISH:
+                    connection.execute(
+                        "UPDATE episodes SET status = ?, updated_at = ? WHERE id = ?",
+                        (EpisodeStatus.PUBLISHED, now, episode.id),
+                    )
+                    sequence = connection.execute(
+                        """SELECT COALESCE(MAX(sequence), 0) + 1 AS sequence
+                           FROM episode_events WHERE episode_id = ?""",
+                        (episode.id,),
+                    ).fetchone()["sequence"]
+                    connection.execute(
+                        "INSERT INTO episode_events VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        (
+                            new_id("ep_evt"), episode.id, sequence,
+                            "publication_reconciled", EpisodeStatus.READY_TO_PUBLISH,
+                            EpisodeStatus.PUBLISHED, "authorized verifier",
+                            "远端发行身份已只读核验。", now,
+                        ),
+                    )
+            except sqlite3.IntegrityError as exc:
+                raise ConflictError("publication identity was reconciled concurrently") from exc
+        record_body["record_sha256"] = record_sha256
+        return PublicationReconciliationRecord.model_validate(record_body)
+
+    def get_publication_metrics_snapshot(self, metrics_id: str) -> PublicationMetricsSnapshot:
+        with self.db.connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM publication_metric_snapshots WHERE id = ?", (metrics_id,)
+            ).fetchone()
+        if row is None:
+            raise NotFoundError("publication metrics snapshot not found")
+        stored = decode(row["snapshot_json"])
+        if (
+            hashlib.sha256(encode(stored).encode()).hexdigest() != row["snapshot_sha256"]
+            or stored.get("request_sha256") != row["request_sha256"]
+        ):
+            raise ConflictError("stored publication metrics digest mismatch")
+        stored["snapshot_sha256"] = row["snapshot_sha256"]
+        return PublicationMetricsSnapshot.model_validate(stored)
+
+    def get_director_strategy(self, strategy_id: str) -> DirectorStrategyRevision:
+        with self.db.connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM director_strategy_revisions WHERE id = ?", (strategy_id,)
+            ).fetchone()
+        if row is None:
+            raise NotFoundError("director strategy revision not found")
+        stored = decode(row["strategy_json"])
+        if hashlib.sha256(encode(stored).encode()).hexdigest() != row["strategy_sha256"]:
+            raise ConflictError("stored director strategy digest mismatch")
+        stored["strategy_sha256"] = row["strategy_sha256"]
+        return DirectorStrategyRevision.model_validate(stored)
+
+    def sync_publication_metrics(
+        self,
+        run_id: str,
+        request: PublicationMetricsSyncCreate,
+        idempotency_key: str | None,
+        verifier: PublicationLearningVerifier,
+    ) -> PublicationMetricsLearningResult:
+        run = self.get_run(run_id)
+        publication = None
+        for platform in ("youtube", "bilibili"):
+            try:
+                candidate = self.get_publication_reconciliation(run_id, platform)
+            except NotFoundError:
+                continue
+            if candidate.record_sha256 == request.publication_record_sha256:
+                publication = candidate
+                break
+        if publication is None:
+            raise ConflictError("publication reconciliation digest does not match")
+        if not self._metrics_confirmation(request.confirmation_text):
+            raise ConflictError("publication metrics sync requires read-only confirmation")
+        try:
+            window_start = datetime.fromisoformat(request.window_start)
+            window_end = datetime.fromisoformat(request.window_end)
+        except ValueError as exc:
+            raise ConflictError("publication metrics window must use ISO-8601 timestamps") from exc
+        if window_start.utcoffset() is None or window_end.utcoffset() is None:
+            raise ConflictError("publication metrics window must include a UTC offset")
+        if window_start >= window_end:
+            raise ConflictError("publication metrics window must end after it starts")
+        _, key_sha256 = self._stable_idempotency_key(idempotency_key)
+        request_body = {
+            "run_id": run_id,
+            "publication_record_sha256": publication.record_sha256,
+            "window_start": request.window_start,
+            "window_end": request.window_end,
+            "idempotency_key_sha256": key_sha256,
+        }
+        request_sha256 = hashlib.sha256(encode(request_body).encode()).hexdigest()
+        with self.db.connect() as connection:
+            prior_key = connection.execute(
+                """SELECT id, request_sha256 FROM publication_metric_snapshots
+                   WHERE idempotency_key_sha256 = ?""",
+                (key_sha256,),
+            ).fetchone()
+            if prior_key is not None:
+                if prior_key["request_sha256"] != request_sha256:
+                    raise ConflictError("metrics idempotency key was already used differently")
+                metrics = self.get_publication_metrics_snapshot(prior_key["id"])
+                strategy_row = connection.execute(
+                    "SELECT id FROM director_strategy_revisions WHERE source_metrics_id = ?",
+                    (metrics.id,),
+                ).fetchone()
+                return PublicationMetricsLearningResult(
+                    metrics=metrics,
+                    strategy=self.get_director_strategy(strategy_row["id"]),
+                )
+            existing = connection.execute(
+                """SELECT id, request_sha256 FROM publication_metric_snapshots
+                   WHERE run_id = ? AND platform = ? AND window_start = ? AND window_end = ?""",
+                (run_id, publication.platform, request.window_start, request.window_end),
+            ).fetchone()
+            if existing is not None:
+                if existing["request_sha256"] != request_sha256:
+                    raise ConflictError("metrics window already has a different immutable request")
+                metrics = self.get_publication_metrics_snapshot(existing["id"])
+                strategy_row = connection.execute(
+                    "SELECT id FROM director_strategy_revisions WHERE source_metrics_id = ?",
+                    (metrics.id,),
+                ).fetchone()
+                return PublicationMetricsLearningResult(
+                    metrics=metrics,
+                    strategy=self.get_director_strategy(strategy_row["id"]),
+                )
+        try:
+            verified = verifier.lookup_metrics(
+                platform=publication.platform,
+                remote_publication_id=publication.remote_publication_id,
+                window_start=request.window_start,
+                window_end=request.window_end,
+            )
+        except (PublicationVerificationError, TypeError, ValueError) as exc:
+            raise ConflictError("publication metrics could not be independently verified") from exc
+        if (
+            verified.platform != publication.platform
+            or verified.remote_publication_id != publication.remote_publication_id
+            or verified.window_start != request.window_start
+            or verified.window_end != request.window_end
+        ):
+            raise ConflictError("verified metrics do not match the reconciled publication")
+        integer_values = (
+            verified.views,
+            verified.unique_viewers,
+            verified.watch_time_seconds,
+            verified.likes,
+            verified.comments,
+            verified.shares,
+            verified.followers_gained,
+        )
+        if any(not isinstance(value, int) or isinstance(value, bool) for value in integer_values):
+            raise ConflictError("verified publication metrics contain invalid values")
+        numeric_values = (*integer_values, verified.average_view_duration_seconds)
+        try:
+            invalid_numeric = any(
+                not math.isfinite(float(value)) or float(value) < 0 for value in numeric_values
+            )
+            invalid_completion = not math.isfinite(float(verified.completion_rate)) or not (
+                0 <= float(verified.completion_rate) <= 1
+            )
+        except (TypeError, ValueError):
+            invalid_numeric = invalid_completion = True
+        if invalid_numeric or invalid_completion:
+            raise ConflictError("verified publication metrics contain invalid values")
+        if not isinstance(verified.evidence, dict) or not verified.evidence:
+            raise ConflictError("publication metrics verification evidence is missing")
+        evidence_json = encode(verified.evidence)
+        if len(evidence_json.encode()) > 65536:
+            raise ConflictError("publication metrics evidence is too large")
+        with self.db.connect() as connection:
+            current_episode = connection.execute(
+                """SELECT e.episode_number, s.season_number
+                   FROM episodes e JOIN seasons s ON s.id = e.season_id
+                   WHERE e.id = ?""",
+                (run.episode_id,),
+            ).fetchone()
+            target = connection.execute(
+                """SELECT e.id, e.status FROM episodes e
+                   JOIN seasons s ON s.id = e.season_id
+                   WHERE s.project_id = ? AND (
+                     s.season_number > ? OR
+                     (s.season_number = ? AND e.episode_number > ?)
+                   )
+                   ORDER BY s.season_number, e.episode_number LIMIT 1""",
+                (
+                    run.project_id,
+                    current_episode["season_number"],
+                    current_episode["season_number"],
+                    current_episode["episode_number"],
+                ),
+            ).fetchone()
+        if target is None:
+            raise ConflictError("metrics learning requires a later episode in the project")
+        if EpisodeStatus(target["status"]) not in EDITABLE_EPISODE_PLAN_STATUSES:
+            raise ConflictError("next-episode strategy cannot target a locked or produced episode")
+        metrics_id, now = new_id("metrics"), utc_now()
+        metrics_body = {
+            "schema_version": "nalu.publication-metrics/v1",
+            "id": metrics_id,
+            "run_id": run.id,
+            "project_id": run.project_id,
+            "episode_id": run.episode_id,
+            "platform": publication.platform,
+            "remote_publication_id": publication.remote_publication_id,
+            "publication_record_sha256": publication.record_sha256,
+            "window_start": request.window_start,
+            "window_end": request.window_end,
+            "views": verified.views,
+            "unique_viewers": verified.unique_viewers,
+            "watch_time_seconds": verified.watch_time_seconds,
+            "average_view_duration_seconds": verified.average_view_duration_seconds,
+            "completion_rate": verified.completion_rate,
+            "likes": verified.likes,
+            "comments": verified.comments,
+            "shares": verified.shares,
+            "followers_gained": verified.followers_gained,
+            "verification_evidence_sha256": hashlib.sha256(evidence_json.encode()).hexdigest(),
+            "read_only_sync_performed": True,
+            "publication_performed": False,
+            "production_performed": False,
+            "external_write_performed": False,
+            "idempotency_key_sha256": key_sha256,
+            "request_sha256": request_sha256,
+            "created_at": now,
+        }
+        metrics_sha256 = hashlib.sha256(encode(metrics_body).encode()).hexdigest()
+        observations, directives = self._director_strategy_content(verified)
+        with self.db.connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            revision = int(connection.execute(
+                """SELECT COALESCE(MAX(revision), 0) + 1 AS revision
+                   FROM director_strategy_revisions WHERE project_id = ?""",
+                (run.project_id,),
+            ).fetchone()["revision"])
+            strategy_id = new_id("strategy")
+            strategy_body = {
+                "schema_version": "nalu.director-strategy/v1",
+                "id": strategy_id,
+                "project_id": run.project_id,
+                "target_episode_id": target["id"],
+                "source_metrics_id": metrics_id,
+                "source_metrics_sha256": metrics_sha256,
+                "revision": revision,
+                "observations": observations,
+                "directives": directives,
+                "immutable_constraints": [
+                    "不得改写已确认的角色、场景、道具、声音和连续性事实",
+                    "任何建议必须形成新的剧本修订并再次由用户确认",
+                    "这份策略不能启动生产、付费调用或发行",
+                ],
+                "requires_script_revision_and_approval": True,
+                "production_started": False,
+                "publication_performed": False,
+                "created_at": now,
+            }
+            strategy_sha256 = hashlib.sha256(encode(strategy_body).encode()).hexdigest()
+            try:
+                connection.execute(
+                    "INSERT INTO publication_metric_snapshots VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (
+                        metrics_id, run.id, publication.platform,
+                        publication.remote_publication_id, request.window_start,
+                        request.window_end, request_sha256, key_sha256, encode(metrics_body),
+                        metrics_sha256, now,
+                    ),
+                )
+                connection.execute(
+                    "INSERT INTO director_strategy_revisions VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    (
+                        strategy_id, run.project_id, target["id"], metrics_id, revision,
+                        encode(strategy_body), strategy_sha256, now,
+                    ),
+                )
+            except sqlite3.IntegrityError as exc:
+                raise ConflictError("publication metrics were synchronized concurrently") from exc
+        metrics_body["snapshot_sha256"] = metrics_sha256
+        strategy_body["strategy_sha256"] = strategy_sha256
+        return PublicationMetricsLearningResult(
+            metrics=PublicationMetricsSnapshot.model_validate(metrics_body),
+            strategy=DirectorStrategyRevision.model_validate(strategy_body),
+        )
+
+    def list_director_strategies(self, project_id: str) -> list[DirectorStrategyRevision]:
+        self.get_project(project_id)
+        with self.db.connect() as connection:
+            rows = connection.execute(
+                """SELECT id FROM director_strategy_revisions
+                   WHERE project_id = ? ORDER BY revision""",
+                (project_id,),
+            ).fetchall()
+        return [self.get_director_strategy(row["id"]) for row in rows]
+
+    @staticmethod
+    def _director_strategy_content(verified: Any) -> tuple[list[str], list[str]]:
+        observations = [f"本次核验窗口完播率为 {verified.completion_rate:.1%}。"]
+        directives: list[str] = []
+        if verified.completion_rate < 0.6:
+            observations.append("完播率低于 60%，开场和中段节奏需要优先复核。")
+            directives.append("下一集前 15 秒更快交代人物目标与核心冲突。")
+            directives.append("缩短不推动故事的解释段，并保留老人和儿童容易理解的表达。")
+        share_rate = verified.shares / verified.views if verified.views else 0
+        comment_rate = verified.comments / verified.views if verified.views else 0
+        if share_rate >= 0.03:
+            observations.append("分享率达到 3%，当前情感主题具有传播信号。")
+            directives.append("延续本集最受分享的情感主题，但不得复制既有镜头。")
+        if comment_rate >= 0.02:
+            observations.append("评论率达到 2%，观众有明确讨论意愿。")
+            directives.append("从已确认的故事素材中增加一个可讨论但不误导的选择时刻。")
+        if not directives:
+            directives.append("保持当前结构，只对下一集开场钩子做一个可回退的小修订。")
+        return observations, directives
 
     @staticmethod
     def _remote_task_from_row(row: Any) -> RemoteTaskBinding:

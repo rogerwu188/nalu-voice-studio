@@ -1156,6 +1156,108 @@
         "title": "DecodedMediaQAReport",
         "type": "object"
       },
+      "DirectorStrategyRevision": {
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "directives": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Directives",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "immutable_constraints": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Immutable Constraints",
+            "type": "array"
+          },
+          "observations": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Observations",
+            "type": "array"
+          },
+          "production_started": {
+            "const": false,
+            "default": false,
+            "title": "Production Started",
+            "type": "boolean"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "publication_performed": {
+            "const": false,
+            "default": false,
+            "title": "Publication Performed",
+            "type": "boolean"
+          },
+          "requires_script_revision_and_approval": {
+            "const": true,
+            "default": true,
+            "title": "Requires Script Revision And Approval",
+            "type": "boolean"
+          },
+          "revision": {
+            "minimum": 1.0,
+            "title": "Revision",
+            "type": "integer"
+          },
+          "schema_version": {
+            "const": "nalu.director-strategy/v1",
+            "default": "nalu.director-strategy/v1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "source_metrics_id": {
+            "title": "Source Metrics Id",
+            "type": "string"
+          },
+          "source_metrics_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Source Metrics Sha256",
+            "type": "string"
+          },
+          "strategy_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Strategy Sha256",
+            "type": "string"
+          },
+          "target_episode_id": {
+            "title": "Target Episode Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "project_id",
+          "target_episode_id",
+          "source_metrics_id",
+          "source_metrics_sha256",
+          "revision",
+          "observations",
+          "directives",
+          "immutable_constraints",
+          "created_at",
+          "strategy_sha256"
+        ],
+        "title": "DirectorStrategyRevision",
+        "type": "object"
+      },
       "DocumentaryEvidenceItem": {
         "properties": {
           "allowed_use": {
@@ -6204,6 +6306,397 @@
         "title": "PublicationDryRunCreate",
         "type": "object"
       },
+      "PublicationMetricsLearningResult": {
+        "properties": {
+          "metrics": {
+            "$ref": "#/components/schemas/PublicationMetricsSnapshot"
+          },
+          "strategy": {
+            "$ref": "#/components/schemas/DirectorStrategyRevision"
+          }
+        },
+        "required": [
+          "metrics",
+          "strategy"
+        ],
+        "title": "PublicationMetricsLearningResult",
+        "type": "object"
+      },
+      "PublicationMetricsSnapshot": {
+        "properties": {
+          "average_view_duration_seconds": {
+            "minimum": 0.0,
+            "title": "Average View Duration Seconds",
+            "type": "number"
+          },
+          "comments": {
+            "minimum": 0.0,
+            "title": "Comments",
+            "type": "integer"
+          },
+          "completion_rate": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Completion Rate",
+            "type": "number"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "episode_id": {
+            "title": "Episode Id",
+            "type": "string"
+          },
+          "external_write_performed": {
+            "const": false,
+            "default": false,
+            "title": "External Write Performed",
+            "type": "boolean"
+          },
+          "followers_gained": {
+            "minimum": 0.0,
+            "title": "Followers Gained",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "idempotency_key_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Idempotency Key Sha256",
+            "type": "string"
+          },
+          "likes": {
+            "minimum": 0.0,
+            "title": "Likes",
+            "type": "integer"
+          },
+          "platform": {
+            "enum": [
+              "youtube",
+              "bilibili"
+            ],
+            "title": "Platform",
+            "type": "string"
+          },
+          "production_performed": {
+            "const": false,
+            "default": false,
+            "title": "Production Performed",
+            "type": "boolean"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "publication_performed": {
+            "const": false,
+            "default": false,
+            "title": "Publication Performed",
+            "type": "boolean"
+          },
+          "publication_record_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Publication Record Sha256",
+            "type": "string"
+          },
+          "read_only_sync_performed": {
+            "const": true,
+            "default": true,
+            "title": "Read Only Sync Performed",
+            "type": "boolean"
+          },
+          "remote_publication_id": {
+            "title": "Remote Publication Id",
+            "type": "string"
+          },
+          "request_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Request Sha256",
+            "type": "string"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "nalu.publication-metrics/v1",
+            "default": "nalu.publication-metrics/v1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "shares": {
+            "minimum": 0.0,
+            "title": "Shares",
+            "type": "integer"
+          },
+          "snapshot_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Snapshot Sha256",
+            "type": "string"
+          },
+          "unique_viewers": {
+            "minimum": 0.0,
+            "title": "Unique Viewers",
+            "type": "integer"
+          },
+          "verification_evidence_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Verification Evidence Sha256",
+            "type": "string"
+          },
+          "views": {
+            "minimum": 0.0,
+            "title": "Views",
+            "type": "integer"
+          },
+          "watch_time_seconds": {
+            "minimum": 0.0,
+            "title": "Watch Time Seconds",
+            "type": "integer"
+          },
+          "window_end": {
+            "title": "Window End",
+            "type": "string"
+          },
+          "window_start": {
+            "title": "Window Start",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "run_id",
+          "project_id",
+          "episode_id",
+          "platform",
+          "remote_publication_id",
+          "publication_record_sha256",
+          "window_start",
+          "window_end",
+          "views",
+          "unique_viewers",
+          "watch_time_seconds",
+          "average_view_duration_seconds",
+          "completion_rate",
+          "likes",
+          "comments",
+          "shares",
+          "followers_gained",
+          "verification_evidence_sha256",
+          "idempotency_key_sha256",
+          "request_sha256",
+          "created_at",
+          "snapshot_sha256"
+        ],
+        "title": "PublicationMetricsSnapshot",
+        "type": "object"
+      },
+      "PublicationMetricsSyncCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "confirmation_text": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Confirmation Text",
+            "type": "string"
+          },
+          "publication_record_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Publication Record Sha256",
+            "type": "string"
+          },
+          "window_end": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Window End",
+            "type": "string"
+          },
+          "window_start": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Window Start",
+            "type": "string"
+          }
+        },
+        "required": [
+          "publication_record_sha256",
+          "window_start",
+          "window_end",
+          "confirmation_text"
+        ],
+        "title": "PublicationMetricsSyncCreate",
+        "type": "object"
+      },
+      "PublicationReconciliationCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "confirmation_text": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Confirmation Text",
+            "type": "string"
+          },
+          "guardian_approval": {
+            "default": false,
+            "title": "Guardian Approval",
+            "type": "boolean"
+          },
+          "platform": {
+            "enum": [
+              "youtube",
+              "bilibili"
+            ],
+            "title": "Platform",
+            "type": "string"
+          },
+          "release_manifest_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Release Manifest Sha256",
+            "type": "string"
+          },
+          "remote_publication_id": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Remote Publication Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "platform",
+          "remote_publication_id",
+          "release_manifest_sha256",
+          "confirmation_text"
+        ],
+        "title": "PublicationReconciliationCreate",
+        "type": "object"
+      },
+      "PublicationReconciliationRecord": {
+        "properties": {
+          "channel_reference": {
+            "title": "Channel Reference",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "episode_id": {
+            "title": "Episode Id",
+            "type": "string"
+          },
+          "external_write_performed": {
+            "const": false,
+            "default": false,
+            "title": "External Write Performed",
+            "type": "boolean"
+          },
+          "idempotency_key_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Idempotency Key Sha256",
+            "type": "string"
+          },
+          "platform": {
+            "enum": [
+              "youtube",
+              "bilibili"
+            ],
+            "title": "Platform",
+            "type": "string"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "publication_dry_run_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Publication Dry Run Sha256",
+            "type": "string"
+          },
+          "publication_performed": {
+            "const": false,
+            "default": false,
+            "title": "Publication Performed",
+            "type": "boolean"
+          },
+          "published_at": {
+            "title": "Published At",
+            "type": "string"
+          },
+          "read_only_verification_performed": {
+            "const": true,
+            "default": true,
+            "title": "Read Only Verification Performed",
+            "type": "boolean"
+          },
+          "record_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Record Sha256",
+            "type": "string"
+          },
+          "release_manifest_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Release Manifest Sha256",
+            "type": "string"
+          },
+          "remote_publication_id": {
+            "title": "Remote Publication Id",
+            "type": "string"
+          },
+          "remote_state": {
+            "const": "published",
+            "title": "Remote State",
+            "type": "string"
+          },
+          "replacement_performed": {
+            "const": false,
+            "default": false,
+            "title": "Replacement Performed",
+            "type": "boolean"
+          },
+          "request_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Request Sha256",
+            "type": "string"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "nalu.publication-reconciliation/v1",
+            "default": "nalu.publication-reconciliation/v1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "verification_evidence_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Verification Evidence Sha256",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_id",
+          "project_id",
+          "episode_id",
+          "platform",
+          "remote_publication_id",
+          "remote_state",
+          "release_manifest_sha256",
+          "publication_dry_run_sha256",
+          "channel_reference",
+          "published_at",
+          "verification_evidence_sha256",
+          "idempotency_key_sha256",
+          "request_sha256",
+          "created_at",
+          "record_sha256"
+        ],
+        "title": "PublicationReconciliationRecord",
+        "type": "object"
+      },
       "ReleasePackage": {
         "properties": {
           "artifacts": {
@@ -10716,6 +11209,184 @@
         "summary": "Get Publication Dry Run"
       }
     },
+    "/v1/production-runs/{run_id}/publication-metrics": {
+      "post": {
+        "operationId": "sync_publication_metrics_v1_production_runs__run_id__publication_metrics_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicationMetricsSyncCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicationMetricsLearningResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Sync Publication Metrics"
+      }
+    },
+    "/v1/production-runs/{run_id}/publication-reconciliation": {
+      "post": {
+        "operationId": "reconcile_publication_v1_production_runs__run_id__publication_reconciliation_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicationReconciliationCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicationReconciliationRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reconcile Publication"
+      }
+    },
+    "/v1/production-runs/{run_id}/publication-reconciliation/{platform}": {
+      "get": {
+        "operationId": "get_publication_reconciliation_v1_production_runs__run_id__publication_reconciliation__platform__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "platform",
+            "required": true,
+            "schema": {
+              "title": "Platform",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicationReconciliationRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Publication Reconciliation"
+      }
+    },
     "/v1/production-runs/{run_id}/release-package": {
       "post": {
         "operationId": "create_release_package_v1_production_runs__run_id__release_package_post",
@@ -11797,6 +12468,49 @@
         "summary": "Project Deletion Preview"
       }
     },
+    "/v1/projects/{project_id}/director-strategies": {
+      "get": {
+        "operationId": "list_director_strategies_v1_projects__project_id__director_strategies_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DirectorStrategyRevision"
+                  },
+                  "title": "Response List Director Strategies V1 Projects  Project Id  Director Strategies Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Director Strategies"
+      }
+    },
     "/v1/projects/{project_id}/documentary-readiness": {
       "get": {
         "operationId": "documentary_readiness_v1_projects__project_id__documentary_readiness_get",
@@ -12245,6 +12959,45 @@
           }
         },
         "summary": "Create Season"
+      }
+    },
+    "/v1/publication-metrics/{metrics_id}": {
+      "get": {
+        "operationId": "get_publication_metrics_v1_publication_metrics__metrics_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "metrics_id",
+            "required": true,
+            "schema": {
+              "title": "Metrics Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicationMetricsSnapshot"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Publication Metrics"
       }
     },
     "/v1/seasons/{season_id}": {

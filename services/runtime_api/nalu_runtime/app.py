@@ -48,6 +48,7 @@ from .models import (
     ContinuitySnapshot,
     ContinuitySnapshotCreate,
     DecodedMediaQAReport,
+    DirectorStrategyRevision,
     DocumentaryReadinessReport,
     Episode,
     EpisodeCreate,
@@ -115,6 +116,11 @@ from .models import (
     ProjectRename,
     PublicationDryRun,
     PublicationDryRunCreate,
+    PublicationMetricsLearningResult,
+    PublicationMetricsSnapshot,
+    PublicationMetricsSyncCreate,
+    PublicationReconciliationCreate,
+    PublicationReconciliationRecord,
     ReleasePackage,
     ReleasePackageCreate,
     RenderedOutputIntegrityReport,
@@ -137,6 +143,10 @@ from .models import (
     VisualContinuityQAReport,
 )
 from .privacy_service import ProjectPrivacyService
+from .publication_learning import (
+    DisabledPublicationLearningVerifier,
+    PublicationLearningVerifier,
+)
 from .release_evidence import (
     DisabledReleaseEvidenceVerifier,
     ReleaseEvidenceVerifier,
@@ -159,6 +169,7 @@ def create_app(
     ) = None,
     development_result_verifier: DevelopmentResultVerifier | None = None,
     release_evidence_verifier: ReleaseEvidenceVerifier | None = None,
+    publication_learning_verifier: PublicationLearningVerifier | None = None,
 ) -> FastAPI:
     repository_root = Path(
         os.environ.get("NALU_REPOSITORY_ROOT", Path(__file__).resolve().parents[3])
@@ -214,6 +225,9 @@ def create_app(
         development_result_verifier or DisabledDevelopmentResultVerifier()
     )
     release_evidence_verifier = release_evidence_verifier or DisabledReleaseEvidenceVerifier()
+    publication_learning_verifier = (
+        publication_learning_verifier or DisabledPublicationLearningVerifier()
+    )
 
     app = FastAPI(
         title="Nalu Voice Studio Runtime API",
@@ -233,6 +247,7 @@ def create_app(
     )
     app.state.development_result_verifier = development_result_verifier
     app.state.release_evidence_verifier = release_evidence_verifier
+    app.state.publication_learning_verifier = publication_learning_verifier
 
     @app.exception_handler(NotFoundError)
     async def not_found_handler(_request, exc: NotFoundError):
@@ -1098,6 +1113,57 @@ def create_app(
     )
     def get_publication_dry_run(run_id: str, platform: str) -> PublicationDryRun:
         return production.stored_publication_dry_run(run_id, platform)
+
+    @app.post(
+        "/v1/production-runs/{run_id}/publication-reconciliation",
+        response_model=PublicationReconciliationRecord,
+        status_code=201,
+    )
+    def reconcile_publication(
+        run_id: str,
+        request: PublicationReconciliationCreate,
+        idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
+    ) -> PublicationReconciliationRecord:
+        return production.reconcile_publication(
+            run_id, request, idempotency_key, publication_learning_verifier
+        )
+
+    @app.get(
+        "/v1/production-runs/{run_id}/publication-reconciliation/{platform}",
+        response_model=PublicationReconciliationRecord,
+    )
+    def get_publication_reconciliation(
+        run_id: str, platform: str
+    ) -> PublicationReconciliationRecord:
+        return repository.get_publication_reconciliation(run_id, platform)
+
+    @app.post(
+        "/v1/production-runs/{run_id}/publication-metrics",
+        response_model=PublicationMetricsLearningResult,
+        status_code=201,
+    )
+    def sync_publication_metrics(
+        run_id: str,
+        request: PublicationMetricsSyncCreate,
+        idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
+    ) -> PublicationMetricsLearningResult:
+        return production.sync_publication_metrics(
+            run_id, request, idempotency_key, publication_learning_verifier
+        )
+
+    @app.get(
+        "/v1/publication-metrics/{metrics_id}",
+        response_model=PublicationMetricsSnapshot,
+    )
+    def get_publication_metrics(metrics_id: str) -> PublicationMetricsSnapshot:
+        return repository.get_publication_metrics_snapshot(metrics_id)
+
+    @app.get(
+        "/v1/projects/{project_id}/director-strategies",
+        response_model=list[DirectorStrategyRevision],
+    )
+    def list_director_strategies(project_id: str) -> list[DirectorStrategyRevision]:
+        return repository.list_director_strategies(project_id)
 
     @app.post(
         "/v1/production-runs/{run_id}/complete",
