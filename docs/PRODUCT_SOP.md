@@ -1392,6 +1392,26 @@ Current evidence:
 - Implementation of the offline, non-claiming scenario rehearsal has started. This status
   change is not E2E acceptance: no scenario may become `PASS` until it runs from the same
   signed/notarized installation with reconciled real provider and publication evidence.
+- Commit `205f07b` adds a machine-readable offline rehearsal for all seven scenario
+  structures. It runs 19 selected integration and negative tests with credential-like
+  environment variables removed, paid submission and publication disabled, and a pytest
+  socket guard that rejects every non-loopback connection. Each scenario records its
+  remaining real evidence and is labeled only `STRUCTURE_REHEARSED`; the report keeps
+  paid calls, publication, external writes, signed/notarized installation, provider and
+  publication reconciliation, human acceptance and `project_complete` literal false.
+  GitHub CI run `33509959816` passed the 131-test Runtime suite, the separate rehearsal,
+  real HTTP smoke, Swift tests, independent arm64/x86_64 builds and smokes, staged update,
+  populated rollback and universal merge (jobs `99863051984`, `99863052081`,
+  `99863051775`, `99864552433`). Runtime evidence artifact `9801262791` has GitHub digest
+  `de0fbd8d3be1630e0cbe2f3f7b6c66a9979f9c466fc08520bdddb6defa2e725e`; the downloaded
+  rehearsal JSON SHA-256 is
+  `c9f1b8e6c18011f44c21301a57040624bb8004704dc2ffe75cf833a29628e2b2` and its canonical
+  evidence digest is `9ecfce0bd1c72a278589f55fdebeabd10e1d74875d3f06861062eb58a6f35fd2`.
+  Universal artifact `9801431356` has GitHub digest
+  `3093b4c912f445648838626a6b2afb68fa06000a13a2599b01bbcd521f6fbf1d`.
+  This closes only the offline structural-rehearsal checkpoint; SOP-12 remains
+  `IN_PROGRESS` until all scenarios run from one signed/notarized candidate with real
+  authorized costs, task/receipt/publication reconciliation and human acceptance.
 
 ## SOP-13 · Controlled product evolution — IN_PROGRESS
 
