@@ -591,6 +591,29 @@ Current evidence:
   Universal Runtime contains the `nalu_runtime.qingshan_compilers` archive module and
   has SHA-256 `87a79dcfaf3fc034a44937ae1d25131a0e2c69de4467718e18b5999f6252efbb`.
   This closes only the current-release productization checkpoint, not SOP-07.
+- Product commit `76b7283077aedccd8470088f1441c839ba7d6bb7`, GitHub CI run
+  `33571104271`: Nalu discovered and independently reproduced Qingshan
+  `v2026.09.01.7` at exact commit `9c40a28d07ee9c48aed9307cbc7726a1bd992379`,
+  tracked-tree SHA-256
+  `6535a3697c17809a4126b67b4269e99d2b2eeb7254a161626ef1ac648e1d2e46`
+  and unchanged registry SHA-256
+  `a6308af097da8cac3c664466ba665277970391587c44bb1dd949421901e8ac6b`.
+  The same eight missing registered paths and one host-specific absolute path remain,
+  so the candidate is still `QUARANTINED`, cannot replace the active pin and cannot
+  authorize a provider charge. The packaged audit is byte-identical to source at
+  SHA-256 `ecd7cd5ee51c0e4d015665bc000f0550746f48f5860a75acafa80940ade71783`.
+  Nalu productized two safe deltas: the final paid projection now preserves adapter,
+  profile, logical-model and provider-model identity; local postproduction now applies
+  bounded static release normalization and independently measures decoded published-mix
+  and final-master EBU R128 integrated loudness, loudness range and true peak through
+  bundled Libav before completion. Self-reported loudness cannot satisfy the gate.
+  All 144 Runtime tests, real HTTP smoke, offline E2E, isolated candidate reproduction,
+  arm64, x86_64 and Universal packaging passed. Universal artifact `9825078541` has
+  GitHub digest
+  `sha256:cf7062e95317f2dc4c59a751e349ec1d93a7ba2fbf3ef5cc952ce54d3605bf26`
+  and independently downloaded inner ZIP SHA-256
+  `699418ea08eb1041cd45e87d72cd147e81fd7e877fcccc4ce6c4ed5b773a2d7b`.
+  This closes only the `v2026.09.01.7` quarantine/productization checkpoint, not SOP-07.
 - Still required before `PASS`: a corrected pinned Qingshan release whose registry
   integrity and complete registered tests pass, plus authorized real-provider sandbox
   task/result/receipt evidence. Offline authority and transport doubles are not a paid

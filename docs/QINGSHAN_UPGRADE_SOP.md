@@ -53,3 +53,10 @@ remains `QUARANTINED`, cannot replace the active pin, cannot authorize paid exec
 and does not misreport the unrun complete registered suite as passing.
 Daily discovery treats both the active pin and this exact reviewed candidate as covered;
 only a third, unaudited tag opens a new deduplicated upgrade issue.
+
+Nalu productized two safe `v2026.09.01.7` contracts without copying its runtime into the
+paid path: exact adapter/profile/logical/provider model identity at the final I/O boundary,
+and local decoded-media EBU R128 release normalization/measurement. Product commit
+`76b7283077aedccd8470088f1441c839ba7d6bb7` passed all four jobs in GitHub CI run
+`33571104271`; the Universal artifact is `9825078541`. This evidence does not waive the
+nine registry defects or the separate authorized real-provider sandbox requirement.
