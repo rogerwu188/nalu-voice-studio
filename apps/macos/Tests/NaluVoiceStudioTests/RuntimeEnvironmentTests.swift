@@ -43,6 +43,10 @@ final class RuntimeEnvironmentTests: XCTestCase {
         XCTAssertNil(environment["OPENAI_API_KEY"])
         XCTAssertNil(environment["PRIVATE_TOKEN"])
         XCTAssertEqual(environment["NALU_DATABASE_PATH"], "/tmp/Nalu Support/nalu.sqlite3")
+        XCTAssertEqual(
+            environment["NALU_SEMANTIC_RECOGNIZER_BINARY"],
+            "/Applications/Nalu.app/Contents/Resources/recognizers/nalu-semantic-recognizer"
+        )
     }
 
     func testLocalQARootRequiresExplicitFlagAndExistingTemporaryDirectory() throws {

@@ -801,6 +801,7 @@ def main() -> int:
     runtime_resources = app / "Contents/Resources/runtime-resources"
     executable = app / "Contents/MacOS/NaluVoiceStudio"
     analyzer = app / "Contents/Resources/analyzers/nalu-visual-analyzer"
+    recognizer = app / "Contents/Resources/recognizers/nalu-semantic-recognizer"
     if port_is_open():
         raise RuntimeError(f"loopback port {PORT} is already occupied")
     for required in (
@@ -828,6 +829,7 @@ def main() -> int:
             "NALU_DATABASE_PATH": str(database),
             "NALU_REPOSITORY_ROOT": str(runtime_resources),
             "NALU_VISUAL_ANALYZER_BINARY": str(analyzer),
+            "NALU_SEMANTIC_RECOGNIZER_BINARY": str(recognizer),
         }
     )
     log_path = work_dir / "runtime.log"

@@ -112,6 +112,8 @@ enum RuntimeEnvironmentBuilder {
             .appending(path: "runtime-resources").path
         environment["NALU_VISUAL_ANALYZER_BINARY"] = resources
             .appending(path: "analyzers/nalu-visual-analyzer").path
+        environment["NALU_SEMANTIC_RECOGNIZER_BINARY"] = resources
+            .appending(path: "recognizers/nalu-semantic-recognizer").path
         return environment
     }
 }

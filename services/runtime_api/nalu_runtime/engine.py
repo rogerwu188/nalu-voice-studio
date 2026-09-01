@@ -70,6 +70,7 @@ from .repository import ConflictError, Repository, new_id, utc_now
 from .secure_files import harden_tree, secure_directory, secure_file
 from .semantic_media_qa import inspect_semantic_asr, inspect_shot_boundaries
 from .semantic_recognizer import (
+    AppleSpeechRecognizer,
     DisabledLocalSemanticRecognizer,
     LocalSemanticRecognizer,
     SemanticRecognizerError,
@@ -326,7 +327,12 @@ class ProductionService:
         self.visual_analyzer = visual_analyzer or AppleVisionAnalyzer(
             Path(configured_analyzer) if configured_analyzer else None
         )
-        self.semantic_recognizer = semantic_recognizer or DisabledLocalSemanticRecognizer()
+        configured_recognizer = os.environ.get("NALU_SEMANTIC_RECOGNIZER_BINARY")
+        self.semantic_recognizer = semantic_recognizer or (
+            AppleSpeechRecognizer(Path(configured_recognizer))
+            if configured_recognizer
+            else DisabledLocalSemanticRecognizer()
+        )
 
     def _model_policy(self) -> dict:
         policy_path = self.repository_root / "configs" / "model-policy.json"
@@ -1341,27 +1347,6 @@ class ProductionService:
         except SemanticRecognizerError as exc:
             raise ConflictError(str(exc)) from exc
         decoded_audio_fingerprint = audio_energy_fingerprint(master_path)
-        claimed_segments = [segment.model_dump(mode="json") for segment in request.segments]
-        recognition_claims = (
-            request.transcript,
-            claimed_segments,
-            request.recognizer_id,
-            request.recognizer_version,
-            request.locale,
-            request.local_recognition,
-            request.generated_at,
-        )
-        executed_claims = (
-            recognition.transcript,
-            recognition.segments,
-            recognition.recognizer_id,
-            recognition.recognizer_version,
-            recognition.locale,
-            recognition.local_recognition,
-            recognition.generated_at,
-        )
-        if recognition_claims != executed_claims:
-            raise ConflictError("semantic QA request does not match local recognizer output")
         if recognition.source_master_sha256 != masters[0].sha256:
             raise ConflictError("local recognizer output belongs to a different master")
         if recognition.decoded_audio_fingerprint != decoded_audio_fingerprint:
@@ -1422,8 +1407,8 @@ class ProductionService:
             "master_sha256": masters[0].sha256,
             "captions_sha256": captions[0].sha256,
             "shot_manifest_sha256": shot_manifests[0].sha256,
-            "recognizer_version": request.recognizer_version,
-            "recognition_generated_at": request.generated_at,
+            "recognizer_version": recognition.recognizer_version,
+            "recognition_generated_at": recognition.generated_at,
             "recognizer_execution": recognizer_execution,
             "semantic_asr": semantic_asr,
             "shot_boundaries": shot_boundaries,
@@ -1469,7 +1454,7 @@ class ProductionService:
                 "status": report.status,
                 "report_sha256": report.report_sha256,
                 "failure_count": len(report.failures),
-                "local_recognition": request.local_recognition,
+                "local_recognition": recognition.local_recognition,
             },
         )
         if failures:

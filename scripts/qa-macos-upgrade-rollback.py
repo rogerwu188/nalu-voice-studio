@@ -136,12 +136,14 @@ def main():
         resources = args.app / "Contents/Resources"
         runtime = resources / "runtime/nalu-runtime"
         analyzer = resources / "analyzers/nalu-visual-analyzer"
+        recognizer = resources / "recognizers/nalu-semantic-recognizer"
         if not runtime.is_file() or not analyzer.is_file() or not os.access(runtime, os.X_OK):
             raise RuntimeError("invalid packaged app")
         command = [str(runtime)]
         extra = {
             "NALU_REPOSITORY_ROOT": str(resources / "runtime-resources"),
             "NALU_VISUAL_ANALYZER_BINARY": str(analyzer),
+            "NALU_SEMANTIC_RECOGNIZER_BINARY": str(recognizer),
         }
         mode = "packaged"
     else:

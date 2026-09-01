@@ -13,6 +13,7 @@ build_number="${NALU_BUILD_NUMBER:-1}"
 build_root="$repo_root/.build/nalu-macos"
 binary_path="$build_root/NaluVoiceStudio"
 visual_analyzer_path="$build_root/NaluVisualAnalyzer"
+semantic_recognizer_path="$build_root/NaluSemanticRecognizer"
 update_helper_path="$build_root/NaluUpdateHelper"
 mkdir -p "$build_root"
 
@@ -58,6 +59,11 @@ swiftc -parse-as-library \
   -framework ImageIO \
   -o "$visual_analyzer_path"
 
+swiftc -parse-as-library \
+  "$app_root/Sources/NaluSemanticRecognizer/main.swift" \
+  -framework Speech \
+  -o "$semantic_recognizer_path"
+
 swiftc \
   "$app_root"/Sources/NaluUpdateCore/*.swift \
   "$app_root"/Sources/NaluUpdateHelper/*.swift \
@@ -69,6 +75,7 @@ fi
 mkdir -p \
   "$bundle/Contents/MacOS" \
   "$bundle/Contents/Resources/analyzers" \
+  "$bundle/Contents/Resources/recognizers" \
   "$bundle/Contents/Resources/updater" \
   "$bundle/Contents/Resources/runtime" \
   "$bundle/Contents/Resources/runtime-resources"
@@ -76,6 +83,8 @@ cp "$binary_path" "$bundle/Contents/MacOS/NaluVoiceStudio"
 cp "$runtime_binary" "$bundle/Contents/Resources/runtime/nalu-runtime"
 cp "$visual_analyzer_path" \
   "$bundle/Contents/Resources/analyzers/nalu-visual-analyzer"
+cp "$semantic_recognizer_path" \
+  "$bundle/Contents/Resources/recognizers/nalu-semantic-recognizer"
 cp "$update_helper_path" \
   "$bundle/Contents/Resources/updater/nalu-update-helper"
 cp "$repo_root/configs/update-trust.json" \

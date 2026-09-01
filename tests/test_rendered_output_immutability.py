@@ -2,6 +2,7 @@ import hashlib
 import json
 import math
 import struct
+import subprocess
 import threading
 import urllib.parse
 from array import array
@@ -21,7 +22,11 @@ from nalu_runtime.publication_learning import (
     PublicationMetricsVerification,
     PublicationVerification,
 )
-from nalu_runtime.semantic_recognizer import LocalSemanticRecognition
+from nalu_runtime.semantic_recognizer import (
+    AppleSpeechRecognizer,
+    LocalSemanticRecognition,
+    SemanticRecognizerError,
+)
 
 
 class DeterministicSemanticRecognizer:
@@ -1223,7 +1228,7 @@ def test_semantic_qa_fails_closed_without_runtime_registered_recognizer(
     assert "approved local semantic recognizer is not configured" in response.text
 
 
-def test_semantic_qa_rejects_client_claims_and_untrusted_execution_provenance(
+def test_semantic_qa_ignores_client_claims_and_rejects_untrusted_execution_provenance(
     tmp_path: Path,
 ) -> None:
     api = client(tmp_path)
@@ -1234,8 +1239,9 @@ def test_semantic_qa_rejects_client_claims_and_untrusted_execution_provenance(
         f"/v1/production-runs/{run['id']}/semantic-media-qa",
         json=semantic_qa_payload(master_sha, transcript="客户端伪造文本"),
     )
-    assert mismatch.status_code == 409
-    assert "does not match local recognizer output" in mismatch.text
+    assert mismatch.status_code == 200
+    assert mismatch.json()["semantic_asr"]["transcript"] == "回家"
+    assert mismatch.json()["recognizer_execution"]["recognizer_output"]["transcript"] == "回家"
 
     recognizer.decoded_audio_fingerprint_override = "0" * 64
     wrong_audio = api.post(
@@ -1303,6 +1309,59 @@ def test_stored_semantic_qa_rejects_rehashed_execution_provenance_tampering(
     audio_tamper = api.get(f"/v1/production-runs/{run['id']}/semantic-media-qa")
     assert audio_tamper.status_code == 409
     assert "decoded audio fingerprint mismatch" in audio_tamper.text
+
+
+def test_apple_speech_runner_binds_executable_master_and_local_only_result(
+    tmp_path: Path,
+) -> None:
+    binary = tmp_path / "nalu-semantic-recognizer"
+    binary.write_bytes(b"reviewed semantic recognizer fixture")
+    binary.chmod(0o700)
+    master_path = tmp_path / "master.mp4"
+    master = create_playable_mp4(master_path)
+    master_sha = hashlib.sha256(master).hexdigest()
+    response = {
+        "schema_version": "nalu.apple-speech-result/v1",
+        "source_master_sha256": master_sha,
+        "transcript": "回家",
+        "segments": [
+            {
+                "start_seconds": 0.1,
+                "end_seconds": 1.8,
+                "text": "回家",
+                "confidence": 0.95,
+            }
+        ],
+        "recognizer_version": "Apple Speech fixture",
+        "locale": "zh-CN",
+        "generated_at": "2026-09-01T12:30:00Z",
+        "local_recognition": True,
+        "network_used": False,
+    }
+
+    def completed(command, **kwargs):
+        request = json.loads(kwargs["input"])
+        assert command == [str(binary)]
+        assert request["source_master_sha256"] == master_sha
+        assert request["requires_on_device_recognition"] is True
+        assert request["network_fallback_allowed"] is False
+        assert set(kwargs["env"]) == {"PATH", "TMPDIR", "LANG"}
+        return subprocess.CompletedProcess(command, 0, json.dumps(response).encode(), b"")
+
+    runner = AppleSpeechRecognizer(binary)
+    with patch("nalu_runtime.semantic_recognizer.subprocess.run", side_effect=completed):
+        result = runner.recognize(master_path, source_master_sha256=master_sha)
+    assert result.transcript == "回家"
+    assert result.network_used is False
+    assert result.decoded_audio_fingerprint == audio_energy_fingerprint(master_path)
+    assert result.recognizer_executable_sha256 == hashlib.sha256(binary.read_bytes()).hexdigest()
+
+    response["network_used"] = True
+    with (
+        patch("nalu_runtime.semantic_recognizer.subprocess.run", side_effect=completed),
+        pytest.raises(SemanticRecognizerError, match="local execution policy"),
+    ):
+        runner.recognize(master_path, source_master_sha256=master_sha)
 
 
 def test_postproduction_lineage_rejects_unadmitted_shot_and_blocks_release(

@@ -6,6 +6,7 @@ bundle="$repo_root/dist/Nalu Voice Studio.app"
 runtime="$bundle/Contents/Resources/runtime/nalu-runtime"
 runtime_resources="$bundle/Contents/Resources/runtime-resources"
 visual_analyzer="$bundle/Contents/Resources/analyzers/nalu-visual-analyzer"
+semantic_recognizer="$bundle/Contents/Resources/recognizers/nalu-semantic-recognizer"
 update_helper="$bundle/Contents/Resources/updater/nalu-update-helper"
 update_trust="$bundle/Contents/Resources/update-trust.json"
 update_discovery="$bundle/Contents/Resources/update-discovery.json"
@@ -25,6 +26,7 @@ trap cleanup EXIT
 
 test -x "$runtime"
 test -x "$visual_analyzer"
+test -x "$semantic_recognizer"
 test -x "$update_helper"
 test -f "$update_trust"
 test -f "$update_discovery"
@@ -55,6 +57,7 @@ NALU_DATA_ROOT="$fixture_root/data" \
 NALU_DATABASE_PATH="$fixture_root/nalu.sqlite3" \
 NALU_REPOSITORY_ROOT="$runtime_resources" \
 NALU_VISUAL_ANALYZER_BINARY="$visual_analyzer" \
+NALU_SEMANTIC_RECOGNIZER_BINARY="$semantic_recognizer" \
   "$runtime" >"$smoke_root/runtime.log" 2>&1 &
 runtime_pid=$!
 

@@ -30,7 +30,9 @@ update_helper="$bundle/Contents/Resources/updater/nalu-update-helper"
 update_trust="$bundle/Contents/Resources/update-trust.json"
 update_discovery="$bundle/Contents/Resources/update-discovery.json"
 visual_analyzer="$bundle/Contents/Resources/analyzers/nalu-visual-analyzer"
-for signed_path in "$runtime" "$executable" "$update_helper" "$visual_analyzer"; do
+semantic_recognizer="$bundle/Contents/Resources/recognizers/nalu-semantic-recognizer"
+for signed_path in \
+  "$runtime" "$executable" "$update_helper" "$visual_analyzer" "$semantic_recognizer"; do
   if [[ ! -f "$signed_path" ]]; then
     echo "发布包缺少必须签名的可执行文件：$signed_path" >&2
     exit 1
@@ -79,6 +81,7 @@ fi
 # unsigned nested code and apply the wrong entitlements to helpers.
 codesign --force --options runtime --timestamp --sign "$signing_identity" "$runtime"
 codesign --force --options runtime --timestamp --sign "$signing_identity" "$visual_analyzer"
+codesign --force --options runtime --timestamp --sign "$signing_identity" "$semantic_recognizer"
 codesign --force --options runtime --timestamp --sign "$signing_identity" "$update_helper"
 codesign --force --options runtime --timestamp --sign "$signing_identity" "$executable"
 codesign \
