@@ -6,11 +6,13 @@ import re
 import sqlite3
 from datetime import UTC, datetime
 from typing import Any
+from urllib.parse import urlsplit
 from uuid import uuid4
 
 from .continuity import ending_hooks_match_review
 from .continuity_extraction import extract_semantic_ending_continuity
 from .database import Database
+from .feedback_export import FeedbackExportPolicy, IssueTrackerTransport
 from .models import (
     ApprovalCreate,
     ApprovalRecord,
@@ -36,6 +38,8 @@ from .models import (
     EpisodeStatus,
     EpisodeTransitionRequest,
     FeedbackCreate,
+    FeedbackExternalExportCreate,
+    FeedbackExternalExportReceipt,
     FeedbackItem,
     FeedbackReleaseLinkage,
     FeedbackReleaseLinkageCreate,
@@ -512,6 +516,12 @@ class Repository:
                    WHERE f.project_id = ?""",
                 (project_id,),
             ),
+            "feedback_external_exports": (
+                """SELECT x.* FROM feedback_external_exports x
+                   JOIN feedback_items f ON f.id = x.feedback_id
+                   WHERE f.project_id = ?""",
+                (project_id,),
+            ),
             "memory_cards": (
                 "SELECT * FROM memory_cards WHERE project_id = ?",
                 (project_id,),
@@ -718,6 +728,24 @@ class Repository:
                 "record_sha256",
                 "created_at",
             ),
+            "feedback_external_exports": (
+                "feedback_id",
+                "policy_sha256",
+                "policy_json",
+                "idempotency_key_sha256",
+                "confirmation_sha256",
+                "request_sha256",
+                "state",
+                "payload_json",
+                "payload_sha256",
+                "response_json",
+                "response_sha256",
+                "remote_issue_id",
+                "remote_issue_url",
+                "error",
+                "created_at",
+                "updated_at",
+            ),
             "memory_cards": (
                 "id",
                 "project_id",
@@ -842,6 +870,20 @@ class Repository:
             "nalu.project-export/v10",
         }:
             allowed_columns.pop("feedback_triage_records")
+        if backup.schema_version in {
+            "nalu.project-export/v1",
+            "nalu.project-export/v2",
+            "nalu.project-export/v3",
+            "nalu.project-export/v4",
+            "nalu.project-export/v5",
+            "nalu.project-export/v6",
+            "nalu.project-export/v7",
+            "nalu.project-export/v8",
+            "nalu.project-export/v9",
+            "nalu.project-export/v10",
+            "nalu.project-export/v11",
+        }:
+            allowed_columns.pop("feedback_external_exports")
         if backup.schema_version in {
             "nalu.project-export/v1",
             "nalu.project-export/v2",
@@ -1017,6 +1059,7 @@ class Repository:
                 "request_sha256"
             ):
                 raise ConflictError("release linkage request digest does not match its evidence")
+        feedback_triage_digests: dict[Any, Any] = {}
         for row in backup.payload.get("feedback_triage_records", []):
             try:
                 record_body = decode(row.get("record_json", ""))
@@ -1063,6 +1106,70 @@ class Repository:
             }
             if hashlib.sha256(encode(request_body).encode()).hexdigest() != triage.request_sha256:
                 raise ConflictError("feedback triage request digest does not match its evidence")
+            feedback_triage_digests[row.get("feedback_id")] = row.get("record_sha256")
+        for row in backup.payload.get("feedback_external_exports", []):
+            try:
+                policy_body = decode(row.get("policy_json", ""))
+                payload_body = decode(row.get("payload_json", ""))
+                policy = FeedbackExportPolicy(**policy_body)
+                policy.validate()
+            except (TypeError, json.JSONDecodeError, ValueError) as exc:
+                raise ConflictError("project export contains invalid external export") from exc
+            if (
+                row.get("feedback_id") not in feedback_ids
+                or hashlib.sha256(encode(policy_body).encode()).hexdigest()
+                != row.get("policy_sha256")
+                or hashlib.sha256(encode(payload_body).encode()).hexdigest()
+                != row.get("payload_sha256")
+                or payload_body.get("feedback", {}).get("id") != row.get("feedback_id")
+                or payload_body.get("review_bundle", {}).get("sha256")
+                != feedback_bundle_digests.get(row.get("feedback_id"))
+                or payload_body.get("triage", {}).get("sha256")
+                != feedback_triage_digests.get(row.get("feedback_id"))
+                or payload_body.get("attachments") != []
+            ):
+                raise ConflictError("project export contains tampered external export")
+            request_body = {
+                "feedback_id": row.get("feedback_id"),
+                "policy_sha256": row.get("policy_sha256"),
+                "idempotency_key_sha256": row.get("idempotency_key_sha256"),
+                "confirmation_sha256": row.get("confirmation_sha256"),
+                "payload_sha256": row.get("payload_sha256"),
+            }
+            if hashlib.sha256(encode(request_body).encode()).hexdigest() != row.get(
+                "request_sha256"
+            ):
+                raise ConflictError("external export request digest does not match")
+            if row.get("state") not in {"submitting", "ambiguous", "confirmed"}:
+                raise ConflictError("project export contains invalid external export state")
+            if row.get("state") == "confirmed":
+                try:
+                    response = decode(row.get("response_json", ""))
+                    remote_url = urlsplit(row.get("remote_issue_url", ""))
+                except (TypeError, json.JSONDecodeError) as exc:
+                    raise ConflictError("confirmed external export receipt is unreadable") from exc
+                if (
+                    hashlib.sha256(encode(response).encode()).hexdigest()
+                    != row.get("response_sha256")
+                    or not row.get("remote_issue_id")
+                    or remote_url.scheme != "https"
+                    or not remote_url.hostname
+                    or remote_url.username is not None
+                    or remote_url.password is not None
+                    or remote_url.query
+                    or remote_url.fragment
+                ):
+                    raise ConflictError("confirmed external export receipt is invalid")
+            elif any(
+                row.get(field) is not None
+                for field in (
+                    "response_json",
+                    "response_sha256",
+                    "remote_issue_id",
+                    "remote_issue_url",
+                )
+            ):
+                raise ConflictError("unconfirmed external export contains a receipt")
         if any(
             row.get("project_id") != project_id or row.get("asset_id") not in asset_ids
             for row in backup.payload.get("memory_cards", [])
@@ -1410,6 +1517,250 @@ class Repository:
             raise ConflictError("stored feedback triage record digest mismatch")
         stored["record_sha256"] = row["record_sha256"]
         return FeedbackTriageRecord.model_validate(stored)
+
+    @staticmethod
+    def _explicit_feedback_export_confirmation(value: str) -> bool:
+        normalized = "".join(value.lower().split())
+        return any(
+            phrase in normalized
+            for phrase in ("我确认导出问题单", "我同意发送审核资料", "确认发送到问题跟踪器")
+        )
+
+    def export_feedback_to_issue_tracker(
+        self,
+        feedback_id: str,
+        request: FeedbackExternalExportCreate,
+        idempotency_key: str | None,
+        policy: FeedbackExportPolicy,
+        transport: IssueTrackerTransport,
+    ) -> FeedbackExternalExportReceipt:
+        policy.validate()
+        if not policy.enabled or not policy.administrator_authorized:
+            raise ConflictError("external feedback export is disabled")
+        if idempotency_key is None or not 16 <= len(idempotency_key.strip()) <= 200:
+            raise ConflictError("a stable 16-200 character idempotency key is required")
+        if idempotency_key != idempotency_key.strip():
+            raise ConflictError("idempotency key must not have surrounding whitespace")
+        if not self._explicit_feedback_export_confirmation(request.confirmation_text):
+            raise ConflictError("external feedback export requires explicit confirmation")
+        feedback = self.get_feedback(feedback_id)
+        if not feedback.share_authorized or feedback.status != "ready_for_review":
+            raise ConflictError("local-only feedback cannot be exported")
+        bundle = self.get_feedback_review_bundle(feedback_id)
+        triage = self.get_feedback_triage_record(feedback_id)
+        if request.review_bundle_sha256 != bundle.bundle_sha256:
+            raise ConflictError("export review bundle digest does not match")
+        if request.triage_record_sha256 != triage.record_sha256:
+            raise ConflictError("export triage record digest does not match")
+
+        payload = {
+            "schema_version": "nalu.feedback-issue-payload/v1",
+            "feedback": {
+                "id": feedback.id,
+                "category": feedback.category,
+                "redacted_message": feedback.message,
+                "source": feedback.source,
+                "screen": feedback.screen,
+            },
+            "review_bundle": {
+                "sha256": bundle.bundle_sha256,
+                "expected_behavior": bundle.expected_behavior,
+                "actual_behavior": bundle.actual_behavior,
+                "reproduction_steps": bundle.reproduction_steps,
+                "diagnostics": bundle.diagnostics,
+            },
+            "triage": {
+                "sha256": triage.record_sha256,
+                "priority": triage.priority,
+                "disposition": triage.disposition,
+                "duplicate_of_feedback_id": triage.duplicate_of_feedback_id,
+                "rationale": triage.rationale,
+                "reviewed_by": triage.reviewed_by,
+                "reviewed_at": triage.reviewed_at,
+            },
+            "attachments": [],
+        }
+        payload_json = encode(payload)
+        if len(payload_json.encode()) > policy.max_payload_bytes:
+            raise ConflictError("redacted issue payload exceeds the configured limit")
+        payload_sha256 = hashlib.sha256(payload_json.encode()).hexdigest()
+        policy_body = {
+            "schema_version": policy.schema_version,
+            "enabled": policy.enabled,
+            "administrator_authorized": policy.administrator_authorized,
+            "provider": policy.provider,
+            "endpoint": policy.endpoint,
+            "repository": policy.repository,
+            "max_payload_bytes": policy.max_payload_bytes,
+        }
+        policy_sha256 = hashlib.sha256(encode(policy_body).encode()).hexdigest()
+        policy_json = encode(policy_body)
+        idempotency_key_sha256 = hashlib.sha256(idempotency_key.encode()).hexdigest()
+        confirmation_sha256 = hashlib.sha256(
+            request.confirmation_text.strip().encode()
+        ).hexdigest()
+        request_body = {
+            "feedback_id": feedback_id,
+            "policy_sha256": policy_sha256,
+            "idempotency_key_sha256": idempotency_key_sha256,
+            "confirmation_sha256": confirmation_sha256,
+            "payload_sha256": payload_sha256,
+        }
+        request_sha256 = hashlib.sha256(encode(request_body).encode()).hexdigest()
+        with self.db.connect() as connection:
+            existing = connection.execute(
+                "SELECT * FROM feedback_external_exports WHERE feedback_id = ?",
+                (feedback_id,),
+            ).fetchone()
+        if existing is not None:
+            if (
+                existing["policy_sha256"] != policy_sha256
+                or existing["idempotency_key_sha256"] != idempotency_key_sha256
+                or existing["request_sha256"] != request_sha256
+            ):
+                raise ConflictError("feedback export already has different immutable inputs")
+            if existing["state"] != "confirmed":
+                raise ConflictError("feedback export requires administrator reconciliation")
+            return self.get_feedback_external_export(feedback_id)
+
+        now = utc_now()
+        try:
+            with self.db.connect() as connection:
+                connection.execute(
+                    """INSERT INTO feedback_external_exports VALUES (
+                       ?, ?, ?, ?, ?, ?, 'submitting', ?, ?, NULL, NULL, NULL, NULL, NULL, ?, ?
+                    )""",
+                    (
+                        feedback_id,
+                        policy_sha256,
+                        policy_json,
+                        idempotency_key_sha256,
+                        confirmation_sha256,
+                        request_sha256,
+                        payload_json,
+                        payload_sha256,
+                        now,
+                        now,
+                    ),
+                )
+        except sqlite3.IntegrityError as exc:
+            with self.db.connect() as connection:
+                concurrent = connection.execute(
+                    "SELECT * FROM feedback_external_exports WHERE feedback_id = ?",
+                    (feedback_id,),
+                ).fetchone()
+            if (
+                concurrent is not None
+                and concurrent["policy_sha256"] == policy_sha256
+                and concurrent["idempotency_key_sha256"] == idempotency_key_sha256
+                and concurrent["request_sha256"] == request_sha256
+                and concurrent["state"] == "confirmed"
+            ):
+                return self.get_feedback_external_export(feedback_id)
+            raise ConflictError(
+                "feedback export was created concurrently and requires reconciliation"
+            ) from exc
+        try:
+            receipt = transport.create_issue(
+                endpoint=policy.endpoint,
+                repository=policy.repository,
+                payload=payload,
+                idempotency_key=idempotency_key,
+            )
+            parsed = urlsplit(receipt.remote_issue_url)
+            if (
+                not receipt.remote_issue_id
+                or len(receipt.remote_issue_id) > 160
+                or parsed.scheme != "https"
+                or not parsed.hostname
+                or parsed.username is not None
+                or parsed.password is not None
+                or parsed.query
+                or parsed.fragment
+            ):
+                raise ValueError("issue tracker returned an invalid receipt")
+            response_json = encode(receipt.response)
+            if len(response_json.encode()) > policy.max_payload_bytes:
+                raise ValueError("issue tracker response exceeds the configured limit")
+            response_sha256 = hashlib.sha256(response_json.encode()).hexdigest()
+        except Exception as exc:
+            with self.db.connect() as connection:
+                connection.execute(
+                    """UPDATE feedback_external_exports
+                       SET state = 'ambiguous', error = ?, updated_at = ?
+                       WHERE feedback_id = ? AND state = 'submitting'""",
+                    (type(exc).__name__, utc_now(), feedback_id),
+                )
+            raise ConflictError(
+                "external feedback export outcome is ambiguous; automatic retry is forbidden"
+            ) from exc
+
+        updated_at = utc_now()
+        with self.db.connect() as connection:
+            updated = connection.execute(
+                """UPDATE feedback_external_exports
+                   SET state = 'confirmed', response_json = ?, response_sha256 = ?,
+                       remote_issue_id = ?, remote_issue_url = ?, updated_at = ?
+                   WHERE feedback_id = ? AND state = 'submitting'""",
+                (
+                    response_json,
+                    response_sha256,
+                    receipt.remote_issue_id,
+                    receipt.remote_issue_url,
+                    updated_at,
+                    feedback_id,
+                ),
+            )
+            if updated.rowcount != 1:
+                raise ConflictError("feedback export state changed concurrently")
+        return self.get_feedback_external_export(feedback_id)
+
+    def get_feedback_external_export(
+        self, feedback_id: str
+    ) -> FeedbackExternalExportReceipt:
+        self.get_feedback(feedback_id)
+        with self.db.connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM feedback_external_exports WHERE feedback_id = ?",
+                (feedback_id,),
+            ).fetchone()
+        if row is None:
+            raise NotFoundError("feedback external export not found")
+        if row["state"] != "confirmed":
+            raise ConflictError("feedback export is not confirmed")
+        if (
+            hashlib.sha256(row["payload_json"].encode()).hexdigest() != row["payload_sha256"]
+            or hashlib.sha256(row["response_json"].encode()).hexdigest()
+            != row["response_sha256"]
+        ):
+            raise ConflictError("stored feedback export digest mismatch")
+        return FeedbackExternalExportReceipt(
+            feedback_id=feedback_id,
+            provider="github_issues",
+            repository=self._feedback_export_repository(
+                row["policy_sha256"], row["policy_json"]
+            ),
+            state="confirmed",
+            remote_issue_id=row["remote_issue_id"],
+            remote_issue_url=row["remote_issue_url"],
+            payload_sha256=row["payload_sha256"],
+            response_sha256=row["response_sha256"],
+            idempotency_key_sha256=row["idempotency_key_sha256"],
+            request_sha256=row["request_sha256"],
+            created_at=row["created_at"],
+            updated_at=row["updated_at"],
+        )
+
+    @staticmethod
+    def _feedback_export_repository(policy_sha256: str, policy_json: str) -> str:
+        if hashlib.sha256(policy_json.encode()).hexdigest() != policy_sha256:
+            raise ConflictError("stored feedback export policy digest mismatch")
+        try:
+            policy = FeedbackExportPolicy(**decode(policy_json))
+            policy.validate()
+        except (TypeError, json.JSONDecodeError, ValueError) as exc:
+            raise ConflictError("stored feedback export policy target is invalid") from exc
+        return policy.repository
 
     def create_feedback_release_linkage(
         self,

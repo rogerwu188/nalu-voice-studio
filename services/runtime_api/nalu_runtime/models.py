@@ -152,7 +152,8 @@ class ProjectExport(BaseModel):
         "nalu.project-export/v9",
         "nalu.project-export/v10",
         "nalu.project-export/v11",
-    ] = "nalu.project-export/v11"
+        "nalu.project-export/v12",
+    ] = "nalu.project-export/v12"
     exported_at: str
     payload: dict[str, Any]
     payload_sha256: str
@@ -398,6 +399,30 @@ class FeedbackTriageRecord(BaseModel):
         if self.disposition != "duplicate" and self.duplicate_of_feedback_id is not None:
             raise ValueError("only duplicate disposition may reference another feedback")
         return self
+
+
+class FeedbackExternalExportCreate(BaseModel):
+    review_bundle_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    triage_record_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    confirmation_text: str = Field(min_length=1, max_length=300)
+
+
+class FeedbackExternalExportReceipt(BaseModel):
+    schema_version: Literal["nalu.feedback-external-export/v1"] = (
+        "nalu.feedback-external-export/v1"
+    )
+    feedback_id: str
+    provider: Literal["github_issues"]
+    repository: str
+    state: Literal["confirmed"]
+    remote_issue_id: str
+    remote_issue_url: str
+    payload_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    response_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    idempotency_key_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    request_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    created_at: str
+    updated_at: str
 
 
 class ReviewedChangeEvidence(BaseModel):

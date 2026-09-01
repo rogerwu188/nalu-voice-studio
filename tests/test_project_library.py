@@ -119,7 +119,7 @@ def test_five_project_libraries_are_versioned_and_confirmed(tmp_path: Path) -> N
     assert [item["revision"] for item in history] == [1, 2]
 
     backup = api.get(f"/v1/projects/{project['id']}/export").json()
-    assert backup["schema_version"] == "nalu.project-export/v11"
+    assert backup["schema_version"] == "nalu.project-export/v12"
     restored_api = client(tmp_path / "restored")
     restored = restored_api.post("/v1/project-imports", json=backup)
     assert restored.status_code == 201

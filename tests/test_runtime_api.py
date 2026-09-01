@@ -12,6 +12,7 @@ from urllib.parse import unquote, urlparse
 import pytest
 from fastapi.testclient import TestClient
 from nalu_runtime.app import create_app
+from nalu_runtime.feedback_export import FeedbackExportPolicy, IssueTrackerReceipt
 from nalu_runtime.qingshan_adapter import QingshanAdapterError
 
 
@@ -358,7 +359,7 @@ def test_feedback_review_bundle_is_local_redacted_immutable_and_exported(
     assert bundle["attachments"] == []
     assert bundle["diagnostics"] == {
         "runtime_version": "0.1.0",
-        "schema_version": "16",
+        "schema_version": "17",
         "screen": "family-materials",
     }
     assert bundle["redaction_applied"] is True
@@ -376,7 +377,7 @@ def test_feedback_review_bundle_is_local_redacted_immutable_and_exported(
     assert api.get(f"/v1/feedback/{feedback['id']}/review-bundle").json() == bundle
 
     backup = api.get(f"/v1/projects/{project['id']}/export").json()
-    assert backup["schema_version"] == "nalu.project-export/v11"
+    assert backup["schema_version"] == "nalu.project-export/v12"
     assert (
         backup["payload"]["feedback_review_bundles"][0]["bundle_sha256"] == bundle["bundle_sha256"]
     )
@@ -531,7 +532,7 @@ def test_feedback_release_linkage_is_hash_bound_immutable_and_never_claims_relea
     assert current_feedback["status"] == "ready_for_review"
 
     backup = api.get(f"/v1/projects/{project['id']}/export").json()
-    assert backup["schema_version"] == "nalu.project-export/v11"
+    assert backup["schema_version"] == "nalu.project-export/v12"
     assert backup["payload"]["feedback_release_linkages"][0]["linkage_sha256"] == linkage[
         "linkage_sha256"
     ]
@@ -650,7 +651,7 @@ def test_feedback_triage_is_human_confirmed_inert_immutable_and_exported(
     assert current_feedback["status"] == "ready_for_review"
 
     backup = api.get(f"/v1/projects/{project['id']}/export").json()
-    assert backup["schema_version"] == "nalu.project-export/v11"
+    assert backup["schema_version"] == "nalu.project-export/v12"
     assert backup["payload"]["feedback_triage_records"][0]["record_sha256"] == triage[
         "record_sha256"
     ]
@@ -673,6 +674,228 @@ def test_feedback_triage_is_human_confirmed_inert_immutable_and_exported(
         .status_code
         == 409
     )
+
+
+def test_feedback_external_export_is_authorized_idempotent_and_ambiguity_safe(
+    tmp_path: Path,
+) -> None:
+    class RecordingTransport:
+        def __init__(self, fail: bool = False) -> None:
+            self.fail = fail
+            self.calls: list[dict] = []
+
+        def create_issue(self, **kwargs) -> IssueTrackerReceipt:
+            self.calls.append(kwargs)
+            if self.fail:
+                raise TimeoutError("unknown remote outcome")
+            return IssueTrackerReceipt(
+                remote_issue_id="42",
+                remote_issue_url="https://github.com/example/nalu/issues/42",
+                response={"number": 42, "state": "open"},
+            )
+
+    policy = FeedbackExportPolicy(
+        enabled=True,
+        administrator_authorized=True,
+        endpoint="https://issues.example.test/api/issues",
+        repository="example/nalu",
+    )
+    transport = RecordingTransport()
+    app = create_app(
+        tmp_path / "export.sqlite3",
+        tmp_path / "export-data",
+        feedback_export_policy=policy,
+        issue_tracker_transport=transport,
+    )
+    api = TestClient(app)
+
+    def reviewed_feedback(title: str) -> tuple[dict, dict, dict]:
+        project = api.post("/v1/projects", json={"title": title}).json()
+        feedback = api.post(
+            "/v1/feedback",
+            json={
+                "project_id": project["id"],
+                "category": "bug",
+                "message": "按钮失败，联系 me@example.com",
+                "share_authorized": True,
+            },
+        ).json()
+        bundle = api.post(
+            f"/v1/feedback/{feedback['id']}/review-bundle",
+            json={
+                "prepared_by": "本机用户",
+                "expected_behavior": "按钮工作",
+                "actual_behavior": "按钮失败",
+                "reproduction_steps": ["点击按钮"],
+                "confirmation_text": "我确认生成审核包",
+            },
+        ).json()
+        triage = api.post(
+            f"/v1/feedback/{feedback['id']}/triage",
+            json={
+                "review_bundle_sha256": bundle["bundle_sha256"],
+                "priority": "p1",
+                "disposition": "accepted",
+                "rationale": "需要修复",
+                "reviewed_by": "maintainer",
+                "reviewed_at": "2026-09-01T03:00:00Z",
+                "confirmation_text": "我确认这份分诊",
+            },
+            headers={"Idempotency-Key": f"triage-{feedback['id']}"},
+        ).json()
+        return project, feedback, triage
+
+    project, feedback, triage = reviewed_feedback("外部导出")
+    bundle = api.get(f"/v1/feedback/{feedback['id']}/review-bundle").json()
+    endpoint = f"/v1/feedback/{feedback['id']}/external-export"
+    request = {
+        "review_bundle_sha256": bundle["bundle_sha256"],
+        "triage_record_sha256": triage["record_sha256"],
+        "confirmation_text": "我确认导出问题单",
+    }
+    assert api.post(endpoint, json=request).status_code == 409
+    headers = {"Idempotency-Key": "external-export-0001"}
+    created = api.post(endpoint, json=request, headers=headers)
+    assert created.status_code == 201
+    receipt = created.json()
+    assert receipt["state"] == "confirmed"
+    assert receipt["remote_issue_id"] == "42"
+    assert len(transport.calls) == 1
+    payload = transport.calls[0]["payload"]
+    assert payload["attachments"] == []
+    assert "me@example.com" not in json.dumps(payload, ensure_ascii=False)
+    assert api.get(endpoint).json() == receipt
+    assert api.post(endpoint, json=request, headers=headers).json() == receipt
+    assert len(transport.calls) == 1
+    assert (
+        api.post(
+            endpoint,
+            json=request,
+            headers={"Idempotency-Key": "external-export-0002"},
+        ).status_code
+        == 409
+    )
+    with app.state.repository.db.connect() as connection:
+        stored = dict(
+            connection.execute(
+                "SELECT * FROM feedback_external_exports WHERE feedback_id = ?",
+                (feedback["id"],),
+            ).fetchone()
+        )
+    assert stored["idempotency_key_sha256"] == hashlib.sha256(
+        b"external-export-0001"
+    ).hexdigest()
+    assert "external-export-0001" not in json.dumps(stored, ensure_ascii=False)
+
+    backup = api.get(f"/v1/projects/{project['id']}/export").json()
+    assert backup["schema_version"] == "nalu.project-export/v12"
+    restored = client(tmp_path / "export-restored")
+    assert restored.post("/v1/project-imports", json=backup).status_code == 201
+    assert restored.get(endpoint).json() == receipt
+
+    tampered = deepcopy(backup)
+    row = tampered["payload"]["feedback_external_exports"][0]
+    body = json.loads(row["payload_json"])
+    body["attachments"] = ["secret-photo.jpg"]
+    row["payload_json"] = json.dumps(body, ensure_ascii=False, sort_keys=True)
+    row["payload_sha256"] = hashlib.sha256(row["payload_json"].encode()).hexdigest()
+    tampered["payload_sha256"] = hashlib.sha256(
+        json.dumps(tampered["payload"], ensure_ascii=False, sort_keys=True).encode()
+    ).hexdigest()
+    assert (
+        client(tmp_path / "export-tampered")
+        .post("/v1/project-imports", json=tampered)
+        .status_code
+        == 409
+    )
+
+    ambiguous_transport = RecordingTransport(fail=True)
+    ambiguous_app = create_app(
+        tmp_path / "ambiguous.sqlite3",
+        tmp_path / "ambiguous-data",
+        feedback_export_policy=policy,
+        issue_tracker_transport=ambiguous_transport,
+    )
+    ambiguous_api = TestClient(ambiguous_app)
+    project2 = ambiguous_api.post("/v1/projects", json={"title": "歧义结果"}).json()
+    feedback2 = ambiguous_api.post(
+        "/v1/feedback",
+        json={
+            "project_id": project2["id"],
+            "category": "bug",
+            "message": "歧义测试",
+            "share_authorized": True,
+        },
+    ).json()
+    bundle2 = ambiguous_api.post(
+        f"/v1/feedback/{feedback2['id']}/review-bundle",
+        json={
+            "prepared_by": "本机用户",
+            "expected_behavior": "成功",
+            "actual_behavior": "失败",
+            "reproduction_steps": ["操作"],
+            "confirmation_text": "我确认生成审核包",
+        },
+    ).json()
+    triage2 = ambiguous_api.post(
+        f"/v1/feedback/{feedback2['id']}/triage",
+        json={
+            "review_bundle_sha256": bundle2["bundle_sha256"],
+            "priority": "p2",
+            "disposition": "accepted",
+            "rationale": "测试",
+            "reviewed_by": "maintainer",
+            "reviewed_at": "2026-09-01T03:00:00Z",
+            "confirmation_text": "我确认这份分诊",
+        },
+        headers={"Idempotency-Key": "ambiguous-triage-0001"},
+    ).json()
+    ambiguous_request = {
+        "review_bundle_sha256": bundle2["bundle_sha256"],
+        "triage_record_sha256": triage2["record_sha256"],
+        "confirmation_text": "我确认导出问题单",
+    }
+    ambiguous_endpoint = f"/v1/feedback/{feedback2['id']}/external-export"
+    ambiguous_headers = {"Idempotency-Key": "ambiguous-export-0001"}
+    assert (
+        ambiguous_api.post(
+            ambiguous_endpoint, json=ambiguous_request, headers=ambiguous_headers
+        ).status_code
+        == 409
+    )
+    assert (
+        ambiguous_api.post(
+            ambiguous_endpoint, json=ambiguous_request, headers=ambiguous_headers
+        ).status_code
+        == 409
+    )
+    assert len(ambiguous_transport.calls) == 1
+
+    _, feedback3, triage3 = reviewed_feedback("并发导出")
+    bundle3 = api.get(f"/v1/feedback/{feedback3['id']}/review-bundle").json()
+    concurrent_endpoint = f"/v1/feedback/{feedback3['id']}/external-export"
+    concurrent_request = {
+        "review_bundle_sha256": bundle3["bundle_sha256"],
+        "triage_record_sha256": triage3["record_sha256"],
+        "confirmation_text": "我确认导出问题单",
+    }
+    before_calls = len(transport.calls)
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        responses = list(
+            executor.map(
+                lambda _: api.post(
+                    concurrent_endpoint,
+                    json=concurrent_request,
+                    headers={"Idempotency-Key": "concurrent-export-0001"},
+                ),
+                range(2),
+            )
+        )
+    assert sorted(response.status_code for response in responses) in (
+        [201, 201],
+        [201, 409],
+    )
+    assert len(transport.calls) == before_calls + 1
 
 
 def test_memory_card_requires_explicit_confirmation_and_keeps_evidence(tmp_path: Path) -> None:
@@ -758,7 +981,7 @@ def test_memory_card_requires_explicit_confirmation_and_keeps_evidence(tmp_path:
     assert confirmations[0]["spoken_confirmation"] == "我确认这张记忆卡并归档"
 
     backup = api.get(f"/v1/projects/{project['id']}/export").json()
-    assert backup["schema_version"] == "nalu.project-export/v11"
+    assert backup["schema_version"] == "nalu.project-export/v12"
     assert backup["payload"]["memory_cards"][0]["asset_id"] == asset["id"]
 
     other = api.post("/v1/projects", json={"title": "另一个项目"}).json()
@@ -1108,6 +1331,7 @@ def test_project_rename_archive_export_and_restore(tmp_path: Path) -> None:
     legacy["payload"].pop("feedback_review_bundles")
     legacy["payload"].pop("feedback_release_linkages")
     legacy["payload"].pop("feedback_triage_records")
+    legacy["payload"].pop("feedback_external_exports")
     legacy["payload"].pop("memory_cards")
     legacy["payload"].pop("memory_card_revisions")
     legacy["payload"].pop("memory_card_confirmation_records")
@@ -1207,7 +1431,7 @@ def test_database_migration_preserves_existing_database(tmp_path: Path) -> None:
         connection.execute("INSERT INTO legacy_marker VALUES ('preserve-me')")
 
     api = create_app(database_path, tmp_path / "data")
-    assert api.state.repository.db.schema_version() == 16
+    assert api.state.repository.db.schema_version() == 17
     with sqlite3.connect(database_path) as connection:
         marker = connection.execute("SELECT value FROM legacy_marker").fetchone()[0]
         approval_table = connection.execute(
@@ -1259,7 +1483,7 @@ def test_populated_v1_database_upgrades_without_project_loss(tmp_path: Path) -> 
         connection.execute("DELETE FROM schema_migrations WHERE version >= 2")
 
     after = TestClient(create_app(database_path, data_root))
-    assert after.app.state.repository.db.schema_version() == 16
+    assert after.app.state.repository.db.schema_version() == 17
     assert after.get(f"/v1/projects/{project['id']}").json()["title"] == "我的一生"
     assert after.get(f"/v1/episodes/{episode['id']}").json()["approved_script_revision"] == 1
     approvals = after.get(f"/v1/episodes/{episode['id']}/script-approvals").json()
@@ -1451,6 +1675,7 @@ def test_project_season_and_episode_asset_scope_inheritance(tmp_path: Path) -> N
     legacy_v3["payload"].pop("feedback_review_bundles")
     legacy_v3["payload"].pop("feedback_release_linkages")
     legacy_v3["payload"].pop("feedback_triage_records")
+    legacy_v3["payload"].pop("feedback_external_exports")
     legacy_v3["payload"].pop("memory_cards")
     legacy_v3["payload"].pop("memory_card_revisions")
     legacy_v3["payload"].pop("memory_card_confirmation_records")
@@ -1522,7 +1747,7 @@ def test_complete_privacy_export_and_confirmed_project_deletion(tmp_path: Path) 
         assert {"project-export.json", "privacy-manifest.json", media_name} <= names
         assert archive.read(media_name) == b"private-photo-bytes"
         project_backup = json.loads(archive.read("project-export.json"))
-        assert project_backup["schema_version"] == "nalu.project-export/v11"
+        assert project_backup["schema_version"] == "nalu.project-export/v12"
         assert project_backup["payload"]["asset_consent_records"][0]["action_type"] == "granted"
         manifest = json.loads(archive.read("privacy-manifest.json"))
         assert manifest["database_included"] is False

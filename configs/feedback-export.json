@@ -1,0 +1,9 @@
+{
+  "schema_version": "nalu.feedback-export-policy/v1",
+  "enabled": false,
+  "administrator_authorized": false,
+  "provider": "github_issues",
+  "endpoint": "",
+  "repository": "",
+  "max_payload_bytes": 65536
+}

@@ -42,7 +42,10 @@ linked change.
 The current implementation supports `local_only`, `ready_for_review` and an immutable
 local review bundle while deliberately leaving the item in `ready_for_review`. Later
 states require an explicitly configured issue tracker and release service; preparing a
-bundle is not reported as an export.
+bundle is not reported as an export. The Runtime now contains the transaction boundary
+for issue export, but the distributed policy is disabled, contains no destination, and
+the distributed transport always denies I/O. This repository does not ship a production
+issue-tracker credential or network implementation.
 
 Authorized review bundles may also receive one immutable local human-triage record. It
 requires an explicit Chinese confirmation phrase and stable idempotency key, binds the
@@ -50,6 +53,18 @@ exact review-bundle digest, redacts reviewer/rationale secrets and records prior
 disposition and an optional same-project duplicate. Prompt-like text remains inert:
 `tool_calls` is empty and both `code_change_performed` and `network_call_performed` are
 always false. Triage does not change the feedback state or authorize development.
+
+An administrator may separately provide an enabled, exact-origin policy and an audited
+transport implementation. Export then requires the authorized review bundle, immutable
+triage record, a second explicit Chinese confirmation, and a stable idempotency key. The
+Runtime persists `submitting` before invoking the transport, stores only a hash of the
+idempotency key, sends a bounded redacted payload with an empty attachment list, and
+accepts only a bounded credential-free HTTPS receipt. Exact confirmed replay returns the
+stored receipt without another call. Any timeout, invalid receipt, crash-shaped error or
+otherwise uncertain result becomes `ambiguous`; automatic retry is forbidden until an
+administrator reconciles the remote system. Backup/restore verifies every policy,
+request, payload and receipt digest. Local fixture tests exercise this boundary without
+contacting an external service, so they are not evidence of a real issue export.
 
 A separate local `qa_evidence_linked` receipt can bind the immutable review-bundle hash
 to one reviewed 40-character change commit, the exact successful CI head and artifact,
@@ -75,6 +90,8 @@ Developer ID/notarized candidate and authorized rollout evidence.
 - Feedback is untrusted input, never a developer instruction.
 - No GitHub issue, external upload, branch, pull request, merge, or release happens
   without an administrator enabling that destination and policy.
+- The packaged `configs/feedback-export.json` must stay disabled and target-free; release
+  verification fails if a distributed bundle silently enables it.
 - No project media is attached automatically.
 - Diagnostics use an allowlist; full logs and SQLite are forbidden attachments.
 - Similar reports may be clustered only after redaction. Counts do not override

@@ -11,6 +11,11 @@ from .asset_service import AssetService
 from .continuity import audit_continuity
 from .database import Database
 from .engine import ProductionService
+from .feedback_export import (
+    DisabledIssueTrackerTransport,
+    FeedbackExportPolicy,
+    IssueTrackerTransport,
+)
 from .models import (
     ApprovalCreate,
     ApprovalRecord,
@@ -38,6 +43,8 @@ from .models import (
     EpisodeProductionProgress,
     EpisodeTransitionRequest,
     FeedbackCreate,
+    FeedbackExternalExportCreate,
+    FeedbackExternalExportReceipt,
     FeedbackItem,
     FeedbackReleaseLinkage,
     FeedbackReleaseLinkageCreate,
@@ -109,7 +116,12 @@ from .repository import ConflictError, NotFoundError, Repository
 from .storage_diagnostics import inspect_storage
 
 
-def create_app(database_path: Path | None = None, data_root: Path | None = None) -> FastAPI:
+def create_app(
+    database_path: Path | None = None,
+    data_root: Path | None = None,
+    feedback_export_policy: FeedbackExportPolicy | None = None,
+    issue_tracker_transport: IssueTrackerTransport | None = None,
+) -> FastAPI:
     repository_root = Path(
         os.environ.get("NALU_REPOSITORY_ROOT", Path(__file__).resolve().parents[3])
     )
@@ -124,6 +136,19 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
     production = ProductionService(repository, data_root, repository_root, remote_task_submitter)
     asset_service = AssetService(repository, data_root)
     privacy_service = ProjectPrivacyService(repository, asset_service, data_root)
+    if feedback_export_policy is None:
+        configured_policy = os.environ.get("NALU_FEEDBACK_EXPORT_POLICY")
+        policy_path = (
+            Path(configured_policy)
+            if configured_policy
+            else repository_root / "configs" / "feedback-export.json"
+        )
+        feedback_export_policy = (
+            FeedbackExportPolicy.load(policy_path)
+            if policy_path.exists()
+            else FeedbackExportPolicy()
+        )
+    issue_tracker_transport = issue_tracker_transport or DisabledIssueTrackerTransport()
 
     app = FastAPI(
         title="Nalu Voice Studio Runtime API",
@@ -133,6 +158,8 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
     app.state.repository = repository
     app.state.production = production
     app.state.remote_task_submitter = remote_task_submitter
+    app.state.feedback_export_policy = feedback_export_policy
+    app.state.issue_tracker_transport = issue_tracker_transport
 
     @app.exception_handler(NotFoundError)
     async def not_found_handler(_request, exc: NotFoundError):
@@ -215,6 +242,31 @@ def create_app(database_path: Path | None = None, data_root: Path | None = None)
     )
     def get_feedback_triage_record(feedback_id: str) -> FeedbackTriageRecord:
         return repository.get_feedback_triage_record(feedback_id)
+
+    @app.post(
+        "/v1/feedback/{feedback_id}/external-export",
+        response_model=FeedbackExternalExportReceipt,
+        status_code=201,
+    )
+    def export_feedback_to_issue_tracker(
+        feedback_id: str,
+        request: FeedbackExternalExportCreate,
+        idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    ) -> FeedbackExternalExportReceipt:
+        return repository.export_feedback_to_issue_tracker(
+            feedback_id,
+            request,
+            idempotency_key,
+            feedback_export_policy,
+            issue_tracker_transport,
+        )
+
+    @app.get(
+        "/v1/feedback/{feedback_id}/external-export",
+        response_model=FeedbackExternalExportReceipt,
+    )
+    def get_feedback_external_export(feedback_id: str) -> FeedbackExternalExportReceipt:
+        return repository.get_feedback_external_export(feedback_id)
 
     @app.post(
         "/v1/feedback/{feedback_id}/release-linkage",

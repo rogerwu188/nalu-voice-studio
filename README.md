@@ -106,6 +106,8 @@ backup boundaries and deletion behavior.
 - `GET /v1/feedback/{feedback_id}/review-bundle`
 - `POST /v1/feedback/{feedback_id}/triage`
 - `GET /v1/feedback/{feedback_id}/triage`
+- `POST /v1/feedback/{feedback_id}/external-export`
+- `GET /v1/feedback/{feedback_id}/external-export`
 - `POST /v1/feedback/{feedback_id}/release-linkage`
 - `GET /v1/feedback/{feedback_id}/release-linkage`
 - `POST /v1/projects/{project_id}/memory-cards`

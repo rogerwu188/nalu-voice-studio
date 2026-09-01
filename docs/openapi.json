@@ -1728,6 +1728,113 @@
         "title": "FeedbackCreate",
         "type": "object"
       },
+      "FeedbackExternalExportCreate": {
+        "properties": {
+          "confirmation_text": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Confirmation Text",
+            "type": "string"
+          },
+          "review_bundle_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Review Bundle Sha256",
+            "type": "string"
+          },
+          "triage_record_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Triage Record Sha256",
+            "type": "string"
+          }
+        },
+        "required": [
+          "review_bundle_sha256",
+          "triage_record_sha256",
+          "confirmation_text"
+        ],
+        "title": "FeedbackExternalExportCreate",
+        "type": "object"
+      },
+      "FeedbackExternalExportReceipt": {
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "feedback_id": {
+            "title": "Feedback Id",
+            "type": "string"
+          },
+          "idempotency_key_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Idempotency Key Sha256",
+            "type": "string"
+          },
+          "payload_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Payload Sha256",
+            "type": "string"
+          },
+          "provider": {
+            "const": "github_issues",
+            "title": "Provider",
+            "type": "string"
+          },
+          "remote_issue_id": {
+            "title": "Remote Issue Id",
+            "type": "string"
+          },
+          "remote_issue_url": {
+            "title": "Remote Issue Url",
+            "type": "string"
+          },
+          "repository": {
+            "title": "Repository",
+            "type": "string"
+          },
+          "request_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Request Sha256",
+            "type": "string"
+          },
+          "response_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Response Sha256",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "nalu.feedback-external-export/v1",
+            "default": "nalu.feedback-external-export/v1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "state": {
+            "const": "confirmed",
+            "title": "State",
+            "type": "string"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "feedback_id",
+          "provider",
+          "repository",
+          "state",
+          "remote_issue_id",
+          "remote_issue_url",
+          "payload_sha256",
+          "response_sha256",
+          "idempotency_key_sha256",
+          "request_sha256",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "FeedbackExternalExportReceipt",
+        "type": "object"
+      },
       "FeedbackItem": {
         "properties": {
           "category": {
@@ -4600,7 +4707,7 @@
             "type": "string"
           },
           "schema_version": {
-            "default": "nalu.project-export/v11",
+            "default": "nalu.project-export/v12",
             "enum": [
               "nalu.project-export/v1",
               "nalu.project-export/v2",
@@ -4612,7 +4719,8 @@
               "nalu.project-export/v8",
               "nalu.project-export/v9",
               "nalu.project-export/v10",
-              "nalu.project-export/v11"
+              "nalu.project-export/v11",
+              "nalu.project-export/v12"
             ],
             "title": "Schema Version",
             "type": "string"
@@ -7374,6 +7482,108 @@
           }
         },
         "summary": "Create Feedback"
+      }
+    },
+    "/v1/feedback/{feedback_id}/external-export": {
+      "get": {
+        "operationId": "get_feedback_external_export_v1_feedback__feedback_id__external_export_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "feedback_id",
+            "required": true,
+            "schema": {
+              "title": "Feedback Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackExternalExportReceipt"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Feedback External Export"
+      },
+      "post": {
+        "operationId": "export_feedback_to_issue_tracker_v1_feedback__feedback_id__external_export_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "feedback_id",
+            "required": true,
+            "schema": {
+              "title": "Feedback Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedbackExternalExportCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackExternalExportReceipt"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Feedback To Issue Tracker"
       }
     },
     "/v1/feedback/{feedback_id}/release-linkage": {
