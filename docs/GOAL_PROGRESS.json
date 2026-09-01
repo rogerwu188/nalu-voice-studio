@@ -17,7 +17,7 @@
     "id": "sop-07-qingshan-candidate-isolated-audit-automation-core",
     "sop": "SOP-07",
     "product_commit": "1349636ab1e9f046bd0bc0e770a3bfc3bfaa95e1",
-    "evidence_commit": "PENDING",
+    "evidence_commit": "1471ea4e47ffa6b99b568f6fecababb1aba483ff",
     "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33490668498",
     "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33490668498/artifacts/9793822234",
     "result": "PASS"
