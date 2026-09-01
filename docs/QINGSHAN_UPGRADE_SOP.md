@@ -39,9 +39,11 @@ carried forward—when the corrected upstream release is promoted.
 The latest reviewed candidate is `v2026.09.01` at commit
 `098361366538b74eff3985af0d28e5462cb29535`. Its release notes report 114 targeted
 tests, but an isolated checkout still fails the upstream registry-integrity function:
-69 gates, 66 coded/runtime-bound gates and the same eight missing registered paths.
-The prior host-specific absolute path is no longer present, which is progress but does
-not satisfy the complete promotion rule. `configs/qingshan-candidate-audit.json` binds
+69 gates, 66 coded/runtime-bound gates, eight missing registered paths and one
+host-specific absolute test path. The upstream validator can accidentally accept that
+absolute path on the machine where the unrelated file exists, so Nalu independently
+rejects every absolute registered path before considering promotion.
+`configs/qingshan-candidate-audit.json` binds
 the exact candidate tree, registry digest and failure list. CI validates that the record
 remains `QUARANTINED`, cannot replace the active pin, cannot authorize paid execution
 and does not misreport the unrun complete registered suite as passing.

@@ -535,7 +535,9 @@ Current evidence:
   registry (`a6308af097da8cac3c664466ba665277970391587c44bb1dd949421901e8ac6b`)
   are bound to a machine-readable quarantine record. The upstream integrity function
   found 69 gates and 66 coded/runtime-bound gates but still failed on eight exact missing
-  paths, so Nalu retained `v2026.08.29.1`, prohibited paid execution and did not claim
+  paths plus one host-specific absolute test path. The latter had been masked because
+  the unrelated file existed on the audit Mac; Nalu's independent portable audit now
+  rejects it on every host. Nalu retained `v2026.08.29.1`, prohibited paid execution and did not claim
   the advertised targeted subset as the complete registered suite. All 114 Nalu Runtime
   tests, real HTTP smoke, both architecture builds and the universal artifact passed;
   artifact `9793232570` has GitHub digest
@@ -544,7 +546,8 @@ Current evidence:
   staged-update evidence SHA-256
   `c6cd5b8d4fee0900196d37007a2dcc8934a62a04c825198ea0d42c2ef1c39f30` and rollback
   evidence SHA-256 `c55fc9364a81783328719c2eac995a4d288c2c93c63a3f95c5b439ef424b0239`.
-  This closes only the candidate-quarantine audit checkpoint, not SOP-07 or promotion.
+  The original evidence therefore required correction; only a new CI run of the portable
+  audit can close the candidate-quarantine checkpoint. This is not SOP-07 or promotion.
 - Still required before `PASS`: a corrected pinned Qingshan release whose registry
   integrity and complete registered tests pass, plus authorized real-provider sandbox
   task/result/receipt evidence. Offline authority and transport doubles are not a paid

@@ -11,21 +11,21 @@
     "TODO": 1,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "a567ee54dc70b6792dcc8bd2518539c27beb4ff2",
-  "last_advanced_at": "2026-09-01T09:16:00Z",
+  "observed_head": "580e474ee0883fe2642bd8c041548abd85303adc",
+  "last_advanced_at": "2026-09-01T09:25:00Z",
   "last_closed_checkpoint": {
-    "id": "sop-07-qingshan-v2026-09-01-candidate-quarantine-audit",
-    "sop": "SOP-07",
-    "product_commit": "a567ee54dc70b6792dcc8bd2518539c27beb4ff2",
-    "evidence_commit": "8b7eff874975412130ec9601322a869b80571968",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33489248611",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33489248611/artifacts/9793232570",
+    "id": "sop-13-feedback-governed-release-readiness-core",
+    "sop": "SOP-13",
+    "product_commit": "2570094ac9b4e2bbb80310e2f547b63eb0e016a9",
+    "evidence_commit": "746a3506b228cb44236d973d3fd7dbd6723f9da8",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33487099669",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33487099669/artifacts/9792348966",
     "result": "PASS"
   },
   "current_checkpoint": {
     "sop": "SOP-07",
     "status": "IN_PROGRESS",
-    "summary": "The exact v2026.09.01 candidate is reproducibly quarantined after its complete registry integrity check still found eight missing paths. The active pin and paid path remain unchanged. Native feedback-readiness implementation is also green in CI but still awaits an unlocked-Mac visual and accessibility-tree QA pass."
+    "summary": "The v2026.09.01 quarantine evidence is being corrected after an independent portable audit exposed one host-specific absolute test path that the upstream validator masked on the original audit Mac. Eight missing paths and this ninth portability failure remain fail-closed; the active pin and paid path are unchanged."
   },
   "next_action": {
     "sop": "SOP-07",

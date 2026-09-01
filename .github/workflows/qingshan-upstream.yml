@@ -16,6 +16,8 @@ jobs:
       - uses: actions/checkout@v7
       - id: upstream
         run: python scripts/check_qingshan_upstream.py --check-latest
+      - name: Reproduce reviewed candidate quarantine
+        run: python scripts/audit_qingshan_candidate.py --json
       - if: steps.upstream.outputs.update_available == 'true'
         uses: actions/github-script@v9
         env:

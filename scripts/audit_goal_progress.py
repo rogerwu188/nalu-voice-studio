@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import subprocess
 from pathlib import Path
 from runpy import run_path
 from typing import Any
@@ -14,7 +15,9 @@ SOP_PATTERN = re.compile(r"^SOP-(0[0-9]|1[0-3])$")
 audit_sop = run_path("scripts/audit_product_sop.py")["audit_sop"]
 
 
-def audit_goal_progress(progress: dict[str, Any], sop_text: str) -> dict[str, Any]:
+def audit_goal_progress(
+    progress: dict[str, Any], sop_text: str, repository: Path | None = None
+) -> dict[str, Any]:
     failures: list[str] = []
     sop_result = audit_sop(sop_text)
     if sop_result["status"] != "PASS":
@@ -44,6 +47,39 @@ def audit_goal_progress(progress: dict[str, Any], sop_text: str) -> dict[str, An
             failures.append(f"last closed checkpoint {field} must be GitHub evidence")
     if closed.get("result") != "PASS":
         failures.append("last closed checkpoint must record a PASS result")
+    if repository is not None:
+        product_commit = closed.get("product_commit", "")
+        evidence_commit = closed.get("evidence_commit", "")
+        for label, commit in (
+            ("observed head", observed_head),
+            ("product commit", product_commit),
+            ("evidence commit", evidence_commit),
+        ):
+            check = subprocess.run(
+                ["git", "cat-file", "-e", f"{commit}^{{commit}}"],
+                cwd=repository,
+                capture_output=True,
+                check=False,
+            )
+            if check.returncode != 0:
+                failures.append(f"{label} does not resolve to a repository commit")
+        ancestry = subprocess.run(
+            ["git", "merge-base", "--is-ancestor", product_commit, evidence_commit],
+            cwd=repository,
+            capture_output=True,
+            check=False,
+        )
+        if ancestry.returncode != 0:
+            failures.append("evidence commit must descend from the product commit")
+        evidence_paths = subprocess.run(
+            ["git", "diff-tree", "--no-commit-id", "--name-only", "-r", evidence_commit],
+            cwd=repository,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if "docs/PRODUCT_SOP.md" not in evidence_paths.stdout.splitlines():
+            failures.append("evidence commit must update docs/PRODUCT_SOP.md")
 
     checkpoint = progress.get("current_checkpoint") or {}
     if not SOP_PATTERN.fullmatch(checkpoint.get("sop", "")):
@@ -110,7 +146,7 @@ def main() -> int:
     args = parser.parse_args()
     progress = json.loads(Path(args.path).read_text(encoding="utf-8"))
     result = audit_goal_progress(
-        progress, Path(args.sop).read_text(encoding="utf-8")
+        progress, Path(args.sop).read_text(encoding="utf-8"), Path.cwd()
     )
     if args.as_json:
         print(json.dumps(result, ensure_ascii=False, sort_keys=True))

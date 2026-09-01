@@ -11,6 +11,7 @@
   "runtime_bound_count": 66,
   "integrity_status": "FAIL",
   "failures": [
+    "nonportable_absolute_path:SCENE-AUTHORITY-LOCK:/Users/rogerwu/code/backlot-os/components/pipeline-tools/tests/test_production_video_submission_gate.py",
     "missing_path:GIGGLE-REROLL-COST-GUARD:configs/reroll_cost_guard_policy_v1_20260716.json",
     "missing_path:AGENT-WATCH-LISTEN:workflow/AGENT_WATCH_LISTEN_GATE_TEMPLATE.json",
     "missing_path:AGENT-MISTAKE-ANTI-RECURRENCE:workflow/agent_mistake_ledger.json",

@@ -16,12 +16,20 @@ def repository_inputs() -> tuple[dict, str]:
 
 def test_repository_goal_progress_is_consistent_with_product_sop() -> None:
     progress, sop_text = repository_inputs()
-    result = audit_goal_progress(progress, sop_text)
+    result = audit_goal_progress(progress, sop_text, Path.cwd())
     assert result["status"] == "PASS", result["failures"]
     assert result["project_complete"] is False
     assert result["current_checkpoint"] == progress["current_checkpoint"]["sop"]
     assert result["next_action"] == progress["next_action"]["id"]
     assert progress["next_action"]["requires_user_authorization"] is False
+
+
+def test_nonexistent_evidence_commit_is_rejected() -> None:
+    progress, sop_text = repository_inputs()
+    progress["last_closed_checkpoint"]["evidence_commit"] = "f" * 40
+    result = audit_goal_progress(progress, sop_text, Path.cwd())
+    assert result["status"] == "FAIL"
+    assert "evidence commit does not resolve to a repository commit" in result["failures"]
 
 
 def test_sop_count_drift_and_false_completion_are_rejected() -> None:
