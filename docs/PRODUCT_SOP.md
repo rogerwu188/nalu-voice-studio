@@ -955,6 +955,34 @@ Current evidence:
   newly downloaded software remains pending. This closes only the untrusted-provenance
   checkpoint: a packaged production Apple on-device recognizer, real-master semantic QA
   and original-resolution human audiovisual review remain required for SOP-09 `PASS`.
+- Commits `f56c5e8`, `41fc9aa` and `ad39da1` add that packaged production recognizer
+  boundary. A separately built Swift helper rehashes the sealed master before and after
+  `SFSpeechURLRecognitionRequest`, requires Apple on-device Simplified Chinese support,
+  explicitly disables network fallback and returns timestamped segments through a
+  bounded JSON protocol. The Runtime launches it with a minimal environment, hashes the
+  helper before and after execution, validates finite bounded segment evidence, computes
+  the decoded-audio fingerprint itself and treats the helper output—not compatible legacy
+  client fields—as QA authority. The app registers only its packaged helper path. Build,
+  universal merge, ad-hoc and production signing paths explicitly preserve the Speech
+  entitlement on the nested executable; release verification reads that entitlement and
+  checks both architectures. Bundle smoke executes a malformed-input negative case and
+  requires the helper to exit closed before requesting Speech permission.
+- Final implementation candidate `ad39da1` passed all 131 Runtime tests, lint, OpenAPI,
+  SOP/progress/Qingshan gates, real HTTP smoke, Swift Package tests, independent arm64 and
+  x86_64 application builds, helper entitlement/release verification, bundled Runtime
+  smokes, staged update, populated rollback and universal merge in GitHub CI run
+  `33508561436` (jobs `99858502449`, `99858502773`, `99858502788`, `99860080790`).
+  Exact universal artifact `9800868404` has GitHub digest
+  `48a7c829c84e55e13e05ecf8979cbdb337927a9cf89972a6273758570e36184b`; its inner ZIP
+  SHA-256 is `cd391cfb898dd6b3e86e5e1f95a9d84ddfda55c1824ee1a4a5c283ac62e9f1eb`.
+  Independent extraction found helper SHA-256
+  `343373e59ad444a2604fcfa0fd0046be382478e17434a8893982857258ea09dc`, both `arm64`
+  and `x86_64` slices, a valid nested signature, Speech and audio-input entitlements, and
+  the on-device/no-network protocol strings. No downloaded code was launched on the
+  user's Mac because confirmation remains pending. This closes the packaged recognizer
+  implementation checkpoint, not SOP-09: real Speech permission, real consented final-
+  master recognition, calibrated semantic acceptance and human audiovisual review on one
+  release candidate are still required.
 
 ## SOP-10 · Controlled release and learning loop — IN_PROGRESS
 
