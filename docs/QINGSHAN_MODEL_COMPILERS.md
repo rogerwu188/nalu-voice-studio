@@ -26,6 +26,8 @@ Every compiler output binds:
 - inherited continuity snapshot ID and resolved-library count;
 - inherited asset IDs, kinds, available local SHA-256 values, and transport state;
 - provider-specific constraints and planning defaults; and
+- paid-boundary requirements for duration, explicit combat classification, honest native
+  delivery resolution and the prohibition on silent upscale; and
 - a canonical `compilation_sha256` over the whole contract.
 
 The Qingshan workspace manifest stores the compiler-output path and file SHA-256.
@@ -42,6 +44,16 @@ planning, prompt validation, provider asset transport, registered Qingshan gates
 cost approval, and the durable transaction submitter remain later mandatory boundaries.
 This prevents a successful local dry run from being mistaken for a paid or completed
 production.
+
+The durable submitter revalidates the same contract immediately before its only allowed
+provider write. Every grouped request must preserve a finite model-supported
+`duration_seconds`, an explicit combat/noncombat classification, the compiler's native
+and delivery resolution, an honest native-resolution label and
+`silent_upscale_forbidden: true`. A combat choreography contract cannot be combined with
+an explicit noncombat declaration. Conversely, words such as “禁止战斗” in a negative
+prompt do not silently turn an explicitly noncombat scene into combat. Missing,
+conflicting, out-of-range, non-finite or resolution-drifted values fail before the
+transport is called.
 
 Each materialized workspace also contains the result of Qingshan's own gate-registry
 integrity checker. A known upstream release defect may be quarantined only by exact

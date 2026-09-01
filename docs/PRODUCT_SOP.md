@@ -564,6 +564,33 @@ Current evidence:
   `8daf4d3a609ae467626556ab6106752b24e06cb14604d76487ae15d47d1f083f`.
   Daily discovery and main CI now rerun this isolated comparison; drift fails closed.
   This closes only the corrected candidate-quarantine automation checkpoint.
+- Commits `2c9b571` and `9bef1ee`, GitHub CI run `33504514059`: Nalu isolated and
+  reproduced the current Qingshan `v2026.09.01.3` candidate at exact commit
+  `c58c43b5536370835cc39e0be099a8b62324b7de`, tracked-tree SHA-256
+  `aac9a7ce7ce2ae905743093248b904b8a560ed30694f3338847a6c0047463763` and
+  unchanged registry SHA-256
+  `a6308af097da8cac3c664466ba665277970391587c44bb1dd949421901e8ac6b`.
+  Its useful duration-preservation, explicit noncombat and native-delivery-resolution
+  corrections were mapped into Nalu's versioned compiler and only paid-I/O boundary,
+  while the same eight missing registered paths and one absolute path kept the candidate
+  quarantined and the active pin unchanged. Immediately before any future transport call,
+  finite model-bounded duration, explicit nonconflicting combat classification, honest
+  native/delivery resolution and silent-upscale prohibition are now mandatory. Rehashed
+  semantic tampering, non-finite duration and negative-prompt combat words with an
+  explicit noncombat declaration have dedicated offline regressions. All 127 Runtime
+  tests, portable candidate reproduction, real HTTP smoke, both architecture builds,
+  release verification, packaged Runtime smoke, populated rollback and Universal merge
+  passed without a credential, provider call or paid task. Universal artifact
+  `9799233262` has GitHub digest
+  `sha256:1786f9f2e628056a9433e8964a0747bbc5a90693b64f3ec3b9d228b0142c06de`
+  and independently downloaded inner ZIP SHA-256
+  `774cb67de80fb0449b69f98b4f4cae273b7885416f2cc20cecde65ce6c607145`.
+  Its packaged candidate audit is byte-identical to source at SHA-256
+  `dffb3a986f6dd43f91c4182fe1d249831700eff59791d66639ec8ba042212b25`,
+  reports all nine failures, `QUARANTINED` and `paid_execution_allowed: false`; the
+  Universal Runtime contains the `nalu_runtime.qingshan_compilers` archive module and
+  has SHA-256 `87a79dcfaf3fc034a44937ae1d25131a0e2c69de4467718e18b5999f6252efbb`.
+  This closes only the current-release productization checkpoint, not SOP-07.
 - Still required before `PASS`: a corrected pinned Qingshan release whose registry
   integrity and complete registered tests pass, plus authorized real-provider sandbox
   task/result/receipt evidence. Offline authority and transport doubles are not a paid

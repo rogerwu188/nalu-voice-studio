@@ -36,9 +36,13 @@ It may support local contract work, but cannot authorize a paid request. Any add
 changed failure is unreviewed drift and fails closed. The exception must be removed—not
 carried forward—when the corrected upstream release is promoted.
 
-The latest reviewed candidate is `v2026.09.01` at commit
-`098361366538b74eff3985af0d28e5462cb29535`. Its release notes report 114 targeted
-tests, but an isolated checkout still fails the upstream registry-integrity function:
+The latest reviewed candidate is `v2026.09.01.3` at commit
+`c58c43b5536370835cc39e0be099a8b62324b7de`. Its three incremental fixes preserve
+grouped-unit duration at the paid boundary, honor explicit noncombat classification and
+bind delivery resolution to the episode/native contract. Nalu productized those semantics
+in its own immutable compiler and pre-I/O submitter contract without promoting or running
+the quarantined candidate. An isolated checkout still fails the upstream
+registry-integrity function:
 69 gates, 66 coded/runtime-bound gates, eight missing registered paths and one
 host-specific absolute test path. The upstream validator can accidentally accept that
 absolute path on the machine where the unrelated file exists, so Nalu independently
