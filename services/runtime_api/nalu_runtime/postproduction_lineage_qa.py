@@ -12,6 +12,9 @@ import av
 
 REQUIRED_AUDIO_LAYERS = {"dialogue", "ambience", "foley", "music", "sfx"}
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
+RELEASE_LOUDNESS_RANGE_LUFS = (-17.0, -15.0)
+RELEASE_MAX_LOUDNESS_RANGE_LU = 12.0
+RELEASE_TRUE_PEAK_MAX_DBTP = -1.0
 
 
 def canonical_sha256(value: dict[str, Any]) -> str:
@@ -190,6 +193,85 @@ def audio_energy_fingerprint(path: Path) -> str:
     if signature["status"] != "PASS":
         raise ValueError(f"audio cannot be fingerprinted: {signature['failures']}")
     return str(signature["energy_fingerprint"])
+
+
+def measure_ebu_r128(path: Path) -> dict[str, Any]:
+    """Measure release loudness with libav's bundled EBU R128 filter.
+
+    This stays inside the packaged Runtime and does not depend on a host ffmpeg
+    executable or accept self-reported values from a postproduction manifest.
+    """
+    failures: list[str] = []
+    last_metadata: dict[str, str] = {}
+    try:
+        with av.open(str(path), mode="r") as container:
+            if not container.streams.audio:
+                failures.append("AUDIO_STREAM_MISSING")
+            else:
+                stream = container.streams.audio[0]
+                graph = av.filter.Graph()
+                source = graph.add_abuffer(template=stream)
+                meter = graph.add("ebur128", "metadata=1:peak=true")
+                sink = graph.add("abuffersink")
+                source.link_to(meter)
+                meter.link_to(sink)
+                graph.configure()
+
+                def drain() -> None:
+                    nonlocal last_metadata
+                    while True:
+                        try:
+                            frame = graph.pull()
+                        except (av.error.BlockingIOError, av.error.EOFError):
+                            break
+                        metadata = dict(frame.metadata)
+                        if metadata:
+                            last_metadata = metadata
+
+                for frame in container.decode(stream):
+                    graph.push(frame)
+                    drain()
+                graph.push(None)
+                drain()
+    except (av.FFmpegError, OSError, ValueError) as exc:
+        failures.append(f"EBU_R128_MEASUREMENT_FAILED:{type(exc).__name__}")
+
+    try:
+        integrated = float(last_metadata["lavfi.r128.I"])
+        loudness_range = float(last_metadata["lavfi.r128.LRA"])
+        linear_true_peak = float(last_metadata["lavfi.r128.true_peak"])
+        true_peak = 20 * math.log10(linear_true_peak) if linear_true_peak > 0 else -math.inf
+        if not all(math.isfinite(value) for value in (integrated, loudness_range, true_peak)):
+            raise ValueError("non-finite EBU R128 metric")
+    except (KeyError, TypeError, ValueError):
+        integrated = loudness_range = true_peak = None
+        failures.append("EBU_R128_METRICS_MISSING")
+    return {
+        "status": "PASS" if not failures else "FAIL",
+        "measurement_standard": "EBU_R128_LIBAVFILTER",
+        "integrated_loudness_lufs": round(integrated, 3) if integrated is not None else None,
+        "loudness_range_lu": (
+            round(loudness_range, 3) if loudness_range is not None else None
+        ),
+        "true_peak_dbtp": round(true_peak, 3) if true_peak is not None else None,
+        "failures": failures,
+    }
+
+
+def release_loudness_failures(metrics: dict[str, Any], prefix: str) -> list[str]:
+    if metrics.get("status") != "PASS":
+        return [f"{prefix}_LOUDNESS_MEASUREMENT_FAILED"]
+    integrated = float(metrics["integrated_loudness_lufs"])
+    loudness_range = float(metrics["loudness_range_lu"])
+    true_peak = float(metrics["true_peak_dbtp"])
+    failures: list[str] = []
+    if not RELEASE_LOUDNESS_RANGE_LUFS[0] <= integrated <= RELEASE_LOUDNESS_RANGE_LUFS[1]:
+        failures.append(f"{prefix}_INTEGRATED_LOUDNESS_OUT_OF_RANGE")
+    if loudness_range > RELEASE_MAX_LOUDNESS_RANGE_LU:
+        failures.append(f"{prefix}_LOUDNESS_RANGE_TOO_WIDE")
+    if true_peak > RELEASE_TRUE_PEAK_MAX_DBTP:
+        failures.append(f"{prefix}_TRUE_PEAK_EXCEEDS_CEILING")
+    return failures
 
 
 def _cosine_similarity(left: list[float], right: list[float]) -> float:
@@ -404,6 +486,9 @@ def inspect_postproduction_lineage(
     published_path = _safe_file(exports_root, str(published.get("relative_path") or ""))
     published_facts: dict[str, Any] = {}
     master_audio = _audio_signature(master_path)
+    master_loudness = measure_ebu_r128(master_path)
+    failures.extend(release_loudness_failures(master_loudness, "FINAL_MASTER"))
+    published_loudness: dict[str, Any] = {}
     mix_similarity = 0.0
     if published_path is None:
         failures.append("PUBLISHED_MIX_MISSING_OR_UNSAFE")
@@ -411,6 +496,10 @@ def inspect_postproduction_lineage(
         failures.append("PUBLISHED_MIX_SHA_MISMATCH")
     else:
         published_facts = _audio_signature(published_path)
+        published_loudness = measure_ebu_r128(published_path)
+        failures.extend(
+            release_loudness_failures(published_loudness, "PUBLISHED_MIX")
+        )
         if published_facts["status"] != "PASS":
             failures.append("PUBLISHED_MIX_DECODE_FAILED")
         if published_facts.get("source_sample_rates_hz") != [48000]:
@@ -459,8 +548,15 @@ def inspect_postproduction_lineage(
             "stems": stem_results,
             "published_mix": {
                 **{key: value for key, value in published_facts.items() if key != "energy_windows"},
+                "release_loudness": published_loudness,
                 "master_energy_similarity": round(mix_similarity, 6),
                 "minimum_master_energy_similarity": 0.98,
+            },
+            "final_master_release_loudness": master_loudness,
+            "release_loudness_contract": {
+                "accepted_range_lufs": list(RELEASE_LOUDNESS_RANGE_LUFS),
+                "max_loudness_range_lu": RELEASE_MAX_LOUDNESS_RANGE_LU,
+                "true_peak_max_dbtp": RELEASE_TRUE_PEAK_MAX_DBTP,
             },
         },
         "subtitles": {

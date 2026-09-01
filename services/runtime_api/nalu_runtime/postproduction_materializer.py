@@ -25,6 +25,7 @@ from .models import (
 from .postproduction_lineage_qa import (
     audio_energy_fingerprint,
     inspect_postproduction_lineage,
+    measure_ebu_r128,
 )
 from .secure_files import harden_tree, secure_directory
 
@@ -378,6 +379,52 @@ def _mixed_audio_chunks(
         yield encoded
 
 
+def _gain_audio_chunks(chunks: Iterable[array], gain_db: float) -> Iterator[array]:
+    multiplier = math.pow(10.0, gain_db / 20.0)
+    for chunk in chunks:
+        encoded = array("h")
+        encoded.frombytes(
+            np.clip(
+                np.rint(np.frombuffer(chunk, dtype=np.int16) * multiplier),
+                -32768,
+                32767,
+            )
+            .astype(np.int16)
+            .tobytes()
+        )
+        yield encoded
+
+
+def _normalize_release_mix(
+    path: Path,
+    *,
+    sample_count: int,
+    should_cancel: CancellationProbe | None = None,
+) -> None:
+    metrics = measure_ebu_r128(path)
+    if metrics.get("status") != "PASS":
+        raise PostproductionMaterializationError("release mix loudness could not be measured")
+    desired_gain = -16.0 - float(metrics["integrated_loudness_lufs"])
+    peak_headroom = -1.5 - float(metrics["true_peak_dbtp"])
+    gain_db = max(-8.0, min(12.0, desired_gain, peak_headroom))
+    normalized = path.with_name(f".{path.stem}-normalized.wav")
+    _write_wav(
+        normalized,
+        _gain_audio_chunks(
+            _audio_chunks(
+                path,
+                start_seconds=0,
+                sample_count=sample_count,
+                require_full_duration=True,
+                should_cancel=should_cancel,
+            ),
+            gain_db,
+        ),
+        should_cancel=should_cancel,
+    )
+    os.replace(normalized, path)
+
+
 def _artifact(relative_path: str, path: Path, *, kind: str, media_type: str) -> dict[str, Any]:
     return {
         "kind": kind,
@@ -633,6 +680,11 @@ def _materialize_postproduction_locked(
                 sample_count=total_sample_count,
                 should_cancel=should_cancel,
             ),
+            should_cancel=should_cancel,
+        )
+        _normalize_release_mix(
+            published_mix_path,
+            sample_count=total_sample_count,
             should_cancel=should_cancel,
         )
 

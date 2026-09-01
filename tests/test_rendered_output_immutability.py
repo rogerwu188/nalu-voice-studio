@@ -15,6 +15,7 @@ from unittest.mock import patch
 import av
 import pytest
 from fastapi.testclient import TestClient
+from nalu_runtime import postproduction_lineage_qa
 from nalu_runtime.app import create_app
 from nalu_runtime.models import RunStatus
 from nalu_runtime.postproduction_lineage_qa import audio_energy_fingerprint
@@ -350,7 +351,7 @@ def create_playable_mp4(
                     0
                     if silent
                     else int(
-                        7000 * math.sin(2 * math.pi * 440 * (sample_cursor + offset) / sample_rate)
+                        5600 * math.sin(2 * math.pi * 440 * (sample_cursor + offset) / sample_rate)
                     )
                 )
                 pcm.extend((sample, sample))
@@ -363,7 +364,7 @@ def create_playable_mp4(
     return path.read_bytes()
 
 
-def create_audio_stem(path: Path, *, frequency: int = 440) -> bytes:
+def create_audio_stem(path: Path, *, frequency: int = 440, amplitude: int = 5600) -> bytes:
     sample_rate = 48000
     duration_seconds = 2
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -380,7 +381,7 @@ def create_audio_stem(path: Path, *, frequency: int = 440) -> bytes:
             pcm = array("h")
             for offset in range(samples):
                 sample = int(
-                    7000
+                    amplitude
                     * math.sin(2 * math.pi * frequency * (sample_cursor + offset) / sample_rate)
                 )
                 pcm.extend((sample, sample))
@@ -391,6 +392,26 @@ def create_audio_stem(path: Path, *, frequency: int = 440) -> bytes:
         for packet in audio.encode(None):
             container.mux(packet)
     return path.read_bytes()
+
+
+def test_release_loudness_is_measured_from_media_and_fails_closed(tmp_path: Path) -> None:
+    compliant = tmp_path / "compliant.wav"
+    too_loud = tmp_path / "too-loud.wav"
+    create_audio_stem(compliant)
+    create_audio_stem(too_loud, amplitude=28000)
+
+    compliant_metrics = postproduction_lineage_qa.measure_ebu_r128(compliant)
+    loud_metrics = postproduction_lineage_qa.measure_ebu_r128(too_loud)
+
+    assert compliant_metrics["measurement_standard"] == "EBU_R128_LIBAVFILTER"
+    assert postproduction_lineage_qa.release_loudness_failures(
+        compliant_metrics, "FINAL_MASTER"
+    ) == []
+    assert "FINAL_MASTER_INTEGRATED_LOUDNESS_OUT_OF_RANGE" in (
+        postproduction_lineage_qa.release_loudness_failures(
+            loud_metrics, "FINAL_MASTER"
+        )
+    )
 
 
 def write_postproduction_lineage_manifest(
@@ -875,6 +896,12 @@ def test_verified_seal_and_human_qa_complete_atomically_and_retry_safely(
         "sfx",
     }
     assert lineage_qa["audio_mix"]["published_mix"]["master_energy_similarity"] >= 0.98
+    published_loudness = lineage_qa["audio_mix"]["published_mix"]["release_loudness"]
+    master_loudness = lineage_qa["audio_mix"]["final_master_release_loudness"]
+    assert published_loudness["measurement_standard"] == "EBU_R128_LIBAVFILTER"
+    assert -17 <= published_loudness["integrated_loudness_lufs"] <= -15
+    assert -17 <= master_loudness["integrated_loudness_lufs"] <= -15
+    assert master_loudness["true_peak_dbtp"] <= -1
     completion_payload = {
         "output_seal_sha256": seal["manifest_sha256"],
         "completed_by": "local-user",
