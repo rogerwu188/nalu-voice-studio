@@ -1235,6 +1235,30 @@ Current evidence:
   staged-update and rollback evidence-file SHA-256 values are
   `174a03a11adcd6667f436ec1466be0181b29bddc4f05933efc2004f6e33bcbee` and
   `f15ec1320dc19dca999c41e4922bc54b433846eda1b867a15b898222e319fca5`.
+- Commit `54c2a23`, GitHub CI run `33480223053`: schema migration 20 and project-export
+  v15 add a separate persistent development-handoff transaction after an approved work
+  order. The packaged policy is disabled, unauthorized and target-free, and the
+  distributed transport denies I/O. An injected local fixture proves explicit
+  confirmation, stable idempotency, pre-I/O `submitting` persistence, bounded attachment-
+  free input, exact confirmed replay without a second call and `ambiguous` quarantine
+  without automatic retry. The payload and receipt can claim only handoff acceptance:
+  report text remains inert and branch, code, merge, signing and release flags stay false.
+  Changed inputs, credential-bearing/invalid endpoints or receipts, malicious policy,
+  payload/backup tampering and retry after an uncertain result fail closed. No real
+  development agent or external service was contacted. All 111 Runtime tests, OpenAPI
+  compatibility, real HTTP smoke, Swift tests, both architecture builds/smokes, staged
+  update, ten-episode schema-20 restart/rollback and universal merge passed. Universal
+  artifact `9789789616` has GitHub digest
+  `sha256:49cbd731c67adbac1d8df154b80f1fe7eabd856b9904431a9e411f9ea8b79a42`;
+  its downloaded inner ZIP SHA-256 is
+  `e1aa8d5917f7a61dde73112ef66830b81758b751de44c5c0c99203545b590840`.
+  Independent inspection found the disabled packaged handoff policy at SHA-256
+  `b4836edda2f612f20b0e7221177d3d346f15eb64887b1eca804d0050dd2bd14e`
+  and reconfirmed the disabled issue-export policy at SHA-256
+  `96475ba5a2908b74f2e04db512d6c097abe73453d360871cc0149287480c1146`;
+  staged-update and rollback evidence-file SHA-256 values are
+  `f7094df64c948e9c9e923f6b37cbb4e2a413e9653bbe0986030fd1b61d960a2b` and
+  `fd58b8b7eebb0df3f09fff185bdfb56ef09371f9f55e7963f8e4ab08c2fb3c03`.
 - Still required before `PASS`: administrator-authorized external issue export, agent
   development integration after human triage, independently obtained rather than locally
   supplied review/CI/Apple/installation receipts, a real Developer ID/notarized staged
