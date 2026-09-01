@@ -1016,6 +1016,31 @@ Current evidence:
   large-text/readback/VoiceOver check with a populated learning fixture, Developer ID
   signing, notarization or authorized real-platform reconciliation, so this native
   presentation checkpoint and SOP-10 remain `IN_PROGRESS`.
+- Commit `b4587a7` closes the deterministic native-client request checkpoint. An injected
+  local `URLProtocol` fixture proves that the macOS client first lists the selected
+  project's strategy revisions, then fetches the digest-bound metric snapshot, and
+  refuses an external-write claim or a mismatched metric digest. The default production
+  `URLSession` path is unchanged. All 116 Runtime tests, 46 XCTest cases and 27 Swift
+  Testing cases passed with Apple Silicon, Intel and Universal builds, bundled-Runtime
+  smoke, staged update and populated rollback in CI run `33497842560`; the new
+  `nativeClientLoadsBothReadOnlyEndpointsAndFailsClosed` case passed explicitly.
+- Universal artifact `9796643058` has GitHub artifact digest
+  `b8e3ce07307c970d9266b1d68ee6aeeeef79ec9213f0a28ab254ca1912cbcf99`.
+  A fresh independent download passed a complete ZIP integrity scan and had inner ZIP
+  SHA-256 `8e01d54a0f7ca6d5106b6e76c4d81d37016eb9e39c793af52b22a4e12e2ada7b`;
+  staged-update and rollback evidence-file SHA-256 values were
+  `8240f3c7ba1611e432960c307d2423bc404f91ef9d6bbcb60539769f147186cb`
+  and `530df6f871bbd874492031fe5d74a6bb96e70d196e34ef5d8388109e249350c7`.
+  Both reports say `PASS` and explicitly limit scope to offline/loopback work without
+  providers, paid calls or publication. Independent extraction, strict deep signature
+  verification and the Universal release verifier passed; the native executable,
+  bundled Runtime and visual analyzer contain arm64 and x86_64 slices. Their first two
+  SHA-256 values are respectively
+  `be6c15e7f8e05a0231914cc6bfdb6e7dc3589053123c892fdecfbae4aaaec16e`
+  and `f34309a3f72d55ec9fc046fc20c77849549980f8be9ebef336ce2ac173e7a806`.
+  This closes only the native request/integrity checkpoint. Actual-window populated-data
+  accessibility QA, authorized platform evidence, Developer ID signing and notarization
+  remain missing, so SOP-10 remains `IN_PROGRESS`.
 
 ## SOP-11 · macOS packaging, updates and operations — IN_PROGRESS
 
