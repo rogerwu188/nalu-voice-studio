@@ -1347,6 +1347,27 @@ Current evidence:
   staged-update and rollback evidence-file SHA-256 values are
   `ba638ad4672a3e8670542fddf3ca3bc488b3e4f890d37f4f30fbcd9b8241e296` and
   `ed9900c7a19ff9a4eec22e13eb9ba667ccd1c791965c01ee85ce2f604efa6454`.
+- Commit `2570094`, GitHub CI run `33487099669`: the Runtime now exposes one
+  deterministic read-only governed-release readiness report over the complete feedback
+  chain. It distinguishes accepted triage and confirmed external/handoff transactions
+  from mere row existence, identifies every missing review, development, independent
+  CI/Apple/installation and rollback prerequisite, and always keeps staged-rollout
+  authorization, real rollout receipt and post-install health as separate gates. Even
+  when every pre-rollout check is satisfied, `released` and `release_claimed` remain
+  literal false and the report performs no network call or external write. Restored
+  projects reproduce the same report. All 112 Runtime tests, OpenAPI compatibility,
+  real HTTP smoke, Swift tests, arm64/x86_64 builds and bundle smokes, staged update,
+  ten-episode schema-23 restart/rollback and universal merge passed. Universal artifact
+  `9792348966` has GitHub digest
+  `sha256:accd7aaac3b54e9d03b9bfbf46d55b7c55f13b4c6a0c1e493670b3a9726902d6`;
+  its downloaded inner ZIP SHA-256 is
+  `33755caec22557ea60aaafcf7a43ae0a8b1a6275aa670b73d1ed56debfd8bcee`.
+  Independent inspection reconfirmed the disabled handoff and issue-export policies at
+  SHA-256 `b4836edda2f612f20b0e7221177d3d346f15eb64887b1eca804d0050dd2bd14e`
+  and `96475ba5a2908b74f2e04db512d6c097abe73453d360871cc0149287480c1146`;
+  staged-update and rollback evidence-file SHA-256 values are
+  `197172d03fda0c1807dc1003e5c0f6e4b210f1ed7b1441d028bd159213fd0d71` and
+  `632a501deaa490e4fc1a0b7e31166d94ab8fe016325f3a1fc1c8626210ca5f32`.
 - Still required before `PASS`: administrator-authorized external issue export, agent
   development integration after human triage, independently obtained rather than locally
   supplied review/CI/Apple/installation receipts, a real Developer ID/notarized staged

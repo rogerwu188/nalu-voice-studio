@@ -11,26 +11,26 @@
     "TODO": 1,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "537775908d72b9eeb0e266cda3da8f43d2e4996a",
-  "last_advanced_at": "2026-09-01T08:23:02Z",
+  "observed_head": "2570094ac9b4e2bbb80310e2f547b63eb0e016a9",
+  "last_advanced_at": "2026-09-01T08:34:27Z",
   "last_closed_checkpoint": {
-    "id": "sop-13-feedback-release-evidence-readonly-reconciliation-core",
+    "id": "sop-13-feedback-governed-release-readiness-core",
     "sop": "SOP-13",
-    "product_commit": "537775908d72b9eeb0e266cda3da8f43d2e4996a",
-    "evidence_commit": "e119156790d609d5655463315395182f90d42ab7",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33486106442",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33486106442/artifacts/9791972981",
+    "product_commit": "2570094ac9b4e2bbb80310e2f547b63eb0e016a9",
+    "evidence_commit": "PENDING",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33487099669",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33487099669/artifacts/9792348966",
     "result": "PASS"
   },
   "current_checkpoint": {
     "sop": "SOP-13",
     "status": "IN_PROGRESS",
-    "summary": "Release evidence can now be reconciled through a disabled-by-default independent read-only verifier with exact CI, artifact, Developer ID, notarization, Gatekeeper, installed-commit and rollback matching. The record still cannot claim rollout or release, and real authorized integrations remain outstanding."
+    "summary": "The full feedback chain now has a deterministic read-only readiness report that separates verified pre-rollout facts from missing rollout authorization, real rollout receipt and post-install health. It cannot change state or claim release."
   },
   "next_action": {
     "sop": "SOP-13",
-    "id": "feedback-governed-release-readiness-core",
-    "summary": "Expose one deterministic read-only readiness report over the full feedback chain, naming every missing authorization, independent verification, signed/notarized installation, staged rollout and rollback prerequisite while never changing feedback to released or performing external work.",
+    "id": "feedback-release-readiness-native-core",
+    "summary": "Present the governed readiness report in the native macOS feedback experience with plain-language satisfied/missing states, spoken readback and explicit wording that a verified pre-rollout chain is still not a released fix.",
     "requires_user_authorization": false
   },
   "blocking_conditions": [
