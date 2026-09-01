@@ -17,7 +17,7 @@
     "id": "sop-11-verified-staged-update-core",
     "sop": "SOP-11",
     "product_commit": "7d1b53dc2e293eb1bb846ed1fe91e28b61e7476e",
-    "evidence_commit": "PENDING_EVIDENCE_COMMIT",
+    "evidence_commit": "5a2fa81d403cca023f12435539449a62a1b04295",
     "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33469370874",
     "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33469370874/artifacts/9786074323",
     "result": "PASS"
