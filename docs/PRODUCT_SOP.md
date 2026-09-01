@@ -1151,7 +1151,26 @@ Current evidence:
   reports with evidence-file SHA-256 values
   `5f1907d73a9f00bdefe4948f1427ad1a153ef53f0066d2d599bb2a7615b17ca3` and
   `46381bdd3fa0fc785c3a9e7ee245ad82e15cc3aec5a86398bb55b7993d228dc2`.
+- Commit `0d651cb`, GitHub CI run `33474338480`: schema migration 16 and project-export
+  v11 add one immutable human-confirmed local triage record per authorized review bundle.
+  It binds the exact bundle digest, priority, disposition, optional same-project duplicate,
+  rationale and reviewer; secrets are redacted and confirmation/idempotency values are
+  retained only as hashes. Missing confirmation, local-only input, cross-project/self
+  duplicates, changed replay and recomputed backup tampering all fail closed. Prompt-
+  injection text remains inert while `tool_calls` is empty and `code_change_performed` and
+  `network_call_performed` are literal false; feedback remains `ready_for_review`. All 96
+  Runtime tests, OpenAPI compatibility, real HTTP smoke, both architecture builds/smokes,
+  staged update, populated ten-episode restart/rollback and universal merge passed.
+  Universal artifact `9787709313` has GitHub digest
+  `sha256:7b8dfa2457dfd95aaf1245ef4ca55916cec0882c42ff7105307970f8cc83a13c`;
+  its downloaded inner ZIP SHA-256 is
+  `0283fa52292d3387f9ed66d886fe0d9ab5e2d540922b0d43be8c8aed17a7d7fe`.
+  Independent inspection confirmed a universal Runtime and schema-16 staged/rollback
+  evidence-file SHA-256 values
+  `a0367c122e5138186e5b96914206885bf194e859eabb90ad06644eab10701028` and
+  `d6414b8d7c56084456d30af0474a7c266ef40fe4eef164ca27ed74cbc3ba4c21`.
 - Still required before `PASS`: administrator-authorized external issue export, agent
-  triage integration, independently obtained rather than locally supplied review/CI/
-  Apple/installation receipts, a real Developer ID/notarized staged update and end-to-end
-  improvement/rollback QA. No feedback may become `released` before those facts reconcile.
+  development integration after human triage, independently obtained rather than locally
+  supplied review/CI/Apple/installation receipts, a real Developer ID/notarized staged
+  update and end-to-end improvement/rollback QA. No feedback may become `released` before
+  those facts reconcile.
