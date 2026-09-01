@@ -2794,6 +2794,67 @@
         "title": "FeedbackExternalReconciliationRecord",
         "type": "object"
       },
+      "FeedbackGovernedReleaseReadiness": {
+        "properties": {
+          "checks": {
+            "items": {
+              "$ref": "#/components/schemas/FeedbackReleaseReadinessCheck"
+            },
+            "title": "Checks",
+            "type": "array"
+          },
+          "external_write_performed": {
+            "const": false,
+            "default": false,
+            "title": "External Write Performed",
+            "type": "boolean"
+          },
+          "feedback_id": {
+            "title": "Feedback Id",
+            "type": "string"
+          },
+          "feedback_status": {
+            "title": "Feedback Status",
+            "type": "string"
+          },
+          "network_call_performed": {
+            "const": false,
+            "default": false,
+            "title": "Network Call Performed",
+            "type": "boolean"
+          },
+          "ready_for_authorized_rollout": {
+            "title": "Ready For Authorized Rollout",
+            "type": "boolean"
+          },
+          "release_claimed": {
+            "const": false,
+            "default": false,
+            "title": "Release Claimed",
+            "type": "boolean"
+          },
+          "released": {
+            "const": false,
+            "default": false,
+            "title": "Released",
+            "type": "boolean"
+          },
+          "schema_version": {
+            "const": "nalu.feedback-governed-release-readiness/v1",
+            "default": "nalu.feedback-governed-release-readiness/v1",
+            "title": "Schema Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "feedback_id",
+          "feedback_status",
+          "checks",
+          "ready_for_authorized_rollout"
+        ],
+        "title": "FeedbackGovernedReleaseReadiness",
+        "type": "object"
+      },
       "FeedbackItem": {
         "properties": {
           "category": {
@@ -3122,6 +3183,33 @@
           "rollback"
         ],
         "title": "FeedbackReleaseLinkageCreate",
+        "type": "object"
+      },
+      "FeedbackReleaseReadinessCheck": {
+        "properties": {
+          "explanation": {
+            "title": "Explanation",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "satisfied",
+              "missing"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "explanation"
+        ],
+        "title": "FeedbackReleaseReadinessCheck",
         "type": "object"
       },
       "FeedbackReviewBundle": {
@@ -9405,6 +9493,45 @@
           }
         },
         "summary": "Create Feedback Release Linkage"
+      }
+    },
+    "/v1/feedback/{feedback_id}/release-readiness": {
+      "get": {
+        "operationId": "get_feedback_release_readiness_v1_feedback__feedback_id__release_readiness_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "feedback_id",
+            "required": true,
+            "schema": {
+              "title": "Feedback Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackGovernedReleaseReadiness"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Feedback Release Readiness"
       }
     },
     "/v1/feedback/{feedback_id}/review-bundle": {

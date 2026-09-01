@@ -927,6 +927,12 @@ def test_feedback_external_export_is_authorized_idempotent_and_ambiguity_safe(
         return project, feedback, triage
 
     project, feedback, triage = reviewed_feedback("外部导出")
+    initial_readiness = api.get(
+        f"/v1/feedback/{feedback['id']}/release-readiness"
+    ).json()
+    assert initial_readiness["ready_for_authorized_rollout"] is False
+    assert initial_readiness["released"] is False
+    assert initial_readiness["release_claimed"] is False
     bundle = api.get(f"/v1/feedback/{feedback['id']}/review-bundle").json()
     endpoint = f"/v1/feedback/{feedback['id']}/external-export"
     request = {
@@ -1226,6 +1232,21 @@ def test_feedback_external_export_is_authorized_idempotent_and_ambiguity_safe(
     assert release_reconciliation["release_performed"] is False
     assert release_reconciliation["external_write_performed"] is False
     assert len(release_evidence_verifier.calls) == 2
+
+    readiness_endpoint = f"/v1/feedback/{feedback['id']}/release-readiness"
+    readiness = api.get(readiness_endpoint).json()
+    assert readiness["ready_for_authorized_rollout"] is True
+    assert readiness["released"] is False
+    assert readiness["release_claimed"] is False
+    assert readiness["network_call_performed"] is False
+    assert readiness["external_write_performed"] is False
+    readiness_by_id = {check["id"]: check for check in readiness["checks"]}
+    assert readiness_by_id["independent_release_reconciliation"]["status"] == "satisfied"
+    assert readiness_by_id["signed_notarized_installation"]["status"] == "satisfied"
+    assert readiness_by_id["rollback_rehearsal"]["status"] == "satisfied"
+    assert readiness_by_id["staged_rollout_authorization"]["status"] == "missing"
+    assert readiness_by_id["staged_rollout_receipt"]["status"] == "missing"
+    assert readiness_by_id["post_install_health"]["status"] == "missing"
     assert api.get(release_reconciliation_endpoint).json() == release_reconciliation
     assert (
         api.post(
@@ -1250,6 +1271,7 @@ def test_feedback_external_export_is_authorized_idempotent_and_ambiguity_safe(
         restored.get(release_reconciliation_endpoint).json()
         == release_reconciliation
     )
+    assert restored.get(readiness_endpoint).json() == readiness
 
     tampered_release_reconciliation = deepcopy(backup)
     reconciliation_row = tampered_release_reconciliation["payload"][

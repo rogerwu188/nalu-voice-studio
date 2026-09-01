@@ -60,11 +60,13 @@ from .models import (
     FeedbackExternalExportReceipt,
     FeedbackExternalReconciliationCreate,
     FeedbackExternalReconciliationRecord,
+    FeedbackGovernedReleaseReadiness,
     FeedbackItem,
     FeedbackReleaseEvidenceReconciliationCreate,
     FeedbackReleaseEvidenceReconciliationRecord,
     FeedbackReleaseLinkage,
     FeedbackReleaseLinkageCreate,
+    FeedbackReleaseReadinessCheck,
     FeedbackReviewBundle,
     FeedbackReviewBundleCreate,
     FeedbackTriageCreate,
@@ -3671,6 +3673,92 @@ class Repository:
             raise ConflictError("stored release evidence reconciliation digest mismatch")
         stored["record_sha256"] = row["record_sha256"]
         return FeedbackReleaseEvidenceReconciliationRecord.model_validate(stored)
+
+    def feedback_governed_release_readiness(
+        self, feedback_id: str
+    ) -> FeedbackGovernedReleaseReadiness:
+        feedback = self.get_feedback(feedback_id)
+        table_checks = (
+            ("review_bundle", "feedback_review_bundles", "本地脱敏审核包已冻结", None),
+            ("human_triage", "feedback_triage_records", "人工分诊已接受", "accepted"),
+            ("issue_export", "feedback_external_exports", "外部问题单事务已确认", "confirmed"),
+            ("development_work_order", "feedback_development_work_orders", "开发工单已批准", None),
+            ("development_handoff", "feedback_development_handoffs", "开发交接事务已确认", "confirmed"),
+            ("development_result", "feedback_development_results", "开发结果已只读核验", None),
+            ("release_linkage", "feedback_release_linkages", "变更、CI、安装与回滚证据已绑定", None),
+            (
+                "independent_release_reconciliation",
+                "feedback_release_evidence_reconciliations",
+                "发布证据已独立只读核验",
+                None,
+            ),
+        )
+        checks: list[FeedbackReleaseReadinessCheck] = []
+        present: dict[str, bool] = {}
+        with self.db.connect() as connection:
+            for check_id, table, explanation, required_state in table_checks:
+                row = connection.execute(
+                    f"SELECT * FROM {table} WHERE feedback_id = ?",
+                    (feedback_id,),
+                ).fetchone()
+                satisfied = row is not None
+                if satisfied and required_state is not None:
+                    if table == "feedback_triage_records":
+                        satisfied = (
+                            decode(row["record_json"]).get("disposition")
+                            == required_state
+                        )
+                    else:
+                        satisfied = row["state"] == required_state
+                present[check_id] = satisfied
+                checks.append(
+                    FeedbackReleaseReadinessCheck(
+                        id=check_id,
+                        status="satisfied" if satisfied else "missing",
+                        explanation=(
+                            explanation
+                            if satisfied
+                            else f"仍缺少：{explanation}"
+                        ),
+                    )
+                )
+        independently_verified = present["independent_release_reconciliation"]
+        for check_id, explanation, satisfied in (
+            (
+                "signed_notarized_installation",
+                "Developer ID、Apple 公证、Gatekeeper 与安装提交已独立匹配",
+                independently_verified,
+            ),
+            (
+                "rollback_rehearsal",
+                "旧版本回滚演练与项目数据保全已独立匹配",
+                independently_verified,
+            ),
+            ("staged_rollout_authorization", "管理员尚未授权分阶段发布", False),
+            ("staged_rollout_receipt", "尚无真实分阶段发布事务回执", False),
+            ("post_install_health", "尚无真实安装后的健康确认", False),
+        ):
+            checks.append(
+                FeedbackReleaseReadinessCheck(
+                    id=check_id,
+                    status="satisfied" if satisfied else "missing",
+                    explanation=explanation,
+                )
+            )
+        pre_rollout_ids = {
+            item[0] for item in table_checks
+        } | {"signed_notarized_installation", "rollback_rehearsal"}
+        ready = all(
+            check.status == "satisfied"
+            for check in checks
+            if check.id in pre_rollout_ids
+        )
+        return FeedbackGovernedReleaseReadiness(
+            feedback_id=feedback_id,
+            feedback_status=feedback.status,
+            checks=checks,
+            ready_for_authorized_rollout=ready,
+        )
 
     def create_memory_card(self, project_id: str, request: MemoryCardCreate) -> MemoryCard:
         project = self.get_project(project_id)

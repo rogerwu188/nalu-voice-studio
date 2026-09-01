@@ -68,6 +68,7 @@ from .models import (
     FeedbackExternalExportReceipt,
     FeedbackExternalReconciliationCreate,
     FeedbackExternalReconciliationRecord,
+    FeedbackGovernedReleaseReadiness,
     FeedbackItem,
     FeedbackReleaseEvidenceReconciliationCreate,
     FeedbackReleaseEvidenceReconciliationRecord,
@@ -517,6 +518,15 @@ def create_app(
         feedback_id: str,
     ) -> FeedbackReleaseEvidenceReconciliationRecord:
         return repository.get_feedback_release_evidence_reconciliation(feedback_id)
+
+    @app.get(
+        "/v1/feedback/{feedback_id}/release-readiness",
+        response_model=FeedbackGovernedReleaseReadiness,
+    )
+    def get_feedback_release_readiness(
+        feedback_id: str,
+    ) -> FeedbackGovernedReleaseReadiness:
+        return repository.feedback_governed_release_readiness(feedback_id)
 
     @app.post(
         "/v1/projects/{project_id}/memory-cards",

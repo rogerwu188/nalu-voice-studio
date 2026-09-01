@@ -737,6 +737,26 @@ class FeedbackReleaseEvidenceReconciliationRecord(BaseModel):
     record_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
 
 
+class FeedbackReleaseReadinessCheck(BaseModel):
+    id: str
+    status: Literal["satisfied", "missing"]
+    explanation: str
+
+
+class FeedbackGovernedReleaseReadiness(BaseModel):
+    schema_version: Literal["nalu.feedback-governed-release-readiness/v1"] = (
+        "nalu.feedback-governed-release-readiness/v1"
+    )
+    feedback_id: str
+    feedback_status: str
+    checks: list[FeedbackReleaseReadinessCheck]
+    ready_for_authorized_rollout: bool
+    released: Literal[False] = False
+    release_claimed: Literal[False] = False
+    network_call_performed: Literal[False] = False
+    external_write_performed: Literal[False] = False
+
+
 class MemoryPerson(BaseModel):
     name: str = Field(min_length=1, max_length=160)
     relationship: str = Field(default="", max_length=160)
