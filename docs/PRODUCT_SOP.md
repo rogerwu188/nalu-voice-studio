@@ -1323,6 +1323,30 @@ Current evidence:
   staged-update and rollback evidence-file SHA-256 values are
   `7b58b93f477e8684a091f6957be6293e9d56abf48fe283072a78a46abb2d21bc` and
   `da7cf2fb1850b6f289de0b2e31a75607b3c637f86bef28d594e4196a984f5d4a`.
+- Commit `5377759`, GitHub CI run `33486106442`: schema migration 23 and
+  project-export v19 add immutable independent reconciliation of locally supplied
+  release evidence. A separate disabled-by-default verifier must return the identical
+  CI run/head/artifact, installed version/build/product commit/provenance, Developer ID
+  team, notarization submission, signature/notarization/Gatekeeper results and older-
+  build rollback evidence after explicit confirmation and a stable idempotency key.
+  Any mismatch fails closed; exact replay does not re-query. Only a digest of bounded
+  verifier evidence is retained, while download, installation, signing, notarization,
+  release, external-write and release-claim fields remain literal false. Export/import
+  verifies the complete linkage and request hash chain and rejects recomputed tampering.
+  The packaged verifier denies every call; tests used injected fixtures and contacted no
+  real GitHub, Apple or installation service. All 112 Runtime tests, OpenAPI compatibility,
+  real HTTP smoke, Swift tests, arm64/x86_64 builds and bundle smokes, staged update,
+  ten-episode schema-23 restart/rollback and universal merge passed. Universal artifact
+  `9791972981` has GitHub digest
+  `sha256:1290b368d9964bea88eeb54691ff8276e14534cfc144016cf48010eeaf6c716c`;
+  its downloaded inner ZIP SHA-256 is
+  `17c79655ccf3ef84a5da8d1dee9c6d077b8364c662ea08bb1a1f14ccdeb17d8e`.
+  Independent inspection reconfirmed the disabled handoff and issue-export policies at
+  SHA-256 `b4836edda2f612f20b0e7221177d3d346f15eb64887b1eca804d0050dd2bd14e`
+  and `96475ba5a2908b74f2e04db512d6c097abe73453d360871cc0149287480c1146`;
+  staged-update and rollback evidence-file SHA-256 values are
+  `ba638ad4672a3e8670542fddf3ca3bc488b3e4f890d37f4f30fbcd9b8241e296` and
+  `ed9900c7a19ff9a4eec22e13eb9ba667ccd1c791965c01ee85ce2f604efa6454`.
 - Still required before `PASS`: administrator-authorized external issue export, agent
   development integration after human triage, independently obtained rather than locally
   supplied review/CI/Apple/installation receipts, a real Developer ID/notarized staged

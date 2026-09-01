@@ -11,26 +11,26 @@
     "TODO": 1,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "8ad807eb006e01ba15749fa17caaf0e1ec3fc79d",
-  "last_advanced_at": "2026-09-01T08:04:02Z",
+  "observed_head": "537775908d72b9eeb0e266cda3da8f43d2e4996a",
+  "last_advanced_at": "2026-09-01T08:23:02Z",
   "last_closed_checkpoint": {
-    "id": "sop-13-feedback-development-result-release-linkage-binding-core",
+    "id": "sop-13-feedback-release-evidence-readonly-reconciliation-core",
     "sop": "SOP-13",
-    "product_commit": "8ad807eb006e01ba15749fa17caaf0e1ec3fc79d",
-    "evidence_commit": "630017a53f8a49a2df46b441f89153b157275cf2",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33484426958",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33484426958/artifacts/9791377499",
+    "product_commit": "537775908d72b9eeb0e266cda3da8f43d2e4996a",
+    "evidence_commit": "PENDING",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33486106442",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33486106442/artifacts/9791972981",
     "result": "PASS"
   },
   "current_checkpoint": {
     "sop": "SOP-13",
     "status": "IN_PROGRESS",
-    "summary": "Locally supplied release evidence now hash-binds the exact independently verified repository, pull request, commit and test digest, including tamper-resistant export/restore. It still cannot claim an installed release because independent CI, Apple and installation reconciliation is not yet implemented."
+    "summary": "Release evidence can now be reconciled through a disabled-by-default independent read-only verifier with exact CI, artifact, Developer ID, notarization, Gatekeeper, installed-commit and rollback matching. The record still cannot claim rollout or release, and real authorized integrations remain outstanding."
   },
   "next_action": {
     "sop": "SOP-13",
-    "id": "feedback-release-evidence-readonly-reconciliation-core",
-    "summary": "Add a separate disabled-by-default read-only verifier that independently reconciles the exact CI run, artifact, Developer ID/notarization/Gatekeeper receipt, installed product commit and rollback evidence before release evidence can be trusted, without downloading, installing, signing, releasing or writing externally.",
+    "id": "feedback-governed-release-readiness-core",
+    "summary": "Expose one deterministic read-only readiness report over the full feedback chain, naming every missing authorization, independent verification, signed/notarized installation, staged rollout and rollback prerequisite while never changing feedback to released or performing external work.",
     "requires_user_authorization": false
   },
   "blocking_conditions": [
