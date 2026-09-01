@@ -169,6 +169,22 @@ struct PublicationLearningPresentation: Identifiable, Equatable, Sendable {
         safetyStatement.contains("只读")
     }
 
+    var metricsAccessibilityLabel: String {
+        "平台，\(platformLabel)。统计期间，\(windowLabel)。\(viewsLabel)。\(completionLabel)。建议版本，第 \(revision) 版。"
+    }
+
+    var observationsAccessibilityLabel: String {
+        "Nalu 看到的情况：\(observations.prefix(2).joined(separator: "；"))"
+    }
+
+    var directivesAccessibilityLabel: String {
+        "给\(targetEpisodeLabel)的建议：\(directives.prefix(3).joined(separator: "；"))"
+    }
+
+    var safetyAccessibilityLabel: String {
+        "安全说明：\(safetyStatement)"
+    }
+
     private static func platformName(_ platform: String) -> String {
         switch platform {
         case "youtube": "YouTube"
@@ -183,6 +199,18 @@ struct PublicationLearningPresentation: Identifiable, Equatable, Sendable {
         guard parts.count == 3 else { return raw }
         return "\(parts[0]) 年 \(Int(parts[1]) ?? 0) 月 \(Int(parts[2]) ?? 0) 日"
     }
+}
+
+enum PublicationLearningAccessibilityID {
+    static let card = "nalu.publication-learning.card"
+    static let metrics = "nalu.publication-learning.metrics"
+    static let observations = "nalu.publication-learning.observations"
+    static let directives = "nalu.publication-learning.directives"
+    static let readLatest = "nalu.publication-learning.read-latest"
+    static let refresh = "nalu.publication-learning.refresh"
+    static let safety = "nalu.publication-learning.safety"
+
+    static let all = [card, metrics, observations, directives, readLatest, refresh, safety]
 }
 
 struct PublicationLearningView: View {
@@ -204,9 +232,12 @@ struct PublicationLearningView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("播出反馈与下一集建议")
                         .font(.title2.bold())
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityAddTraits(.isHeader)
                     Text(latest == nil ? "还没有经过核验的播出反馈" : "发行身份已核验 · 只读")
                         .font(.headline)
                         .foregroundStyle(latest == nil ? Color.secondary : Color.green)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer()
                 if isLoading {
@@ -214,6 +245,9 @@ struct PublicationLearningView: View {
                 } else {
                     Button("刷新", systemImage: "arrow.clockwise", action: onRefresh)
                         .controlSize(.large)
+                        .accessibilityIdentifier(PublicationLearningAccessibilityID.refresh)
+                        .accessibilityLabel("刷新播出反馈")
+                        .accessibilityHint("只读取本地已核验记录，不会发布或开始制作")
                 }
             }
 
@@ -228,11 +262,15 @@ struct PublicationLearningView: View {
                     metric(latest.completionLabel, icon: "chart.bar.fill")
                     metric("建议第 \(latest.revision) 版", icon: "clock.arrow.circlepath")
                 }
-                .accessibilityElement(children: .combine)
+                .accessibilityElement(children: .ignore)
+                .accessibilityIdentifier(PublicationLearningAccessibilityID.metrics)
+                .accessibilityLabel(latest.metricsAccessibilityLabel)
 
                 Text(latest.windowLabel)
                     .font(.callout)
                     .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityHidden(true)
 
                 if !latest.observations.isEmpty {
                     VStack(alignment: .leading, spacing: 7) {
@@ -241,8 +279,12 @@ struct PublicationLearningView: View {
                         ForEach(latest.observations.prefix(2), id: \.self) { observation in
                             Label(observation, systemImage: "eye")
                                 .font(.body)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
                     }
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityIdentifier(PublicationLearningAccessibilityID.observations)
+                    .accessibilityLabel(latest.observationsAccessibilityLabel)
                 }
 
                 VStack(alignment: .leading, spacing: 8) {
@@ -251,17 +293,26 @@ struct PublicationLearningView: View {
                     ForEach(latest.directives.prefix(3), id: \.self) { directive in
                         Label(directive, systemImage: "arrow.turn.down.right")
                             .font(.body)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
+                .accessibilityElement(children: .ignore)
+                .accessibilityIdentifier(PublicationLearningAccessibilityID.directives)
+                .accessibilityLabel(latest.directivesAccessibilityLabel)
 
                 Button("朗读本次反馈", systemImage: "speaker.wave.2.fill", action: onReadLatest)
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
+                    .accessibilityIdentifier(PublicationLearningAccessibilityID.readLatest)
                     .accessibilityHint("朗读播出数据、下一集建议和安全说明")
 
                 Label(latest.safetyStatement, systemImage: "lock.shield.fill")
                     .font(.callout)
                     .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityIdentifier(PublicationLearningAccessibilityID.safety)
+                    .accessibilityLabel(latest.safetyAccessibilityLabel)
             } else if !isLoading {
                 Text("成片经过受控发行并取得只读核验结果后，Nalu 会自动整理这里；您不需要填写专业表格。")
                     .font(.body)
@@ -276,11 +327,13 @@ struct PublicationLearningView: View {
         .padding(18)
         .background(Color.green.opacity(latest == nil ? 0.035 : 0.07), in: RoundedRectangle(cornerRadius: 14))
         .accessibilityElement(children: .contain)
+        .accessibilityIdentifier(PublicationLearningAccessibilityID.card)
     }
 
     private func metric(_ text: String, icon: String) -> some View {
         Label(text, systemImage: icon)
             .font(.headline)
+            .fixedSize(horizontal: false, vertical: true)
             .padding(.horizontal, 11)
             .padding(.vertical, 8)
             .background(.background.opacity(0.8), in: Capsule())

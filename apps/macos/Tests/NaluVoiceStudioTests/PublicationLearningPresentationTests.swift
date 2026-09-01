@@ -62,6 +62,22 @@ struct PublicationLearningPresentationTests {
         #expect(presentation.isVerifiedReadOnly)
     }
 
+    @Test func exposesStableCoherentVoiceOverContract() throws {
+        let presentation = try makePresentation()
+
+        #expect(presentation.metricsAccessibilityLabel.contains("平台，哔哩哔哩"))
+        #expect(presentation.metricsAccessibilityLabel.contains("1,234 次观看"))
+        #expect(presentation.metricsAccessibilityLabel.contains("完播率 52%"))
+        #expect(presentation.observationsAccessibilityLabel.hasPrefix("Nalu 看到的情况"))
+        #expect(presentation.directivesAccessibilityLabel.contains("第 2 集《回家》"))
+        #expect(presentation.safetyAccessibilityLabel.contains("没有替您发布"))
+        #expect(presentation.safetyAccessibilityLabel.contains("重新确认"))
+        #expect(Set(PublicationLearningAccessibilityID.all).count == 7)
+        #expect(PublicationLearningAccessibilityID.all.allSatisfy {
+            $0.hasPrefix("nalu.publication-learning.")
+        })
+    }
+
     @Test func rejectsCrossProjectOrWriteCapableLearningRecords() throws {
         let metrics = try JSONDecoder().decode(
             PublicationMetricsSnapshot.self,
