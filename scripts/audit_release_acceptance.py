@@ -19,8 +19,94 @@ REQUIRED_GATES = {
     "no_open_p0_p1",
     "all_sops_same_candidate",
 }
+SCENARIO_IDS = {f"SOP-12-{number:02d}" for number in range(1, 8)}
 
 audit_sop = run_path("scripts/audit_product_sop.py")["audit_sop"]
+
+
+def _digest_list(value: Any) -> bool:
+    return isinstance(value, list) and bool(value) and all(
+        isinstance(item, str) and SHA256_PATTERN.fullmatch(item) for item in value
+    )
+
+
+def _nonempty_string_list(value: Any) -> bool:
+    return isinstance(value, list) and bool(value) and all(
+        isinstance(item, str) and item.strip() for item in value
+    )
+
+
+def _audit_gate_details(gate_name: str, evidence: dict[str, Any]) -> list[str]:
+    failures: list[str] = []
+    if gate_name == "signed_notarized_installation":
+        if not re.fullmatch(r"[A-Z0-9]{10}", str(evidence.get("developer_team_id", ""))):
+            failures.append("signed installation requires a Developer ID team identifier")
+        if not evidence.get("notarization_submission_id"):
+            failures.append("signed installation requires a notarization submission identifier")
+        for field in ("hardened_runtime_verified", "staple_verified", "gatekeeper_accepted"):
+            if evidence.get(field) is not True:
+                failures.append(f"signed installation requires {field}=true")
+    elif gate_name == "real_provider_reconciliation":
+        if not _nonempty_string_list(evidence.get("provider_task_ids")):
+            failures.append("provider reconciliation requires real task identifiers")
+        if not _digest_list(evidence.get("provider_receipt_sha256")):
+            failures.append("provider reconciliation requires receipt digests")
+        if evidence.get("reconciled") is not True or evidence.get("ambiguous_transactions") != 0:
+            failures.append("provider transactions must reconcile with zero ambiguity")
+        if not isinstance(evidence.get("total_cost_minor_units"), int) or evidence.get(
+            "total_cost_minor_units", -1
+        ) < 0:
+            failures.append("provider reconciliation requires a non-negative exact cost")
+        if not re.fullmatch(r"[A-Z]{3}", str(evidence.get("currency", ""))):
+            failures.append("provider reconciliation requires an ISO currency")
+    elif gate_name == "real_publication_reconciliation":
+        if not _nonempty_string_list(evidence.get("publication_ids")):
+            failures.append("publication reconciliation requires real publication identifiers")
+        if not _digest_list(evidence.get("publication_receipt_sha256")):
+            failures.append("publication reconciliation requires receipt digests")
+        if evidence.get("reconciled") is not True or evidence.get("ambiguous_publications") != 0:
+            failures.append("publications must reconcile with zero ambiguity")
+    elif gate_name == "human_accessibility_acceptance":
+        if not _nonempty_string_list(evidence.get("review_record_ids")):
+            failures.append("human accessibility acceptance requires review records")
+        for field in (
+            "voiceover_passed",
+            "accessibility_inspector_passed",
+            "older_adult_session_passed",
+            "guardian_child_session_passed",
+        ):
+            if evidence.get(field) is not True:
+                failures.append(f"human accessibility acceptance requires {field}=true")
+    elif gate_name == "seven_scenario_e2e":
+        scenarios = evidence.get("scenarios")
+        if not isinstance(scenarios, list) or {
+            item.get("id") for item in scenarios if isinstance(item, dict)
+        } != SCENARIO_IDS:
+            failures.append("end-to-end acceptance requires all seven exact SOP-12 scenarios")
+        elif any(item.get("status") != "PASS" for item in scenarios):
+            failures.append("every SOP-12 scenario must PASS")
+    elif gate_name == "clean_install_upgrade_rollback":
+        for field in (
+            "clean_account_install_passed",
+            "ten_episode_data_preserved",
+            "upgrade_passed",
+            "rollback_passed",
+        ):
+            if evidence.get(field) is not True:
+                failures.append(f"upgrade and rollback acceptance requires {field}=true")
+        if not evidence.get("older_build") or not evidence.get("candidate_build"):
+            failures.append("upgrade and rollback acceptance requires both build identities")
+    elif gate_name == "no_open_p0_p1":
+        if evidence.get("open_p0") != 0 or evidence.get("open_p1") != 0:
+            failures.append("release acceptance requires zero open P0 and P1 defects")
+        if not evidence.get("defect_query_id"):
+            failures.append("defect counts require a preserved query identifier")
+    elif gate_name == "all_sops_same_candidate":
+        states = evidence.get("sop_states")
+        expected = {f"SOP-{number:02d}": "PASS" for number in range(14)}
+        if states != expected:
+            failures.append("same-candidate evidence requires SOP-00 through SOP-13 PASS")
+    return failures
 
 
 def audit_release_acceptance(manifest: dict[str, Any], sop_text: str) -> dict[str, Any]:
@@ -82,6 +168,10 @@ def audit_release_acceptance(manifest: dict[str, Any], sop_text: str) -> dict[st
                     failures.append(f"release gate {gate_name} is bound to another artifact")
                 if not str(evidence.get("evidence_url", "")).startswith("https://"):
                     failures.append(f"release gate {gate_name} must include an HTTPS evidence URL")
+                failures.extend(
+                    f"release gate {gate_name}: {failure}"
+                    for failure in _audit_gate_details(gate_name, evidence)
+                )
 
     return {
         "schema_version": "nalu.release-acceptance-audit/v1",

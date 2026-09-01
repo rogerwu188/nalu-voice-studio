@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "037feb5081f70f3411db669a01b240b7573bb94f",
-  "last_advanced_at": "2026-09-01T13:15:57Z",
+  "observed_head": "42fb3a8728bf31d7ff3859f8435685b2614660b3",
+  "last_advanced_at": "2026-09-01T13:17:59Z",
   "last_closed_checkpoint": {
     "id": "same-candidate-release-acceptance-gate",
     "sop": "SOP-12",
@@ -23,21 +23,17 @@
     "result": "PASS"
   },
   "current_checkpoint": {
-    "sop": "SOP-09",
-    "status": "BLOCKED",
-    "summary": "The same-candidate release-acceptance gate is closed and recorded. The packaged universal Apple Speech helper is verified, but actual on-device recognition requires explicit permission to launch the downloaded CI application and approve the macOS Speech prompt."
+    "sop": "SOP-12",
+    "status": "IN_PROGRESS",
+    "summary": "The generic same-candidate release gate is closed. Gate-specific proof is now being enforced for Apple notarization, real provider cost/task/receipt reconciliation, publication IDs, human accessibility, all seven scenarios, clean upgrade/rollback and zero open P0/P1 defects."
   },
   "next_action": {
-    "sop": "SOP-09",
-    "id": "real-apple-speech-permission-and-master-qa",
-    "summary": "After explicit user confirmation, launch the exact downloaded CI application, approve only macOS Speech recognition, run a synthetic local Mandarin final-master fixture through the packaged helper and Runtime, verify no network fallback, and preserve cleanup/evidence without using provider or publication credentials.",
-    "requires_user_authorization": true
+    "sop": "SOP-12",
+    "id": "gate-specific-release-evidence-schema",
+    "summary": "Run full QA, commit and push the gate-specific release evidence validators, verify all CI jobs, then record the checkpoint without claiming any missing real evidence.",
+    "requires_user_authorization": false
   },
-  "waiting_authorization": {
-    "id": "launch-downloaded-ci-app-and-speech-permission",
-    "requested_action": "Confirm that Codex may launch the exact downloaded Nalu CI application and interact with the macOS Speech recognition permission prompt for local-only QA.",
-    "paid_or_external_write": false
-  },
+  "waiting_authorization": null,
   "blocking_conditions": [
     {
       "id": "downloaded-native-app-window-qa",
