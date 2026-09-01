@@ -1041,6 +1041,32 @@ Current evidence:
   This closes only the native request/integrity checkpoint. Actual-window populated-data
   accessibility QA, authorized platform evidence, Developer ID signing and notarization
   remain missing, so SOP-10 remains `IN_PROGRESS`.
+- Commit `201e879` adds a temporary-directory-only native-window fixture boundary. The
+  generator refuses non-empty or non-temporary roots, creates one isolated SQLite
+  project with two episodes and digest-valid read-only metrics/advice, and records that
+  no production data, provider, paid call or publication was touched. The native app
+  accepts that root only behind an exact explicit QA flag, requires an existing resolved
+  temporary directory, rejects a running unrelated loopback Runtime, and otherwise keeps
+  the normal Application Support path. Local full Runtime regression passed 118 tests;
+  GitHub CI run `33499198671` passed the same 118 tests, 48 XCTest cases, 27 Swift
+  Testing cases, both architecture builds, Universal merge, bundle smoke, staged update
+  and populated rollback. The two new Swift path-boundary tests passed explicitly.
+- Universal artifact `9797143801` has GitHub artifact digest
+  `440d89e3de891570b16654d1370cfcd0520ad40e71c3f15d8274905f6d161e3f`.
+  A fresh independent download passed a complete ZIP integrity scan and had inner ZIP
+  SHA-256 `8c99b744166622753489e96be95b8b7e395998e237e3aefd5078d1ba1d6c9134`;
+  staged-update and rollback evidence-file SHA-256 values were
+  `ff49d5cc703b5dc528104414ee5c1124d65410099e268ec243c7f00c48e376f0`
+  and `23a840bd84a5610f03d6db064ecb66b2ebd4abda935c421f803941c0a1d91027`.
+  Both reports say `PASS` with offline/loopback-only scope. Independent extraction,
+  strict deep signature verification and the Universal release verifier passed; all
+  three executables contain arm64 and x86_64 slices. Native executable and Runtime
+  SHA-256 values are respectively
+  `1a5bb009d38a8b69bfa7c1e0553dbf6fae09b6eabad18206c47800e14b6e6048`
+  and `9138a6f95f51b3f27a746cc275501fbbc5b29dae4f185868b23e6f373fcd6721`.
+  This closes the safe fixture-generation checkpoint, not the actual-window review:
+  the downloaded app has not yet been launched, readback and VoiceOver have not been
+  observed, and the signature is still ad hoc. SOP-10 remains `IN_PROGRESS`.
 
 ## SOP-11 · macOS packaging, updates and operations — IN_PROGRESS
 
