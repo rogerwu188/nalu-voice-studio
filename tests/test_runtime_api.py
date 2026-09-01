@@ -2965,6 +2965,13 @@ def test_dry_run_writes_immutable_package(tmp_path: Path) -> None:
         "music",
         "sfx",
     }
+    assert postproduction_contract["release_loudness"] == {
+        "measurement_standard": "EBU_R128_LIBAVFILTER",
+        "measured_from_decoded_media": True,
+        "integrated_loudness_range_lufs": [-17.0, -15.0],
+        "max_loudness_range_lu": 12.0,
+        "true_peak_max_dbtp": -1.0,
+    }
     assert postproduction_contract["fail_closed"] is True
     local_postproduction = task["local_postproduction"]
     assert local_postproduction["executor"] == "nalu-local-postproduction"
@@ -2978,6 +2985,8 @@ def test_dry_run_writes_immutable_package(tmp_path: Path) -> None:
     )
     assert materialization_contract["atomic_output_directory"] is True
     assert materialization_contract["source_digest_rechecked_before_commit"] is True
+    assert materialization_contract["normalization"]["release_target_lufs"] == -16.0
+    assert materialization_contract["release_loudness_measured_locally"] is True
     assert materialization_contract["network_call_performed"] is False
     assert materialization_contract["fail_closed"] is True
     assert (workspace / "exports" / "provider-results").is_dir()
