@@ -548,6 +548,22 @@ Current evidence:
   evidence SHA-256 `c55fc9364a81783328719c2eac995a4d288c2c93c63a3f95c5b439ef424b0239`.
   The original evidence therefore required correction; only a new CI run of the portable
   audit can close the candidate-quarantine checkpoint. This is not SOP-07 or promotion.
+- Commit `1349636`, GitHub CI run `33490668498`: the corrected independent auditor
+  shallow-cloned the exact tag on clean Linux without importing or executing upstream
+  Python, recomputed the 1,723-file tree and registry digests, parsed every declared
+  runtime binding and reproduced all nine quarantine failures, including the absolute
+  path even though that unrelated file is absent on CI. All 116 Runtime tests, real HTTP
+  smoke, Apple Silicon, Intel and universal builds passed. Universal artifact
+  `9793822234` has GitHub digest
+  `sha256:e32c92bec9f4caef482ee3afcde7fc29619425d2ba9d280d7ce538cb3d2a4e9e`,
+  inner ZIP SHA-256 `f1351a760600fffcc213daee690574b5db10d49845bb5903faded2f9cb6b5542`,
+  staged-update evidence SHA-256
+  `e21c3419f1fc4726d02fe708ede7805d4546381b61150412b32357792cb3f631` and rollback
+  evidence SHA-256 `3a57c9aa212219532595588c739356970c237d9ada2ee7a5dc42d7e758326274`.
+  The packaged quarantine record exactly matches source SHA-256
+  `8daf4d3a609ae467626556ab6106752b24e06cb14604d76487ae15d47d1f083f`.
+  Daily discovery and main CI now rerun this isolated comparison; drift fails closed.
+  This closes only the corrected candidate-quarantine automation checkpoint.
 - Still required before `PASS`: a corrected pinned Qingshan release whose registry
   integrity and complete registered tests pass, plus authorized real-provider sandbox
   task/result/receipt evidence. Offline authority and transport doubles are not a paid
