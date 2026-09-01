@@ -11,13 +11,13 @@
     "TODO": 1,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "013086a78b17a98b6f83082b9edbebd7358135e4",
-  "last_advanced_at": "2026-09-01T10:12:00Z",
+  "observed_head": "3a22e08944a9a439f774eadf5d249138b9d06c94",
+  "last_advanced_at": "2026-09-01T10:14:00Z",
   "last_closed_checkpoint": {
     "id": "sop-10-publication-learning-export-restore-core",
     "sop": "SOP-10",
     "product_commit": "6a68892df668d5f9695bff26b0a6fb15c3388519",
-    "evidence_commit": "PENDING",
+    "evidence_commit": "3a22e08944a9a439f774eadf5d249138b9d06c94",
     "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33494844711",
     "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33494844711/artifacts/9795485341",
     "result": "PASS"
