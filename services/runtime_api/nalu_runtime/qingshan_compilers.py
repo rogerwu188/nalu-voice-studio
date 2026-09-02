@@ -12,6 +12,27 @@ class ModelCompilationError(RuntimeError):
     pass
 
 
+CAMERA_PROTECTED_FIELDS = (
+    "shot_scale",
+    "camera_height",
+    "camera_side",
+    "axis_relation",
+    "motion_family",
+    "motion_direction",
+    "start_framing",
+    "end_framing",
+    "motivation",
+    "lens_intent",
+)
+CAMERA_ENRICHMENT_FIELDS = (
+    "lens_mm",
+    "shutter_visual_intent",
+    "depth_of_field_intent",
+    "atmosphere_intent",
+    "effect_intent",
+)
+
+
 def _canonical_sha256(value: dict[str, Any]) -> str:
     encoded = json.dumps(
         value,
@@ -66,6 +87,10 @@ class QingshanModelCompiler(ABC):
             "same_scene_continuation_anchor_kind": "PREVIOUS_ACCEPTED_FINAL_FRAME",
             "generated_keyframe_state_contract": "ENTRY_STATE_ONLY",
             "completion_state_leakage_forbidden": True,
+            "camera_authority_required": True,
+            "camera_protected_fields": list(CAMERA_PROTECTED_FIELDS),
+            "camera_auto_enrichment_fields": list(CAMERA_ENRICHMENT_FIELDS),
+            "camera_protected_field_mutation_forbidden": True,
         }
 
     def compile(self, package: dict[str, Any], workspace: Path) -> Path:
@@ -287,6 +312,33 @@ class ModelCompilerRegistry:
                 failures.append("continuation anchor requires its source receipt SHA-256")
             if not _is_sha256(anchor.get("frame_sha256")):
                 failures.append("continuation anchor requires its final-frame SHA-256")
+
+        camera_plan = request.get("camera_plan")
+        camera_authority = request.get("camera_authority")
+        if not isinstance(camera_plan, dict) or not isinstance(camera_authority, dict):
+            failures.append("paid request requires camera authority")
+        else:
+            authored = camera_authority.get("authored_protected_fields")
+            if not isinstance(authored, dict):
+                failures.append("camera authority requires authored protected fields")
+                authored = {}
+            protected = {field: camera_plan.get(field) for field in CAMERA_PROTECTED_FIELDS}
+            if any(value is None or str(value).strip() == "" for value in protected.values()):
+                failures.append("camera plan is missing a protected director field")
+            if authored != protected:
+                failures.append("camera protected director fields were changed")
+            if camera_authority.get("protected_fields_sha256") != _canonical_sha256(protected):
+                failures.append("camera protected fields digest is missing or changed")
+            selection_mode = camera_authority.get("selection_mode")
+            if selection_mode not in {"AUTO", "HYBRID", "LOCKED"}:
+                failures.append("camera selection mode is invalid")
+            auto_filled = camera_authority.get("auto_filled_fields")
+            if not isinstance(auto_filled, list) or any(
+                field not in CAMERA_ENRICHMENT_FIELDS for field in auto_filled
+            ):
+                failures.append("camera auto enrichment exceeds its authority")
+            elif selection_mode == "LOCKED" and auto_filled:
+                failures.append("locked camera plan cannot contain auto enrichment")
         return failures
 
     def validate_upstream_registry(self, registry_path: Path) -> list[str]:

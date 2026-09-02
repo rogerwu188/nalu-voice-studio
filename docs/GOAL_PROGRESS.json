@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "0a71866e9ee1442c85d95c538d41248bb48db036",
-  "last_advanced_at": "2026-09-02T22:02:00Z",
+  "observed_head": "a53c3edefe2944511f0592fc1429d85351c43077",
+  "last_advanced_at": "2026-09-02T22:11:00Z",
   "last_closed_checkpoint": {
     "id": "qingshan-09022-contract-productization",
     "sop": "SOP-07",
@@ -23,14 +23,14 @@
     "result": "PASS"
   },
   "current_checkpoint": {
-    "sop": "SOP-09",
+    "sop": "SOP-07",
     "status": "IN_PROGRESS",
-    "summary": "Postproduction lineage QA now re-decodes each provider source and rejects missing editorial-selection authority, declared/actual source-duration mismatch, invalid windows and whole-provider-media passthrough; focused tests pass and full regression/CI evidence is pending."
+    "summary": "The paid boundary now preserves director-authored camera geometry and permits automatic enrichment only for an explicit optical/style allowlist; focused mutation and locked-mode tests pass, with full regression and CI pending."
   },
   "next_action": {
-    "sop": "SOP-09",
-    "id": "verify-editorial-lineage-authority",
-    "summary": "Run the full Runtime regression, commit and push the editorial-lineage QA hardening, then require all four GitHub CI jobs and exact artifact evidence before closing this checkpoint.",
+    "sop": "SOP-07",
+    "id": "verify-camera-authority-contract",
+    "summary": "Run full Runtime regression, commit and push the camera-authority boundary with SOP evidence, then require all four GitHub CI jobs and exact artifact evidence before closing this checkpoint.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

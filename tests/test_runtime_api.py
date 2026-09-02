@@ -3240,6 +3240,27 @@ def test_qingshan_models_use_distinct_versioned_compilers(tmp_path: Path) -> Non
         "same_scene_continuation_anchor_kind": "PREVIOUS_ACCEPTED_FINAL_FRAME",
         "generated_keyframe_state_contract": "ENTRY_STATE_ONLY",
         "completion_state_leakage_forbidden": True,
+        "camera_authority_required": True,
+        "camera_protected_fields": [
+            "shot_scale",
+            "camera_height",
+            "camera_side",
+            "axis_relation",
+            "motion_family",
+            "motion_direction",
+            "start_framing",
+            "end_framing",
+            "motivation",
+            "lens_intent",
+        ],
+        "camera_auto_enrichment_fields": [
+            "lens_mm",
+            "shutter_visual_intent",
+            "depth_of_field_intent",
+            "atmosphere_intent",
+            "effect_intent",
+        ],
+        "camera_protected_field_mutation_forbidden": True,
     }
     assert h3["adapter_id"] == "nalu.qingshan.minimax-h3"
     assert h3["profile_id"] == "MINIMAX_H3_GIGGLE"

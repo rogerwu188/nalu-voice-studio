@@ -1023,6 +1023,16 @@ Current evidence:
   implementation checkpoint, not SOP-09: real Speech permission, real consented final-
   master recognition, calibrated semantic acceptance and human audiovisual review on one
   release candidate are still required.
+- Commit `a53c3edefe2944511f0592fc1429d85351c43077`, GitHub CI run
+  `33694643341`: postproduction lineage QA now re-decodes each selected provider source
+  and independently compares its measured duration with the sealed declaration and
+  editorial in/out points. Missing `EXPLICIT_SOURCE_WINDOW` authority, duration mismatch,
+  out-of-range selection and whole-provider-media passthrough are release-blocking even
+  if a forged manifest recomputes its own digest. All 151 Runtime tests, HTTP/offline E2E,
+  Swift tests, arm64, Intel and Universal builds, bundle smoke, staged update and rollback
+  passed. Universal artifact `9871483785` has GitHub digest
+  `sha256:7f8d755e47ec5c82c933f1ecccb52c79ce3c260cd2093160d38979b5296995ea`.
+  This closes the editorial-authority QA checkpoint, not SOP-09 or whole-product QA.
 
 ## SOP-10 · Controlled release and learning loop — IN_PROGRESS
 

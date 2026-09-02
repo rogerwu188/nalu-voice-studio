@@ -21,6 +21,20 @@ def canonical_sha256(value: dict) -> str:
 
 
 def paid_request(prompt: str, **overrides: object) -> dict:
+    camera_plan = {
+        "shot_scale": "medium",
+        "camera_height": "eye-level",
+        "camera_side": "screen-left",
+        "axis_relation": "same-side",
+        "motion_family": "static",
+        "motion_direction": "none",
+        "start_framing": "waist-up",
+        "end_framing": "waist-up",
+        "motivation": "listen to the speaker",
+        "lens_intent": "natural perspective",
+        "lens_mm": 50,
+    }
+    protected = {key: value for key, value in camera_plan.items() if key != "lens_mm"}
     request = {
         "prompt": prompt,
         "adapter_id": "nalu.qingshan.minimax-h3",
@@ -38,6 +52,13 @@ def paid_request(prompt: str, **overrides: object) -> dict:
             "kind": "GENERATED_ENTRY_KEYFRAME",
             "generation_state": "ENTRY_STATE_ONLY",
             "frame_sha256": hashlib.sha256(b"entry-frame").hexdigest(),
+        },
+        "camera_plan": camera_plan,
+        "camera_authority": {
+            "selection_mode": "HYBRID",
+            "authored_protected_fields": protected,
+            "protected_fields_sha256": canonical_sha256(protected),
+            "auto_filled_fields": ["lens_mm"],
         },
     }
     request.update(overrides)
@@ -272,6 +293,22 @@ def test_paid_boundary_revalidates_package_approval_and_transport_guarantees(
             },
             "previous accepted final frame",
         ),
+        ({"camera_authority": None}, "camera authority"),
+        (
+            {"camera_plan": {"shot_scale": "close-up"}},
+            "missing a protected director field",
+        ),
+        (
+            {
+                "camera_authority": {
+                    "selection_mode": "LOCKED",
+                    "authored_protected_fields": {},
+                    "protected_fields_sha256": "0" * 64,
+                    "auto_filled_fields": ["lens_mm"],
+                }
+            },
+            "protected director fields were changed",
+        ),
     ],
 )
 def test_paid_boundary_rejects_semantic_contract_loss_before_transport(
@@ -347,6 +384,44 @@ def test_same_scene_continuation_binds_previous_accepted_final_frame(
     assert accepted.state == RemoteTaskState.SUBMITTED
     recorded = transport.accepted[accepted.submission_fingerprint].receipt["request"]
     assert recorded["opening_anchor"] == request["opening_anchor"]
+
+
+def test_paid_boundary_preserves_director_camera_authority(tmp_path: Path) -> None:
+    api = TestClient(create_app(tmp_path / "test.sqlite3", tmp_path / "data"))
+    run = paid_run(api, tmp_path, run_id="run_paid_camera_authority")
+    transport = IdempotentFakeTransport()
+    changed = paid_request("不得发送")
+    changed["camera_plan"]["camera_side"] = "screen-right"
+
+    with pytest.raises(ConflictError, match="protected director fields were changed"):
+        api.app.state.remote_task_submitter.submit_paid_task(
+            run.id,
+            task_key="E01-U01",
+            provider="giggle",
+            model="MiniMax-H3",
+            request=changed,
+            transport=transport,
+        )
+    assert transport.calls == 0
+
+    locked = paid_request("锁定导演镜头，不允许自动补写")
+    locked["camera_plan"].pop("lens_mm")
+    protected = locked["camera_plan"].copy()
+    locked["camera_authority"] = {
+        "selection_mode": "LOCKED",
+        "authored_protected_fields": protected,
+        "protected_fields_sha256": canonical_sha256(protected),
+        "auto_filled_fields": [],
+    }
+    accepted = api.app.state.remote_task_submitter.submit_paid_task(
+        run.id,
+        task_key="E01-U02",
+        provider="giggle",
+        model="MiniMax-H3",
+        request=locked,
+        transport=transport,
+    )
+    assert accepted.state == RemoteTaskState.SUBMITTED
 
 
 def test_only_submitter_source_invokes_paid_transport() -> None:
