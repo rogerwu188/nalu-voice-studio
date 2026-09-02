@@ -305,11 +305,11 @@ def create_playable_mp4(
     frozen: bool = False,
     silent: bool = False,
     hold_across_boundary: bool = False,
+    duration_seconds: int = 2,
 ) -> bytes:
     width = height = 64
     fps = 10
     sample_rate = 48000
-    duration_seconds = 2
     with av.open(
         str(path),
         mode="w",
@@ -419,6 +419,7 @@ def write_postproduction_lineage_manifest(
     exports: Path,
     *,
     corrupt_admission: bool = False,
+    corrupt_editorial_window: bool = False,
 ) -> None:
     package = json.loads(Path(run["package_path"]).read_text(encoding="utf-8"))
     master_path = exports / "E01_MASTER.mp4"
@@ -427,7 +428,7 @@ def write_postproduction_lineage_manifest(
     normalized_path = exports / "normalized-segments" / "S01.mp4"
     source_path.parent.mkdir(parents=True, exist_ok=True)
     normalized_path.parent.mkdir(parents=True, exist_ok=True)
-    source_path.write_bytes(master_path.read_bytes())
+    create_playable_mp4(source_path, duration_seconds=3)
     normalized_path.write_bytes(master_path.read_bytes())
 
     stem_entries = []
@@ -470,7 +471,13 @@ def write_postproduction_lineage_manifest(
                     "timeline_start_seconds": 0.0,
                     "duration_seconds": 2.0,
                     "source_in_seconds": 0.0,
-                    "source_out_seconds": 2.0,
+                    "source_out_seconds": 3.0 if corrupt_editorial_window else 2.0,
+                    "source_duration_seconds": 3.0,
+                    "editorial_selection": (
+                        "USE_FULL_PROVIDER_MEDIA"
+                        if corrupt_editorial_window
+                        else "EXPLICIT_SOURCE_WINDOW"
+                    ),
                 }
             ],
         },
@@ -1424,6 +1431,30 @@ def test_postproduction_lineage_rejects_unadmitted_shot_and_blocks_release(
     repair = api.get(f"/v1/production-runs/{run['id']}/postproduction-repair-plan").json()
     assert [task["code"] for task in repair["repair_tasks"]] == ["shot_selection"]
     assert repair["repair_tasks"][0]["release_blocking"] is True
+
+
+def test_postproduction_lineage_rejects_missing_real_editorial_cut(tmp_path: Path) -> None:
+    api = client(tmp_path)
+    _, episode, _ = approved_episode_with_library(api)
+    run = api.post(f"/v1/episodes/{episode['id']}/production-runs", json={"dry_run": True}).json()
+    api.app.state.repository.update_run_status(run["id"], RunStatus.QA_REVIEW)
+    exports = Path(run["package_path"]).parent / "qingshan-workspace" / "exports"
+    create_playable_mp4(exports / "E01_MASTER.mp4")
+    (exports / "E01_zh-CN.vtt").write_text(
+        "WEBVTT\n\n00:00.100 --> 00:01.800\n回家\n", encoding="utf-8"
+    )
+    write_postproduction_lineage_manifest(run, exports, corrupt_editorial_window=True)
+    api.post(
+        f"/v1/production-runs/{run['id']}/rendered-output-seal",
+        json=seal_payload(include_postproduction_manifest=True),
+    ).raise_for_status()
+
+    report = api.post(f"/v1/production-runs/{run['id']}/postproduction-lineage-qa").json()
+
+    assert report["status"] == "FAIL"
+    assert "EDITORIAL_SOURCE_WINDOW_MISSING" in report["failures"]
+    assert "WHOLE_PROVIDER_MEDIA_PASSTHROUGH_FORBIDDEN" in report["failures"]
+    assert report["shot_selection"]["shots"][0]["status"] == "FAIL"
 
 
 def test_visual_continuity_redecodes_frames_and_creates_domain_repair(

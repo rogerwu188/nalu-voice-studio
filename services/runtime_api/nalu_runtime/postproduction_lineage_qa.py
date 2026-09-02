@@ -348,10 +348,15 @@ def inspect_postproduction_lineage(
         if not SHA256_PATTERN.fullmatch(receipt_sha):
             shot_failures.append("SHOT_SOURCE_RECEIPT_SHA_INVALID")
         source_path = _safe_file(exports_root, str(shot.get("source_relative_path") or ""))
+        source_facts: dict[str, Any] = {}
         if source_path is None:
             shot_failures.append("SHOT_SOURCE_FILE_MISSING_OR_UNSAFE")
         elif file_sha256(source_path) != shot.get("source_sha256"):
             shot_failures.append("SHOT_SOURCE_SHA_MISMATCH")
+        else:
+            source_facts = _media_stream_facts(source_path)
+            if source_facts.get("status") != "PASS":
+                shot_failures.append("SHOT_SOURCE_DECODE_FAILED")
         normalized_path = _safe_file(exports_root, str(shot.get("normalized_relative_path") or ""))
         normalized_facts: dict[str, Any] = {}
         if normalized_path is None:
@@ -385,16 +390,35 @@ def inspect_postproduction_lineage(
         duration = shot.get("duration_seconds")
         source_in = shot.get("source_in_seconds")
         source_out = shot.get("source_out_seconds")
+        declared_source_duration = shot.get("source_duration_seconds")
+        if shot.get("editorial_selection") != "EXPLICIT_SOURCE_WINDOW":
+            shot_failures.append("EDITORIAL_SOURCE_WINDOW_MISSING")
         if not all(
             isinstance(value, (int, float)) and not isinstance(value, bool)
-            for value in (start, duration, source_in, source_out)
+            for value in (start, duration, source_in, source_out, declared_source_duration)
         ):
             shot_failures.append("SHOT_TIMELINE_VALUES_INVALID")
         else:
             start = float(start)
             duration = float(duration)
-            if duration <= 0 or float(source_out) <= float(source_in):
+            source_in = float(source_in)
+            source_out = float(source_out)
+            declared_source_duration = float(declared_source_duration)
+            if (
+                duration <= 0
+                or source_out <= source_in
+                or declared_source_duration <= 0
+                or source_out > declared_source_duration + 0.05
+            ):
                 shot_failures.append("SHOT_DURATION_INVALID")
+            actual_source_duration = float(source_facts.get("duration_seconds") or 0)
+            if (
+                not actual_source_duration
+                or abs(actual_source_duration - declared_source_duration) > 0.15
+            ):
+                shot_failures.append("SOURCE_DURATION_EVIDENCE_MISMATCH")
+            if source_in <= 0.05 and source_out >= declared_source_duration - 0.05:
+                shot_failures.append("WHOLE_PROVIDER_MEDIA_PASSTHROUGH_FORBIDDEN")
             if abs(start - previous_end) > 0.05:
                 shot_failures.append("SHOT_TIMELINE_NOT_CONTIGUOUS")
             previous_end = max(previous_end, start + max(duration, 0))
@@ -406,6 +430,7 @@ def inspect_postproduction_lineage(
             {
                 "shot_id": label,
                 "normalized_media": normalized_facts,
+                "source_media_duration_seconds": source_facts.get("duration_seconds"),
                 "status": "FAIL" if shot_failures else "PASS",
                 "failures": sorted(set(shot_failures)),
             }

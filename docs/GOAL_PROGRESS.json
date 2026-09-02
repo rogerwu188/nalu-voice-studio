@@ -11,26 +11,26 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "872cb3d7aca9d439dbd7045c9474a68be13b7705",
-  "last_advanced_at": "2026-09-02T21:33:30Z",
+  "observed_head": "0a71866e9ee1442c85d95c538d41248bb48db036",
+  "last_advanced_at": "2026-09-02T22:02:00Z",
   "last_closed_checkpoint": {
-    "id": "qingshan-09017-contract-productization",
+    "id": "qingshan-09022-contract-productization",
     "sop": "SOP-07",
-    "product_commit": "76b7283077aedccd8470088f1441c839ba7d6bb7",
-    "evidence_commit": "19acdfc741d3360c5c8653fcd3690eea04036e10",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33571104271",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33571104271/artifacts/9825078541",
+    "product_commit": "872cb3d7aca9d439dbd7045c9474a68be13b7705",
+    "evidence_commit": "0a71866e9ee1442c85d95c538d41248bb48db036",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33686562266",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33686562266/artifacts/9868505299",
     "result": "PASS"
   },
   "current_checkpoint": {
-    "sop": "SOP-07",
+    "sop": "SOP-09",
     "status": "IN_PROGRESS",
-    "summary": "Qingshan v2026.09.02.2 remains quarantined on nine registry defects. Nalu product commit 872cb3d productizes chained accepted-final-frame anchors, entry-state-only scene openings and explicit editorial source windows; all four jobs in GitHub CI 33685909456 passed and Universal artifact 9868297261 was produced."
+    "summary": "Postproduction lineage QA now re-decodes each provider source and rejects missing editorial-selection authority, declared/actual source-duration mismatch, invalid windows and whole-provider-media passthrough; focused tests pass and full regression/CI evidence is pending."
   },
   "next_action": {
-    "sop": "SOP-07",
-    "id": "close-qingshan-09022-productization-evidence",
-    "summary": "Wait for all four jobs of GitHub CI run 33685407332, record exact artifact and QA evidence in PRODUCT_SOP.md, commit and push the evidence checkpoint, then select the highest-priority safe non-authorized SOP gap.",
+    "sop": "SOP-09",
+    "id": "verify-editorial-lineage-authority",
+    "summary": "Run the full Runtime regression, commit and push the editorial-lineage QA hardening, then require all four GitHub CI jobs and exact artifact evidence before closing this checkpoint.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
