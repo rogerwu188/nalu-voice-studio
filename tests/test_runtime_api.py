@@ -3261,6 +3261,10 @@ def test_qingshan_models_use_distinct_versioned_compilers(tmp_path: Path) -> Non
             "effect_intent",
         ],
         "camera_protected_field_mutation_forbidden": True,
+        "visible_prop_state_contract_required": True,
+        "prop_state_endpoint_fields": ["owner", "hand", "position", "disposition"],
+        "prop_ownership_change_requires_writer_authority": True,
+        "prop_start_frame_visual_confirmation_required": True,
     }
     assert h3["adapter_id"] == "nalu.qingshan.minimax-h3"
     assert h3["profile_id"] == "MINIMAX_H3_GIGGLE"

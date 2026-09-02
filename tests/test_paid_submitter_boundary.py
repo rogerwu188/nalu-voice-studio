@@ -60,6 +60,8 @@ def paid_request(prompt: str, **overrides: object) -> dict:
             "protected_fields_sha256": canonical_sha256(protected),
             "auto_filled_fields": ["lens_mm"],
         },
+        "visible_prop_ids": [],
+        "prop_state_contracts": [],
     }
     request.update(overrides)
     return request
@@ -309,6 +311,8 @@ def test_paid_boundary_revalidates_package_approval_and_transport_guarantees(
             },
             "protected director fields were changed",
         ),
+        ({"visible_prop_ids": None}, "explicit visible-prop list"),
+        ({"visible_prop_ids": ["case"], "prop_state_contracts": []}, "visible-prop order"),
     ],
 )
 def test_paid_boundary_rejects_semantic_contract_loss_before_transport(
@@ -419,6 +423,66 @@ def test_paid_boundary_preserves_director_camera_authority(tmp_path: Path) -> No
         provider="giggle",
         model="MiniMax-H3",
         request=locked,
+        transport=transport,
+    )
+    assert accepted.state == RemoteTaskState.SUBMITTED
+
+
+def test_paid_boundary_requires_authorized_visually_confirmed_prop_state(
+    tmp_path: Path,
+) -> None:
+    api = TestClient(create_app(tmp_path / "test.sqlite3", tmp_path / "data"))
+    run = paid_run(api, tmp_path, run_id="run_paid_prop_state")
+    transport = IdempotentFakeTransport()
+    prop_state = {
+        "prop_id": "old-suitcase",
+        "entry": {
+            "owner": "Lin",
+            "hand": "left",
+            "position": "beside left knee",
+            "disposition": "closed",
+        },
+        "exit": {
+            "owner": "Mei",
+            "hand": "right",
+            "position": "against chest",
+            "disposition": "closed",
+        },
+        "writer_authored_transition": False,
+        "start_frame_visual_confirmation": {
+            "status": "PASS",
+            "frame_sha256": hashlib.sha256(b"confirmed-prop-frame").hexdigest(),
+        },
+    }
+    unauthorized = paid_request(
+        "林把旧皮箱交给梅",
+        visible_prop_ids=["old-suitcase"],
+        prop_state_contracts=[prop_state],
+    )
+
+    with pytest.raises(ConflictError, match="ownership change lacks writer authority"):
+        api.app.state.remote_task_submitter.submit_paid_task(
+            run.id,
+            task_key="E01-U01",
+            provider="giggle",
+            model="MiniMax-H3",
+            request=unauthorized,
+            transport=transport,
+        )
+    assert transport.calls == 0
+
+    prop_state["writer_authored_transition"] = True
+    authorized = paid_request(
+        "林把旧皮箱交给梅",
+        visible_prop_ids=["old-suitcase"],
+        prop_state_contracts=[prop_state],
+    )
+    accepted = api.app.state.remote_task_submitter.submit_paid_task(
+        run.id,
+        task_key="E01-U02",
+        provider="giggle",
+        model="MiniMax-H3",
+        request=authorized,
         transport=transport,
     )
     assert accepted.state == RemoteTaskState.SUBMITTED

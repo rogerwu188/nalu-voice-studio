@@ -631,6 +631,17 @@ Current evidence:
   `9868297261` has GitHub digest
   `sha256:b76f9adae7221cd8e8cb5c4d465903994ed3491abe59171b5ffe91775eb2a9ad`.
   This closes only the `v2026.09.02.2` quarantine/productization checkpoint, not SOP-07.
+- Commit `f35739d30895e98b2f03d2bd848ca5e1d21f89b6`, GitHub CI run
+  `33695323164`: the paid boundary now binds all director-authored camera geometry—shot
+  scale, height, side, axis, motion, start/end framing, motivation and lens intent—to a
+  canonical digest. Automatic enrichment is restricted to the declared optical/style
+  allowlist, and locked plans reject every automatic addition. Changed protected fields,
+  missing authority, digest drift and unauthorized enrichment fail before provider I/O.
+  All 155 Runtime tests, HTTP/offline E2E, Swift tests, arm64, Intel and Universal builds,
+  bundle smoke, staged update and rollback passed. Universal artifact `9871717686` has
+  GitHub digest
+  `sha256:b9394f1a8bf9d8289390eb8dba2dd96b1845fd219a2724bd0d2f14c30e3d291b`.
+  This closes the camera-authority contract checkpoint, not SOP-07.
 - Still required before `PASS`: a corrected pinned Qingshan release whose registry
   integrity and complete registered tests pass, plus authorized real-provider sandbox
   task/result/receipt evidence. Offline authority and transport doubles are not a paid

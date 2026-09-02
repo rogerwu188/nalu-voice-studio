@@ -91,6 +91,10 @@ class QingshanModelCompiler(ABC):
             "camera_protected_fields": list(CAMERA_PROTECTED_FIELDS),
             "camera_auto_enrichment_fields": list(CAMERA_ENRICHMENT_FIELDS),
             "camera_protected_field_mutation_forbidden": True,
+            "visible_prop_state_contract_required": True,
+            "prop_state_endpoint_fields": ["owner", "hand", "position", "disposition"],
+            "prop_ownership_change_requires_writer_authority": True,
+            "prop_start_frame_visual_confirmation_required": True,
         }
 
     def compile(self, package: dict[str, Any], workspace: Path) -> Path:
@@ -339,6 +343,51 @@ class ModelCompilerRegistry:
                 failures.append("camera auto enrichment exceeds its authority")
             elif selection_mode == "LOCKED" and auto_filled:
                 failures.append("locked camera plan cannot contain auto enrichment")
+
+        visible_prop_ids = request.get("visible_prop_ids")
+        prop_states = request.get("prop_state_contracts")
+        if not isinstance(visible_prop_ids, list) or not all(
+            isinstance(value, str) and value.strip() for value in visible_prop_ids
+        ):
+            failures.append("paid request requires an explicit visible-prop list")
+        elif len(set(visible_prop_ids)) != len(visible_prop_ids):
+            failures.append("visible-prop IDs must be unique")
+        if not isinstance(prop_states, list):
+            failures.append("paid request requires prop-state contracts")
+        elif isinstance(visible_prop_ids, list):
+            state_ids = [
+                state.get("prop_id") if isinstance(state, dict) else None
+                for state in prop_states
+            ]
+            if state_ids != visible_prop_ids:
+                failures.append("prop-state contracts must match visible-prop order")
+            for state in prop_states:
+                if not isinstance(state, dict):
+                    continue
+                prop_id = str(state.get("prop_id") or "UNKNOWN")
+                entry = state.get("entry")
+                exit_state = state.get("exit")
+                required = ("owner", "hand", "position", "disposition")
+                if not isinstance(entry, dict) or not isinstance(exit_state, dict) or any(
+                    not str(endpoint.get(field) or "").strip()
+                    for endpoint in (entry or {}, exit_state or {})
+                    for field in required
+                ):
+                    failures.append(f"prop {prop_id} requires complete entry and exit state")
+                    continue
+                ownership_changed = any(
+                    entry[field] != exit_state[field]
+                    for field in ("owner", "hand", "disposition")
+                )
+                if ownership_changed and state.get("writer_authored_transition") is not True:
+                    failures.append(f"prop {prop_id} ownership change lacks writer authority")
+                visual = state.get("start_frame_visual_confirmation")
+                if (
+                    not isinstance(visual, dict)
+                    or visual.get("status") != "PASS"
+                    or not _is_sha256(visual.get("frame_sha256"))
+                ):
+                    failures.append(f"prop {prop_id} start state lacks visual confirmation")
         return failures
 
     def validate_upstream_registry(self, registry_path: Path) -> list[str]:
