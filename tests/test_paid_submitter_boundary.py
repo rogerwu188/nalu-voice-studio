@@ -62,6 +62,7 @@ def paid_request(prompt: str, **overrides: object) -> dict:
         },
         "visible_prop_ids": [],
         "prop_state_contracts": [],
+        "episode_scene_role": "OTHER_SCENE",
     }
     request.update(overrides)
     return request
@@ -313,6 +314,24 @@ def test_paid_boundary_revalidates_package_approval_and_transport_guarantees(
         ),
         ({"visible_prop_ids": None}, "explicit visible-prop list"),
         ({"visible_prop_ids": ["case"], "prop_state_contracts": []}, "visible-prop order"),
+        ({"episode_scene_role": None}, "explicit episode scene role"),
+        (
+            {
+                "episode_scene_role": "FIRST_SCENE",
+                "prior_episode_event_relation": "CONTINUING",
+                "event_motion_class": "STATIC",
+                "writer_authored_continuation_action": "继续奔跑",
+            },
+            "cannot open as a static tableau",
+        ),
+        (
+            {
+                "episode_scene_role": "FIRST_SCENE",
+                "prior_episode_event_relation": "CONTINUING",
+                "event_motion_class": "RUNNING",
+            },
+            "writer-authored action",
+        ),
     ],
 )
 def test_paid_boundary_rejects_semantic_contract_loss_before_transport(
@@ -486,6 +505,32 @@ def test_paid_boundary_requires_authorized_visually_confirmed_prop_state(
         transport=transport,
     )
     assert accepted.state == RemoteTaskState.SUBMITTED
+
+
+def test_first_scene_preserves_active_prior_episode_event(tmp_path: Path) -> None:
+    api = TestClient(create_app(tmp_path / "test.sqlite3", tmp_path / "data"))
+    run = paid_run(api, tmp_path, run_id="run_paid_prior_event")
+    transport = IdempotentFakeTransport()
+    request = paid_request(
+        "上一集的追赶尚未结束，本集从林叔冲进车站继续",
+        episode_scene_role="FIRST_SCENE",
+        prior_episode_event_relation="CONTINUING",
+        event_motion_class="RUNNING",
+        writer_authored_continuation_action="林叔喘着气冲进车站并回头寻找追赶者",
+    )
+
+    accepted = api.app.state.remote_task_submitter.submit_paid_task(
+        run.id,
+        task_key="E02-U01",
+        provider="giggle",
+        model="MiniMax-H3",
+        request=request,
+        transport=transport,
+    )
+
+    assert accepted.state == RemoteTaskState.SUBMITTED
+    recorded = transport.accepted[accepted.submission_fingerprint].receipt["request"]
+    assert recorded["prior_episode_event_relation"] == "CONTINUING"
 
 
 def test_only_submitter_source_invokes_paid_transport() -> None:

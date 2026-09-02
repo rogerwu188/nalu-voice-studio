@@ -3265,6 +3265,10 @@ def test_qingshan_models_use_distinct_versioned_compilers(tmp_path: Path) -> Non
         "prop_state_endpoint_fields": ["owner", "hand", "position", "disposition"],
         "prop_ownership_change_requires_writer_authority": True,
         "prop_start_frame_visual_confirmation_required": True,
+        "first_scene_prior_event_relation_required": True,
+        "prior_event_relations": ["CONTINUING", "RESOLVED", "ELAPSED"],
+        "continuing_event_static_opening_forbidden": True,
+        "continuing_event_writer_action_required": True,
     }
     assert h3["adapter_id"] == "nalu.qingshan.minimax-h3"
     assert h3["profile_id"] == "MINIMAX_H3_GIGGLE"

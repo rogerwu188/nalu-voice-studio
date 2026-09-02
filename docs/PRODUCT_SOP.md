@@ -642,6 +642,16 @@ Current evidence:
   GitHub digest
   `sha256:b9394f1a8bf9d8289390eb8dba2dd96b1845fd219a2724bd0d2f14c30e3d291b`.
   This closes the camera-authority contract checkpoint, not SOP-07.
+- Commit `20672f9088d0535ad7c92fd46489898427ef2606`, GitHub CI run
+  `33695946593`: every visible prop now requires an ordered, complete entry/exit
+  state contract for owner, hand, position and disposition. Ownership, hand or
+  disposition changes require explicit writer authority, while the opening state
+  must be bound to a visually confirmed frame digest before provider I/O. Missing
+  props, reordered contracts, incomplete state, unauthorized handoffs and invalid
+  visual evidence fail closed. All four Runtime and macOS CI jobs passed; Universal
+  artifact `9871934289` has GitHub digest
+  `sha256:3aa2685e74978aab0d78086568d37056fdeca822471ca8c874741097905f6610`.
+  This closes the visible-prop-state authority checkpoint, not SOP-07.
 - Still required before `PASS`: a corrected pinned Qingshan release whose registry
   integrity and complete registered tests pass, plus authorized real-provider sandbox
   task/result/receipt evidence. Offline authority and transport doubles are not a paid

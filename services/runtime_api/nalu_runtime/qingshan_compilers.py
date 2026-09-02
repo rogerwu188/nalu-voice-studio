@@ -95,6 +95,10 @@ class QingshanModelCompiler(ABC):
             "prop_state_endpoint_fields": ["owner", "hand", "position", "disposition"],
             "prop_ownership_change_requires_writer_authority": True,
             "prop_start_frame_visual_confirmation_required": True,
+            "first_scene_prior_event_relation_required": True,
+            "prior_event_relations": ["CONTINUING", "RESOLVED", "ELAPSED"],
+            "continuing_event_static_opening_forbidden": True,
+            "continuing_event_writer_action_required": True,
         }
 
     def compile(self, package: dict[str, Any], workspace: Path) -> Path:
@@ -388,6 +392,28 @@ class ModelCompilerRegistry:
                     or not _is_sha256(visual.get("frame_sha256"))
                 ):
                     failures.append(f"prop {prop_id} start state lacks visual confirmation")
+
+        scene_role = request.get("episode_scene_role")
+        if scene_role not in {"FIRST_SCENE", "OTHER_SCENE"}:
+            failures.append("paid request requires an explicit episode scene role")
+        elif scene_role == "FIRST_SCENE":
+            relation = request.get("prior_episode_event_relation")
+            if relation not in {"CONTINUING", "RESOLVED", "ELAPSED"}:
+                failures.append("first scene requires a valid prior-episode event relation")
+            elif relation == "CONTINUING":
+                motion_class = request.get("event_motion_class")
+                if motion_class in {
+                    None,
+                    "",
+                    "STATIC",
+                    "TABLEAU",
+                    "QUEUE",
+                    "POSE_HOLD",
+                    "ATMOSPHERE",
+                }:
+                    failures.append("continuing prior event cannot open as a static tableau")
+                if not str(request.get("writer_authored_continuation_action") or "").strip():
+                    failures.append("continuing prior event requires a writer-authored action")
         return failures
 
     def validate_upstream_registry(self, registry_path: Path) -> list[str]:
