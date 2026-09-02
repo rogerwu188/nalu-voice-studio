@@ -62,3 +62,13 @@ and local decoded-media EBU R128 release normalization/measurement. Product comm
 `76b7283077aedccd8470088f1441c839ba7d6bb7` passed all four jobs in GitHub CI run
 `33571104271`; the Universal artifact is `9825078541`. This evidence does not waive the
 nine registry defects or the separate authorized real-provider sandbox requirement.
+
+Nalu then productized three safe `v2026.09.02.2` semantics without promoting its source:
+entry-state-only scene openings, previous-accepted-final-frame anchors for same-scene
+continuations, and locally measured explicit editorial source windows that reject whole
+provider-media passthrough. Product commit `872cb3d7aca9d439dbd7045c9474a68be13b7705`
+passed all four jobs in GitHub CI run `33685909456`; Universal artifact `9868297261`
+has GitHub digest
+`sha256:b76f9adae7221cd8e8cb5c4d465903994ed3491abe59171b5ffe91775eb2a9ad`.
+The candidate remains quarantined on the same nine registry defects, and no provider
+credential, paid task or publication account was used.

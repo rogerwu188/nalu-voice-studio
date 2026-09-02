@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-07",
     "status": "IN_PROGRESS",
-    "summary": "Qingshan v2026.09.02.2 remains quarantined on nine registry defects. Nalu product commit 872cb3d productizes chained accepted-final-frame anchors, entry-state-only scene openings and explicit editorial source windows; local 150-test regression passed and GitHub CI 33685407332 is running."
+    "summary": "Qingshan v2026.09.02.2 remains quarantined on nine registry defects. Nalu product commit 872cb3d productizes chained accepted-final-frame anchors, entry-state-only scene openings and explicit editorial source windows; all four jobs in GitHub CI 33685909456 passed and Universal artifact 9868297261 was produced."
   },
   "next_action": {
     "sop": "SOP-07",

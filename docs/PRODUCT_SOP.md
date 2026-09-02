@@ -614,6 +614,23 @@ Current evidence:
   and independently downloaded inner ZIP SHA-256
   `699418ea08eb1041cd45e87d72cd147e81fd7e877fcccc4ce6c4ed5b773a2d7b`.
   This closes only the `v2026.09.01.7` quarantine/productization checkpoint, not SOP-07.
+- Product commit `872cb3d7aca9d439dbd7045c9474a68be13b7705`, included in
+  progress commit `0a102065797c37df2d94357a9d53a5c71ff224cb`, GitHub CI run
+  `33685909456`: Nalu independently reproduced Qingshan `v2026.09.02.2` at exact
+  commit `671dfb09f62fbf0f6f9911bad52a40a5a80cd327` and tracked-tree SHA-256
+  `eb720810fed36993dc4411a288ee5493ccebcddfedf9b87e187c6bc4177e2d6b`.
+  The unchanged registry still fails on the same eight missing paths and one absolute
+  host path, so the candidate remains quarantined and cannot authorize a paid task or
+  replace the active pin. Nalu productized three safe execution semantics: a scene-first
+  request requires a digest-bound entry-state-only keyframe; every same-scene continuation
+  requires the previous accepted provider task, receipt and real final-frame digest; and
+  local postproduction measures provider-media duration, requires an explicit editorial
+  source window and rejects whole-media passthrough. All 150 Runtime tests, portable
+  candidate reproduction, HTTP/offline E2E, arm64, Intel and Universal Swift builds,
+  bundled-Runtime smoke, staged update and rollback passed. Universal artifact
+  `9868297261` has GitHub digest
+  `sha256:b76f9adae7221cd8e8cb5c4d465903994ed3491abe59171b5ffe91775eb2a9ad`.
+  This closes only the `v2026.09.02.2` quarantine/productization checkpoint, not SOP-07.
 - Still required before `PASS`: a corrected pinned Qingshan release whose registry
   integrity and complete registered tests pass, plus authorized real-provider sandbox
   task/result/receipt evidence. Offline authority and transport doubles are not a paid
