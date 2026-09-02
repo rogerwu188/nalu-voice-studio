@@ -36,11 +36,13 @@ It may support local contract work, but cannot authorize a paid request. Any add
 changed failure is unreviewed drift and fails closed. The exception must be removed—not
 carried forward—when the corrected upstream release is promoted.
 
-The latest reviewed candidate is `v2026.09.01.7` at commit
-`9c40a28d07ee9c48aed9307cbc7726a1bd992379`. It retains the earlier grouped-unit
-duration, explicit noncombat and native-delivery-resolution fixes and adds shared
-Seedance/H3 execution semantics, provider projection checks, prompt coverage and native/
-release loudness gates. Nalu reviews those contracts independently without promoting or
+The latest reviewed candidate is `v2026.09.02.2` at commit
+`671dfb09f62fbf0f6f9911bad52a40a5a80cd327`. Relative to the previous reviewed
+`v2026.09.01.7` candidate, the release changes 53 files (2,929 insertions and 120
+deletions) and adds same-scene chained opening anchors, entry-state-only keyframe
+generation, explicit editorial source windows, decoded-frame integrity telemetry and
+stronger combat, prop-state, patient-state, camera-authority and cross-episode event
+continuity contracts. Nalu reviews those contracts independently without promoting or
 running the quarantined candidate. An isolated checkout still fails the upstream
 registry-integrity function:
 69 gates, 66 coded/runtime-bound gates, eight missing registered paths and one
@@ -52,7 +54,7 @@ the exact candidate tree, registry digest and failure list. CI validates that th
 remains `QUARANTINED`, cannot replace the active pin, cannot authorize paid execution
 and does not misreport the unrun complete registered suite as passing.
 Daily discovery treats both the active pin and this exact reviewed candidate as covered;
-only a third, unaudited tag opens a new deduplicated upgrade issue.
+only a newer, unaudited tag opens a new deduplicated upgrade issue.
 
 Nalu productized two safe `v2026.09.01.7` contracts without copying its runtime into the
 paid path: exact adapter/profile/logical/provider model identity at the final I/O boundary,
