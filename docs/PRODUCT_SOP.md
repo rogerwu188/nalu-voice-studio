@@ -652,6 +652,15 @@ Current evidence:
   artifact `9871934289` has GitHub digest
   `sha256:3aa2685e74978aab0d78086568d37056fdeca822471ca8c874741097905f6610`.
   This closes the visible-prop-state authority checkpoint, not SOP-07.
+- Commit `946ca07f2fa2a57ade84b9761de5e6cc0d1871bd`, GitHub CI run
+  `33696635302`: an episode's first scene must explicitly classify its relationship
+  to the prior episode's active event as continuing, resolved or elapsed. A continuing
+  event cannot restart as a static tableau and must carry a writer-authored continuation
+  action through the only paid boundary. Missing relations, static reopening and absent
+  narrative authority fail before provider I/O. All 162 Runtime tests and all four
+  Runtime/macOS CI jobs passed. Universal artifact `9872175147` has GitHub digest
+  `sha256:71b31c0e1f18cb5b019cb5d53a343a63b81b23f84844f33ae27e8203bfb3b2fe`.
+  This closes the cross-episode active-event checkpoint, not SOP-07.
 - Still required before `PASS`: a corrected pinned Qingshan release whose registry
   integrity and complete registered tests pass, plus authorized real-provider sandbox
   task/result/receipt evidence. Offline authority and transport doubles are not a paid

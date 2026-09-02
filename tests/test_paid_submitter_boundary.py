@@ -63,6 +63,12 @@ def paid_request(prompt: str, **overrides: object) -> dict:
         "visible_prop_ids": [],
         "prop_state_contracts": [],
         "episode_scene_role": "OTHER_SCENE",
+        "shot_state_delta_contract": {
+            "mode": "CHANGE",
+            "dimensions": [
+                {"dimension": "POSITION", "entry": "门外", "exit": "门内"},
+            ],
+        },
     }
     request.update(overrides)
     return request
@@ -332,6 +338,29 @@ def test_paid_boundary_revalidates_package_approval_and_transport_guarantees(
             },
             "writer-authored action",
         ),
+        ({"shot_state_delta_contract": None}, "shot state-delta contract"),
+        (
+            {
+                "shot_state_delta_contract": {
+                    "mode": "CHANGE",
+                    "dimensions": [
+                        {"dimension": "POSTURE", "entry": "站立", "exit": "站立"},
+                    ],
+                }
+            },
+            "requires a real change",
+        ),
+        (
+            {
+                "shot_state_delta_contract": {
+                    "mode": "INTENTIONAL_HOLD",
+                    "dimensions": [
+                        {"dimension": "CONTACT", "entry": "未接触", "exit": "未接触"},
+                    ],
+                }
+            },
+            "writer-authored reason",
+        ),
     ],
 )
 def test_paid_boundary_rejects_semantic_contract_loss_before_transport(
@@ -531,6 +560,34 @@ def test_first_scene_preserves_active_prior_episode_event(tmp_path: Path) -> Non
     assert accepted.state == RemoteTaskState.SUBMITTED
     recorded = transport.accepted[accepted.submission_fingerprint].receipt["request"]
     assert recorded["prior_episode_event_relation"] == "CONTINUING"
+
+
+def test_writer_can_authorize_an_intentional_static_hold(tmp_path: Path) -> None:
+    api = TestClient(create_app(tmp_path / "test.sqlite3", tmp_path / "data"))
+    run = paid_run(api, tmp_path, run_id="run_paid_intentional_hold")
+    transport = IdempotentFakeTransport()
+    request = paid_request(
+        "林叔停在门前，镜头保持不动，让观众听见远处警笛",
+        shot_state_delta_contract={
+            "mode": "INTENTIONAL_HOLD",
+            "dimensions": [
+                {"dimension": "POSITION", "entry": "门前", "exit": "门前"},
+                {"dimension": "POSTURE", "entry": "站立", "exit": "站立"},
+            ],
+            "writer_authored_hold_reason": "用静止状态突出逐渐接近的画外警笛",
+        },
+    )
+
+    accepted = api.app.state.remote_task_submitter.submit_paid_task(
+        run.id,
+        task_key="E02-U02",
+        provider="giggle",
+        model="MiniMax-H3",
+        request=request,
+        transport=transport,
+    )
+
+    assert accepted.state == RemoteTaskState.SUBMITTED
 
 
 def test_only_submitter_source_invokes_paid_transport() -> None:

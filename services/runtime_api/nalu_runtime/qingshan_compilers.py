@@ -53,7 +53,7 @@ class QingshanModelCompiler(ABC):
     """Compile an immutable Nalu package into one provider-specific planning contract."""
 
     adapter_id: str
-    adapter_version = "1.3.0"
+    adapter_version = "1.4.0"
     profile_id: str
     model: str
     native_resolution: str
@@ -99,6 +99,17 @@ class QingshanModelCompiler(ABC):
             "prior_event_relations": ["CONTINUING", "RESOLVED", "ELAPSED"],
             "continuing_event_static_opening_forbidden": True,
             "continuing_event_writer_action_required": True,
+            "shot_state_delta_contract_required": True,
+            "shot_state_delta_modes": ["CHANGE", "INTENTIONAL_HOLD"],
+            "shot_state_delta_dimensions": [
+                "POSITION",
+                "POSTURE",
+                "CONTACT",
+                "POSSESSION",
+                "INTEGRITY",
+                "MOMENTUM",
+            ],
+            "intentional_hold_requires_writer_reason": True,
         }
 
     def compile(self, package: dict[str, Any], workspace: Path) -> Path:
@@ -414,6 +425,53 @@ class ModelCompilerRegistry:
                     failures.append("continuing prior event cannot open as a static tableau")
                 if not str(request.get("writer_authored_continuation_action") or "").strip():
                     failures.append("continuing prior event requires a writer-authored action")
+
+        state_delta = request.get("shot_state_delta_contract")
+        allowed_delta_dimensions = {
+            "POSITION",
+            "POSTURE",
+            "CONTACT",
+            "POSSESSION",
+            "INTEGRITY",
+            "MOMENTUM",
+        }
+        if not isinstance(state_delta, dict):
+            failures.append("paid request requires a shot state-delta contract")
+        else:
+            delta_mode = state_delta.get("mode")
+            dimensions = state_delta.get("dimensions")
+            if delta_mode not in {"CHANGE", "INTENTIONAL_HOLD"}:
+                failures.append("shot state-delta mode is invalid")
+            if not isinstance(dimensions, list) or not dimensions:
+                failures.append("shot state-delta requires at least one dimension")
+            else:
+                dimension_names: list[object] = []
+                changed = False
+                for dimension in dimensions:
+                    if not isinstance(dimension, dict):
+                        failures.append("shot state-delta dimension is invalid")
+                        continue
+                    name = dimension.get("dimension")
+                    dimension_names.append(name)
+                    if name not in allowed_delta_dimensions:
+                        failures.append("shot state-delta dimension is invalid")
+                    entry = dimension.get("entry")
+                    exit_state = dimension.get("exit")
+                    if not isinstance(entry, str) or not entry.strip() or not isinstance(
+                        exit_state, str
+                    ) or not exit_state.strip():
+                        failures.append("shot state-delta endpoints must be explicit")
+                    elif entry != exit_state:
+                        changed = True
+                if len(set(dimension_names)) != len(dimension_names):
+                    failures.append("shot state-delta dimensions must be unique")
+                if delta_mode == "CHANGE" and not changed:
+                    failures.append("shot state-delta CHANGE mode requires a real change")
+                if delta_mode == "INTENTIONAL_HOLD":
+                    if changed:
+                        failures.append("intentional hold cannot contain a changed endpoint")
+                    if not str(state_delta.get("writer_authored_hold_reason") or "").strip():
+                        failures.append("intentional hold requires a writer-authored reason")
         return failures
 
     def validate_upstream_registry(self, registry_path: Path) -> list[str]:

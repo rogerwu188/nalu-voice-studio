@@ -3269,6 +3269,17 @@ def test_qingshan_models_use_distinct_versioned_compilers(tmp_path: Path) -> Non
         "prior_event_relations": ["CONTINUING", "RESOLVED", "ELAPSED"],
         "continuing_event_static_opening_forbidden": True,
         "continuing_event_writer_action_required": True,
+        "shot_state_delta_contract_required": True,
+        "shot_state_delta_modes": ["CHANGE", "INTENTIONAL_HOLD"],
+        "shot_state_delta_dimensions": [
+            "POSITION",
+            "POSTURE",
+            "CONTACT",
+            "POSSESSION",
+            "INTEGRITY",
+            "MOMENTUM",
+        ],
+        "intentional_hold_requires_writer_reason": True,
     }
     assert h3["adapter_id"] == "nalu.qingshan.minimax-h3"
     assert h3["profile_id"] == "MINIMAX_H3_GIGGLE"
