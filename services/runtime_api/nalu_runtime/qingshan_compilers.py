@@ -22,11 +22,17 @@ def _canonical_sha256(value: dict[str, Any]) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
+def _is_sha256(value: object) -> bool:
+    return isinstance(value, str) and len(value) == 64 and all(
+        character in "0123456789abcdef" for character in value
+    )
+
+
 class QingshanModelCompiler(ABC):
     """Compile an immutable Nalu package into one provider-specific planning contract."""
 
     adapter_id: str
-    adapter_version = "1.2.0"
+    adapter_version = "1.3.0"
     profile_id: str
     model: str
     native_resolution: str
@@ -55,6 +61,11 @@ class QingshanModelCompiler(ABC):
             "delivery_resolution_contract": self.native_resolution,
             "native_resolution_must_remain_honestly_labeled": True,
             "silent_upscale_forbidden": True,
+            "opening_anchor_required": True,
+            "scene_first_anchor_kind": "GENERATED_ENTRY_KEYFRAME",
+            "same_scene_continuation_anchor_kind": "PREVIOUS_ACCEPTED_FINAL_FRAME",
+            "generated_keyframe_state_contract": "ENTRY_STATE_ONLY",
+            "completion_state_leakage_forbidden": True,
         }
 
     def compile(self, package: dict[str, Any], workspace: Path) -> Path:
@@ -252,6 +263,30 @@ class ModelCompilerRegistry:
             failures.append("paid request must preserve the honest native resolution label")
         if request.get("silent_upscale_forbidden") is not True:
             failures.append("paid request must explicitly forbid silent upscale")
+        shot_role = request.get("shot_role")
+        anchor = request.get("opening_anchor")
+        if shot_role not in {"SCENE_FIRST", "SAME_SCENE_CONTINUATION"}:
+            failures.append("paid request requires an explicit shot role")
+        elif not isinstance(anchor, dict):
+            failures.append("paid request requires an opening anchor")
+        elif shot_role == "SCENE_FIRST":
+            if anchor.get("kind") != "GENERATED_ENTRY_KEYFRAME":
+                failures.append("scene-first request requires a generated entry keyframe")
+            if anchor.get("generation_state") != "ENTRY_STATE_ONLY":
+                failures.append("generated keyframe must describe entry state only")
+            if not _is_sha256(anchor.get("frame_sha256")):
+                failures.append("generated entry keyframe requires a frame SHA-256")
+        else:
+            if anchor.get("kind") != "PREVIOUS_ACCEPTED_FINAL_FRAME":
+                failures.append(
+                    "same-scene continuation requires the previous accepted final frame"
+                )
+            if not str(anchor.get("source_task_id") or "").strip():
+                failures.append("continuation anchor requires its source task ID")
+            if not _is_sha256(anchor.get("source_receipt_sha256")):
+                failures.append("continuation anchor requires its source receipt SHA-256")
+            if not _is_sha256(anchor.get("frame_sha256")):
+                failures.append("continuation anchor requires its final-frame SHA-256")
         return failures
 
     def validate_upstream_registry(self, registry_path: Path) -> list[str]:

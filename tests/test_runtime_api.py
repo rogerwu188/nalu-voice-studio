@@ -3235,6 +3235,11 @@ def test_qingshan_models_use_distinct_versioned_compilers(tmp_path: Path) -> Non
         "delivery_resolution_contract": "720p",
         "native_resolution_must_remain_honestly_labeled": True,
         "silent_upscale_forbidden": True,
+        "opening_anchor_required": True,
+        "scene_first_anchor_kind": "GENERATED_ENTRY_KEYFRAME",
+        "same_scene_continuation_anchor_kind": "PREVIOUS_ACCEPTED_FINAL_FRAME",
+        "generated_keyframe_state_contract": "ENTRY_STATE_ONLY",
+        "completion_state_leakage_forbidden": True,
     }
     assert h3["adapter_id"] == "nalu.qingshan.minimax-h3"
     assert h3["profile_id"] == "MINIMAX_H3_GIGGLE"

@@ -125,6 +125,25 @@ def _timed_video_frames(path: Path) -> Iterator[tuple[float, av.VideoFrame]]:
             yield timestamp, frame
 
 
+def _video_duration_seconds(path: Path) -> float:
+    """Read provider-media duration locally for editorial-window enforcement."""
+    with av.open(str(path), mode="r") as container:
+        if not container.streams.video:
+            raise PostproductionMaterializationError(f"video stream is missing: {path.name}")
+        stream = container.streams.video[0]
+        if stream.duration is not None and stream.time_base is not None:
+            duration = float(stream.duration * stream.time_base)
+        elif container.duration is not None:
+            duration = float(container.duration) / 1_000_000
+        else:
+            raise PostproductionMaterializationError(
+                f"video duration is unavailable: {path.name}"
+            )
+    if not math.isfinite(duration) or duration <= 0:
+        raise PostproductionMaterializationError(f"video duration is invalid: {path.name}")
+    return duration
+
+
 def _selected_frames(
     path: Path,
     *,
@@ -587,7 +606,7 @@ def _materialize_postproduction_locked(
             encoding="utf-8",
         )
 
-        normalized_specs: list[tuple[PostproductionShotSource, Path, float]] = []
+        normalized_specs: list[tuple[PostproductionShotSource, Path, float, float]] = []
         for shot in request.shots:
             _raise_if_cancelled(should_cancel)
             raw_duration = shot.source_out_seconds - shot.source_in_seconds
@@ -595,6 +614,19 @@ def _materialize_postproduction_locked(
             duration = frame_count / request.frame_rate
             sample_count = round(duration * AUDIO_SAMPLE_RATE)
             source_path = source_files[shot.source_relative_path]
+            source_duration = _video_duration_seconds(source_path)
+            tolerance = max(0.001, 0.5 / request.frame_rate)
+            if shot.source_out_seconds > source_duration + tolerance:
+                raise PostproductionMaterializationError(
+                    f"editorial source window exceeds provider media for {shot.shot_id}"
+                )
+            if (
+                shot.source_in_seconds <= tolerance
+                and shot.source_out_seconds >= source_duration - tolerance
+            ):
+                raise PostproductionMaterializationError(
+                    f"whole-provider-media passthrough is forbidden for {shot.shot_id}"
+                )
             normalized_path = stage / "normalized-segments" / f"{shot.shot_id}.mp4"
             encoded_frames = _encode_mp4(
                 normalized_path,
@@ -636,7 +668,7 @@ def _materialize_postproduction_locked(
                     "frame_count": frame_count,
                 }
             )
-            normalized_specs.append((shot, normalized_path, duration))
+            normalized_specs.append((shot, normalized_path, duration, source_duration))
             total_duration += duration
 
         total_sample_count = round(total_duration * AUDIO_SAMPLE_RATE)
@@ -689,7 +721,7 @@ def _materialize_postproduction_locked(
         )
 
         def master_frames() -> Iterator[av.VideoFrame]:
-            for _shot, normalized_path, duration in normalized_specs:
+            for _shot, normalized_path, duration, _source_duration in normalized_specs:
                 yield from _selected_frames(
                     normalized_path,
                     start_seconds=0,
@@ -726,7 +758,7 @@ def _materialize_postproduction_locked(
         mix_relative = (output_prefix / "audio" / published_mix_path.name).as_posix()
         timeline_start = 0.0
         selected_shots: list[dict[str, Any]] = []
-        for (shot, _normalized_path, duration), normalized in zip(
+        for (shot, _normalized_path, duration, source_duration), normalized in zip(
             normalized_specs, normalized_entries, strict=True
         ):
             selected_shots.append(
@@ -743,6 +775,8 @@ def _materialize_postproduction_locked(
                     "duration_seconds": round(duration, 6),
                     "source_in_seconds": shot.source_in_seconds,
                     "source_out_seconds": shot.source_out_seconds,
+                    "source_duration_seconds": round(source_duration, 6),
+                    "editorial_selection": "EXPLICIT_SOURCE_WINDOW",
                 }
             )
             timeline_start += duration

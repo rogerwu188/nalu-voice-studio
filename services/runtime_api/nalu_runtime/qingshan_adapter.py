@@ -407,7 +407,10 @@ class QingshanAdapter:
                     "provider receipt SHA-256",
                     "source file SHA-256",
                     "explicit admitted source interval",
+                    "locally measured provider-media duration",
+                    "explicit editorial selection excluding whole-media passthrough",
                 ],
+                "whole_provider_media_passthrough_forbidden": True,
                 "required_audio_layers": [
                     "dialogue",
                     "ambience",

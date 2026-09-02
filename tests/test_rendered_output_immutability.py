@@ -1701,6 +1701,40 @@ def test_running_materialization_cancels_cooperatively_and_reaps_abandoned_stage
     assert sum(event["event_type"] == "postproduction_materialized" for event in events) == 1
 
 
+def test_postproduction_rejects_whole_provider_media_passthrough(tmp_path: Path) -> None:
+    api = client(tmp_path)
+    _, episode, _ = approved_episode_with_library(api)
+    run = api.post(f"/v1/episodes/{episode['id']}/production-runs", json={"dry_run": True}).json()
+    repository = api.app.state.repository
+    repository.update_run_status(run["id"], RunStatus.RUNNING)
+    for target in ("generating", "postproduction"):
+        api.post(
+            f"/v1/episodes/{episode['id']}/transition",
+            json={
+                "target_status": target,
+                "requested_by": "local-production-worker",
+                "reason": f"fixture entered {target}",
+            },
+        ).raise_for_status()
+    exports = Path(run["package_path"]).parent / "qingshan-workspace" / "exports"
+    request = postproduction_materialization_fixture(run, exports)
+    request["shots"] = [
+        {
+            **request["shots"][0],
+            "source_in_seconds": 0,
+            "source_out_seconds": 2,
+        }
+    ]
+
+    response = api.post(
+        f"/v1/production-runs/{run['id']}/postproduction-materializations",
+        json=request,
+    )
+
+    assert response.status_code == 409
+    assert "whole-provider-media passthrough is forbidden" in response.text
+
+
 def test_local_visual_analysis_rehashes_references_decodes_master_and_recovers(
     tmp_path: Path,
 ) -> None:

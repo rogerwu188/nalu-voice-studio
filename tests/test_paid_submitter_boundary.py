@@ -33,6 +33,12 @@ def paid_request(prompt: str, **overrides: object) -> dict:
         "delivery_resolution_contract": "768p",
         "native_resolution_must_remain_honestly_labeled": True,
         "silent_upscale_forbidden": True,
+        "shot_role": "SCENE_FIRST",
+        "opening_anchor": {
+            "kind": "GENERATED_ENTRY_KEYFRAME",
+            "generation_state": "ENTRY_STATE_ONLY",
+            "frame_sha256": hashlib.sha256(b"entry-frame").hexdigest(),
+        },
     }
     request.update(overrides)
     return request
@@ -249,6 +255,23 @@ def test_paid_boundary_revalidates_package_approval_and_transport_guarantees(
         ),
         ({"delivery_resolution_contract": "1440p"}, "delivery resolution contract"),
         ({"silent_upscale_forbidden": False}, "forbid silent upscale"),
+        ({"shot_role": None}, "explicit shot role"),
+        ({"opening_anchor": None}, "opening anchor"),
+        (
+            {"opening_anchor": {"kind": "GENERATED_ENTRY_KEYFRAME"}},
+            "entry state only",
+        ),
+        (
+            {
+                "shot_role": "SAME_SCENE_CONTINUATION",
+                "opening_anchor": {
+                    "kind": "GENERATED_ENTRY_KEYFRAME",
+                    "generation_state": "ENTRY_STATE_ONLY",
+                    "frame_sha256": "0" * 64,
+                },
+            },
+            "previous accepted final frame",
+        ),
     ],
 )
 def test_paid_boundary_rejects_semantic_contract_loss_before_transport(
@@ -293,6 +316,37 @@ def test_explicit_noncombat_remains_noncombat_despite_negative_prompt_words(
 
     assert accepted.state == RemoteTaskState.SUBMITTED
     assert transport.accepted[accepted.submission_fingerprint].receipt["request"] == request
+
+
+def test_same_scene_continuation_binds_previous_accepted_final_frame(
+    tmp_path: Path,
+) -> None:
+    api = TestClient(create_app(tmp_path / "test.sqlite3", tmp_path / "data"))
+    run = paid_run(api, tmp_path, run_id="run_paid_chained_anchor")
+    transport = IdempotentFakeTransport()
+    request = paid_request(
+        "从上一个真实结尾画面继续，不重新生成开场",
+        shot_role="SAME_SCENE_CONTINUATION",
+        opening_anchor={
+            "kind": "PREVIOUS_ACCEPTED_FINAL_FRAME",
+            "source_task_id": "provider-task-E01-U01",
+            "source_receipt_sha256": hashlib.sha256(b"provider-receipt").hexdigest(),
+            "frame_sha256": hashlib.sha256(b"accepted-final-frame").hexdigest(),
+        },
+    )
+
+    accepted = api.app.state.remote_task_submitter.submit_paid_task(
+        run.id,
+        task_key="E01-U02",
+        provider="giggle",
+        model="MiniMax-H3",
+        request=request,
+        transport=transport,
+    )
+
+    assert accepted.state == RemoteTaskState.SUBMITTED
+    recorded = transport.accepted[accepted.submission_fingerprint].receipt["request"]
+    assert recorded["opening_anchor"] == request["opening_anchor"]
 
 
 def test_only_submitter_source_invokes_paid_transport() -> None:
