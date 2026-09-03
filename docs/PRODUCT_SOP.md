@@ -769,6 +769,32 @@ Current evidence:
   `sha256:56b28c4a7423180b197106e38650e369c5f9978a2a6882b68a69413ee95b09bf`.
   This closes the local Writer-receipt artifact-binding checkpoint, not real provider
   execution verification, Qingshan promotion, paid-provider QA or SOP-07.
+- Product commit `f8e1faed776564ffa29e449b6902d02e9d4a8012`, GitHub CI run
+  `33812094698`: Nalu now exposes a second, disabled-by-default Writer verification
+  boundary after local receipt binding. It requires the exact receipt-record digest,
+  explicit read-only confirmation and a stable idempotency key; persists intent before
+  invoking an injected authenticated read-only verifier; and matches the remote provider,
+  exact model, task ID, completed state, receipt digest and task interval. Successful
+  results are separately sealed and packaged without claiming that Nalu generated,
+  spent credits or performed an external write. Unexpected transport failures, malformed
+  evidence and identity mismatches persist as `ambiguous`, block production and cannot be
+  retried automatically. SQLite migration v26, project export v22, v1-v21 compatibility,
+  restore/direct-database tamper detection and production-package propagation passed.
+  Deterministic verifiers cover only this local contract and are explicitly not treated
+  as real provider evidence. All 186 Runtime tests, lint, OpenAPI compatibility,
+  SOP/progress/release audits, current-candidate reproduction, real HTTP smoke and
+  offline E2E passed. Native Swift tests, application build, bundled-Runtime smoke,
+  staged update and populated rollback passed on Apple Silicon, Intel and the merged
+  Universal build. Runtime artifact `9915224324` has GitHub digest
+  `sha256:ed5e3ccff22038b6137949ddf7b702c86d3435bb0b101070733f3bda0d1044fd`;
+  arm64 artifact `9915233336` has digest
+  `sha256:903b8ab125551b0a34e6de704c677d824ee000346173954cfd8441b37cd3c0a8`;
+  Intel artifact `9915336618` has digest
+  `sha256:e200941aa96fb7357ad3d8141dd103ccaf0d6a2aa3c144ffb21d4ded0caab95f`;
+  Universal artifact `9915368729` has digest
+  `sha256:a64d972fa9c669bd7bce3fa296c5420193f50c082900548e2782948a63c5ddd5`.
+  This closes the safe provider-reconciliation contract checkpoint, not an actual
+  provider lookup, Qingshan promotion, paid-provider QA or SOP-07.
 - Still required before `PASS`: a corrected pinned Qingshan release whose registry
   integrity and complete registered tests pass, plus authorized real-provider sandbox
   task/result/receipt evidence. Offline authority and transport doubles are not a paid
