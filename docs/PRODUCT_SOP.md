@@ -233,6 +233,20 @@ Current evidence:
   create an immutable script revision and complete an explicitly armed script approval;
   unarmed approval cannot route to the approval API and overlapping spoken prompts are
   serialized.
+- Commit `ab3e8598063920cec603e0e530b8d4524480e793`, GitHub CI run
+  `33807969208`: every new script revision now carries a versioned Runtime-sealed
+  authoring record bound to the exact content and source transcript. The native app
+  distinguishes typed and dictated revisions; externally declared AI drafts require
+  an exact model, task and digest-only Writer receipt metadata, remain explicitly
+  unverified and cannot replace script approval. Reads and project restore reject
+  inner-provenance tampering even when the outer export digest is recomputed, while
+  legacy rows remain readable as `legacy_unverified`. All 172 Runtime tests, real HTTP
+  and offline E2E QA, OpenAPI compatibility, Swift tests, arm64, Intel and Universal
+  application builds, bundle smoke, staged update and rollback passed. Universal
+  artifact `9913876237` has GitHub digest
+  `sha256:6f2ae32c3b9dc03aa139fbba343287be377dbd748d38dff7fc76cbb656ac4cb6`.
+  This closes the machine-verifiable authoring-provenance checkpoint, not SOP-04;
+  the human acceptance criteria below remain outstanding.
 - Still required before `PASS`: human spoken-summary fidelity QA and clean-account
   voice correction/approval evidence; implementation and synthesized playback alone
   do not satisfy the human acceptance criterion.
@@ -717,6 +731,17 @@ Current evidence:
   `9908224100` has GitHub digest
   `sha256:2ffbbe0835e61ba017a54c970c1beb63f1bbd5edbb4009c86e05820b279c1bb7`.
   This closes the registry-closure/Writer-v2 audit checkpoint, not promotion or SOP-07.
+- Commit `ab3e8598063920cec603e0e530b8d4524480e793`, GitHub CI run
+  `33807969208`: Nalu productized the safe Writer v2 provenance semantics independently
+  of the quarantined upstream release. User text, user dictation, externally generated
+  and externally assisted scripts are separated; generic model aliases fail validation;
+  content, transcript, exact model, rules/input and declared receipt digests are sealed.
+  Client-declared external receipts are never reported as verified and the Runtime makes
+  no provider call. Export/import and direct SQLite tampering regressions fail closed.
+  All four Runtime/macOS jobs passed and Universal artifact `9913876237` has GitHub
+  digest `sha256:6f2ae32c3b9dc03aa139fbba343287be377dbd748d38dff7fc76cbb656ac4cb6`.
+  This closes Nalu's untrusted writer-declaration checkpoint, not trusted receipt
+  reconciliation, Qingshan promotion, paid-provider QA or SOP-07.
 - Still required before `PASS`: a corrected pinned Qingshan release whose registry
   integrity and complete registered tests pass, plus authorized real-provider sandbox
   task/result/receipt evidence. Offline authority and transport doubles are not a paid
