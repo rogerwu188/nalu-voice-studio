@@ -823,6 +823,33 @@ Current evidence:
   `sha256:a64d972fa9c669bd7bce3fa296c5420193f50c082900548e2782948a63c5ddd5`.
   This closes the safe provider-reconciliation contract checkpoint, not an actual
   provider lookup, Qingshan promotion, paid-provider QA or SOP-07.
+- Product commit `f5192ead0bddab68714b1f2d4db2f601d8334e7f`, GitHub CI run
+  `33816952385`: Nalu independently checked out Qingshan `v2026.09.03.7` at exact
+  commit `a6264982b0548d3807de16e7d9979d79c4ba48b3`, recomputed tracked-tree SHA-256
+  `bd958b67953c03ccbdaf06b0c78a56172cf2c8d4898c771a8d69dc30b633bc13`,
+  registry SHA-256 `0b7d478904638f0d9e22452971b7aa8d95b9e7445355b53e364ff187fd0613a4`
+  and portable-manifest SHA-256
+  `61db4eeaad2f26643713f38e0c9ebaedf6bea952e8a8305661d8ae9b8add676a`.
+  The static registry and Writer-v2 audits pass with 69 registered gates, 66 coded
+  gates and 66 runtime bindings. A new CI gate then executes the exact immutable
+  checkout with credential-like environment variables removed: core doctor passes,
+  all 33 registered portable modules run, 208 tests pass with one declared skip, and
+  Writer doctor adds six passing tests. Promotion remains fail-closed because the
+  installable package/CLI still reports `0.3.0` while the portable manifest reports
+  `0.3.1`; the candidate is therefore `QUARANTINED`, does not replace the active
+  `v2026.08.29.1` production pin and cannot authorize paid execution. All 188 Nalu
+  Runtime tests, lint, contract/audit gates, real HTTP smoke and offline E2E passed;
+  Swift tests, arm64, Intel and Universal builds, bundled-Runtime smoke, staged update
+  and populated rollback also passed. Runtime artifact `9916926086` has GitHub digest
+  `sha256:c423f36f8decaa3a41a56c6e1a6e896d2a2c403d30a8ffc34aa77589b87bc034`;
+  arm64 artifact `9916918844` has digest
+  `sha256:aefb24a92ae9043370839d77aa80d0c78ba4ab37749e607894cd8c4e53e958c0`;
+  Intel artifact `9916976161` has digest
+  `sha256:4477be2a6d3e57e4dc9d4e475768c6c7fbe77192f8e479a93c72e3cc35c74372`;
+  Universal artifact `9917002168` has digest
+  `sha256:4c106115a9195c54008236d9ad25d11baea768890adc9806f3b2679d32e52c7e`.
+  This closes the independently executed `.7` candidate checkpoint, not Qingshan
+  promotion, real-provider verification, paid-provider QA or SOP-07.
 - Still required before `PASS`: a corrected pinned Qingshan release whose registry
   integrity and complete registered tests pass, plus authorized real-provider sandbox
   task/result/receipt evidence. Offline authority and transport doubles are not a paid
