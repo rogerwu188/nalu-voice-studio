@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "9e884c4863c948c4b657fde35e364c264ad3433b",
-  "last_advanced_at": "2026-09-03T23:25:16Z",
+  "observed_head": "9981d8eca6d14c694709f7cf6c742558ecf5ddbf",
+  "last_advanced_at": "2026-09-03T23:45:52Z",
   "last_closed_checkpoint": {
     "id": "qingshan-v2026.09.03.7-independent-test-quarantine",
     "sop": "SOP-07",
@@ -23,14 +23,14 @@
     "result": "PASS"
   },
   "current_checkpoint": {
-    "sop": "SOP-10",
+    "sop": "SOP-11",
     "status": "IN_PROGRESS",
-    "summary": "Qingshan v2026.09.03.7 has now passed independent registry, Writer-v2, doctor and complete registered-test execution, but remains quarantined because its installable 0.3.0 package still disagrees with the 0.3.1 portable manifest. Continue with the safe downloaded-Universal-app publication-learning window checkpoint while the active Qingshan production pin remains unchanged."
+    "summary": "Actual-window QA of the downloaded Universal artifact exposed deterministic SQLite descriptor retention, an unmanaged second app attaching to the isolated QA Runtime, and a bundled Runtime remaining alive after normal app Quit. Product commit 9981d8e closes database contexts explicitly, refuses every healthy loopback Runtime not owned by this supervisor, and synchronously waits for managed Runtime termination. Python regression is 191 PASS; native build and packaged-process QA are pending."
   },
   "next_action": {
-    "sop": "SOP-10",
-    "id": "isolated-downloaded-publication-learning-window-qa",
-    "summary": "Download the exact Universal artifact from CI run 33816952385, generate a fresh temporary publication-learning fixture, launch only that artifact with the explicit isolated local-QA root, and record actual-window plus accessibility-tree evidence for populated metrics, advice, safety wording and read-only controls. Verify the bundled Runtime opens no user Nalu project database and that normal Quit closes the isolated processes. Do not claim real VoiceOver, publication, signing or notarization acceptance.",
+    "sop": "SOP-11",
+    "id": "verify-packaged-runtime-isolation-descriptor-and-quit-fix",
+    "summary": "Wait for GitHub CI run 33818988489 on product commit 9981d8e. If all Runtime, Swift, architecture and Universal gates pass, download that exact Universal artifact and launch it against a fresh temporary publication-learning fixture. Verify one app cannot attach to an unmanaged QA Runtime, repeated refreshes do not accumulate SQLite descriptors, normal Quit closes the wrapper and child Runtime, and no user Nalu database is opened. Then resume the populated publication-learning actual-window checkpoint without claiming VoiceOver, publication, Developer ID or notarization acceptance.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
