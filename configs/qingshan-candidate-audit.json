@@ -1,12 +1,12 @@
 {
   "schema_version": "nalu.qingshan-candidate-audit/v1",
   "repository": "rogerwu188/qingshan-short-drama-production-line",
-  "candidate_release": "v2026.09.03.3",
-  "candidate_commit": "c88f875ceb1c6b5bbee037149af44594cbe9a53d",
-  "candidate_tree_sha256": "4de2cbe4be467e706f35ad68509af5ac5912cca0438e5aaf2c188599c27ca12e",
+  "candidate_release": "v2026.09.03.4",
+  "candidate_commit": "856870f1aa97452b85b229a118566b37219f2683",
+  "candidate_tree_sha256": "f5da9588330ca35355d9121401e19a2df56834a720af0764b529f7c004126e8b",
   "gate_registry_path": "configs/GATE_REGISTRY_v3_20260716.json",
   "gate_registry_sha256": "caa51794451e33c5d0c3c1e7cc08c7e3d54293ce149509c12350dd84caed878e",
-  "public_interface_status": "PASS",
+  "public_interface_status": "FAIL",
   "public_interface_version": "0.3.0",
   "public_cli_entrypoint": "qingshan_engine.cli:main",
   "public_cli_commands": [
@@ -23,25 +23,35 @@
     "tools/render_portable_timeline.py",
     "tools/submit_giggle_video_manifest_v2.py"
   ],
-  "portable_core_manifest_sha256": "82d0be29e3ec14d448e0647fe590900441877596bfff43b310e9b471fc5f0fd7",
-  "public_interface_failures": [],
+  "writer_v2_status": "PASS",
+  "writer_provenance_schema": "qingshan.canonical_writer_provenance.v1",
+  "writer_receipt_schema": "qingshan.canonical_writer_run_receipt.v1",
+  "writer_authorized_agent_ids": [
+    "qingshan-claude-writer",
+    "qingshan-claude-writer-agent"
+  ],
+  "writer_generic_model_aliases": [
+    "auto",
+    "claude",
+    "claude opus",
+    "default",
+    "fable",
+    "fable 5",
+    "opus"
+  ],
+  "writer_v2_failures": [],
+  "portable_core_manifest_sha256": "95867754527f088328e48261aa9dcf1d2ed62b4834efe968630ba93998da3ff3",
+  "public_interface_failures": [
+    "public_interface:portable_manifest_version_mismatch"
+  ],
   "gate_count": 69,
   "coded_gate_count": 66,
   "runtime_bound_count": 66,
-  "integrity_status": "FAIL",
-  "failures": [
-    "missing_path:GIGGLE-REROLL-COST-GUARD:configs/reroll_cost_guard_policy_v1_20260716.json",
-    "missing_path:AGENT-WATCH-LISTEN:workflow/AGENT_WATCH_LISTEN_GATE_TEMPLATE.json",
-    "missing_path:AGENT-MISTAKE-ANTI-RECURRENCE:workflow/agent_mistake_ledger.json",
-    "missing_path:THREE-EPISODE-CONCURRENCY:workflow/production_line/THREE_EPISODE_CONCURRENCY_POLICY.json",
-    "missing_path:LINE-HEARTBEAT-WATCHDOG:workflow/dashboard/build_status.py",
-    "missing_path:LINE-HEARTBEAT-WATCHDOG:workflow/time_ledger/E17_time_ledger.json",
-    "missing_path:S3-RELAY-PUBLIC-UPLOAD-SAFETY:workflow/s3_relay/S3_RELAY_UPLOAD_SAFETY_CHECKLIST.json",
-    "missing_path:AUDIENCE-SCORE-PRE-RELEASE:codex_docs/模拟观众审片门_发行前_规范v1_20260717.md"
-  ],
+  "integrity_status": "PASS",
+  "failures": [],
   "registered_test_execution_performed": false,
   "promotion_status": "QUARANTINED",
   "paid_execution_allowed": false,
   "replaces_active_pin": false,
-  "audited_at": "2026-09-03T18:06:25Z"
+  "audited_at": "2026-09-03T18:46:46Z"
 }

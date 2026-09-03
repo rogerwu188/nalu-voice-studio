@@ -44,6 +44,20 @@ REQUIRED_PORTABLE_ENTRYPOINTS = {
     "tools/render_portable_timeline.py",
     "tools/submit_giggle_video_manifest_v2.py",
 }
+WRITER_PROVENANCE_PATH = Path(
+    "agent_factory/claude_writer_v2/runtime/canonical_writer_provenance.py"
+)
+WRITER_DISPATCHER_PATH = Path(
+    "agent_factory/claude_writer_v2/runtime/canonical_writer_dispatcher.py"
+)
+WRITER_REQUIRED_PATHS = {
+    WRITER_PROVENANCE_PATH,
+    WRITER_DISPATCHER_PATH,
+    Path("agent_factory/claude_writer_v2/runtime/episode_stage_gate_runner.py"),
+    Path("agent_factory/claude_writer_v2/state/PROGRESS.skeleton.json"),
+    Path("agent_factory/claude_writer_v2/state/SUPERVISOR_ORDERS.json"),
+    Path("agent_factory/claude_writer_v2/tests/test_smoke.py"),
+}
 
 
 def run_git(checkout: Path, *args: str) -> str:
@@ -85,6 +99,24 @@ def literal_assignment(path: Path, name: str) -> ast.AST | None:
         if any(isinstance(target, ast.Name) and target.id == name for target in targets):
             return node.value
     return None
+
+
+def literal_string(path: Path, name: str) -> str:
+    value = literal_assignment(path, name)
+    if isinstance(value, ast.Constant) and isinstance(value.value, str):
+        return value.value
+    return ""
+
+
+def literal_string_collection(path: Path, name: str) -> set[str]:
+    value = literal_assignment(path, name)
+    if not isinstance(value, (ast.Set, ast.List, ast.Tuple)):
+        return set()
+    return {
+        item.value
+        for item in value.elts
+        if isinstance(item, ast.Constant) and isinstance(item.value, str)
+    }
 
 
 def declared_runtime_gate_ids(path: Path) -> set[str]:
@@ -299,6 +331,41 @@ def validate_public_interface(base: Path) -> dict[str, Any]:
     }
 
 
+def validate_writer_v2_contract(base: Path) -> dict[str, Any]:
+    """Bind Writer v2 provenance semantics without importing upstream modules."""
+    failures: list[str] = []
+    for relative in sorted(WRITER_REQUIRED_PATHS):
+        if not (base / relative).is_file():
+            failures.append(f"writer_v2:missing_path:{relative}")
+
+    provenance_path = base / WRITER_PROVENANCE_PATH
+    provenance_schema = literal_string(provenance_path, "PROVENANCE_SCHEMA")
+    receipt_schema = literal_string(provenance_path, "RECEIPT_SCHEMA")
+    allowed_agents = literal_string_collection(provenance_path, "ALLOWED_AGENT_IDS")
+    generic_aliases = literal_string_collection(provenance_path, "GENERIC_MODEL_ALIASES")
+    if provenance_schema != "qingshan.canonical_writer_provenance.v1":
+        failures.append("writer_v2:provenance_schema_missing")
+    if receipt_schema != "qingshan.canonical_writer_run_receipt.v1":
+        failures.append("writer_v2:receipt_schema_missing")
+    if not allowed_agents:
+        failures.append("writer_v2:authorized_agent_ids_missing")
+    if not {"auto", "default"}.issubset(generic_aliases):
+        failures.append("writer_v2:generic_model_alias_rejection_missing")
+
+    dispatcher_imports = imported_tool_modules(base / WRITER_DISPATCHER_PATH)
+    if "canonical_writer_provenance" not in dispatcher_imports:
+        failures.append("writer_v2:dispatcher_provenance_binding_missing")
+
+    return {
+        "writer_v2_status": "PASS" if not failures else "FAIL",
+        "writer_provenance_schema": provenance_schema,
+        "writer_receipt_schema": receipt_schema,
+        "writer_authorized_agent_ids": sorted(allowed_agents),
+        "writer_generic_model_aliases": sorted(generic_aliases),
+        "writer_v2_failures": failures,
+    }
+
+
 def validate_registry(registry: dict[str, Any], base: Path) -> dict[str, Any]:
     failures: list[str] = []
     seen: set[str] = set()
@@ -367,12 +434,14 @@ def audit_checkout(checkout: Path, expected: dict[str, Any]) -> dict[str, Any]:
     registry = json.loads(registry_path.read_text(encoding="utf-8"))
     integrity = validate_registry(registry, checkout)
     public_interface = validate_public_interface(checkout)
+    writer_v2 = validate_writer_v2_contract(checkout)
     return {
         "candidate_release": expected["candidate_release"],
         "candidate_commit": run_git(checkout, "rev-parse", "HEAD"),
         "candidate_tree_sha256": tracked_tree_digest(checkout),
         "gate_registry_sha256": sha256(registry_path),
         **public_interface,
+        **writer_v2,
         **integrity,
     }
 
@@ -391,6 +460,12 @@ def compare_audit(actual: dict[str, Any], expected: dict[str, Any]) -> list[str]
         "portable_entrypoints",
         "portable_core_manifest_sha256",
         "public_interface_failures",
+        "writer_v2_status",
+        "writer_provenance_schema",
+        "writer_receipt_schema",
+        "writer_authorized_agent_ids",
+        "writer_generic_model_aliases",
+        "writer_v2_failures",
         "gate_count",
         "coded_gate_count",
         "runtime_bound_count",

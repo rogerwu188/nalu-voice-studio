@@ -32,8 +32,12 @@ def test_candidate_audit_is_quarantined_and_fail_closed() -> None:
     assert audit["promotion_status"] == "QUARANTINED"
     assert audit["paid_execution_allowed"] is False
     assert audit["replaces_active_pin"] is False
-    assert len(audit["failures"]) == 8
-    assert audit["public_interface_status"] == "PASS"
+    assert audit["failures"] == []
+    assert audit["integrity_status"] == "PASS"
+    assert audit["public_interface_status"] == "FAIL"
+    assert audit["public_interface_failures"] == [
+        "public_interface:portable_manifest_version_mismatch"
+    ]
     assert audit["public_cli_entrypoint"] == "qingshan_engine.cli:main"
     assert audit["public_cli_commands"] == [
         "doctor",
@@ -43,6 +47,9 @@ def test_candidate_audit_is_quarantined_and_fail_closed() -> None:
         "video-preflight",
         "writer-doctor",
     ]
+    assert audit["writer_v2_status"] == "PASS"
+    assert audit["writer_provenance_schema"] == "qingshan.canonical_writer_provenance.v1"
+    assert "default" in audit["writer_generic_model_aliases"]
 
 
 def test_latest_release_is_covered_only_by_active_or_reviewed_record() -> None:
@@ -78,8 +85,23 @@ def test_candidate_audit_rejects_unportable_public_interface() -> None:
     tampered["public_interface_status"] = "FAIL"
     tampered["public_interface_failures"] = ["public_interface:private_import"]
 
-    assert "candidate public engine interface is not portable" in checker.verify_candidate_audit(
-        manifest, tampered
+    tampered["public_interface_failures"] = []
+    assert (
+        "candidate public engine interface record is inconsistent"
+        in checker.verify_candidate_audit(manifest, tampered)
+    )
+
+
+def test_candidate_audit_rejects_writer_provenance_drift() -> None:
+    checker = load_checker()
+    manifest = json.loads(checker.MANIFEST_PATH.read_text())
+    audit = json.loads(checker.CANDIDATE_AUDIT_PATH.read_text())
+    tampered = deepcopy(audit)
+    tampered["writer_generic_model_aliases"] = ["claude"]
+
+    assert (
+        "candidate Writer v2 provenance contract is not portable"
+        in checker.verify_candidate_audit(manifest, tampered)
     )
 
 
@@ -142,4 +164,30 @@ def test_public_interface_audit_rejects_private_import(tmp_path: Path) -> None:
     assert report["public_interface_status"] == "FAIL"
     assert "public_interface:private_import:qingshan_engine/cli.py:backlot_os" in report[
         "public_interface_failures"
+    ]
+
+
+def test_writer_v2_audit_rejects_unbound_dispatcher(tmp_path: Path) -> None:
+    auditor = load_isolated_auditor()
+    for relative in auditor.WRITER_REQUIRED_PATHS:
+        path = tmp_path / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("", encoding="utf-8")
+    (tmp_path / auditor.WRITER_PROVENANCE_PATH).write_text(
+        textwrap.dedent(
+            """
+            PROVENANCE_SCHEMA = "qingshan.canonical_writer_provenance.v1"
+            RECEIPT_SCHEMA = "qingshan.canonical_writer_run_receipt.v1"
+            ALLOWED_AGENT_IDS = {"writer"}
+            GENERIC_MODEL_ALIASES = {"auto", "default"}
+            """
+        ),
+        encoding="utf-8",
+    )
+
+    report = auditor.validate_writer_v2_contract(tmp_path)
+
+    assert report["writer_v2_status"] == "FAIL"
+    assert report["writer_v2_failures"] == [
+        "writer_v2:dispatcher_provenance_binding_missing"
     ]

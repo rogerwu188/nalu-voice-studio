@@ -75,8 +75,9 @@ def verify_candidate_audit(manifest: dict, audit: dict) -> list[str]:
         if not isinstance(value, str) or len(value) != 64:
             failures.append(f"candidate audit has an invalid {field}")
     candidate_failures = audit.get("failures")
-    if not isinstance(candidate_failures, list) or not candidate_failures:
-        failures.append("quarantined candidate audit must retain exact failures")
+    if not isinstance(candidate_failures, list):
+        failures.append("candidate registry failures must be a list")
+        candidate_failures = []
     elif any(
         not isinstance(item, str)
         or not item.startswith(("missing_path:", "nonportable_absolute_path:"))
@@ -90,26 +91,62 @@ def verify_candidate_audit(manifest: dict, audit: dict) -> list[str]:
         failures.append("candidate audit has invalid gate counts")
     elif not runtime_count <= coded_count <= gate_count:
         failures.append("candidate audit gate counts are inconsistent")
-    if (
-        audit.get("public_interface_status") != "PASS"
-        or not isinstance(audit.get("public_interface_version"), str)
-        or re.fullmatch(r"\d+\.\d+\.\d+", audit.get("public_interface_version", "")) is None
-        or audit.get("public_cli_entrypoint") != "qingshan_engine.cli:main"
-        or audit.get("public_cli_commands")
-        != ["doctor", "init", "release-preflight", "test", "video-preflight", "writer-doctor"]
-        or audit.get("portable_entrypoints")
-        != [
-            "tools/platform_release_preflight.py",
-            "tools/production_video_submission_gate.py",
-            "tools/render_portable_timeline.py",
-            "tools/submit_giggle_video_manifest_v2.py",
-        ]
-        or audit.get("public_interface_failures") != []
+    registry_status = audit.get("integrity_status")
+    if registry_status not in {"PASS", "FAIL"}:
+        failures.append("candidate registry integrity has an invalid status")
+    elif (registry_status == "PASS") != (candidate_failures == []):
+        failures.append("candidate registry status does not match its exact failures")
+    public_interface_failures = audit.get("public_interface_failures")
+    if not isinstance(public_interface_failures, list) or any(
+        not isinstance(item, str) or not item.startswith("public_interface:")
+        for item in (public_interface_failures or [])
     ):
-        failures.append("candidate public engine interface is not portable")
+        failures.append("candidate public interface has unsupported failures")
+        public_interface_failures = []
+    public_status = audit.get("public_interface_status")
+    public_record_valid = (
+        public_status in {"PASS", "FAIL"}
+        and (public_status == "PASS") == (public_interface_failures == [])
+        and isinstance(audit.get("public_interface_version"), str)
+        and re.fullmatch(r"\d+\.\d+\.\d+", audit.get("public_interface_version", ""))
+        is not None
+        and audit.get("public_cli_entrypoint") == "qingshan_engine.cli:main"
+    )
+    expected_commands = [
+        "doctor",
+        "init",
+        "release-preflight",
+        "test",
+        "video-preflight",
+        "writer-doctor",
+    ]
+    expected_entrypoints = [
+        "tools/platform_release_preflight.py",
+        "tools/production_video_submission_gate.py",
+        "tools/render_portable_timeline.py",
+        "tools/submit_giggle_video_manifest_v2.py",
+    ]
     if (
-        audit.get("integrity_status") != "FAIL"
-        or audit.get("promotion_status") != "QUARANTINED"
+        not public_record_valid
+        or audit.get("public_cli_commands") != expected_commands
+        or audit.get("portable_entrypoints") != expected_entrypoints
+    ):
+        failures.append("candidate public engine interface record is inconsistent")
+    if (
+        audit.get("writer_v2_status") != "PASS"
+        or audit.get("writer_provenance_schema")
+        != "qingshan.canonical_writer_provenance.v1"
+        or audit.get("writer_receipt_schema")
+        != "qingshan.canonical_writer_run_receipt.v1"
+        or not audit.get("writer_authorized_agent_ids")
+        or not {"auto", "default"}.issubset(
+            set(audit.get("writer_generic_model_aliases") or [])
+        )
+        or audit.get("writer_v2_failures") != []
+    ):
+        failures.append("candidate Writer v2 provenance contract is not portable")
+    if (
+        audit.get("promotion_status") != "QUARANTINED"
         or audit.get("paid_execution_allowed") is not False
         or audit.get("replaces_active_pin") is not False
         or audit.get("registered_test_execution_performed") is not False
@@ -164,7 +201,9 @@ def main() -> int:
     print(
         "Latest reviewed Qingshan candidate remains quarantined: "
         f"{candidate_audit['candidate_release']} @ {candidate_audit['candidate_commit']} "
-        f"({len(candidate_audit['failures'])} integrity failures)"
+        f"(registry={candidate_audit['integrity_status']}, "
+        f"public_interface={candidate_audit['public_interface_status']}, "
+        "registered_tests=not_run)"
     )
 
     if args.check_latest:
