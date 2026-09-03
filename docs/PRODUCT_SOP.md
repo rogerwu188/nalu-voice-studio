@@ -142,6 +142,18 @@ Current evidence:
   readable Runtime, microphone and project states. `docs/ACCESSIBILITY_QA.md` records
   the environment, exact evidence and remaining human matrix. Swift tests, the full
   application build, bundled-Runtime smoke, ZIP and artifact upload passed.
+- Commit `a270ab2`, GitHub CI run `33812804669`, Universal artifact `9915641200`:
+  a fresh downloaded-artifact native pass observed the bounded cold start change from
+  the visible orange startup state to the green online state in about 45 seconds. The
+  large create action immediately added a persisted “未命名故事” row and advanced to
+  the first one-question interview prompt; the direct family-material control opened
+  and safely cancelled the native `Open` panel; and the Realtime consent sheet kept
+  “同意并开始自然语音” disabled without a Keychain credential. The exact QA-created
+  project had no assets or runs and was deletion-previewed, removed and verified absent.
+  Normal application quit removed the app, PyInstaller parent/child Runtime processes,
+  port 8765 listener and health endpoint. `docs/ACCESSIBILITY_QA.md` records hashes,
+  process evidence and the limits of this pass. This is native smoke evidence, not the
+  outstanding human VoiceOver, real microphone or paid Realtime acceptance.
 - Still required before `PASS`: authorized paid Realtime connectivity, interruption,
   real function-call, network-loss, session-expiry and provider usage/cost QA;
   VoiceOver/Accessibility Inspector audit; and a clean-account voice-only QA session

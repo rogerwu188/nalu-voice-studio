@@ -112,3 +112,56 @@ This pass only read existing local project state. It did not click Realtime, req
 microphone or speech-recognition permission, enter credentials, start paid production,
 modify a project or publish anything. It verifies visible startup/liveness and owned-
 process cleanup, not human VoiceOver, clean-account installation or notarization.
+
+## 2026-09-03 · Current Universal older-adult entry regression
+
+Release candidate:
+
+- commit `a270ab267aa8645559d54064db21fb5d21faa432`;
+- GitHub CI run `33812804669`, all Runtime, arm64, Intel and Universal jobs passed;
+- Universal artifact `9915641200`, GitHub artifact digest
+  `sha256:1290fa1d8b1a8379a2cfcceaa07083c99e14caef0dd3007d333e91ca9cc7fe2f`;
+- downloaded inner ZIP SHA-256
+  `099d3db88d408151993fa03228115144ec1bfe921401e63b19c23cca4ee022e9`,
+  exactly matching the bundled checksum file;
+- macOS 26.3.1 (25D771280a) on Apple silicon.
+
+Both `NaluVoiceStudio` and the bundled `nalu-runtime` were confirmed as Universal
+Mach-O binaries containing `arm64` and `x86_64` slices. The bundle has an ad-hoc
+signature with no Team ID and Gatekeeper rejected it, so this pass is deliberately not
+claimed as signed-install, notarization or final release acceptance.
+
+The freshly downloaded application exposed “系统状态：本地制片厂正在启动 → 请稍等”
+while the one-file Runtime unpacked. In about 45 seconds the native accessibility tree
+changed to “本地制片厂在线 → 可以创作”. `/health` returned `status: ok`, Runtime
+version 0.1.0 and SQLite schema 26. Process inspection showed PID 68234 as the
+PyInstaller parent and PID 68239 as its child, rather than two independently launched
+Runtime instances; only the child listened on `127.0.0.1:8765`.
+
+Read-only/native interaction then confirmed:
+
+- the status, microphone state, large push-to-talk action and project list were native
+  accessibility elements;
+- “选择家庭资料” opened the standard macOS `Open` panel directly, and Cancel returned
+  without importing or transmitting a file;
+- the natural-voice sheet explained cloud audio, possible API cost, local-storage
+  boundaries and its session ceiling; without a Keychain credential, “同意并开始自然语音”
+  was disabled;
+- activating “创建新项目” immediately changed the project list from one to two rows,
+  selected the new persisted “未命名故事”, and displayed the first single interview
+  question asking who would use the application.
+
+The QA-created project `prj_74ce21d73cf34a299687cb4c17d27cbc` was identified by
+the before/after Runtime project list. Its deletion preview reported zero assets and
+zero production runs. Exact-ID deletion returned `verified_absent: true`, a subsequent
+read returned 404, and the pre-existing project remained present. After normal Quit,
+the exact application PID 68206 and Runtime PIDs 68234/68239 were absent, port 8765 had
+no listener and `/health` refused the connection.
+
+No microphone or speech-recognition permission was requested, no credential was
+entered, and no Realtime, paid provider, production or publication call occurred. The
+source still binds both message-count and live-transcript changes to the conversation
+bottom anchor, but this pass did not generate real speech and therefore does not promote
+automatic scrolling, spoken interruption or transcript confidence recovery to human
+acceptance. Those checks, the VoiceOver/Accessibility Inspector matrix, a clean account,
+Developer ID signing and notarization remain outstanding.
