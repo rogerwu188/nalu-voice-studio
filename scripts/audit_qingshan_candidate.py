@@ -7,6 +7,7 @@ import argparse
 import ast
 import hashlib
 import json
+import re
 import subprocess
 import tempfile
 from pathlib import Path
@@ -26,6 +27,9 @@ REQUIRED_GATE_FIELDS = {
 }
 LIVE_PREFIXES = ("build_", "compile_", "episode_", "submit_")
 BLOCKING_MARKERS = ("BLOCK_SUBMIT", "FAIL_CLOSED", "FAIL_HARD")
+PUBLIC_PACKAGE = "qingshan-short-drama-engine"
+PUBLIC_CLI_ENTRYPOINT = "qingshan_engine.cli:main"
+FORBIDDEN_PUBLIC_IMPORTS = {"agentcut", "backlot_os", "backlotos"}
 
 
 def run_git(checkout: Path, *args: str) -> str:
@@ -169,6 +173,91 @@ def live_unregistered_blockers(registry: dict[str, Any], base: Path) -> list[str
     return failures
 
 
+def imported_roots(path: Path) -> set[str]:
+    tree = parsed_tree(path)
+    if tree is None:
+        return set()
+    roots: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            roots.update(alias.name.split(".")[0] for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            roots.add(node.module.split(".")[0])
+    return roots
+
+
+def validate_public_interface(base: Path) -> dict[str, Any]:
+    """Validate the installable public engine surface without importing it."""
+    failures: list[str] = []
+    pyproject_path = base / "pyproject.toml"
+    portable_manifest_path = base / "configs" / "PORTABLE_CORE_MANIFEST.json"
+    package_dir = base / "qingshan_engine"
+    version = ""
+    entrypoint = ""
+
+    try:
+        text = pyproject_path.read_text(encoding="utf-8")
+        project_match = re.search(r"(?ms)^\[project\]\s*(.*?)(?=^\[|\Z)", text)
+        scripts_match = re.search(r"(?ms)^\[project\.scripts\]\s*(.*?)(?=^\[|\Z)", text)
+        if project_match is None or scripts_match is None:
+            raise ValueError("required project sections are absent")
+        project = project_match.group(1)
+        scripts = scripts_match.group(1)
+
+        def string_value(section: str, key: str) -> str:
+            match = re.search(rf'(?m)^\s*{re.escape(key)}\s*=\s*"([^"]*)"\s*$', section)
+            return match.group(1) if match else ""
+
+        version = string_value(project, "version")
+        entrypoint = string_value(scripts, "qingshan")
+        if string_value(project, "name") != PUBLIC_PACKAGE:
+            failures.append("public_interface:unexpected_package_name")
+        if entrypoint != PUBLIC_CLI_ENTRYPOINT:
+            failures.append("public_interface:missing_stable_cli_entrypoint")
+        if re.search(r'(?m)^\s*license\s*=\s*\{\s*file\s*=\s*"LICENSE"\s*\}\s*$', project) is None:
+            failures.append("public_interface:missing_mit_license_binding")
+        if re.search(r"(?m)^\s*dependencies\s*=\s*\[\s*\]\s*$", project) is None:
+            failures.append("public_interface:core_has_required_third_party_dependencies")
+    except (OSError, ValueError):
+        failures.append("public_interface:invalid_pyproject")
+
+    for relative in ("LICENSE", "qingshan_engine/__init__.py", "qingshan_engine/cli.py"):
+        if not (base / relative).is_file():
+            failures.append(f"public_interface:missing_path:{relative}")
+
+    for path in sorted(package_dir.glob("*.py")):
+        for imported in sorted(imported_roots(path) & FORBIDDEN_PUBLIC_IMPORTS):
+            failures.append(f"public_interface:private_import:{path.relative_to(base)}:{imported}")
+
+    manifest_sha256 = ""
+    try:
+        manifest = json.loads(portable_manifest_path.read_text(encoding="utf-8"))
+        manifest_sha256 = sha256(portable_manifest_path)
+        if manifest.get("schema") != "qingshan.portable_core_manifest.v1":
+            failures.append("public_interface:invalid_portable_manifest_schema")
+        if manifest.get("version") != version:
+            failures.append("public_interface:portable_manifest_version_mismatch")
+        required = manifest.get("required_files")
+        if not isinstance(required, list) or not required:
+            failures.append("public_interface:portable_manifest_has_no_required_files")
+        else:
+            for relative in required:
+                if not isinstance(relative, str) or Path(relative).is_absolute():
+                    failures.append(f"public_interface:nonportable_required_path:{relative}")
+                elif not (base / relative).is_file():
+                    failures.append(f"public_interface:missing_required_path:{relative}")
+    except (OSError, json.JSONDecodeError):
+        failures.append("public_interface:invalid_portable_manifest")
+
+    return {
+        "public_interface_status": "PASS" if not failures else "FAIL",
+        "public_interface_version": version,
+        "public_cli_entrypoint": entrypoint,
+        "portable_core_manifest_sha256": manifest_sha256,
+        "public_interface_failures": failures,
+    }
+
+
 def validate_registry(registry: dict[str, Any], base: Path) -> dict[str, Any]:
     failures: list[str] = []
     seen: set[str] = set()
@@ -236,11 +325,13 @@ def audit_checkout(checkout: Path, expected: dict[str, Any]) -> dict[str, Any]:
     registry_path = checkout / expected["gate_registry_path"]
     registry = json.loads(registry_path.read_text(encoding="utf-8"))
     integrity = validate_registry(registry, checkout)
+    public_interface = validate_public_interface(checkout)
     return {
         "candidate_release": expected["candidate_release"],
         "candidate_commit": run_git(checkout, "rev-parse", "HEAD"),
         "candidate_tree_sha256": tracked_tree_digest(checkout),
         "gate_registry_sha256": sha256(registry_path),
+        **public_interface,
         **integrity,
     }
 
@@ -252,6 +343,11 @@ def compare_audit(actual: dict[str, Any], expected: dict[str, Any]) -> list[str]
         "candidate_commit",
         "candidate_tree_sha256",
         "gate_registry_sha256",
+        "public_interface_status",
+        "public_interface_version",
+        "public_cli_entrypoint",
+        "portable_core_manifest_sha256",
+        "public_interface_failures",
         "gate_count",
         "coded_gate_count",
         "runtime_bound_count",

@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import textwrap
 from copy import deepcopy
 from pathlib import Path
 
@@ -31,8 +32,9 @@ def test_candidate_audit_is_quarantined_and_fail_closed() -> None:
     assert audit["promotion_status"] == "QUARANTINED"
     assert audit["paid_execution_allowed"] is False
     assert audit["replaces_active_pin"] is False
-    assert len(audit["failures"]) == 9
-    assert any(item.startswith("nonportable_absolute_path:") for item in audit["failures"])
+    assert len(audit["failures"]) == 8
+    assert audit["public_interface_status"] == "PASS"
+    assert audit["public_cli_entrypoint"] == "qingshan_engine.cli:main"
 
 
 def test_latest_release_is_covered_only_by_active_or_reviewed_record() -> None:
@@ -60,6 +62,19 @@ def test_candidate_audit_rejects_false_promotion_and_unknown_failures() -> None:
     assert "failed candidate audit must remain quarantined and fail closed" in failures
 
 
+def test_candidate_audit_rejects_unportable_public_interface() -> None:
+    checker = load_checker()
+    manifest = json.loads(checker.MANIFEST_PATH.read_text())
+    audit = json.loads(checker.CANDIDATE_AUDIT_PATH.read_text())
+    tampered = deepcopy(audit)
+    tampered["public_interface_status"] = "FAIL"
+    tampered["public_interface_failures"] = ["public_interface:private_import"]
+
+    assert "candidate public engine interface is not portable" in checker.verify_candidate_audit(
+        manifest, tampered
+    )
+
+
 def test_portable_auditor_rejects_absolute_path_even_when_file_exists() -> None:
     auditor = load_isolated_auditor()
     existing_absolute_path = str(Path(__file__).resolve())
@@ -80,3 +95,43 @@ def test_portable_auditor_rejects_absolute_path_even_when_file_exists() -> None:
     }
     report = auditor.validate_registry(registry, Path("/tmp/does-not-matter"))
     assert any(item.startswith("nonportable_absolute_path:TEST-GATE:") for item in report["failures"])
+
+
+def test_public_interface_audit_rejects_private_import(tmp_path: Path) -> None:
+    auditor = load_isolated_auditor()
+    (tmp_path / "qingshan_engine").mkdir()
+    (tmp_path / "configs").mkdir()
+    (tmp_path / "LICENSE").write_text("MIT", encoding="utf-8")
+    (tmp_path / "qingshan_engine" / "__init__.py").write_text("", encoding="utf-8")
+    (tmp_path / "qingshan_engine" / "cli.py").write_text("import backlot_os\n", encoding="utf-8")
+    (tmp_path / "pyproject.toml").write_text(
+        textwrap.dedent(
+            """
+            [project]
+            name = "qingshan-short-drama-engine"
+            version = "0.3.0"
+            license = {file = "LICENSE"}
+            dependencies = []
+            [project.scripts]
+            qingshan = "qingshan_engine.cli:main"
+            """
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / "configs" / "PORTABLE_CORE_MANIFEST.json").write_text(
+        json.dumps(
+            {
+                "schema": "qingshan.portable_core_manifest.v1",
+                "version": "0.3.0",
+                "required_files": ["LICENSE", "qingshan_engine/cli.py"],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    report = auditor.validate_public_interface(tmp_path)
+
+    assert report["public_interface_status"] == "FAIL"
+    assert report["public_interface_failures"] == [
+        "public_interface:private_import:qingshan_engine/cli.py:backlot_os"
+    ]

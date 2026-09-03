@@ -1,17 +1,21 @@
 {
   "schema_version": "nalu.qingshan-candidate-audit/v1",
   "repository": "rogerwu188/qingshan-short-drama-production-line",
-  "candidate_release": "v2026.09.02.2",
-  "candidate_commit": "671dfb09f62fbf0f6f9911bad52a40a5a80cd327",
-  "candidate_tree_sha256": "eb720810fed36993dc4411a288ee5493ccebcddfedf9b87e187c6bc4177e2d6b",
+  "candidate_release": "v2026.09.03.3",
+  "candidate_commit": "c88f875ceb1c6b5bbee037149af44594cbe9a53d",
+  "candidate_tree_sha256": "4de2cbe4be467e706f35ad68509af5ac5912cca0438e5aaf2c188599c27ca12e",
   "gate_registry_path": "configs/GATE_REGISTRY_v3_20260716.json",
-  "gate_registry_sha256": "a6308af097da8cac3c664466ba665277970391587c44bb1dd949421901e8ac6b",
+  "gate_registry_sha256": "caa51794451e33c5d0c3c1e7cc08c7e3d54293ce149509c12350dd84caed878e",
+  "public_interface_status": "PASS",
+  "public_interface_version": "0.3.0",
+  "public_cli_entrypoint": "qingshan_engine.cli:main",
+  "portable_core_manifest_sha256": "82d0be29e3ec14d448e0647fe590900441877596bfff43b310e9b471fc5f0fd7",
+  "public_interface_failures": [],
   "gate_count": 69,
   "coded_gate_count": 66,
   "runtime_bound_count": 66,
   "integrity_status": "FAIL",
   "failures": [
-    "nonportable_absolute_path:SCENE-AUTHORITY-LOCK:/Users/rogerwu/code/backlot-os/components/pipeline-tools/tests/test_production_video_submission_gate.py",
     "missing_path:GIGGLE-REROLL-COST-GUARD:configs/reroll_cost_guard_policy_v1_20260716.json",
     "missing_path:AGENT-WATCH-LISTEN:workflow/AGENT_WATCH_LISTEN_GATE_TEMPLATE.json",
     "missing_path:AGENT-MISTAKE-ANTI-RECURRENCE:workflow/agent_mistake_ledger.json",
@@ -25,5 +29,5 @@
   "promotion_status": "QUARANTINED",
   "paid_execution_allowed": false,
   "replaces_active_pin": false,
-  "audited_at": "2026-09-02T21:24:53Z"
+  "audited_at": "2026-09-03T18:06:25Z"
 }

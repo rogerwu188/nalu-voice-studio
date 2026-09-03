@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import subprocess
 import urllib.request
 from pathlib import Path
@@ -65,7 +66,11 @@ def verify_candidate_audit(manifest: dict, audit: dict) -> list[str]:
         audit["candidate_commit"]
     ) != 40:
         failures.append("candidate audit has an invalid commit")
-    for field in ("candidate_tree_sha256", "gate_registry_sha256"):
+    for field in (
+        "candidate_tree_sha256",
+        "gate_registry_sha256",
+        "portable_core_manifest_sha256",
+    ):
         value = audit.get(field)
         if not isinstance(value, str) or len(value) != 64:
             failures.append(f"candidate audit has an invalid {field}")
@@ -85,6 +90,14 @@ def verify_candidate_audit(manifest: dict, audit: dict) -> list[str]:
         failures.append("candidate audit has invalid gate counts")
     elif not runtime_count <= coded_count <= gate_count:
         failures.append("candidate audit gate counts are inconsistent")
+    if (
+        audit.get("public_interface_status") != "PASS"
+        or not isinstance(audit.get("public_interface_version"), str)
+        or re.fullmatch(r"\d+\.\d+\.\d+", audit.get("public_interface_version", "")) is None
+        or audit.get("public_cli_entrypoint") != "qingshan_engine.cli:main"
+        or audit.get("public_interface_failures") != []
+    ):
+        failures.append("candidate public engine interface is not portable")
     if (
         audit.get("integrity_status") != "FAIL"
         or audit.get("promotion_status") != "QUARANTINED"
