@@ -742,6 +742,33 @@ Current evidence:
   digest `sha256:6f2ae32c3b9dc03aa139fbba343287be377dbd748d38dff7fc76cbb656ac4cb6`.
   This closes Nalu's untrusted writer-declaration checkpoint, not trusted receipt
   reconciliation, Qingshan promotion, paid-provider QA or SOP-07.
+- Product commit `c609be13bd8068a9031c277ca7dfad9589b8a57c`, GitHub CI run
+  `33810320445`: Nalu now accepts the exact raw bytes of a Qingshan Writer v2
+  `qingshan.canonical_writer_run_receipt.v1` artifact through a separate local
+  reconciliation boundary. It rejects duplicate JSON keys, altered receipt bytes,
+  unsupported schemas or states, unknown Writer agents, generic or mismatched
+  provider/model/task identity, input/rules/content digest drift, and invalid or
+  reversed timezone-aware task intervals. The Runtime stores only a normalized,
+  immutable `nalu.writer-receipt-reconciliation/v1` record, binds it uniquely to the
+  exact sealed script provenance, includes it in project export v21 and any later
+  production package, preserves v1-v20 import compatibility, and detects direct SQLite
+  or rehashed-export tampering. Reconciliation remains deliberately honest:
+  `artifact_binding_verified` is true, but `provider_execution_verified` and
+  `network_call_performed_by_runtime` are false because the upstream receipt is not
+  cryptographically provider-signed. All 183 Runtime tests, lint, OpenAPI compatibility,
+  SOP/progress/release audits, current-candidate reproduction, real HTTP smoke and
+  offline E2E passed. Native Swift tests, application build, bundled-Runtime smoke,
+  staged update and populated rollback passed on Apple Silicon, Intel and the merged
+  Universal build. Runtime artifact `9914602968` has GitHub digest
+  `sha256:e8916f3e3ec95d701e3cd44668951c810da8f826cea1477aba002901119e8eb9`;
+  arm64 artifact `9914599555` has digest
+  `sha256:e077dcde3fe82965b672fac890f18d556f146545b949dd69fec6929489b52e70`;
+  Intel artifact `9914660808` has digest
+  `sha256:dd7d865c4c54ae760ef1f44d739db85f54b46a4dde1a7a948d3a92bc749d29ca`;
+  Universal artifact `9914707196` has digest
+  `sha256:56b28c4a7423180b197106e38650e369c5f9978a2a6882b68a69413ee95b09bf`.
+  This closes the local Writer-receipt artifact-binding checkpoint, not real provider
+  execution verification, Qingshan promotion, paid-provider QA or SOP-07.
 - Still required before `PASS`: a corrected pinned Qingshan release whose registry
   integrity and complete registered tests pass, plus authorized real-provider sandbox
   task/result/receipt evidence. Offline authority and transport doubles are not a paid
