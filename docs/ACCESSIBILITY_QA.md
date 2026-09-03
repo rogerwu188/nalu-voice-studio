@@ -165,3 +165,54 @@ bottom anchor, but this pass did not generate real speech and therefore does not
 automatic scrolling, spoken interruption or transcript confidence recovery to human
 acceptance. Those checks, the VoiceOver/Accessibility Inspector matrix, a clean account,
 Developer ID signing and notarization remain outstanding.
+
+## 2026-09-03 · Isolated native conversation-scroll regression
+
+Release candidate:
+
+- product commit `d1e6fd605633d7dcf7f78a04e7a5573a6df5e41f`;
+- GitHub CI run `33815093943`, all Runtime, Apple Silicon, Intel and Universal jobs
+  passed;
+- Universal artifact `9916452123`, GitHub artifact digest
+  `sha256:12a46e059835e612805d53c8f584d97d8954206cb83413500ddd5383fb7375f9`;
+- downloaded inner ZIP SHA-256
+  `e60126b3fb000424b9d0e6b3f539f376e6768f7ddec0a774327f8a25cc601021`;
+- both `NaluVoiceStudio` and bundled `nalu-runtime` contained `arm64` and `x86_64`
+  slices.
+
+The exact downloaded application first completed a normal launch and Quit, leaving no
+application process, Runtime process or listener on port 8765. It was then launched with
+all three explicit isolation values:
+
+- `NALU_ENABLE_LOCAL_QA=1`;
+- `NALU_LOCAL_QA_SCENARIO=conversation-scroll`;
+- `NALU_LOCAL_QA_APPLICATION_SUPPORT` set to the existing system-temporary directory
+  `/var/folders/y4/k84st0yj7fz043tnxkfrjn1w0000gn/T/nalu-scroll-native-state.6YZqMj`.
+
+The scenario is unavailable in a normal launch. Automated Swift tests require it to
+reject a missing local-QA flag, unknown scenario and non-temporary directory before it
+can alter presentation state. With the exact isolated launch, the embedded Runtime
+became healthy on loopback with SQLite schema 26. Process inspection identified native
+PID 71918 and bundled Runtime PID 71937. The latter opened only
+`nalu-scroll-native-state.6YZqMj/nalu.sqlite3`; neither process opened the user's Nalu
+Application Support project database.
+
+The fixture installed 18 alternating, long interview turns, first presented one partial
+transcript and then replaced it after 800 milliseconds with:
+
+> 【QA 当前实时转写】外婆把雨衣披在我身上以后，还笑着说不用害怕。
+
+The fresh native accessibility tree exposed the conversation container as
+`nalu.conversation.scroll`, included that final transcript at the current turn and
+reported vertical scrollbar value `0.9749780509218613`. A native-window screenshot
+showed the latest transcript card, listening guidance and push-to-talk action together;
+no manual scroll action was performed. This directly verifies that both long-message
+growth and a later live-transcript change remain anchored at the current conversation
+content in the packaged application.
+
+Normal application-menu Quit removed PIDs 71918 and 71937, ended the launch session and
+closed port 8765. No microphone or speech-recognition permission sheet appeared, no
+Keychain credential was read, and no Realtime, provider, paid-generation, production or
+publication call was made. This is deterministic packaged native regression evidence;
+it does not replace a real-microphone session, VoiceOver traversal, Accessibility
+Inspector matrix or older-adult/guardian-and-child human acceptance.

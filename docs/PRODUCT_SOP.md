@@ -154,6 +154,22 @@ Current evidence:
   port 8765 listener and health endpoint. `docs/ACCESSIBILITY_QA.md` records hashes,
   process evidence and the limits of this pass. This is native smoke evidence, not the
   outstanding human VoiceOver, real microphone or paid Realtime acceptance.
+- Commit `d1e6fd605633d7dcf7f78a04e7a5573a6df5e41f`, GitHub CI run
+  `33815093943`, Universal artifact `9916452123`: a production-disabled native QA
+  boundary now creates an 18-turn conversation and changes the current transcript only
+  when the exact `conversation-scroll` scenario, local-QA flag and existing system-
+  temporary Application Support directory are all present. Unit tests reject the
+  scenario by default, unknown scenarios, a missing isolation flag and non-temporary
+  storage. On the freshly downloaded Universal artifact, the native accessibility tree
+  exposed `nalu.conversation.scroll`, displayed the final live transcript at the current
+  turn and reported scrollbar position `0.9749780509218613`; a window screenshot also
+  showed the latest transcript and listening action together without manual scrolling.
+  The Runtime opened only the isolated project database, normal Quit removed the exact
+  app and Runtime processes and closed port 8765. `docs/ACCESSIBILITY_QA.md` records the
+  artifact hashes, isolation, process and native-window evidence. No microphone,
+  credential, provider, paid generation or user project database was used. This closes
+  the deterministic native scroll-regression checkpoint, not real-speech, VoiceOver or
+  clean-account human acceptance.
 - Still required before `PASS`: authorized paid Realtime connectivity, interruption,
   real function-call, network-loss, session-expiry and provider usage/cost QA;
   VoiceOver/Accessibility Inspector audit; and a clean-account voice-only QA session
