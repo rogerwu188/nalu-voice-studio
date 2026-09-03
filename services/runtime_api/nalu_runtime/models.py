@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from enum import StrEnum
 from typing import Any, Literal
 
@@ -416,9 +417,7 @@ class FeedbackExternalExportCreate(BaseModel):
 
 
 class FeedbackExternalExportReceipt(BaseModel):
-    schema_version: Literal["nalu.feedback-external-export/v1"] = (
-        "nalu.feedback-external-export/v1"
-    )
+    schema_version: Literal["nalu.feedback-external-export/v1"] = "nalu.feedback-external-export/v1"
     feedback_id: str
     provider: Literal["github_issues"]
     repository: str
@@ -468,9 +467,7 @@ class FeedbackExternalReconciliationRecord(BaseModel):
         receipt_fields = (self.remote_issue_id, self.remote_issue_url, self.response_sha256)
         if self.outcome == "confirmed" and any(value is None for value in receipt_fields):
             raise ValueError("confirmed reconciliation requires a complete receipt")
-        if self.outcome == "verified_absent" and any(
-            value is not None for value in receipt_fields
-        ):
+        if self.outcome == "verified_absent" and any(value is not None for value in receipt_fields):
             raise ValueError("verified-absent reconciliation cannot contain a receipt")
         return self
 
@@ -587,9 +584,7 @@ class FeedbackDevelopmentHandoffReconciliationRecord(BaseModel):
         receipt_fields = (self.remote_task_id, self.remote_task_url, self.response_sha256)
         if self.outcome == "confirmed" and any(value is None for value in receipt_fields):
             raise ValueError("confirmed reconciliation requires a complete receipt")
-        if self.outcome == "verified_absent" and any(
-            value is not None for value in receipt_fields
-        ):
+        if self.outcome == "verified_absent" and any(value is not None for value in receipt_fields):
             raise ValueError("verified-absent reconciliation cannot contain a receipt")
         return self
 
@@ -695,13 +690,9 @@ class FeedbackReleaseLinkageCreate(BaseModel):
 
 
 class FeedbackReleaseLinkage(FeedbackReleaseLinkageCreate):
-    schema_version: Literal["nalu.feedback-release-linkage/v1"] = (
-        "nalu.feedback-release-linkage/v1"
-    )
+    schema_version: Literal["nalu.feedback-release-linkage/v1"] = "nalu.feedback-release-linkage/v1"
     feedback_id: str
-    development_result_sha256: str | None = Field(
-        default=None, pattern=r"^[0-9a-f]{64}$"
-    )
+    development_result_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
     status: Literal["qa_evidence_linked"] = "qa_evidence_linked"
     release_claimed: Literal[False] = False
     network_call_performed: Literal[False] = False
@@ -891,14 +882,130 @@ class DocumentaryReadinessReport(BaseModel):
     next_questions: list[str] = Field(default_factory=list)
 
 
+class ExternalWriterDeclaration(BaseModel):
+    """Untrusted declaration about a writer run performed outside Nalu."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    provider: str = Field(min_length=2, max_length=80, pattern=r"^[A-Za-z0-9][A-Za-z0-9._/-]+$")
+    model_id: str = Field(min_length=3, max_length=160)
+    session_or_task_id: str = Field(min_length=3, max_length=240)
+    input_bundle_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    writer_rules_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    receipt_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    started_at: str = Field(min_length=20, max_length=40)
+    completed_at: str = Field(min_length=20, max_length=40)
+
+    @field_validator("provider", "model_id", "session_or_task_id")
+    @classmethod
+    def strip_identifier(cls, value: str) -> str:
+        return value.strip()
+
+    @field_validator("model_id")
+    @classmethod
+    def require_exact_model_id(cls, value: str) -> str:
+        generic_aliases = {
+            "auto",
+            "claude",
+            "claude opus",
+            "default",
+            "fable",
+            "fable 5",
+            "opus",
+        }
+        if " ".join(value.lower().split()) in generic_aliases:
+            raise ValueError("external writer model_id must be an exact model identifier")
+        return value
+
+    @field_validator("started_at", "completed_at")
+    @classmethod
+    def require_timezone_aware_timestamp(cls, value: str) -> str:
+        try:
+            parsed = datetime.fromisoformat(value)
+        except ValueError as exc:
+            raise ValueError("writer timestamps must be ISO-8601") from exc
+        if parsed.tzinfo is None:
+            raise ValueError("writer timestamps must include a timezone")
+        return value
+
+    @model_validator(mode="after")
+    def require_ordered_timestamps(self) -> ExternalWriterDeclaration:
+        started = datetime.fromisoformat(self.started_at)
+        completed = datetime.fromisoformat(self.completed_at)
+        if completed < started:
+            raise ValueError("external writer completed_at precedes started_at")
+        return self
+
+
+class ScriptAuthoringRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    origin: Literal[
+        "user_dictation", "user_text", "external_ai_generated", "external_ai_assisted"
+    ] = "user_dictation"
+    external_writer: ExternalWriterDeclaration | None = None
+
+    @model_validator(mode="after")
+    def bind_external_writer_to_origin(self) -> ScriptAuthoringRequest:
+        external_origin = self.origin in {"external_ai_generated", "external_ai_assisted"}
+        if external_origin and self.external_writer is None:
+            raise ValueError("external AI authoring requires an external_writer declaration")
+        if not external_origin and self.external_writer is not None:
+            raise ValueError("user-authored scripts cannot include an external_writer declaration")
+        return self
+
+
+class ScriptAuthoringProvenance(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: Literal["nalu.script-authoring-provenance/v1"]
+    origin: Literal[
+        "user_dictation",
+        "user_text",
+        "external_ai_generated",
+        "external_ai_assisted",
+        "legacy_unknown",
+    ]
+    content_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    source_transcript_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    external_writer: ExternalWriterDeclaration | None = None
+    verification_status: Literal["user_attested", "external_unverified", "legacy_unverified"]
+    writer_receipt_verified: Literal[False] = False
+    network_call_performed_by_runtime: Literal[False] = False
+    provenance_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+
+    @model_validator(mode="after")
+    def require_coherent_verification_state(self) -> ScriptAuthoringProvenance:
+        external_origin = self.origin in {"external_ai_generated", "external_ai_assisted"}
+        if external_origin and (
+            self.external_writer is None or self.verification_status != "external_unverified"
+        ):
+            raise ValueError("external AI provenance must remain explicitly unverified")
+        if self.origin == "legacy_unknown" and (
+            self.external_writer is not None or self.verification_status != "legacy_unverified"
+        ):
+            raise ValueError("legacy provenance must remain explicitly unverified")
+        if self.origin in {"user_dictation", "user_text"} and (
+            self.external_writer is not None or self.verification_status != "user_attested"
+        ):
+            raise ValueError("user-authored provenance has an invalid verification state")
+        return self
+
+
 class ScriptRevisionCreate(BaseModel):
     content: str = Field(min_length=1)
     summary_for_voice_review: str = Field(min_length=1)
     source_transcript: str = ""
     narrative_metadata: dict[str, Any] = Field(default_factory=dict)
+    authoring: ScriptAuthoringRequest = Field(default_factory=ScriptAuthoringRequest)
 
 
-class ScriptRevision(ScriptRevisionCreate):
+class ScriptRevision(BaseModel):
+    content: str
+    summary_for_voice_review: str
+    source_transcript: str = ""
+    narrative_metadata: dict[str, Any] = Field(default_factory=dict)
+    authoring_provenance: ScriptAuthoringProvenance | None = None
     episode_id: str
     revision: int
     approved_at: str | None = None
@@ -1474,9 +1581,7 @@ class PostproductionMaterializationResult(BaseModel):
 
 
 class LocalVisualAnalysisResult(BaseModel):
-    schema_version: Literal["nalu.local-visual-analysis/v1"] = (
-        "nalu.local-visual-analysis/v1"
-    )
+    schema_version: Literal["nalu.local-visual-analysis/v1"] = "nalu.local-visual-analysis/v1"
     run_id: str
     project_id: str
     episode_id: str
@@ -1703,9 +1808,7 @@ class PostproductionLineageQAReport(BaseModel):
 
 
 class VisualContinuityQAReport(BaseModel):
-    schema_version: Literal["nalu.visual-continuity-qa/v1"] = (
-        "nalu.visual-continuity-qa/v1"
-    )
+    schema_version: Literal["nalu.visual-continuity-qa/v1"] = "nalu.visual-continuity-qa/v1"
     run_id: str
     output_seal_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     master_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
@@ -1743,9 +1846,7 @@ class ReleasePackage(BaseModel):
     postproduction_lineage_qa_report_sha256: str | None = Field(
         default=None, pattern=r"^[a-f0-9]{64}$"
     )
-    visual_continuity_qa_report_sha256: str | None = Field(
-        default=None, pattern=r"^[a-f0-9]{64}$"
-    )
+    visual_continuity_qa_report_sha256: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
     title: str
     description: str
     artifacts: list[RenderedOutputArtifact]
@@ -1863,9 +1964,7 @@ class PublicationMetricsSyncCreate(BaseModel):
 
 
 class PublicationMetricsSnapshot(BaseModel):
-    schema_version: Literal["nalu.publication-metrics/v1"] = (
-        "nalu.publication-metrics/v1"
-    )
+    schema_version: Literal["nalu.publication-metrics/v1"] = "nalu.publication-metrics/v1"
     id: str
     run_id: str
     project_id: str

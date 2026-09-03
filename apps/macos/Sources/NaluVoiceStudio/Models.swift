@@ -398,6 +398,7 @@ struct ScriptRevision: Codable, Identifiable, Sendable {
     let summaryForVoiceReview: String
     let sourceTranscript: String
     let narrativeMetadata: [String: JSONValue]
+    let authoringProvenance: ScriptAuthoringProvenance?
     let approvedAt: String?
     let createdAt: String
 
@@ -407,9 +408,60 @@ struct ScriptRevision: Codable, Identifiable, Sendable {
         case summaryForVoiceReview = "summary_for_voice_review"
         case sourceTranscript = "source_transcript"
         case narrativeMetadata = "narrative_metadata"
+        case authoringProvenance = "authoring_provenance"
         case approvedAt = "approved_at"
         case createdAt = "created_at"
     }
+}
+
+struct ExternalWriterDeclaration: Codable, Equatable, Sendable {
+    let provider: String
+    let modelID: String
+    let sessionOrTaskID: String
+    let inputBundleSHA256: String
+    let writerRulesSHA256: String
+    let receiptSHA256: String
+    let startedAt: String
+    let completedAt: String
+
+    enum CodingKeys: String, CodingKey {
+        case provider
+        case modelID = "model_id"
+        case sessionOrTaskID = "session_or_task_id"
+        case inputBundleSHA256 = "input_bundle_sha256"
+        case writerRulesSHA256 = "writer_rules_sha256"
+        case receiptSHA256 = "receipt_sha256"
+        case startedAt = "started_at"
+        case completedAt = "completed_at"
+    }
+}
+
+struct ScriptAuthoringProvenance: Codable, Equatable, Sendable {
+    let schemaVersion: String
+    let origin: String
+    let contentSHA256: String
+    let sourceTranscriptSHA256: String
+    let externalWriter: ExternalWriterDeclaration?
+    let verificationStatus: String
+    let writerReceiptVerified: Bool
+    let networkCallPerformedByRuntime: Bool
+    let provenanceSHA256: String
+
+    enum CodingKeys: String, CodingKey {
+        case origin
+        case schemaVersion = "schema_version"
+        case contentSHA256 = "content_sha256"
+        case sourceTranscriptSHA256 = "source_transcript_sha256"
+        case externalWriter = "external_writer"
+        case verificationStatus = "verification_status"
+        case writerReceiptVerified = "writer_receipt_verified"
+        case networkCallPerformedByRuntime = "network_call_performed_by_runtime"
+        case provenanceSHA256 = "provenance_sha256"
+    }
+}
+
+struct ScriptAuthoringDraft: Codable, Sendable {
+    let origin: String
 }
 
 struct ScriptRevisionDraft: Codable, Sendable {
@@ -417,12 +469,14 @@ struct ScriptRevisionDraft: Codable, Sendable {
     let summaryForVoiceReview: String
     let sourceTranscript: String
     let narrativeMetadata: [String: JSONValue]
+    let authoring: ScriptAuthoringDraft
 
     enum CodingKeys: String, CodingKey {
         case content
         case summaryForVoiceReview = "summary_for_voice_review"
         case sourceTranscript = "source_transcript"
         case narrativeMetadata = "narrative_metadata"
+        case authoring
     }
 }
 

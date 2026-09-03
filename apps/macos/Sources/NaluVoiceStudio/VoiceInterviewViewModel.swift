@@ -939,7 +939,9 @@ final class VoiceInterviewViewModel {
                 content: content,
                 summary: summary,
                 sourceTranscript: sourceTranscript,
-                narrativeMetadata: narrativeMetadata
+                narrativeMetadata: narrativeMetadata,
+                authoringOrigin: sourceTranscript.trimmingCharacters(in: .whitespacesAndNewlines)
+                    .isEmpty ? "user_text" : "user_dictation"
             )
             await loadScripts(episodeID: episodeID)
             if let projectID = selectedProjectID { await selectProject(projectID) }

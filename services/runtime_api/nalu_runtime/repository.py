@@ -107,6 +107,7 @@ from .models import (
     RemoteTaskState,
     RunEvent,
     RunStatus,
+    ScriptAuthoringProvenance,
     ScriptRevision,
     ScriptRevisionCreate,
     Season,
@@ -140,6 +141,75 @@ def encode(value: Any) -> str:
 
 def decode(value: str) -> Any:
     return json.loads(value)
+
+
+SCRIPT_AUTHORING_PROVENANCE_KEY = "_nalu_script_authoring_provenance"
+
+
+def _text_sha256(value: str) -> str:
+    return hashlib.sha256(value.encode()).hexdigest()
+
+
+def _seal_script_authoring_provenance(
+    request: ScriptRevisionCreate,
+) -> ScriptAuthoringProvenance:
+    external_writer = (
+        request.authoring.external_writer.model_dump(mode="json")
+        if request.authoring.external_writer is not None
+        else None
+    )
+    external_origin = request.authoring.origin in {
+        "external_ai_generated",
+        "external_ai_assisted",
+    }
+    body = {
+        "schema_version": "nalu.script-authoring-provenance/v1",
+        "origin": request.authoring.origin,
+        "content_sha256": _text_sha256(request.content),
+        "source_transcript_sha256": _text_sha256(request.source_transcript),
+        "external_writer": external_writer,
+        "verification_status": "external_unverified" if external_origin else "user_attested",
+        "writer_receipt_verified": False,
+        "network_call_performed_by_runtime": False,
+    }
+    return ScriptAuthoringProvenance.model_validate(
+        {**body, "provenance_sha256": _text_sha256(encode(body))}
+    )
+
+
+def _verify_script_authoring_provenance(
+    *, content: Any, source_transcript: Any, raw_provenance: Any
+) -> ScriptAuthoringProvenance:
+    if not isinstance(content, str) or not isinstance(source_transcript, str):
+        raise ConflictError("script provenance cannot bind non-text script fields")
+    if raw_provenance is None:
+        body = {
+            "schema_version": "nalu.script-authoring-provenance/v1",
+            "origin": "legacy_unknown",
+            "content_sha256": _text_sha256(content),
+            "source_transcript_sha256": _text_sha256(source_transcript),
+            "external_writer": None,
+            "verification_status": "legacy_unverified",
+            "writer_receipt_verified": False,
+            "network_call_performed_by_runtime": False,
+        }
+        return ScriptAuthoringProvenance.model_validate(
+            {**body, "provenance_sha256": _text_sha256(encode(body))}
+        )
+    if not isinstance(raw_provenance, dict):
+        raise ConflictError("script authoring provenance is not an object")
+    try:
+        provenance = ScriptAuthoringProvenance.model_validate(raw_provenance)
+    except ValueError as exc:
+        raise ConflictError("script authoring provenance is invalid") from exc
+    body = provenance.model_dump(mode="json", exclude={"provenance_sha256"})
+    if (
+        provenance.content_sha256 != _text_sha256(content)
+        or provenance.source_transcript_sha256 != _text_sha256(source_transcript)
+        or provenance.provenance_sha256 != _text_sha256(encode(body))
+    ):
+        raise ConflictError("script authoring provenance digest mismatch")
+    return provenance
 
 
 class NotFoundError(LookupError):
@@ -1245,6 +1315,18 @@ class Repository:
             row.get("episode_id") not in episode_ids for row in backup.payload["script_revisions"]
         ):
             raise ConflictError("project export contains a script from another project")
+        for row in backup.payload["script_revisions"]:
+            try:
+                metadata = decode(row.get("narrative_metadata_json", ""))
+            except (TypeError, json.JSONDecodeError) as exc:
+                raise ConflictError("project export contains unreadable script metadata") from exc
+            if not isinstance(metadata, dict):
+                raise ConflictError("project export contains invalid script metadata")
+            _verify_script_authoring_provenance(
+                content=row.get("content"),
+                source_transcript=row.get("source_transcript"),
+                raw_provenance=metadata.get(SCRIPT_AUTHORING_PROVENANCE_KEY),
+            )
         if any(
             row.get("project_id") != project_id
             or (row.get("season_id") is not None and row.get("season_id") not in season_ids)
@@ -1282,12 +1364,9 @@ class Repository:
             row.get("episode_id") not in episode_ids
             or row.get("snapshot_id") not in snapshot_ids
             or row.get("approval_id") not in approval_ids
-            or (
-                row.get("episode_id"), row.get("reviewed_script_revision")
-            ) not in script_revision_keys
-            for row in backup.payload.get(
-                "continuity_extraction_confirmation_records", []
-            )
+            or (row.get("episode_id"), row.get("reviewed_script_revision"))
+            not in script_revision_keys
+            for row in backup.payload.get("continuity_extraction_confirmation_records", [])
         ):
             raise ConflictError(
                 "project export contains a continuity confirmation from another project"
@@ -1307,7 +1386,9 @@ class Repository:
             try:
                 bundle_body = decode(row.get("bundle_json", ""))
             except (TypeError, json.JSONDecodeError) as exc:
-                raise ConflictError("project export contains an unreadable feedback bundle") from exc
+                raise ConflictError(
+                    "project export contains an unreadable feedback bundle"
+                ) from exc
             if (
                 bundle_body.get("feedback_id") != row.get("feedback_id")
                 or bundle_body.get("request_sha256") != row.get("request_sha256")
@@ -1321,7 +1402,9 @@ class Repository:
             try:
                 linkage_body = decode(row.get("linkage_json", ""))
             except (TypeError, json.JSONDecodeError) as exc:
-                raise ConflictError("project export contains an unreadable release linkage") from exc
+                raise ConflictError(
+                    "project export contains an unreadable release linkage"
+                ) from exc
             if (
                 row.get("feedback_id") not in feedback_ids
                 or linkage_body.get("feedback_id") != row.get("feedback_id")
@@ -1348,9 +1431,7 @@ class Repository:
                 "evidence": evidence.model_dump(mode="json"),
             }
             if validated.development_result_sha256 is not None:
-                request_body["development_result_sha256"] = (
-                    validated.development_result_sha256
-                )
+                request_body["development_result_sha256"] = validated.development_result_sha256
             if hashlib.sha256(encode(request_body).encode()).hexdigest() != row.get(
                 "request_sha256"
             ):
@@ -1376,9 +1457,7 @@ class Repository:
                 )
             except ValueError as exc:
                 raise ConflictError("project export contains invalid feedback triage") from exc
-            if triage.review_bundle_sha256 != feedback_bundle_digests.get(
-                row.get("feedback_id")
-            ):
+            if triage.review_bundle_sha256 != feedback_bundle_digests.get(row.get("feedback_id")):
                 raise ConflictError("feedback triage references a different review bundle")
             if triage.duplicate_of_feedback_id is not None and (
                 triage.disposition != "duplicate"
@@ -1503,8 +1582,7 @@ class Repository:
                 or record.feedback_id != row.get("feedback_id")
                 or record.export_request_sha256 != export.get("request_sha256")
                 or record.payload_sha256 != export.get("payload_sha256")
-                or record.idempotency_key_sha256
-                != export.get("idempotency_key_sha256")
+                or record.idempotency_key_sha256 != export.get("idempotency_key_sha256")
                 or record.request_sha256 != row.get("request_sha256")
                 or hashlib.sha256(encode(record_body).encode()).hexdigest()
                 != row.get("record_sha256")
@@ -1541,7 +1619,9 @@ class Repository:
                     {**record_body, "record_sha256": row.get("record_sha256")}
                 )
             except (TypeError, json.JSONDecodeError, ValueError) as exc:
-                raise ConflictError("project export contains invalid development work order") from exc
+                raise ConflictError(
+                    "project export contains invalid development work order"
+                ) from exc
             export = feedback_external_exports.get(row.get("feedback_id"))
             if export is None:
                 raise ConflictError("development work order has no external export")
@@ -1665,9 +1745,7 @@ class Repository:
             elif any(value is not None for value in receipt_fields):
                 raise ConflictError("unconfirmed development handoff contains a receipt")
             feedback_development_handoffs[row["feedback_id"]] = row
-        for row in backup.payload.get(
-            "feedback_development_handoff_reconciliations", []
-        ):
+        for row in backup.payload.get("feedback_development_handoff_reconciliations", []):
             try:
                 record_body = decode(row.get("record_json", ""))
                 record = FeedbackDevelopmentHandoffReconciliationRecord.model_validate(
@@ -1683,8 +1761,7 @@ class Repository:
                 or record.feedback_id != row.get("feedback_id")
                 or record.handoff_request_sha256 != handoff.get("request_sha256")
                 or record.payload_sha256 != handoff.get("payload_sha256")
-                or record.idempotency_key_sha256
-                != handoff.get("idempotency_key_sha256")
+                or record.idempotency_key_sha256 != handoff.get("idempotency_key_sha256")
                 or record.request_sha256 != row.get("request_sha256")
                 or hashlib.sha256(encode(record_body).encode()).hexdigest()
                 != row.get("record_sha256")
@@ -1729,9 +1806,7 @@ class Repository:
                     {**record_body, "record_sha256": row.get("record_sha256")}
                 )
             except (TypeError, json.JSONDecodeError, ValueError) as exc:
-                raise ConflictError(
-                    "project export contains invalid development result"
-                ) from exc
+                raise ConflictError("project export contains invalid development result") from exc
             handoff = feedback_development_handoffs.get(row.get("feedback_id"))
             work_order = feedback_development_work_orders.get(row.get("feedback_id"))
             review_url = urlsplit(record.review_url)
@@ -1774,10 +1849,7 @@ class Repository:
                 "idempotency_key_sha256": record.idempotency_key_sha256,
                 "confirmation_sha256": record.confirmation_sha256,
             }
-            if (
-                hashlib.sha256(encode(result_request).encode()).hexdigest()
-                != record.request_sha256
-            ):
+            if hashlib.sha256(encode(result_request).encode()).hexdigest() != record.request_sha256:
                 raise ConflictError("development result request digest does not match")
             feedback_development_results[row.get("feedback_id")] = record
         for feedback_id, linkage in feedback_release_linkages.items():
@@ -1792,15 +1864,12 @@ class Repository:
                 or linkage.reviewed_change.repository_url != result.repository_url
                 or linkage.reviewed_change.review_url != result.review_url
                 or linkage.reviewed_change.commit_sha != result.commit_sha
-                or linkage.reviewed_change.test_evidence_sha256
-                != result.test_evidence_sha256
+                or linkage.reviewed_change.test_evidence_sha256 != result.test_evidence_sha256
             ):
                 raise ConflictError(
                     "release linkage does not match the verified development result"
                 )
-        for row in backup.payload.get(
-            "feedback_release_evidence_reconciliations", []
-        ):
+        for row in backup.payload.get("feedback_release_evidence_reconciliations", []):
             try:
                 record_body = decode(row.get("record_json", ""))
                 record = FeedbackReleaseEvidenceReconciliationRecord.model_validate(
@@ -1870,12 +1939,8 @@ class Repository:
             raise ConflictError(
                 "project export contains a library confirmation from another project"
             )
-        learning_run_ids = {
-            row.get("id") for row in backup.payload.get("production_runs", [])
-        }
-        learning_runs = {
-            row.get("id"): row for row in backup.payload.get("production_runs", [])
-        }
+        learning_run_ids = {row.get("id") for row in backup.payload.get("production_runs", [])}
+        learning_runs = {row.get("id"): row for row in backup.payload.get("production_runs", [])}
         if any(
             row.get("project_id") != project_id
             or row.get("season_id") not in season_ids
@@ -1912,9 +1977,7 @@ class Repository:
                 or hashlib.sha256(encode(record_body).encode()).hexdigest()
                 != row.get("record_sha256")
             ):
-                raise ConflictError(
-                    "project export contains tampered publication reconciliation"
-                )
+                raise ConflictError("project export contains tampered publication reconciliation")
             publication_records[(record.run_id, record.platform)] = record
         metric_records: dict[Any, PublicationMetricsSnapshot] = {}
         for row in backup.payload.get("publication_metric_snapshots", []):
@@ -1926,9 +1989,7 @@ class Repository:
             except (TypeError, ValueError, json.JSONDecodeError) as exc:
                 raise ConflictError("project export contains invalid publication metrics") from exc
             source_run = learning_runs.get(row.get("run_id"))
-            publication = publication_records.get(
-                (row.get("run_id"), row.get("platform"))
-            )
+            publication = publication_records.get((row.get("run_id"), row.get("platform")))
             if (
                 source_run is None
                 or publication is None
@@ -2218,9 +2279,7 @@ class Repository:
         rationale, rationale_redacted = self._redact_feedback_message(request.rationale)
         reviewed_by, reviewer_redacted = self._redact_feedback_message(request.reviewed_by)
         idempotency_key_sha256 = hashlib.sha256(idempotency_key.encode()).hexdigest()
-        confirmation_sha256 = hashlib.sha256(
-            request.confirmation_text.strip().encode()
-        ).hexdigest()
+        confirmation_sha256 = hashlib.sha256(request.confirmation_text.strip().encode()).hexdigest()
         evidence = {
             "review_bundle_sha256": request.review_bundle_sha256,
             "priority": request.priority,
@@ -2372,9 +2431,7 @@ class Repository:
         policy_sha256 = hashlib.sha256(encode(policy_body).encode()).hexdigest()
         policy_json = encode(policy_body)
         idempotency_key_sha256 = hashlib.sha256(idempotency_key.encode()).hexdigest()
-        confirmation_sha256 = hashlib.sha256(
-            request.confirmation_text.strip().encode()
-        ).hexdigest()
+        confirmation_sha256 = hashlib.sha256(request.confirmation_text.strip().encode()).hexdigest()
         request_body = {
             "feedback_id": feedback_id,
             "policy_sha256": policy_sha256,
@@ -2496,9 +2553,7 @@ class Repository:
                 raise ConflictError("feedback export state changed concurrently")
         return self.get_feedback_external_export(feedback_id)
 
-    def get_feedback_external_export(
-        self, feedback_id: str
-    ) -> FeedbackExternalExportReceipt:
+    def get_feedback_external_export(self, feedback_id: str) -> FeedbackExternalExportReceipt:
         self.get_feedback(feedback_id)
         with self.db.connect() as connection:
             row = connection.execute(
@@ -2516,8 +2571,7 @@ class Repository:
             raise ConflictError("stored feedback export receipt is unreadable") from exc
         if (
             hashlib.sha256(row["payload_json"].encode()).hexdigest() != row["payload_sha256"]
-            or hashlib.sha256(encode(response).encode()).hexdigest()
-            != row["response_sha256"]
+            or hashlib.sha256(encode(response).encode()).hexdigest() != row["response_sha256"]
             or not row["remote_issue_id"]
             or remote_url.scheme != "https"
             or not remote_url.hostname
@@ -2530,9 +2584,7 @@ class Repository:
         return FeedbackExternalExportReceipt(
             feedback_id=feedback_id,
             provider="github_issues",
-            repository=self._feedback_export_repository(
-                row["policy_sha256"], row["policy_json"]
-            ),
+            repository=self._feedback_export_repository(row["policy_sha256"], row["policy_json"]),
             state="confirmed",
             remote_issue_id=row["remote_issue_id"],
             remote_issue_url=row["remote_issue_url"],
@@ -2578,9 +2630,7 @@ class Repository:
             raise ConflictError("the original stable idempotency key is required")
         if idempotency_key != idempotency_key.strip():
             raise ConflictError("idempotency key must not have surrounding whitespace")
-        if not self._explicit_feedback_reconciliation_confirmation(
-            request.confirmation_text
-        ):
+        if not self._explicit_feedback_reconciliation_confirmation(request.confirmation_text):
             raise ConflictError("external feedback reconciliation requires confirmation")
         self.get_feedback(feedback_id)
         with self.db.connect() as connection:
@@ -2604,14 +2654,10 @@ class Repository:
             "repository": policy.repository,
             "max_payload_bytes": policy.max_payload_bytes,
         }
-        if hashlib.sha256(encode(policy_body).encode()).hexdigest() != export[
-            "policy_sha256"
-        ]:
+        if hashlib.sha256(encode(policy_body).encode()).hexdigest() != export["policy_sha256"]:
             raise ConflictError("reconciliation policy differs from the export policy")
         reconciled_by, _ = self._redact_feedback_message(request.reconciled_by)
-        confirmation_sha256 = hashlib.sha256(
-            request.confirmation_text.strip().encode()
-        ).hexdigest()
+        confirmation_sha256 = hashlib.sha256(request.confirmation_text.strip().encode()).hexdigest()
         request_body = {
             "feedback_id": feedback_id,
             "export_request_sha256": export["request_sha256"],
@@ -2816,9 +2862,7 @@ class Repository:
         approved_by, _ = self._redact_feedback_message(request.approved_by.strip())
         if not title or not scope or not approved_by:
             raise ConflictError("work order title, scope and approver are required")
-        acceptance_tests = self._clean_work_order_list(
-            request.acceptance_tests, "acceptance_tests"
-        )
+        acceptance_tests = self._clean_work_order_list(request.acceptance_tests, "acceptance_tests")
         privacy_requirements = self._clean_work_order_list(
             request.privacy_requirements, "privacy_requirements"
         )
@@ -2826,9 +2870,7 @@ class Repository:
             request.accessibility_requirements, "accessibility_requirements"
         )
         idempotency_key_sha256 = hashlib.sha256(idempotency_key.encode()).hexdigest()
-        confirmation_sha256 = hashlib.sha256(
-            request.confirmation_text.strip().encode()
-        ).hexdigest()
+        confirmation_sha256 = hashlib.sha256(request.confirmation_text.strip().encode()).hexdigest()
         request_body = {
             "feedback_id": feedback_id,
             "triage_record_sha256": triage.record_sha256,
@@ -2903,9 +2945,7 @@ class Repository:
         record_body["record_sha256"] = record_sha256
         return FeedbackDevelopmentWorkOrder.model_validate(record_body)
 
-    def get_feedback_development_work_order(
-        self, feedback_id: str
-    ) -> FeedbackDevelopmentWorkOrder:
+    def get_feedback_development_work_order(self, feedback_id: str) -> FeedbackDevelopmentWorkOrder:
         self.get_feedback(feedback_id)
         with self.db.connect() as connection:
             row = connection.execute(
@@ -2992,9 +3032,7 @@ class Repository:
         policy_json = encode(policy_body)
         policy_sha256 = hashlib.sha256(policy_json.encode()).hexdigest()
         idempotency_key_sha256 = hashlib.sha256(idempotency_key.encode()).hexdigest()
-        confirmation_sha256 = hashlib.sha256(
-            request.confirmation_text.strip().encode()
-        ).hexdigest()
+        confirmation_sha256 = hashlib.sha256(request.confirmation_text.strip().encode()).hexdigest()
         request_body = {
             "feedback_id": feedback_id,
             "policy_sha256": policy_sha256,
@@ -3130,15 +3168,12 @@ class Repository:
         except (TypeError, json.JSONDecodeError, ValueError) as exc:
             raise ConflictError("stored development handoff receipt is unreadable") from exc
         if (
-            hashlib.sha256(encode(policy_body).encode()).hexdigest()
-            != row["policy_sha256"]
-            or hashlib.sha256(encode(payload_body).encode()).hexdigest()
-            != row["payload_sha256"]
+            hashlib.sha256(encode(policy_body).encode()).hexdigest() != row["policy_sha256"]
+            or hashlib.sha256(encode(payload_body).encode()).hexdigest() != row["payload_sha256"]
             or payload_body.get("feedback_id") != feedback_id
             or payload_body.get("work_order_sha256") != work_order.record_sha256
             or payload_body.get("attachments") != []
-            or hashlib.sha256(encode(response).encode()).hexdigest()
-            != row["response_sha256"]
+            or hashlib.sha256(encode(response).encode()).hexdigest() != row["response_sha256"]
             or response
             != {
                 "remote_task_id": row["remote_task_id"],
@@ -3161,9 +3196,7 @@ class Repository:
             "confirmation_sha256": row["confirmation_sha256"],
             "payload_sha256": row["payload_sha256"],
         }
-        if hashlib.sha256(encode(request_body).encode()).hexdigest() != row[
-            "request_sha256"
-        ]:
+        if hashlib.sha256(encode(request_body).encode()).hexdigest() != row["request_sha256"]:
             raise ConflictError("stored development handoff request digest mismatch")
         return FeedbackDevelopmentHandoffReceipt(
             feedback_id=feedback_id,
@@ -3211,9 +3244,7 @@ class Repository:
         if not self._explicit_development_handoff_reconciliation_confirmation(
             request.confirmation_text
         ):
-            raise ConflictError(
-                "development handoff reconciliation requires explicit confirmation"
-            )
+            raise ConflictError("development handoff reconciliation requires explicit confirmation")
         self.get_feedback(feedback_id)
         with self.db.connect() as connection:
             handoff = connection.execute(
@@ -3226,9 +3257,7 @@ class Repository:
             raise ConflictError("development handoff reconciliation payload digest differs")
         idempotency_key_sha256 = hashlib.sha256(idempotency_key.encode()).hexdigest()
         if idempotency_key_sha256 != handoff["idempotency_key_sha256"]:
-            raise ConflictError(
-                "development handoff reconciliation idempotency key does not match"
-            )
+            raise ConflictError("development handoff reconciliation idempotency key does not match")
         policy_body = {
             "schema_version": policy.schema_version,
             "enabled": policy.enabled,
@@ -3237,14 +3266,10 @@ class Repository:
             "endpoint": policy.endpoint,
             "max_payload_bytes": policy.max_payload_bytes,
         }
-        if hashlib.sha256(encode(policy_body).encode()).hexdigest() != handoff[
-            "policy_sha256"
-        ]:
+        if hashlib.sha256(encode(policy_body).encode()).hexdigest() != handoff["policy_sha256"]:
             raise ConflictError("development handoff reconciliation policy differs")
         reconciled_by, _ = self._redact_feedback_message(request.reconciled_by)
-        confirmation_sha256 = hashlib.sha256(
-            request.confirmation_text.strip().encode()
-        ).hexdigest()
+        confirmation_sha256 = hashlib.sha256(request.confirmation_text.strip().encode()).hexdigest()
         request_body = {
             "feedback_id": feedback_id,
             "handoff_request_sha256": handoff["request_sha256"],
@@ -3263,9 +3288,7 @@ class Repository:
             ).fetchone()
         if existing is not None:
             if existing["request_sha256"] != request_sha256:
-                raise ConflictError(
-                    "development handoff already has different reconciliation"
-                )
+                raise ConflictError("development handoff already has different reconciliation")
             return self.get_feedback_development_handoff_reconciliation(feedback_id)
         if handoff["state"] not in {"submitting", "ambiguous"}:
             raise ConflictError("only an uncertain development handoff can be reconciled")
@@ -3313,9 +3336,7 @@ class Repository:
                 }
             )
             if len(response_json.encode()) > policy.max_payload_bytes:
-                raise ConflictError(
-                    "development handoff reconciliation response is too large"
-                )
+                raise ConflictError("development handoff reconciliation response is too large")
             response_sha256 = hashlib.sha256(response_json.encode()).hexdigest()
             remote_task_id = receipt.remote_task_id
             remote_task_url = receipt.remote_task_url
@@ -3373,9 +3394,7 @@ class Repository:
                     ),
                 )
                 if updated.rowcount != 1:
-                    raise ConflictError(
-                        "development handoff state changed during reconciliation"
-                    )
+                    raise ConflictError("development handoff state changed during reconciliation")
                 connection.execute(
                     """INSERT INTO feedback_development_handoff_reconciliations
                        VALUES (?, ?, ?, ?, ?)""",
@@ -3389,9 +3408,7 @@ class Repository:
                 )
                 connection.commit()
         except sqlite3.IntegrityError as exc:
-            raise ConflictError(
-                "development handoff was reconciled concurrently"
-            ) from exc
+            raise ConflictError("development handoff was reconciled concurrently") from exc
         record_body["record_sha256"] = record_sha256
         return FeedbackDevelopmentHandoffReconciliationRecord.model_validate(record_body)
 
@@ -3460,9 +3477,7 @@ class Repository:
         if not verified_by:
             raise ConflictError("development result verifier identity is required")
         idempotency_key_sha256 = hashlib.sha256(idempotency_key.encode()).hexdigest()
-        confirmation_sha256 = hashlib.sha256(
-            request.confirmation_text.strip().encode()
-        ).hexdigest()
+        confirmation_sha256 = hashlib.sha256(request.confirmation_text.strip().encode()).hexdigest()
         request_body = {
             "feedback_id": feedback_id,
             "handoff_request_sha256": handoff.request_sha256,
@@ -3490,9 +3505,7 @@ class Repository:
                 remote_task_url=handoff.remote_task_url,
             )
         except Exception as exc:
-            raise ConflictError(
-                "development result could not be independently verified"
-            ) from exc
+            raise ConflictError("development result could not be independently verified") from exc
         expected_repository_url = f"https://github.com/{work_order.repository}"
         repository_url = urlsplit(result.repository_url)
         review_url = urlsplit(result.review_url)
@@ -3570,9 +3583,7 @@ class Repository:
         record_body["record_sha256"] = record_sha256
         return FeedbackDevelopmentResultRecord.model_validate(record_body)
 
-    def get_feedback_development_result(
-        self, feedback_id: str
-    ) -> FeedbackDevelopmentResultRecord:
+    def get_feedback_development_result(self, feedback_id: str) -> FeedbackDevelopmentResultRecord:
         self.get_feedback(feedback_id)
         with self.db.connect() as connection:
             row = connection.execute(
@@ -3615,16 +3626,13 @@ class Repository:
                 "release evidence requires an independently verified development result"
             ) from exc
         if (
-            request.reviewed_change.repository_url
-            != development_result.repository_url
+            request.reviewed_change.repository_url != development_result.repository_url
             or request.reviewed_change.review_url != development_result.review_url
             or request.reviewed_change.commit_sha != development_result.commit_sha
             or request.reviewed_change.test_evidence_sha256
             != development_result.test_evidence_sha256
         ):
-            raise ConflictError(
-                "reviewed change does not match the verified development result"
-            )
+            raise ConflictError("reviewed change does not match the verified development result")
 
         idempotency_key_sha256 = hashlib.sha256(idempotency_key.encode()).hexdigest()
         request_body = {
@@ -3822,9 +3830,7 @@ class Repository:
             "feedback_id": feedback_id,
             "release_linkage_sha256": linkage.linkage_sha256,
             "status": "independently_verified",
-            "verification_evidence_sha256": hashlib.sha256(
-                evidence_json.encode()
-            ).hexdigest(),
+            "verification_evidence_sha256": hashlib.sha256(evidence_json.encode()).hexdigest(),
             "read_only_verification_performed": True,
             "download_performed": False,
             "installation_performed": False,
@@ -3852,9 +3858,7 @@ class Repository:
                     ),
                 )
             except sqlite3.IntegrityError as exc:
-                raise ConflictError(
-                    "release evidence was reconciled concurrently"
-                ) from exc
+                raise ConflictError("release evidence was reconciled concurrently") from exc
         record_body["record_sha256"] = record_sha256
         return FeedbackReleaseEvidenceReconciliationRecord.model_validate(record_body)
 
@@ -3888,9 +3892,19 @@ class Repository:
             ("human_triage", "feedback_triage_records", "人工分诊已接受", "accepted"),
             ("issue_export", "feedback_external_exports", "外部问题单事务已确认", "confirmed"),
             ("development_work_order", "feedback_development_work_orders", "开发工单已批准", None),
-            ("development_handoff", "feedback_development_handoffs", "开发交接事务已确认", "confirmed"),
+            (
+                "development_handoff",
+                "feedback_development_handoffs",
+                "开发交接事务已确认",
+                "confirmed",
+            ),
             ("development_result", "feedback_development_results", "开发结果已只读核验", None),
-            ("release_linkage", "feedback_release_linkages", "变更、CI、安装与回滚证据已绑定", None),
+            (
+                "release_linkage",
+                "feedback_release_linkages",
+                "变更、CI、安装与回滚证据已绑定",
+                None,
+            ),
             (
                 "independent_release_reconciliation",
                 "feedback_release_evidence_reconciliations",
@@ -3909,10 +3923,7 @@ class Repository:
                 satisfied = row is not None
                 if satisfied and required_state is not None:
                     if table == "feedback_triage_records":
-                        satisfied = (
-                            decode(row["record_json"]).get("disposition")
-                            == required_state
-                        )
+                        satisfied = decode(row["record_json"]).get("disposition") == required_state
                     else:
                         satisfied = row["state"] == required_state
                 present[check_id] = satisfied
@@ -3920,11 +3931,7 @@ class Repository:
                     FeedbackReleaseReadinessCheck(
                         id=check_id,
                         status="satisfied" if satisfied else "missing",
-                        explanation=(
-                            explanation
-                            if satisfied
-                            else f"仍缺少：{explanation}"
-                        ),
+                        explanation=(explanation if satisfied else f"仍缺少：{explanation}"),
                     )
                 )
         independently_verified = present["independent_release_reconciliation"]
@@ -3950,14 +3957,11 @@ class Repository:
                     explanation=explanation,
                 )
             )
-        pre_rollout_ids = {
-            item[0] for item in table_checks
-        } | {"signed_notarized_installation", "rollback_rehearsal"}
-        ready = all(
-            check.status == "satisfied"
-            for check in checks
-            if check.id in pre_rollout_ids
-        )
+        pre_rollout_ids = {item[0] for item in table_checks} | {
+            "signed_notarized_installation",
+            "rollback_rehearsal",
+        }
+        ready = all(check.status == "satisfied" for check in checks if check.id in pre_rollout_ids)
         return FeedbackGovernedReleaseReadiness(
             feedback_id=feedback_id,
             feedback_status=feedback.status,
@@ -4220,10 +4224,18 @@ class Repository:
         if match := re.search(r"(?:月|[-/.])\s*(3[01]|[12]\d|0?[1-9])\s*(?:日|号)?", normalized):
             components["day"] = str(int(match.group(1)))
         seasons = {
-            "春天": "spring", "春季": "spring", "春": "spring",
-            "夏天": "summer", "夏季": "summer", "夏": "summer",
-            "秋天": "autumn", "秋季": "autumn", "秋": "autumn",
-            "冬天": "winter", "冬季": "winter", "冬": "winter",
+            "春天": "spring",
+            "春季": "spring",
+            "春": "spring",
+            "夏天": "summer",
+            "夏季": "summer",
+            "夏": "summer",
+            "秋天": "autumn",
+            "秋季": "autumn",
+            "秋": "autumn",
+            "冬天": "winter",
+            "冬季": "winter",
+            "冬": "winter",
         }
         for label, canonical in seasons.items():
             if label in normalized:
@@ -4261,7 +4273,8 @@ class Repository:
         candidate_people = {
             self._memory_fact_text(person.name): person
             for person in candidate.people
-            if self._memory_fact_text(person.name) and self._canonical_relationship(person.relationship)
+            if self._memory_fact_text(person.name)
+            and self._canonical_relationship(person.relationship)
         }
         candidate_event = self._memory_fact_text(candidate.title)
         generic_event_titles = {"照片", "老照片", "全家福", "家庭照片", "资料", "手稿"}
@@ -4839,6 +4852,13 @@ class Repository:
             raise ConflictError(
                 f"cannot create a script revision while episode is {episode.status}"
             )
+        if SCRIPT_AUTHORING_PROVENANCE_KEY in request.narrative_metadata:
+            raise ConflictError("script authoring provenance is managed by Nalu")
+        provenance = _seal_script_authoring_provenance(request)
+        stored_metadata = {
+            **request.narrative_metadata,
+            SCRIPT_AUTHORING_PROVENANCE_KEY: provenance.model_dump(mode="json"),
+        }
         now = utc_now()
         with self.db.connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
@@ -4855,7 +4875,7 @@ class Repository:
                     request.content,
                     request.summary_for_voice_review,
                     request.source_transcript,
-                    encode(request.narrative_metadata),
+                    encode(stored_metadata),
                     None,
                     now,
                 ),
@@ -4884,7 +4904,18 @@ class Repository:
         if row is None:
             raise NotFoundError("script revision not found")
         data = dict(row)
-        data["narrative_metadata"] = decode(data.pop("narrative_metadata_json"))
+        try:
+            metadata = decode(data.pop("narrative_metadata_json"))
+        except (TypeError, json.JSONDecodeError) as exc:
+            raise ConflictError("script metadata is unreadable") from exc
+        if not isinstance(metadata, dict):
+            raise ConflictError("script metadata is invalid")
+        data["authoring_provenance"] = _verify_script_authoring_provenance(
+            content=data.get("content"),
+            source_transcript=data.get("source_transcript"),
+            raw_provenance=metadata.pop(SCRIPT_AUTHORING_PROVENANCE_KEY, None),
+        )
+        data["narrative_metadata"] = metadata
         return ScriptRevision.model_validate(data)
 
     def list_scripts(self, episode_id: str) -> list[ScriptRevision]:
@@ -5238,9 +5269,7 @@ class Repository:
         return paths
 
     @staticmethod
-    def _continuity_proposal_summary(
-        state: ContinuityState, unresolved_hooks: list[str]
-    ) -> str:
+    def _continuity_proposal_summary(state: ContinuityState, unresolved_hooks: list[str]) -> str:
         parts = ["我从当前定稿剧本整理了本集结尾，请您核对"]
         if state.scene_location:
             parts.append(f"地点是 {state.scene_location}")
@@ -5281,9 +5310,7 @@ class Repository:
         parts.append("这只是待确认草稿，不会自动成为下一集事实")
         return "。".join(parts) + "。"
 
-    def continuity_extraction_proposal(
-        self, episode_id: str
-    ) -> ContinuityExtractionProposal:
+    def continuity_extraction_proposal(self, episode_id: str) -> ContinuityExtractionProposal:
         episode = self.get_episode(episode_id)
         revision = episode.approved_script_revision
         if episode.status != EpisodeStatus.SCRIPT_APPROVED or revision is None:
@@ -5312,11 +5339,7 @@ class Repository:
             story_time = self._continuity_marker(script.content, "结尾时间")
             weather = self._continuity_marker(script.content, "结尾天气")
             hooks_text = self._continuity_marker(script.content, "未解悬念")
-            hooks = [
-                item.strip()
-                for item in re.split(r"[、,，;；]", hooks_text)
-                if item.strip()
-            ]
+            hooks = [item.strip() for item in re.split(r"[、,，;；]", hooks_text) if item.strip()]
             try:
                 candidate = ContinuitySnapshotCreate(
                     state=ContinuityState(
@@ -5429,9 +5452,7 @@ class Repository:
                 (episode_id, proposal.script_revision),
             ).fetchone()
             if existing is not None:
-                raise ConflictError(
-                    "this approved script already has a confirmed ending handoff"
-                )
+                raise ConflictError("this approved script already has a confirmed ending handoff")
             connection.execute(
                 "INSERT INTO continuity_snapshots VALUES (?, ?, ?, ?, ?, ?)",
                 (
@@ -6130,9 +6151,7 @@ class Repository:
         if prior_key is not None:
             if prior_key["request_sha256"] != request_sha256:
                 raise ConflictError("publication idempotency key was already used differently")
-            return self.get_publication_reconciliation(
-                prior_key["run_id"], prior_key["platform"]
-            )
+            return self.get_publication_reconciliation(prior_key["run_id"], prior_key["platform"])
         try:
             existing = self.get_publication_reconciliation(run_id, request.platform)
         except NotFoundError:
@@ -6223,10 +6242,15 @@ class Repository:
                     connection.execute(
                         "INSERT INTO episode_events VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                         (
-                            new_id("ep_evt"), episode.id, sequence,
-                            "publication_reconciled", EpisodeStatus.READY_TO_PUBLISH,
-                            EpisodeStatus.PUBLISHED, "authorized verifier",
-                            "远端发行身份已只读核验。", now,
+                            new_id("ep_evt"),
+                            episode.id,
+                            sequence,
+                            "publication_reconciled",
+                            EpisodeStatus.READY_TO_PUBLISH,
+                            EpisodeStatus.PUBLISHED,
+                            "authorized verifier",
+                            "远端发行身份已只读核验。",
+                            now,
                         ),
                     )
             except sqlite3.IntegrityError as exc:
@@ -6441,11 +6465,13 @@ class Repository:
         observations, directives = self._director_strategy_content(verified)
         with self.db.connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
-            revision = int(connection.execute(
-                """SELECT COALESCE(MAX(revision), 0) + 1 AS revision
+            revision = int(
+                connection.execute(
+                    """SELECT COALESCE(MAX(revision), 0) + 1 AS revision
                    FROM director_strategy_revisions WHERE project_id = ?""",
-                (run.project_id,),
-            ).fetchone()["revision"])
+                    (run.project_id,),
+                ).fetchone()["revision"]
+            )
             strategy_id = new_id("strategy")
             strategy_body = {
                 "schema_version": "nalu.director-strategy/v1",
@@ -6472,17 +6498,30 @@ class Repository:
                 connection.execute(
                     "INSERT INTO publication_metric_snapshots VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     (
-                        metrics_id, run.id, publication.platform,
-                        publication.remote_publication_id, request.window_start,
-                        request.window_end, request_sha256, key_sha256, encode(metrics_body),
-                        metrics_sha256, now,
+                        metrics_id,
+                        run.id,
+                        publication.platform,
+                        publication.remote_publication_id,
+                        request.window_start,
+                        request.window_end,
+                        request_sha256,
+                        key_sha256,
+                        encode(metrics_body),
+                        metrics_sha256,
+                        now,
                     ),
                 )
                 connection.execute(
                     "INSERT INTO director_strategy_revisions VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                     (
-                        strategy_id, run.project_id, target["id"], metrics_id, revision,
-                        encode(strategy_body), strategy_sha256, now,
+                        strategy_id,
+                        run.project_id,
+                        target["id"],
+                        metrics_id,
+                        revision,
+                        encode(strategy_body),
+                        strategy_sha256,
+                        now,
                     ),
                 )
             except sqlite3.IntegrityError as exc:
@@ -6705,17 +6744,18 @@ class Repository:
             actual_charged_credits is None or not receipt
         ):
             raise ConflictError("completed remote tasks require a credit receipt")
-        if (
-            target_state == RemoteTaskState.ZERO_CHARGE_FAILED
-            and actual_charged_credits != 0
-        ):
+        if target_state == RemoteTaskState.ZERO_CHARGE_FAILED and actual_charged_credits != 0:
             raise ConflictError("zero-charge failures require an exact zero-credit receipt")
         if target_state == RemoteTaskState.AMBIGUOUS_CHARGE and actual_charged_credits is not None:
             raise ConflictError("ambiguous-charge tasks cannot claim a reconciled credit total")
-        if target_state in {
-            RemoteTaskState.AMBIGUOUS_CHARGE,
-            RemoteTaskState.ZERO_CHARGE_FAILED,
-        } and not charge_classification.strip():
+        if (
+            target_state
+            in {
+                RemoteTaskState.AMBIGUOUS_CHARGE,
+                RemoteTaskState.ZERO_CHARGE_FAILED,
+            }
+            and not charge_classification.strip()
+        ):
             raise ConflictError("failed or ambiguous provider responses require classification")
 
         allowed = {

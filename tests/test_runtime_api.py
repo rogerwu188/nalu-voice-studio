@@ -370,7 +370,7 @@ def test_feedback_review_bundle_is_local_redacted_immutable_and_exported(
     assert bundle["attachments"] == []
     assert bundle["diagnostics"] == {
         "runtime_version": "0.1.0",
-            "schema_version": "24",
+        "schema_version": "24",
         "screen": "family-materials",
     }
     assert bundle["redaction_applied"] is True
@@ -483,8 +483,9 @@ def test_feedback_release_linkage_is_hash_bound_immutable_and_never_claims_relea
     wrong_bundle = deepcopy(request)
     wrong_bundle["review_bundle_sha256"] = "f" * 64
     assert (
-        api.post(endpoint, json=wrong_bundle, headers={"Idempotency-Key": "release-linkage-0001"})
-        .status_code
+        api.post(
+            endpoint, json=wrong_bundle, headers={"Idempotency-Key": "release-linkage-0001"}
+        ).status_code
         == 409
     )
     mismatched_commit = deepcopy(request)
@@ -557,9 +558,7 @@ def test_feedback_release_linkage_is_hash_bound_immutable_and_never_claims_relea
     development_result_json = json.dumps(
         development_result_body, ensure_ascii=False, sort_keys=True
     )
-    development_result_sha256 = hashlib.sha256(
-        development_result_json.encode()
-    ).hexdigest()
+    development_result_sha256 = hashlib.sha256(development_result_json.encode()).hexdigest()
     with api.app.state.repository.db.connect() as connection:
         connection.execute(
             "INSERT INTO feedback_development_results VALUES (?, ?, ?, ?, ?)",
@@ -580,9 +579,7 @@ def test_feedback_release_linkage_is_hash_bound_immutable_and_never_claims_relea
     assert linkage["release_claimed"] is False
     assert linkage["network_call_performed"] is False
     assert linkage["development_result_sha256"] == development_result_sha256
-    assert linkage["idempotency_key_sha256"] == hashlib.sha256(
-        b"release-linkage-0001"
-    ).hexdigest()
+    assert linkage["idempotency_key_sha256"] == hashlib.sha256(b"release-linkage-0001").hexdigest()
     assert "release-linkage-0001" not in json.dumps(linkage, sort_keys=True)
     assert api.get(endpoint).json() == linkage
     assert api.post(endpoint, json=request, headers=headers).json() == linkage
@@ -590,8 +587,9 @@ def test_feedback_release_linkage_is_hash_bound_immutable_and_never_claims_relea
     changed["rollback"]["evidence_sha256"] = "1" * 64
     assert api.post(endpoint, json=changed, headers=headers).status_code == 409
     assert (
-        api.post(endpoint, json=request, headers={"Idempotency-Key": "release-linkage-0002"})
-        .status_code
+        api.post(
+            endpoint, json=request, headers={"Idempotency-Key": "release-linkage-0002"}
+        ).status_code
         == 409
     )
     current_feedback = api.get("/v1/feedback", params={"project_id": project["id"]}).json()[0]
@@ -599,9 +597,10 @@ def test_feedback_release_linkage_is_hash_bound_immutable_and_never_claims_relea
 
     backup = api.get(f"/v1/projects/{project['id']}/export").json()
     assert backup["schema_version"] == "nalu.project-export/v20"
-    assert backup["payload"]["feedback_release_linkages"][0]["linkage_sha256"] == linkage[
-        "linkage_sha256"
-    ]
+    assert (
+        backup["payload"]["feedback_release_linkages"][0]["linkage_sha256"]
+        == linkage["linkage_sha256"]
+    )
     legacy_backup = deepcopy(backup)
     legacy_backup["schema_version"] = "nalu.project-export/v16"
     legacy_backup["payload"].pop("feedback_development_results")
@@ -614,15 +613,10 @@ def test_feedback_release_linkage_is_hash_bound_immutable_and_never_claims_relea
     ):
         legacy_backup["payload"].pop(table)
     legacy_backup["payload_sha256"] = hashlib.sha256(
-        json.dumps(
-            legacy_backup["payload"], ensure_ascii=False, sort_keys=True
-        ).encode()
+        json.dumps(legacy_backup["payload"], ensure_ascii=False, sort_keys=True).encode()
     ).hexdigest()
     restored_api = client(tmp_path / "release-linkage-restored")
-    assert (
-        restored_api.post("/v1/project-imports", json=legacy_backup).status_code
-        == 201
-    )
+    assert restored_api.post("/v1/project-imports", json=legacy_backup).status_code == 201
     assert restored_api.get(endpoint).json() == linkage
     tampered = deepcopy(legacy_backup)
     row = tampered["payload"]["feedback_release_linkages"][0]
@@ -634,9 +628,7 @@ def test_feedback_release_linkage_is_hash_bound_immutable_and_never_claims_relea
         json.dumps(tampered["payload"], ensure_ascii=False, sort_keys=True).encode()
     ).hexdigest()
     assert (
-        client(tmp_path / "tampered-linkage")
-        .post("/v1/project-imports", json=tampered)
-        .status_code
+        client(tmp_path / "tampered-linkage").post("/v1/project-imports", json=tampered).status_code
         == 409
     )
 
@@ -728,17 +720,15 @@ def test_feedback_triage_is_human_confirmed_inert_immutable_and_exported(
     assert "我确认这份分诊" not in serialized
     assert api.get(endpoint).json() == triage
     assert api.post(endpoint, json=request, headers=headers).json() == triage
-    assert (
-        api.post(endpoint, json=dict(request, priority="p1"), headers=headers).status_code == 409
-    )
+    assert api.post(endpoint, json=dict(request, priority="p1"), headers=headers).status_code == 409
     current_feedback = api.get("/v1/feedback", params={"project_id": project["id"]}).json()[0]
     assert current_feedback["status"] == "ready_for_review"
 
     backup = api.get(f"/v1/projects/{project['id']}/export").json()
     assert backup["schema_version"] == "nalu.project-export/v20"
-    assert backup["payload"]["feedback_triage_records"][0]["record_sha256"] == triage[
-        "record_sha256"
-    ]
+    assert (
+        backup["payload"]["feedback_triage_records"][0]["record_sha256"] == triage["record_sha256"]
+    )
     restored_api = client(tmp_path / "triage-restored")
     assert restored_api.post("/v1/project-imports", json=backup).status_code == 201
     assert restored_api.get(endpoint).json() == triage
@@ -753,9 +743,7 @@ def test_feedback_triage_is_human_confirmed_inert_immutable_and_exported(
         json.dumps(tampered["payload"], ensure_ascii=False, sort_keys=True).encode()
     ).hexdigest()
     assert (
-        client(tmp_path / "triage-tampered")
-        .post("/v1/project-imports", json=tampered)
-        .status_code
+        client(tmp_path / "triage-tampered").post("/v1/project-imports", json=tampered).status_code
         == 409
     )
 
@@ -895,9 +883,7 @@ def test_feedback_external_export_is_authorized_idempotent_and_ambiguity_safe(
     )
     api = TestClient(app)
 
-    def reviewed_feedback(
-        title: str, target_api: TestClient = api
-    ) -> tuple[dict, dict, dict]:
+    def reviewed_feedback(title: str, target_api: TestClient = api) -> tuple[dict, dict, dict]:
         project = target_api.post("/v1/projects", json={"title": title}).json()
         feedback = target_api.post(
             "/v1/feedback",
@@ -934,9 +920,7 @@ def test_feedback_external_export_is_authorized_idempotent_and_ambiguity_safe(
         return project, feedback, triage
 
     project, feedback, triage = reviewed_feedback("外部导出")
-    initial_readiness = api.get(
-        f"/v1/feedback/{feedback['id']}/release-readiness"
-    ).json()
+    initial_readiness = api.get(f"/v1/feedback/{feedback['id']}/release-readiness").json()
     assert initial_readiness["ready_for_authorized_rollout"] is False
     assert initial_readiness["released"] is False
     assert initial_readiness["release_claimed"] is False
@@ -977,9 +961,7 @@ def test_feedback_external_export_is_authorized_idempotent_and_ambiguity_safe(
                 (feedback["id"],),
             ).fetchone()
         )
-    assert stored["idempotency_key_sha256"] == hashlib.sha256(
-        b"external-export-0001"
-    ).hexdigest()
+    assert stored["idempotency_key_sha256"] == hashlib.sha256(b"external-export-0001").hexdigest()
     assert "external-export-0001" not in json.dumps(stored, ensure_ascii=False)
     assert "access_token" not in stored["response_json"]
 
@@ -1042,9 +1024,7 @@ def test_feedback_external_export_is_authorized_idempotent_and_ambiguity_safe(
     }
     handoff_headers = {"Idempotency-Key": "development-handoff-0001"}
     assert api.post(handoff_endpoint, json=handoff_request).status_code == 409
-    handoff_response = api.post(
-        handoff_endpoint, json=handoff_request, headers=handoff_headers
-    )
+    handoff_response = api.post(handoff_endpoint, json=handoff_request, headers=handoff_headers)
     assert handoff_response.status_code == 201
     handoff = handoff_response.json()
     assert handoff["state"] == "confirmed"
@@ -1067,8 +1047,7 @@ def test_feedback_external_export_is_authorized_idempotent_and_ambiguity_safe(
     }
     assert api.get(handoff_endpoint).json() == handoff
     assert (
-        api.post(handoff_endpoint, json=handoff_request, headers=handoff_headers).json()
-        == handoff
+        api.post(handoff_endpoint, json=handoff_request, headers=handoff_headers).json() == handoff
     )
     assert len(handoff_transport.calls) == 1
 
@@ -1090,9 +1069,7 @@ def test_feedback_external_export_is_authorized_idempotent_and_ambiguity_safe(
         == 409
     )
     assert result_verifier.calls == []
-    created_result = api.post(
-        result_endpoint, json=result_request, headers=result_headers
-    )
+    created_result = api.post(result_endpoint, json=result_request, headers=result_headers)
     assert created_result.status_code == 201
     development_result = created_result.json()
     assert development_result["repository_url"] == "https://github.com/example/nalu"
@@ -1172,25 +1149,16 @@ def test_feedback_external_export_is_authorized_idempotent_and_ambiguity_safe(
         },
     }
     unrelated_release = deepcopy(release_request)
-    unrelated_release["reviewed_change"]["review_url"] = (
-        "https://github.com/example/nalu/pull/43"
-    )
+    unrelated_release["reviewed_change"]["review_url"] = "https://github.com/example/nalu/pull/43"
     release_headers = {"Idempotency-Key": "release-linkage-result-0001"}
     assert (
-        api.post(
-            release_endpoint, json=unrelated_release, headers=release_headers
-        ).status_code
+        api.post(release_endpoint, json=unrelated_release, headers=release_headers).status_code
         == 409
     )
-    created_release = api.post(
-        release_endpoint, json=release_request, headers=release_headers
-    )
+    created_release = api.post(release_endpoint, json=release_request, headers=release_headers)
     assert created_release.status_code == 201
     release_linkage = created_release.json()
-    assert (
-        release_linkage["development_result_sha256"]
-        == development_result["record_sha256"]
-    )
+    assert release_linkage["development_result_sha256"] == development_result["record_sha256"]
     assert release_linkage["release_claimed"] is False
     assert api.get(release_endpoint).json() == release_linkage
 
@@ -1201,9 +1169,7 @@ def test_feedback_external_export_is_authorized_idempotent_and_ambiguity_safe(
         "release_linkage_sha256": release_linkage["linkage_sha256"],
         "confirmation_text": "我确认只读核验这份发布证据",
     }
-    release_reconciliation_headers = {
-        "Idempotency-Key": "release-evidence-reconciliation-0001"
-    }
+    release_reconciliation_headers = {"Idempotency-Key": "release-evidence-reconciliation-0001"}
     assert (
         api.post(
             release_reconciliation_endpoint,
@@ -1274,10 +1240,7 @@ def test_feedback_external_export_is_authorized_idempotent_and_ambiguity_safe(
     assert restored.get(handoff_endpoint).json() == handoff
     assert restored.get(result_endpoint).json() == development_result
     assert restored.get(release_endpoint).json() == release_linkage
-    assert (
-        restored.get(release_reconciliation_endpoint).json()
-        == release_reconciliation
-    )
+    assert restored.get(release_reconciliation_endpoint).json() == release_reconciliation
     assert restored.get(readiness_endpoint).json() == readiness
 
     tampered_release_reconciliation = deepcopy(backup)
@@ -1307,9 +1270,7 @@ def test_feedback_external_export_is_authorized_idempotent_and_ambiguity_safe(
     )
 
     mismatched_release_backup = deepcopy(backup)
-    mismatched_release_row = mismatched_release_backup["payload"][
-        "feedback_release_linkages"
-    ][0]
+    mismatched_release_row = mismatched_release_backup["payload"]["feedback_release_linkages"][0]
     mismatched_release_body = json.loads(mismatched_release_row["linkage_json"])
     mismatched_release_body["reviewed_change"]["review_url"] = (
         "https://github.com/example/nalu/pull/43"
@@ -1326,22 +1287,14 @@ def test_feedback_external_export_is_authorized_idempotent_and_ambiguity_safe(
     }
     mismatched_release_request = {
         "feedback_id": feedback["id"],
-        "idempotency_key_sha256": mismatched_release_body[
-            "idempotency_key_sha256"
-        ],
-        "development_result_sha256": mismatched_release_body[
-            "development_result_sha256"
-        ],
+        "idempotency_key_sha256": mismatched_release_body["idempotency_key_sha256"],
+        "development_result_sha256": mismatched_release_body["development_result_sha256"],
         "evidence": release_evidence,
     }
     mismatched_release_body["request_sha256"] = hashlib.sha256(
-        json.dumps(
-            mismatched_release_request, ensure_ascii=False, sort_keys=True
-        ).encode()
+        json.dumps(mismatched_release_request, ensure_ascii=False, sort_keys=True).encode()
     ).hexdigest()
-    mismatched_release_row["request_sha256"] = mismatched_release_body[
-        "request_sha256"
-    ]
+    mismatched_release_row["request_sha256"] = mismatched_release_body["request_sha256"]
     mismatched_release_row["linkage_json"] = json.dumps(
         mismatched_release_body, ensure_ascii=False, sort_keys=True
     )
@@ -1394,28 +1347,20 @@ def test_feedback_external_export_is_authorized_idempotent_and_ambiguity_safe(
         json.dumps(tampered["payload"], ensure_ascii=False, sort_keys=True).encode()
     ).hexdigest()
     assert (
-        client(tmp_path / "export-tampered")
-        .post("/v1/project-imports", json=tampered)
-        .status_code
+        client(tmp_path / "export-tampered").post("/v1/project-imports", json=tampered).status_code
         == 409
     )
 
     tampered_work_order = deepcopy(backup)
-    work_order_row = tampered_work_order["payload"][
-        "feedback_development_work_orders"
-    ][0]
+    work_order_row = tampered_work_order["payload"]["feedback_development_work_orders"][0]
     work_order_body = json.loads(work_order_row["record_json"])
     work_order_body["code_change_performed"] = True
-    work_order_row["record_json"] = json.dumps(
-        work_order_body, ensure_ascii=False, sort_keys=True
-    )
+    work_order_row["record_json"] = json.dumps(work_order_body, ensure_ascii=False, sort_keys=True)
     work_order_row["record_sha256"] = hashlib.sha256(
         work_order_row["record_json"].encode()
     ).hexdigest()
     tampered_work_order["payload_sha256"] = hashlib.sha256(
-        json.dumps(
-            tampered_work_order["payload"], ensure_ascii=False, sort_keys=True
-        ).encode()
+        json.dumps(tampered_work_order["payload"], ensure_ascii=False, sort_keys=True).encode()
     ).hexdigest()
     assert (
         client(tmp_path / "work-order-tampered")
@@ -1428,12 +1373,8 @@ def test_feedback_external_export_is_authorized_idempotent_and_ambiguity_safe(
     handoff_row = tampered_handoff["payload"]["feedback_development_handoffs"][0]
     handoff_body = json.loads(handoff_row["payload_json"])
     handoff_body["automatic_actions"]["code_change_performed"] = True
-    handoff_row["payload_json"] = json.dumps(
-        handoff_body, ensure_ascii=False, sort_keys=True
-    )
-    handoff_row["payload_sha256"] = hashlib.sha256(
-        handoff_row["payload_json"].encode()
-    ).hexdigest()
+    handoff_row["payload_json"] = json.dumps(handoff_body, ensure_ascii=False, sort_keys=True)
+    handoff_row["payload_sha256"] = hashlib.sha256(handoff_row["payload_json"].encode()).hexdigest()
     tampered_handoff["payload_sha256"] = hashlib.sha256(
         json.dumps(tampered_handoff["payload"], ensure_ascii=False, sort_keys=True).encode()
     ).hexdigest()
@@ -1448,16 +1389,10 @@ def test_feedback_external_export_is_authorized_idempotent_and_ambiguity_safe(
     result_row = tampered_result["payload"]["feedback_development_results"][0]
     result_body = json.loads(result_row["record_json"])
     result_body["merge_performed"] = True
-    result_row["record_json"] = json.dumps(
-        result_body, ensure_ascii=False, sort_keys=True
-    )
-    result_row["record_sha256"] = hashlib.sha256(
-        result_row["record_json"].encode()
-    ).hexdigest()
+    result_row["record_json"] = json.dumps(result_body, ensure_ascii=False, sort_keys=True)
+    result_row["record_sha256"] = hashlib.sha256(result_row["record_json"].encode()).hexdigest()
     tampered_result["payload_sha256"] = hashlib.sha256(
-        json.dumps(
-            tampered_result["payload"], ensure_ascii=False, sort_keys=True
-        ).encode()
+        json.dumps(tampered_result["payload"], ensure_ascii=False, sort_keys=True).encode()
     ).hexdigest()
     assert (
         client(tmp_path / "development-result-tampered")
@@ -1494,16 +1429,12 @@ def test_feedback_external_export_is_authorized_idempotent_and_ambiguity_safe(
     }
     handoff3_headers = {"Idempotency-Key": "development-handoff-ambiguous"}
     assert (
-        api.post(
-            handoff3_endpoint, json=handoff3_request, headers=handoff3_headers
-        ).status_code
+        api.post(handoff3_endpoint, json=handoff3_request, headers=handoff3_headers).status_code
         == 409
     )
     calls_after_ambiguous = len(handoff_transport.calls)
     assert (
-        api.post(
-            handoff3_endpoint, json=handoff3_request, headers=handoff3_headers
-        ).status_code
+        api.post(handoff3_endpoint, json=handoff3_request, headers=handoff3_headers).status_code
         == 409
     )
     assert len(handoff_transport.calls) == calls_after_ambiguous
@@ -1549,9 +1480,7 @@ def test_feedback_external_export_is_authorized_idempotent_and_ambiguity_safe(
     assert len(handoff_verifier.calls) == 1
     assert len(handoff_transport.calls) == calls_after_ambiguous
     assert api.get(handoff3_endpoint).json()["remote_task_id"] == "dev-84"
-    assert (
-        api.get(handoff_reconciliation_endpoint).json() == handoff_reconciliation
-    )
+    assert api.get(handoff_reconciliation_endpoint).json() == handoff_reconciliation
     assert (
         api.post(
             handoff_reconciliation_endpoint,
@@ -1562,9 +1491,7 @@ def test_feedback_external_export_is_authorized_idempotent_and_ambiguity_safe(
     )
     assert len(handoff_verifier.calls) == 1
 
-    handoff_reconciliation_backup = api.get(
-        f"/v1/projects/{project3['id']}/export"
-    ).json()
+    handoff_reconciliation_backup = api.get(f"/v1/projects/{project3['id']}/export").json()
     restored_handoff_reconciliation = client(tmp_path / "handoff-reconciled-restored")
     assert (
         restored_handoff_reconciliation.post(
@@ -1656,10 +1583,13 @@ def test_feedback_external_export_is_authorized_idempotent_and_ambiguity_safe(
     assert absent_handoff_reconciliation.json()["outcome"] == "verified_absent"
     assert api.get(handoff4_endpoint).status_code == 409
     with app.state.repository.db.connect() as connection:
-        assert connection.execute(
-            "SELECT state FROM feedback_development_handoffs WHERE feedback_id = ?",
-            (feedback4["id"],),
-        ).fetchone()[0] == "rejected"
+        assert (
+            connection.execute(
+                "SELECT state FROM feedback_development_handoffs WHERE feedback_id = ?",
+                (feedback4["id"],),
+            ).fetchone()[0]
+            == "rejected"
+        )
     handoff_transport.fail = False
     handoff_verifier.outcome = "found"
 
@@ -1757,10 +1687,7 @@ def test_feedback_external_export_is_authorized_idempotent_and_ambiguity_safe(
         "reconciled_at": "2026-09-01T06:30:00Z",
     }
     assert (
-        ambiguous_api.post(
-            reconciliation_endpoint, json=reconciliation_request
-        ).status_code
-        == 409
+        ambiguous_api.post(reconciliation_endpoint, json=reconciliation_request).status_code == 409
     )
     assert (
         ambiguous_api.post(
@@ -1818,19 +1745,13 @@ def test_feedback_external_export_is_authorized_idempotent_and_ambiguity_safe(
         == 409
     )
 
-    reconciled_backup = ambiguous_api.get(
-        f"/v1/projects/{project2['id']}/export"
-    ).json()
+    reconciled_backup = ambiguous_api.get(f"/v1/projects/{project2['id']}/export").json()
     restored_reconciliation = client(tmp_path / "reconciled-restored")
     assert (
-        restored_reconciliation.post(
-            "/v1/project-imports", json=reconciled_backup
-        ).status_code
+        restored_reconciliation.post("/v1/project-imports", json=reconciled_backup).status_code
         == 201
     )
-    assert (
-        restored_reconciliation.get(reconciliation_endpoint).json() == reconciled.json()
-    )
+    assert restored_reconciliation.get(reconciliation_endpoint).json() == reconciled.json()
 
     legacy_v13 = deepcopy(reconciled_backup)
     legacy_v13["schema_version"] = "nalu.project-export/v13"
@@ -1854,9 +1775,7 @@ def test_feedback_external_export_is_authorized_idempotent_and_ambiguity_safe(
     assert legacy_v13_api.get(reconciliation_endpoint).json() == reconciled.json()
 
     tampered_reconciliation = deepcopy(reconciled_backup)
-    reconciliation_row = tampered_reconciliation["payload"][
-        "feedback_external_reconciliations"
-    ][0]
+    reconciliation_row = tampered_reconciliation["payload"]["feedback_external_reconciliations"][0]
     reconciliation_body = json.loads(reconciliation_row["record_json"])
     reconciliation_body["remote_issue_id"] = "999"
     reconciliation_row["record_json"] = json.dumps(
@@ -1866,9 +1785,7 @@ def test_feedback_external_export_is_authorized_idempotent_and_ambiguity_safe(
         reconciliation_row["record_json"].encode()
     ).hexdigest()
     tampered_reconciliation["payload_sha256"] = hashlib.sha256(
-        json.dumps(
-            tampered_reconciliation["payload"], ensure_ascii=False, sort_keys=True
-        ).encode()
+        json.dumps(tampered_reconciliation["payload"], ensure_ascii=False, sort_keys=True).encode()
     ).hexdigest()
     assert (
         client(tmp_path / "reconciliation-tampered")
@@ -1900,9 +1817,7 @@ def test_feedback_external_export_is_authorized_idempotent_and_ambiguity_safe(
     )
     absent_api = TestClient(absent_app)
     _, absent_feedback, absent_triage = reviewed_feedback("确认不存在", absent_api)
-    absent_bundle = absent_api.get(
-        f"/v1/feedback/{absent_feedback['id']}/review-bundle"
-    ).json()
+    absent_bundle = absent_api.get(f"/v1/feedback/{absent_feedback['id']}/review-bundle").json()
     absent_endpoint = f"/v1/feedback/{absent_feedback['id']}/external-export"
     absent_export_request = {
         "review_bundle_sha256": absent_bundle["bundle_sha256"],
@@ -2163,6 +2078,161 @@ def test_script_history_stale_approval_and_revocation(tmp_path: Path) -> None:
         headers={"Idempotency-Key": "revoked-script"},
     )
     assert blocked.status_code == 409
+
+
+def test_script_authoring_provenance_is_versioned_hash_bound_and_fail_closed(
+    tmp_path: Path,
+) -> None:
+    api = client(tmp_path)
+    plan = api.post(
+        "/v1/project-plans",
+        json={"project": {"title": "作者来源测试", "planned_episode_count": 1}},
+    ).json()
+    project_id = plan["project"]["id"]
+    episode_id = plan["episodes"][0]["id"]
+
+    dictated = api.post(
+        f"/v1/episodes/{episode_id}/scripts",
+        json={
+            "content": "这是本人讲述的第一版。",
+            "summary_for_voice_review": "本人讲述",
+            "source_transcript": "我小时候住在海边。",
+            "narrative_metadata": {"chapter": 1},
+        },
+    )
+    assert dictated.status_code == 201
+    first = dictated.json()
+    assert first["narrative_metadata"] == {"chapter": 1}
+    assert first["authoring_provenance"]["schema_version"] == (
+        "nalu.script-authoring-provenance/v1"
+    )
+    assert first["authoring_provenance"]["origin"] == "user_dictation"
+    assert first["authoring_provenance"]["verification_status"] == "user_attested"
+    assert (
+        first["authoring_provenance"]["content_sha256"]
+        == hashlib.sha256("这是本人讲述的第一版。".encode()).hexdigest()
+    )
+    assert (
+        first["authoring_provenance"]["source_transcript_sha256"]
+        == hashlib.sha256("我小时候住在海边。".encode()).hexdigest()
+    )
+    assert first["authoring_provenance"]["writer_receipt_verified"] is False
+    assert first["authoring_provenance"]["network_call_performed_by_runtime"] is False
+
+    digest = "a" * 64
+    external_writer = {
+        "provider": "qingshan",
+        "model_id": "claude-opus-4-1-20250805",
+        "session_or_task_id": "writer-task-20260903-001",
+        "input_bundle_sha256": digest,
+        "writer_rules_sha256": "b" * 64,
+        "receipt_sha256": "c" * 64,
+        "started_at": "2026-09-03T20:00:00Z",
+        "completed_at": "2026-09-03T20:01:00Z",
+    }
+    generated = api.post(
+        f"/v1/episodes/{episode_id}/scripts",
+        json={
+            "content": "外部写作代理生成的第二版。",
+            "summary_for_voice_review": "外部生成草稿，尚未核验回执",
+            "authoring": {
+                "origin": "external_ai_generated",
+                "external_writer": external_writer,
+            },
+        },
+    )
+    assert generated.status_code == 201
+    provenance = generated.json()["authoring_provenance"]
+    assert provenance["external_writer"] == external_writer
+    assert provenance["verification_status"] == "external_unverified"
+    assert provenance["writer_receipt_verified"] is False
+
+    missing_declaration = api.post(
+        f"/v1/episodes/{episode_id}/scripts",
+        json={
+            "content": "缺少来源",
+            "summary_for_voice_review": "无效",
+            "authoring": {"origin": "external_ai_assisted"},
+        },
+    )
+    assert missing_declaration.status_code == 422
+    generic_model = deepcopy(external_writer)
+    generic_model["model_id"] = "Claude Opus"
+    generic = api.post(
+        f"/v1/episodes/{episode_id}/scripts",
+        json={
+            "content": "模糊模型",
+            "summary_for_voice_review": "无效",
+            "authoring": {
+                "origin": "external_ai_generated",
+                "external_writer": generic_model,
+            },
+        },
+    )
+    assert generic.status_code == 422
+    protected_metadata = api.post(
+        f"/v1/episodes/{episode_id}/scripts",
+        json={
+            "content": "伪造来源",
+            "summary_for_voice_review": "无效",
+            "narrative_metadata": {"_nalu_script_authoring_provenance": {}},
+        },
+    )
+    assert protected_metadata.status_code == 409
+
+    backup = api.get(f"/v1/projects/{project_id}/export").json()
+    raw_metadata = json.loads(backup["payload"]["script_revisions"][1]["narrative_metadata_json"])
+    assert raw_metadata["_nalu_script_authoring_provenance"] == provenance
+    restored_api = client(tmp_path / "restored-provenance")
+    assert restored_api.post("/v1/project-imports", json=backup).status_code == 201
+    restored_history = restored_api.get(f"/v1/episodes/{episode_id}/scripts").json()
+    assert restored_history[1]["authoring_provenance"] == provenance
+
+    tampered = deepcopy(backup)
+    tampered["payload"]["script_revisions"][1]["content"] = "篡改后的剧本"
+    canonical = json.dumps(tampered["payload"], ensure_ascii=False, sort_keys=True)
+    tampered["payload_sha256"] = hashlib.sha256(canonical.encode()).hexdigest()
+    assert (
+        client(tmp_path / "tampered-provenance")
+        .post("/v1/project-imports", json=tampered)
+        .status_code
+        == 409
+    )
+
+
+def test_script_authoring_provenance_detects_database_tampering_and_labels_legacy(
+    tmp_path: Path,
+) -> None:
+    api = client(tmp_path)
+    _, _, episode = create_approved_episode(api)
+    database_path = tmp_path / "test.sqlite3"
+    with sqlite3.connect(database_path) as connection:
+        connection.execute(
+            "UPDATE script_revisions SET content = ? WHERE episode_id = ? AND revision = 1",
+            ("数据库中被篡改", episode["id"]),
+        )
+    assert api.get(f"/v1/episodes/{episode['id']}/scripts").status_code == 409
+
+    legacy_api = client(tmp_path / "legacy")
+    _, _, legacy_episode = create_approved_episode(legacy_api)
+    legacy_database = tmp_path / "legacy" / "test.sqlite3"
+    with sqlite3.connect(legacy_database) as connection:
+        raw = connection.execute(
+            "SELECT narrative_metadata_json FROM script_revisions WHERE episode_id = ?",
+            (legacy_episode["id"],),
+        ).fetchone()[0]
+        metadata = json.loads(raw)
+        metadata.pop("_nalu_script_authoring_provenance")
+        connection.execute(
+            "UPDATE script_revisions SET narrative_metadata_json = ? WHERE episode_id = ?",
+            (json.dumps(metadata, ensure_ascii=False, sort_keys=True), legacy_episode["id"]),
+        )
+    legacy = legacy_api.get(f"/v1/episodes/{legacy_episode['id']}/scripts")
+    assert legacy.status_code == 200
+    legacy_provenance = legacy.json()[0]["authoring_provenance"]
+    assert legacy_provenance["origin"] == "legacy_unknown"
+    assert legacy_provenance["verification_status"] == "legacy_unverified"
+    assert legacy_provenance["writer_receipt_verified"] is False
 
 
 def test_atomic_multi_episode_project_plan(tmp_path: Path) -> None:
@@ -3325,9 +3395,9 @@ def test_qingshan_preflight_rejects_tampered_compilation_and_package(tmp_path: P
         key: value for key, value in clean_compilation.items() if key != "compilation_sha256"
     }
     clean_compilation["compilation_sha256"] = hashlib.sha256(
-        json.dumps(
-            unsigned, ensure_ascii=False, sort_keys=True, separators=(",", ":")
-        ).encode("utf-8")
+        json.dumps(unsigned, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode(
+            "utf-8"
+        )
     ).hexdigest()
     clean_compilation_path.write_text(
         json.dumps(clean_compilation, ensure_ascii=False, indent=2) + "\n",

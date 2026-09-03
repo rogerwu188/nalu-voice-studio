@@ -69,5 +69,51 @@ final class ContinuityFormDraftTests: XCTestCase {
             return XCTFail("expected opening continuity metadata")
         }
         XCTAssertEqual(opening["story_time"], .string("1986年冬夜"))
+        XCTAssertNil(revision.authoringProvenance)
+    }
+
+    func testScriptDraftDeclaresOriginAndResponseDecodesProvenance() throws {
+        let draft = ScriptRevisionDraft(
+            content: "用户键盘输入",
+            summaryForVoiceReview: "用户输入",
+            sourceTranscript: "",
+            narrativeMetadata: [:],
+            authoring: ScriptAuthoringDraft(origin: "user_text")
+        )
+        let encoded = try JSONSerialization.jsonObject(with: JSONEncoder().encode(draft))
+        let object = try XCTUnwrap(encoded as? [String: Any])
+        let authoring = try XCTUnwrap(object["authoring"] as? [String: Any])
+        XCTAssertEqual(authoring["origin"] as? String, "user_text")
+
+        let digest = String(repeating: "a", count: 64)
+        let data = Data(
+            """
+            {
+              "episode_id": "ep-3",
+              "revision": 1,
+              "content": "用户键盘输入",
+              "summary_for_voice_review": "用户输入",
+              "source_transcript": "",
+              "narrative_metadata": {},
+              "authoring_provenance": {
+                "schema_version": "nalu.script-authoring-provenance/v1",
+                "origin": "user_text",
+                "content_sha256": "\(digest)",
+                "source_transcript_sha256": "\(digest)",
+                "external_writer": null,
+                "verification_status": "user_attested",
+                "writer_receipt_verified": false,
+                "network_call_performed_by_runtime": false,
+                "provenance_sha256": "\(digest)"
+              },
+              "approved_at": null,
+              "created_at": "2026-09-03T00:00:00Z"
+            }
+            """.utf8
+        )
+        let revision = try JSONDecoder().decode(ScriptRevision.self, from: data)
+        XCTAssertEqual(revision.authoringProvenance?.origin, "user_text")
+        XCTAssertEqual(revision.authoringProvenance?.verificationStatus, "user_attested")
+        XCTAssertFalse(revision.authoringProvenance?.writerReceiptVerified ?? true)
     }
 }

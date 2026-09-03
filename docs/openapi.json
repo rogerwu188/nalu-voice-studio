@@ -1764,6 +1764,70 @@
         "title": "EpisodeTransitionRequest",
         "type": "object"
       },
+      "ExternalWriterDeclaration": {
+        "additionalProperties": false,
+        "description": "Untrusted declaration about a writer run performed outside Nalu.",
+        "properties": {
+          "completed_at": {
+            "maxLength": 40,
+            "minLength": 20,
+            "title": "Completed At",
+            "type": "string"
+          },
+          "input_bundle_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Input Bundle Sha256",
+            "type": "string"
+          },
+          "model_id": {
+            "maxLength": 160,
+            "minLength": 3,
+            "title": "Model Id",
+            "type": "string"
+          },
+          "provider": {
+            "maxLength": 80,
+            "minLength": 2,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]+$",
+            "title": "Provider",
+            "type": "string"
+          },
+          "receipt_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Receipt Sha256",
+            "type": "string"
+          },
+          "session_or_task_id": {
+            "maxLength": 240,
+            "minLength": 3,
+            "title": "Session Or Task Id",
+            "type": "string"
+          },
+          "started_at": {
+            "maxLength": 40,
+            "minLength": 20,
+            "title": "Started At",
+            "type": "string"
+          },
+          "writer_rules_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Writer Rules Sha256",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "model_id",
+          "session_or_task_id",
+          "input_bundle_sha256",
+          "writer_rules_sha256",
+          "receipt_sha256",
+          "started_at",
+          "completed_at"
+        ],
+        "title": "ExternalWriterDeclaration",
+        "type": "object"
+      },
       "FeedbackCategory": {
         "enum": [
           "usability",
@@ -7287,6 +7351,111 @@
         "title": "RunStatus",
         "type": "string"
       },
+      "ScriptAuthoringProvenance": {
+        "additionalProperties": false,
+        "properties": {
+          "content_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Content Sha256",
+            "type": "string"
+          },
+          "external_writer": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExternalWriterDeclaration"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "network_call_performed_by_runtime": {
+            "const": false,
+            "default": false,
+            "title": "Network Call Performed By Runtime",
+            "type": "boolean"
+          },
+          "origin": {
+            "enum": [
+              "user_dictation",
+              "user_text",
+              "external_ai_generated",
+              "external_ai_assisted",
+              "legacy_unknown"
+            ],
+            "title": "Origin",
+            "type": "string"
+          },
+          "provenance_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Provenance Sha256",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "nalu.script-authoring-provenance/v1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "source_transcript_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Source Transcript Sha256",
+            "type": "string"
+          },
+          "verification_status": {
+            "enum": [
+              "user_attested",
+              "external_unverified",
+              "legacy_unverified"
+            ],
+            "title": "Verification Status",
+            "type": "string"
+          },
+          "writer_receipt_verified": {
+            "const": false,
+            "default": false,
+            "title": "Writer Receipt Verified",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "schema_version",
+          "origin",
+          "content_sha256",
+          "source_transcript_sha256",
+          "verification_status",
+          "provenance_sha256"
+        ],
+        "title": "ScriptAuthoringProvenance",
+        "type": "object"
+      },
+      "ScriptAuthoringRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "external_writer": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExternalWriterDeclaration"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "origin": {
+            "default": "user_dictation",
+            "enum": [
+              "user_dictation",
+              "user_text",
+              "external_ai_generated",
+              "external_ai_assisted"
+            ],
+            "title": "Origin",
+            "type": "string"
+          }
+        },
+        "title": "ScriptAuthoringRequest",
+        "type": "object"
+      },
       "ScriptRevision": {
         "properties": {
           "approved_at": {
@@ -7300,8 +7469,17 @@
             ],
             "title": "Approved At"
           },
+          "authoring_provenance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ScriptAuthoringProvenance"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "content": {
-            "minLength": 1,
             "title": "Content",
             "type": "string"
           },
@@ -7328,7 +7506,6 @@
             "type": "string"
           },
           "summary_for_voice_review": {
-            "minLength": 1,
             "title": "Summary For Voice Review",
             "type": "string"
           }
@@ -7345,6 +7522,9 @@
       },
       "ScriptRevisionCreate": {
         "properties": {
+          "authoring": {
+            "$ref": "#/components/schemas/ScriptAuthoringRequest"
+          },
           "content": {
             "minLength": 1,
             "title": "Content",

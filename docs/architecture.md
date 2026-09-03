@@ -44,6 +44,13 @@ fields are immutable even while later episodes continue to change.
 SQLite changes are applied as numbered migrations and surfaced by the health
 endpoint. Script confirmations are retained as separate approval audit records,
 including approver identity, spoken confirmation and guardian authorization.
+New script revisions also retain a versioned, content/transcript-bound authoring
+record. Native typed and dictated revisions are distinguished; externally declared
+AI runs require an exact model and digest-only receipt metadata and remain explicitly
+unverified until a future trusted reconciliation path verifies them. This provenance
+never replaces the revision-specific narrative approval. Existing rows without the
+record are surfaced honestly as legacy and unverified. See
+[script authoring provenance](SCRIPT_AUTHORING_PROVENANCE.md).
 In the packaged application the single database is local at
 `~/Library/Application Support/Nalu Voice Studio/nalu.sqlite3`; it is not an
 upstream Qingshan database and is never synchronized automatically. The Runtime
