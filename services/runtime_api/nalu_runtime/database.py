@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 from .secure_files import secure_directory, secure_file
@@ -680,14 +682,22 @@ class Database:
     def __init__(self, path: Path):
         self.path = path
 
-    def connect(self) -> sqlite3.Connection:
+    @contextmanager
+    def connect(self) -> Iterator[sqlite3.Connection]:
         secure_directory(self.path.parent)
         connection = sqlite3.connect(self.path)
         secure_file(self.path)
         connection.row_factory = sqlite3.Row
         connection.execute("PRAGMA foreign_keys = ON")
         connection.execute("PRAGMA busy_timeout = 5000")
-        return connection
+        try:
+            # sqlite3.Connection.__exit__ commits or rolls back but does not close the
+            # descriptor. Runtime requests always use ``with db.connect()`` and need
+            # both transaction semantics and deterministic descriptor release.
+            with connection:
+                yield connection
+        finally:
+            connection.close()
 
     def initialize(self) -> None:
         with self.connect() as connection:

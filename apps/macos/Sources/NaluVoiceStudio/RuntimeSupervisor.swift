@@ -9,6 +9,51 @@ enum RuntimeStartupPolicy {
         maximumWaitSeconds * 1_000 / Int(pollIntervalMilliseconds)
 }
 
+enum RuntimeReuseDecision: Equatable {
+    case useManagedRuntime
+    case startBundledRuntime
+}
+
+enum RuntimeReusePolicy {
+    static func decide(
+        supervisorReady: Bool,
+        managedProcessRunning: Bool,
+        loopbackRuntimeHealthy: Bool,
+        localQAEnabled: Bool
+    ) throws -> RuntimeReuseDecision {
+        if supervisorReady && managedProcessRunning && loopbackRuntimeHealthy {
+            return .useManagedRuntime
+        }
+        if loopbackRuntimeHealthy {
+            throw localQAEnabled
+                ? RuntimeSupervisorError.localQARuntimeAlreadyRunning
+                : RuntimeSupervisorError.unmanagedRuntimeAlreadyRunning
+        }
+        return .startBundledRuntime
+    }
+}
+
+enum RuntimeProcessTerminator {
+    static let gracefulWaitAttempts = 100
+    static let waitIntervalSeconds = 0.05
+
+    static func stop(_ process: Process) {
+        guard process.isRunning else { return }
+        process.terminate()
+        waitForExit(process)
+        if process.isRunning {
+            process.interrupt()
+            waitForExit(process)
+        }
+    }
+
+    private static func waitForExit(_ process: Process) {
+        for _ in 0..<gracefulWaitAttempts where process.isRunning {
+            Thread.sleep(forTimeInterval: waitIntervalSeconds)
+        }
+    }
+}
+
 enum RuntimeApplicationSupportResolver {
     static let localQAFlag = "NALU_ENABLE_LOCAL_QA"
     static let localQAPath = "NALU_LOCAL_QA_APPLICATION_SUPPORT"
@@ -107,20 +152,26 @@ final class RuntimeSupervisor {
     }
 
     func stop() {
-        process?.terminate()
+        if let process { RuntimeProcessTerminator.stop(process) }
         process = nil
         isReady = false
     }
 
     func start() async throws {
         let inheritedEnvironment = ProcessInfo.processInfo.environment
-        if await runtimeIsHealthy() {
-            if inheritedEnvironment[RuntimeApplicationSupportResolver.localQAFlag] == "1" {
-                throw RuntimeSupervisorError.localQARuntimeAlreadyRunning
-            }
-            isReady = true
+        let localQAEnabled = inheritedEnvironment[
+            RuntimeApplicationSupportResolver.localQAFlag
+        ] == "1"
+        let reuseDecision = try RuntimeReusePolicy.decide(
+            supervisorReady: isReady,
+            managedProcessRunning: process?.isRunning == true,
+            loopbackRuntimeHealthy: await runtimeIsHealthy(),
+            localQAEnabled: localQAEnabled
+        )
+        if reuseDecision == .useManagedRuntime {
             return
         }
+        if isReady || process != nil { stop() }
         guard let resources = Bundle.main.resourceURL else {
             throw RuntimeSupervisorError.resourcesMissing
         }
@@ -191,6 +242,7 @@ enum RuntimeSupervisorError: LocalizedError {
     case runtimeMissing(String)
     case startupTimedOut
     case localQARuntimeAlreadyRunning
+    case unmanagedRuntimeAlreadyRunning
 
     var errorDescription: String? {
         switch self {
@@ -199,6 +251,8 @@ enum RuntimeSupervisorError: LocalizedError {
         case .startupTimedOut: "内置制片厂启动超时。"
         case .localQARuntimeAlreadyRunning:
             "本地 QA 不能连接已经运行的制片厂。请先退出其他 Nalu 窗口，再重新打开 QA。"
+        case .unmanagedRuntimeAlreadyRunning:
+            "检测到另一份 Nalu 制片厂正在运行。为保护本地项目资料，本窗口不会连接它；请先退出其他 Nalu 窗口后重试。"
         }
     }
 }

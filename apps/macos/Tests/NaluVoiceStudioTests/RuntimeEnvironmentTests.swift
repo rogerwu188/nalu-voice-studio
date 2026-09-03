@@ -21,10 +21,67 @@ final class RuntimeEnvironmentTests: XCTestCase {
         withExtendedLifetime(signal) {}
     }
 
+    func testRuntimeProcessTerminatorWaitsForChildExit() throws {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/sleep")
+        process.arguments = ["30"]
+        try process.run()
+
+        RuntimeProcessTerminator.stop(process)
+
+        XCTAssertFalse(process.isRunning)
+    }
+
     func testColdUniversalRuntimeGetsBoundedOlderMacStartupWindow() {
         XCTAssertEqual(RuntimeStartupPolicy.pollIntervalMilliseconds, 100)
         XCTAssertEqual(RuntimeStartupPolicy.maximumWaitSeconds, 180)
         XCTAssertEqual(RuntimeStartupPolicy.maximumAttempts, 1_800)
+    }
+
+    func testOnlyRuntimeOwnedByThisSupervisorCanBeReused() throws {
+        XCTAssertEqual(
+            try RuntimeReusePolicy.decide(
+                supervisorReady: true,
+                managedProcessRunning: true,
+                loopbackRuntimeHealthy: true,
+                localQAEnabled: false
+            ),
+            .useManagedRuntime
+        )
+        XCTAssertEqual(
+            try RuntimeReusePolicy.decide(
+                supervisorReady: false,
+                managedProcessRunning: false,
+                loopbackRuntimeHealthy: false,
+                localQAEnabled: false
+            ),
+            .startBundledRuntime
+        )
+
+        XCTAssertThrowsError(
+            try RuntimeReusePolicy.decide(
+                supervisorReady: false,
+                managedProcessRunning: false,
+                loopbackRuntimeHealthy: true,
+                localQAEnabled: false
+            )
+        ) { error in
+            guard case RuntimeSupervisorError.unmanagedRuntimeAlreadyRunning = error else {
+                return XCTFail("unexpected error: \(error)")
+            }
+        }
+        XCTAssertThrowsError(
+            try RuntimeReusePolicy.decide(
+                supervisorReady: false,
+                managedProcessRunning: false,
+                loopbackRuntimeHealthy: true,
+                localQAEnabled: true
+            )
+        ) { error in
+            guard case RuntimeSupervisorError.localQARuntimeAlreadyRunning = error else {
+                return XCTFail("unexpected error: \(error)")
+            }
+        }
     }
 
     func testRuntimeEnvironmentDoesNotInheritSecrets() {
