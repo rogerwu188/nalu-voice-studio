@@ -11,26 +11,26 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "ae6bbdad43de31e53e48ac2f5ce3d3047ba48a0c",
-  "last_advanced_at": "2026-09-03T18:16:58Z",
+  "observed_head": "de3dda57cf79767e2369f173e5524999b8f7ebcf",
+  "last_advanced_at": "2026-09-03T18:36:42Z",
   "last_closed_checkpoint": {
-    "id": "qingshan-public-engine-interface-audit",
+    "id": "qingshan-portable-command-surface",
     "sop": "SOP-07",
-    "product_commit": "0fe4cf18f2edc79b007be1970fecf99092d91590",
-    "evidence_commit": "ae6bbdad43de31e53e48ac2f5ce3d3047ba48a0c",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33788826554",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33788826554/artifacts/9906713225",
+    "product_commit": "562c602b9ffb06b3f222195b9bac45c5ab0dd6b4",
+    "evidence_commit": "de3dda57cf79767e2369f173e5524999b8f7ebcf",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33790673885",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33790673885/artifacts/9907427075",
     "result": "PASS"
   },
   "current_checkpoint": {
     "sop": "SOP-07",
     "status": "IN_PROGRESS",
-    "summary": "Qingshan v2026.09.03.3 remains quarantined on eight missing registered evidence paths after its public-engine interface passed independent static audit and four-job CI. Continue evaluating safe 0.3.0 contracts without importing or executing the quarantined candidate."
+    "summary": "Qingshan v2026.09.03.3 remains quarantined on eight missing registered evidence paths after its public CLI commands and repository-owned portable entry points passed independent static audit and four-job CI. Continue evaluating safe 0.3.0 contracts without importing or executing the quarantined candidate."
   },
   "next_action": {
     "sop": "SOP-07",
-    "id": "evaluate-qingshan-030-portable-render-and-submit-contracts",
-    "summary": "Compare Qingshan 0.3.0 portable timeline rendering and repository-owned submission preflight contracts against Nalu, then implement only missing provider-neutral fail-closed semantics with offline tests.",
+    "id": "evaluate-qingshan-030-writer-v2-contracts",
+    "summary": "Compare Qingshan 0.3.0 Writer Agent v2 provenance and fail-closed script gates against Nalu's revision authority, then implement only missing provider-neutral semantics with offline tests.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
