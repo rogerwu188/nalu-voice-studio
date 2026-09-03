@@ -116,6 +116,8 @@ from .models import (
     SeasonPlanApprovalCreate,
     SeasonPlanRevision,
     SeasonPlanUpdate,
+    WriterProviderReconciliationCreate,
+    WriterProviderReconciliationRecord,
     WriterReceiptReconciliation,
 )
 from .publication_learning import (
@@ -126,6 +128,7 @@ from .release_evidence import (
     ReleaseEvidenceVerificationError,
     ReleaseEvidenceVerifier,
 )
+from .writer_provider import WriterProviderVerificationError, WriterProviderVerifier
 from .writer_receipt import WriterReceiptVerificationError, verify_writer_receipt
 
 
@@ -589,6 +592,12 @@ class Repository:
                    JOIN seasons s ON s.id = e.season_id WHERE s.project_id = ?""",
                 (project_id,),
             ),
+            "script_writer_provider_reconciliations": (
+                """SELECT r.* FROM script_writer_provider_reconciliations r
+                   JOIN episodes e ON e.id = r.episode_id
+                   JOIN seasons s ON s.id = e.season_id WHERE s.project_id = ?""",
+                (project_id,),
+            ),
             "assets": ("SELECT * FROM assets WHERE project_id = ?", (project_id,)),
             "asset_consent_records": (
                 """SELECT r.* FROM asset_consent_records r
@@ -816,6 +825,18 @@ class Repository:
                 "record_json",
                 "record_sha256",
                 "created_at",
+            ),
+            "script_writer_provider_reconciliations": (
+                "episode_id",
+                "script_revision",
+                "idempotency_key_sha256",
+                "request_json",
+                "request_sha256",
+                "state",
+                "record_json",
+                "record_sha256",
+                "created_at",
+                "updated_at",
             ),
             "assets": (
                 "id",
@@ -1255,18 +1276,25 @@ class Repository:
             "nalu.project-export/v19",
             "nalu.project-export/v20",
             "nalu.project-export/v21",
+            "nalu.project-export/v22",
         }:
             allowed_columns.pop("feedback_release_evidence_reconciliations")
         if backup.schema_version not in {
             "nalu.project-export/v20",
             "nalu.project-export/v21",
+            "nalu.project-export/v22",
         }:
             allowed_columns.pop("production_runs")
             allowed_columns.pop("publication_reconciliations")
             allowed_columns.pop("publication_metric_snapshots")
             allowed_columns.pop("director_strategy_revisions")
-        if backup.schema_version != "nalu.project-export/v21":
+        if backup.schema_version not in {
+            "nalu.project-export/v21",
+            "nalu.project-export/v22",
+        }:
             allowed_columns.pop("script_writer_receipt_reconciliations")
+        if backup.schema_version != "nalu.project-export/v22":
+            allowed_columns.pop("script_writer_provider_reconciliations")
         if backup.schema_version in {
             "nalu.project-export/v1",
             "nalu.project-export/v2",
@@ -1385,6 +1413,7 @@ class Repository:
             (row.get("episode_id"), row.get("revision"))
             for row in backup.payload["script_revisions"]
         }
+        writer_receipts: dict[tuple[Any, Any], WriterReceiptReconciliation] = {}
         for row in backup.payload.get("script_writer_receipt_reconciliations", []):
             key = (row.get("episode_id"), row.get("script_revision"))
             try:
@@ -1411,6 +1440,70 @@ class Repository:
             ):
                 raise ConflictError(
                     "project export contains tampered writer receipt reconciliation"
+                )
+            writer_receipts[key] = record
+        for row in backup.payload.get("script_writer_provider_reconciliations", []):
+            key = (row.get("episode_id"), row.get("script_revision"))
+            local_receipt = writer_receipts.get(key)
+            try:
+                request_body = decode(row.get("request_json", ""))
+            except (TypeError, json.JSONDecodeError) as exc:
+                raise ConflictError(
+                    "project export contains invalid Writer provider request"
+                ) from exc
+            if (
+                local_receipt is None
+                or not isinstance(request_body, dict)
+                or request_body.get("episode_id") != row.get("episode_id")
+                or request_body.get("script_revision") != row.get("script_revision")
+                or request_body.get("writer_receipt_record_sha256")
+                != local_receipt.record_sha256
+                or request_body.get("receipt_sha256") != local_receipt.receipt_sha256
+                or request_body.get("provider") != local_receipt.provider
+                or request_body.get("model_id") != local_receipt.model_id
+                or request_body.get("session_or_task_id") != local_receipt.session_or_task_id
+                or request_body.get("idempotency_key_sha256")
+                != row.get("idempotency_key_sha256")
+                or hashlib.sha256(encode(request_body).encode()).hexdigest()
+                != row.get("request_sha256")
+                or row.get("state") not in {"confirmed", "ambiguous"}
+            ):
+                raise ConflictError(
+                    "project export contains tampered Writer provider reconciliation"
+                )
+            if row.get("state") == "ambiguous":
+                if row.get("record_json") is not None or row.get("record_sha256") is not None:
+                    raise ConflictError(
+                        "ambiguous Writer provider reconciliation contains a result"
+                    )
+                continue
+            try:
+                record_body = decode(row.get("record_json", ""))
+                record = WriterProviderReconciliationRecord.model_validate(
+                    {**record_body, "record_sha256": row.get("record_sha256")}
+                )
+            except (TypeError, ValueError, json.JSONDecodeError) as exc:
+                raise ConflictError(
+                    "project export contains invalid Writer provider reconciliation"
+                ) from exc
+            if (
+                record.episode_id != row.get("episode_id")
+                or record.script_revision != row.get("script_revision")
+                or record.writer_receipt_record_sha256 != local_receipt.record_sha256
+                or record.receipt_sha256 != local_receipt.receipt_sha256
+                or record.provider != local_receipt.provider
+                or record.model_id != local_receipt.model_id
+                or record.session_or_task_id != local_receipt.session_or_task_id
+                or record.started_at != local_receipt.started_at
+                or record.completed_at != local_receipt.completed_at
+                or record.idempotency_key_sha256 != row.get("idempotency_key_sha256")
+                or record.request_sha256 != row.get("request_sha256")
+                or record.created_at != row.get("updated_at")
+                or hashlib.sha256(encode(record_body).encode()).hexdigest()
+                != row.get("record_sha256")
+            ):
+                raise ConflictError(
+                    "project export contains tampered Writer provider reconciliation"
                 )
         if any(
             row.get("episode_id") not in episode_ids
@@ -1911,6 +2004,7 @@ class Repository:
                 "nalu.project-export/v19",
                 "nalu.project-export/v20",
                 "nalu.project-export/v21",
+                "nalu.project-export/v22",
             } and (
                 result is None
                 or linkage.development_result_sha256 != result.record_sha256
@@ -5103,6 +5197,218 @@ class Repository:
             or _text_sha256(encode(body)) != row["record_sha256"]
         ):
             raise ConflictError("writer receipt reconciliation digest mismatch")
+        return record
+
+    @staticmethod
+    def _writer_provider_confirmation(value: str) -> bool:
+        return " ".join(value.strip().lower().split()) in {
+            "我确认只读核验 writer 任务",
+            "i confirm read-only verification of this writer task",
+        }
+
+    def _quarantine_writer_provider_reconciliation(
+        self, episode_id: str, revision: int
+    ) -> None:
+        with self.db.connect() as connection:
+            connection.execute(
+                """UPDATE script_writer_provider_reconciliations
+                   SET state = 'ambiguous', updated_at = ?
+                   WHERE episode_id = ? AND script_revision = ? AND state = 'submitting'""",
+                (utc_now(), episode_id, revision),
+            )
+
+    def reconcile_writer_provider(
+        self,
+        episode_id: str,
+        revision: int,
+        request: WriterProviderReconciliationCreate,
+        idempotency_key: str | None,
+        verifier: WriterProviderVerifier,
+    ) -> WriterProviderReconciliationRecord:
+        local_receipt = self.get_writer_receipt_reconciliation(episode_id, revision)
+        if request.writer_receipt_record_sha256 != local_receipt.record_sha256:
+            raise ConflictError("Writer provider lookup references another receipt record")
+        if not self._writer_provider_confirmation(request.confirmation_text):
+            raise ConflictError("Writer provider lookup requires explicit read-only confirmation")
+        _, key_sha256 = self._stable_idempotency_key(idempotency_key)
+        request_body = {
+            "episode_id": episode_id,
+            "script_revision": revision,
+            "writer_receipt_record_sha256": local_receipt.record_sha256,
+            "receipt_sha256": local_receipt.receipt_sha256,
+            "provider": local_receipt.provider,
+            "model_id": local_receipt.model_id,
+            "session_or_task_id": local_receipt.session_or_task_id,
+            "idempotency_key_sha256": key_sha256,
+        }
+        request_json = encode(request_body)
+        request_sha256 = _text_sha256(request_json)
+        with self.db.connect() as connection:
+            prior_key = connection.execute(
+                """SELECT episode_id, script_revision, request_sha256, state
+                   FROM script_writer_provider_reconciliations
+                   WHERE idempotency_key_sha256 = ?""",
+                (key_sha256,),
+            ).fetchone()
+            existing = connection.execute(
+                """SELECT request_sha256, state
+                   FROM script_writer_provider_reconciliations
+                   WHERE episode_id = ? AND script_revision = ?""",
+                (episode_id, revision),
+            ).fetchone()
+        matched = prior_key or existing
+        if matched is not None:
+            if matched["request_sha256"] != request_sha256:
+                raise ConflictError(
+                    "Writer provider idempotency identity was already used differently"
+                )
+            if matched["state"] == "confirmed":
+                return self.get_writer_provider_reconciliation(episode_id, revision)
+            raise ConflictError(
+                "Writer provider lookup outcome is quarantined; do not retry automatically"
+            )
+
+        started = utc_now()
+        try:
+            with self.db.connect() as connection:
+                connection.execute(
+                    """INSERT INTO script_writer_provider_reconciliations
+                       (episode_id, script_revision, idempotency_key_sha256, request_json,
+                        request_sha256, state, record_json, record_sha256, created_at, updated_at)
+                       VALUES (?, ?, ?, ?, ?, 'submitting', NULL, NULL, ?, ?)""",
+                    (
+                        episode_id,
+                        revision,
+                        key_sha256,
+                        request_json,
+                        request_sha256,
+                        started,
+                        started,
+                    ),
+                )
+        except sqlite3.IntegrityError as exc:
+            raise ConflictError("Writer provider lookup was claimed concurrently") from exc
+
+        try:
+            verified = verifier.lookup_writer_task(
+                provider=local_receipt.provider,
+                model_id=local_receipt.model_id,
+                session_or_task_id=local_receipt.session_or_task_id,
+                receipt_sha256=local_receipt.receipt_sha256,
+            )
+            expected = (
+                local_receipt.provider,
+                local_receipt.model_id,
+                local_receipt.session_or_task_id,
+                "completed",
+                local_receipt.receipt_sha256,
+                local_receipt.started_at,
+                local_receipt.completed_at,
+            )
+            actual = (
+                verified.provider,
+                verified.model_id,
+                verified.session_or_task_id,
+                verified.state,
+                verified.receipt_sha256,
+                verified.started_at,
+                verified.completed_at,
+            )
+            if actual != expected:
+                raise WriterProviderVerificationError(
+                    "remote Writer task does not match the local receipt"
+                )
+            if not isinstance(verified.evidence, dict) or not verified.evidence:
+                raise WriterProviderVerificationError(
+                    "remote Writer verification evidence is missing"
+                )
+            evidence_json = encode(verified.evidence)
+            if len(evidence_json.encode()) > 65536:
+                raise WriterProviderVerificationError(
+                    "remote Writer verification evidence is too large"
+                )
+        except Exception as exc:
+            self._quarantine_writer_provider_reconciliation(episode_id, revision)
+            raise ConflictError(
+                "Writer provider task could not be independently verified; outcome quarantined"
+            ) from exc
+
+        now = utc_now()
+        record_body = {
+            "schema_version": "nalu.writer-provider-reconciliation/v1",
+            "episode_id": episode_id,
+            "script_revision": revision,
+            "writer_receipt_record_sha256": local_receipt.record_sha256,
+            "receipt_sha256": local_receipt.receipt_sha256,
+            "provider": local_receipt.provider,
+            "model_id": local_receipt.model_id,
+            "session_or_task_id": local_receipt.session_or_task_id,
+            "remote_state": "completed",
+            "started_at": local_receipt.started_at,
+            "completed_at": local_receipt.completed_at,
+            "verification_evidence_sha256": _text_sha256(evidence_json),
+            "read_only_verification_performed": True,
+            "provider_execution_verified": True,
+            "generation_performed_by_runtime": False,
+            "paid_generation_performed_by_runtime": False,
+            "external_write_performed": False,
+            "idempotency_key_sha256": key_sha256,
+            "request_sha256": request_sha256,
+            "created_at": now,
+        }
+        record_json = encode(record_body)
+        record_sha256 = _text_sha256(record_json)
+        with self.db.connect() as connection:
+            updated = connection.execute(
+                """UPDATE script_writer_provider_reconciliations
+                   SET state = 'confirmed', record_json = ?, record_sha256 = ?, updated_at = ?
+                   WHERE episode_id = ? AND script_revision = ? AND state = 'submitting'""",
+                (record_json, record_sha256, now, episode_id, revision),
+            )
+        if updated.rowcount != 1:
+            raise ConflictError("Writer provider lookup state changed concurrently")
+        return self.get_writer_provider_reconciliation(episode_id, revision)
+
+    def get_writer_provider_reconciliation(
+        self, episode_id: str, revision: int
+    ) -> WriterProviderReconciliationRecord:
+        local_receipt = self.get_writer_receipt_reconciliation(episode_id, revision)
+        with self.db.connect() as connection:
+            row = connection.execute(
+                """SELECT * FROM script_writer_provider_reconciliations
+                   WHERE episode_id = ? AND script_revision = ?""",
+                (episode_id, revision),
+            ).fetchone()
+        if row is None:
+            raise NotFoundError("Writer provider reconciliation not found")
+        if row["state"] != "confirmed":
+            raise ConflictError("Writer provider lookup outcome is quarantined")
+        try:
+            request_body = decode(row["request_json"])
+            body = decode(row["record_json"])
+            record = WriterProviderReconciliationRecord.model_validate(
+                {**body, "record_sha256": row["record_sha256"]}
+            )
+        except (TypeError, ValueError, json.JSONDecodeError) as exc:
+            raise ConflictError("Writer provider reconciliation is invalid") from exc
+        if (
+            not isinstance(request_body, dict)
+            or _text_sha256(encode(request_body)) != row["request_sha256"]
+            or record.episode_id != episode_id
+            or record.script_revision != revision
+            or record.writer_receipt_record_sha256 != local_receipt.record_sha256
+            or record.receipt_sha256 != local_receipt.receipt_sha256
+            or record.provider != local_receipt.provider
+            or record.model_id != local_receipt.model_id
+            or record.session_or_task_id != local_receipt.session_or_task_id
+            or record.started_at != local_receipt.started_at
+            or record.completed_at != local_receipt.completed_at
+            or record.idempotency_key_sha256 != row["idempotency_key_sha256"]
+            or record.request_sha256 != row["request_sha256"]
+            or record.created_at != row["updated_at"]
+            or _text_sha256(encode(body)) != row["record_sha256"]
+        ):
+            raise ConflictError("Writer provider reconciliation digest mismatch")
         return record
 
     def approve_script(

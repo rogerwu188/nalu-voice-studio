@@ -42,8 +42,27 @@ consistent and is bound to this exact script provenance. Qingshan's current
 receipt has no cryptographic provider signature, so the record must continue to
 say `provider_execution_verified: false` and
 `network_call_performed_by_runtime: false`. It cannot honestly prove that a
-provider ran. A future separately authorized, read-only provider lookup may add
-that evidence; client assertions may not.
+provider ran. Client assertions may not add that evidence.
+
+Provider execution is a separate, optional verification step. Its endpoint is
+disabled by default and requires both an idempotency key and the exact spoken or
+typed confirmation “我确认只读核验 Writer 任务” (or its documented English
+equivalent). An injected verifier must perform only an authenticated, read-only
+provider-task lookup; it is forbidden to submit generation, spend credits or
+modify the remote task. Nalu first persists a `submitting` transaction, then
+compares the remote provider, exact model, task ID, completion state, receipt
+digest and timestamps with the artifact-bound local record.
+
+An exact match produces a separately sealed
+`nalu.writer-provider-reconciliation/v1` record. Only this record may state
+`provider_execution_verified: true`; it also states explicitly that the Runtime
+performed no generation, paid generation or external write. Nalu stores a
+digest of the bounded lookup evidence rather than credentials or the raw remote
+response. A timeout, verifier error, malformed response or any mismatch changes
+the transaction to `ambiguous`, blocks production for that script and forbids
+automatic retry. The operator must investigate rather than risk a duplicate or
+misattributed provider operation. Deterministic test verifiers prove this local
+contract only; they are not evidence of a real provider execution.
 
 For user-authored revisions, `user_attested` means only that the local request
 declared a user origin. Narrative authority still requires the existing,
@@ -63,9 +82,10 @@ content, transcript, fields or seal. Existing databases and older project
 exports without a sealed record remain readable, but Nalu labels those revisions
 `legacy_unknown` / `legacy_unverified`; it never invents an author or model.
 
-Reconciliations live in a dedicated SQLite migration, are unique per script
-revision and receipt digest, and are covered by their own record seal. Project
-export v21 preserves and revalidates them while v1-v20 imports remain supported
-without inventing reconciliation evidence. When present, the reconciliation is
-copied into the immutable episode production package so downstream compilation
-can distinguish an artifact-bound Writer output from an unverified declaration.
+Both reconciliation layers live in dedicated SQLite migrations, are unique per
+script revision and are covered by their own record seals. Project export v22
+preserves and revalidates them while v1-v21 imports remain supported without
+inventing either kind of evidence. When present, both records are copied into
+the immutable episode production package so downstream compilation can
+distinguish an artifact-bound Writer output, an independently verified provider
+task and an unverified declaration.

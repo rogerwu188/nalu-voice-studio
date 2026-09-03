@@ -2044,6 +2044,14 @@ class ProductionService:
             )
         except NotFoundError:
             writer_receipt_reconciliation = None
+        try:
+            writer_provider_reconciliation = (
+                self.repository.get_writer_provider_reconciliation(
+                    episode.id, episode.approved_script_revision
+                )
+            )
+        except NotFoundError:
+            writer_provider_reconciliation = None
         assets = self.repository.list_assets(project.id, episode.id)
         resolved_library = self.repository.resolved_project_library(project.id)
         continuity = self.repository.latest_continuity(season.id, episode.episode_number)
@@ -2152,6 +2160,11 @@ class ProductionService:
             writer_receipt_reconciliation=(
                 writer_receipt_reconciliation.model_dump(mode="json")
                 if writer_receipt_reconciliation is not None
+                else None
+            ),
+            writer_provider_reconciliation=(
+                writer_provider_reconciliation.model_dump(mode="json")
+                if writer_provider_reconciliation is not None
                 else None
             ),
             inherited_assets=[

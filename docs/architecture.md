@@ -50,9 +50,14 @@ AI runs require an exact model and digest-only receipt metadata and remain expli
 unverified. A separate local reconciliation boundary can validate a Qingshan Writer
 v2 receipt against those sealed digests and copy the normalized evidence into the
 production package. Because the upstream receipt is unsigned, this proves artifact
-binding but never claims provider execution. This provenance never replaces the
-revision-specific narrative approval. Existing rows without the record are surfaced
-honestly as legacy and unverified. See
+binding but never claims provider execution. A second disabled-by-default boundary
+may use an explicitly authorized, authenticated and read-only provider lookup to bind
+the same exact provider, model, task, receipt and time interval. It persists intent
+before the lookup, quarantines every ambiguous outcome without automatic retry, and
+cannot generate or spend credits. A verified provider record is packaged separately
+from the local artifact record. This provenance never replaces the revision-specific
+narrative approval. Existing rows without the record are surfaced honestly as legacy
+and unverified. See
 [script authoring provenance](SCRIPT_AUTHORING_PROVENANCE.md).
 In the packaged application the single database is local at
 `~/Library/Application Support/Nalu Voice Studio/nalu.sqlite3`; it is not an

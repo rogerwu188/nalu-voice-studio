@@ -141,6 +141,8 @@ from .models import (
     SemanticMediaQARequest,
     StorageDiagnostics,
     VisualContinuityQAReport,
+    WriterProviderReconciliationCreate,
+    WriterProviderReconciliationRecord,
     WriterReceiptReconciliation,
 )
 from .privacy_service import ProjectPrivacyService
@@ -156,6 +158,10 @@ from .remote_submitter import DurableRemoteTaskSubmitter
 from .repository import ConflictError, NotFoundError, Repository
 from .semantic_recognizer import LocalSemanticRecognizer
 from .storage_diagnostics import inspect_storage
+from .writer_provider import (
+    DisabledWriterProviderVerifier,
+    WriterProviderVerifier,
+)
 
 
 def create_app(
@@ -173,6 +179,7 @@ def create_app(
     release_evidence_verifier: ReleaseEvidenceVerifier | None = None,
     publication_learning_verifier: PublicationLearningVerifier | None = None,
     semantic_recognizer: LocalSemanticRecognizer | None = None,
+    writer_provider_verifier: WriterProviderVerifier | None = None,
 ) -> FastAPI:
     repository_root = Path(
         os.environ.get("NALU_REPOSITORY_ROOT", Path(__file__).resolve().parents[3])
@@ -237,6 +244,7 @@ def create_app(
     publication_learning_verifier = (
         publication_learning_verifier or DisabledPublicationLearningVerifier()
     )
+    writer_provider_verifier = writer_provider_verifier or DisabledWriterProviderVerifier()
 
     app = FastAPI(
         title="Nalu Voice Studio Runtime API",
@@ -257,6 +265,7 @@ def create_app(
     app.state.development_result_verifier = development_result_verifier
     app.state.release_evidence_verifier = release_evidence_verifier
     app.state.publication_learning_verifier = publication_learning_verifier
+    app.state.writer_provider_verifier = writer_provider_verifier
 
     @app.exception_handler(NotFoundError)
     async def not_found_handler(_request, exc: NotFoundError):
@@ -756,6 +765,34 @@ def create_app(
         episode_id: str, revision: int
     ) -> WriterReceiptReconciliation:
         return repository.get_writer_receipt_reconciliation(episode_id, revision)
+
+    @app.post(
+        "/v1/episodes/{episode_id}/scripts/{revision}/writer-provider-reconciliation",
+        response_model=WriterProviderReconciliationRecord,
+        status_code=201,
+    )
+    def reconcile_writer_provider(
+        episode_id: str,
+        revision: int,
+        request: WriterProviderReconciliationCreate,
+        idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    ) -> WriterProviderReconciliationRecord:
+        return repository.reconcile_writer_provider(
+            episode_id,
+            revision,
+            request,
+            idempotency_key,
+            writer_provider_verifier,
+        )
+
+    @app.get(
+        "/v1/episodes/{episode_id}/scripts/{revision}/writer-provider-reconciliation",
+        response_model=WriterProviderReconciliationRecord,
+    )
+    def get_writer_provider_reconciliation(
+        episode_id: str, revision: int
+    ) -> WriterProviderReconciliationRecord:
+        return repository.get_writer_provider_reconciliation(episode_id, revision)
 
     @app.post("/v1/episodes/{episode_id}/scripts/{revision}/approve", response_model=ScriptRevision)
     def approve_script(episode_id: str, revision: int, approval: ApprovalCreate) -> ScriptRevision:

@@ -6061,7 +6061,7 @@
             "type": "string"
           },
           "schema_version": {
-            "default": "nalu.project-export/v21",
+            "default": "nalu.project-export/v22",
             "enum": [
               "nalu.project-export/v1",
               "nalu.project-export/v2",
@@ -6083,7 +6083,8 @@
               "nalu.project-export/v18",
               "nalu.project-export/v19",
               "nalu.project-export/v20",
-              "nalu.project-export/v21"
+              "nalu.project-export/v21",
+              "nalu.project-export/v22"
             ],
             "title": "Schema Version",
             "type": "string"
@@ -8271,6 +8272,156 @@
         "title": "VisualContinuityQAReport",
         "type": "object"
       },
+      "WriterProviderReconciliationCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "confirmation_text": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Confirmation Text",
+            "type": "string"
+          },
+          "writer_receipt_record_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Writer Receipt Record Sha256",
+            "type": "string"
+          }
+        },
+        "required": [
+          "writer_receipt_record_sha256",
+          "confirmation_text"
+        ],
+        "title": "WriterProviderReconciliationCreate",
+        "type": "object"
+      },
+      "WriterProviderReconciliationRecord": {
+        "additionalProperties": false,
+        "properties": {
+          "completed_at": {
+            "title": "Completed At",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "episode_id": {
+            "title": "Episode Id",
+            "type": "string"
+          },
+          "external_write_performed": {
+            "const": false,
+            "title": "External Write Performed",
+            "type": "boolean"
+          },
+          "generation_performed_by_runtime": {
+            "const": false,
+            "title": "Generation Performed By Runtime",
+            "type": "boolean"
+          },
+          "idempotency_key_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Idempotency Key Sha256",
+            "type": "string"
+          },
+          "model_id": {
+            "title": "Model Id",
+            "type": "string"
+          },
+          "paid_generation_performed_by_runtime": {
+            "const": false,
+            "title": "Paid Generation Performed By Runtime",
+            "type": "boolean"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          },
+          "provider_execution_verified": {
+            "const": true,
+            "title": "Provider Execution Verified",
+            "type": "boolean"
+          },
+          "read_only_verification_performed": {
+            "const": true,
+            "title": "Read Only Verification Performed",
+            "type": "boolean"
+          },
+          "receipt_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Receipt Sha256",
+            "type": "string"
+          },
+          "record_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Record Sha256",
+            "type": "string"
+          },
+          "remote_state": {
+            "const": "completed",
+            "title": "Remote State",
+            "type": "string"
+          },
+          "request_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Request Sha256",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "nalu.writer-provider-reconciliation/v1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "script_revision": {
+            "minimum": 1.0,
+            "title": "Script Revision",
+            "type": "integer"
+          },
+          "session_or_task_id": {
+            "title": "Session Or Task Id",
+            "type": "string"
+          },
+          "started_at": {
+            "title": "Started At",
+            "type": "string"
+          },
+          "verification_evidence_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Verification Evidence Sha256",
+            "type": "string"
+          },
+          "writer_receipt_record_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Writer Receipt Record Sha256",
+            "type": "string"
+          }
+        },
+        "required": [
+          "schema_version",
+          "episode_id",
+          "script_revision",
+          "writer_receipt_record_sha256",
+          "receipt_sha256",
+          "provider",
+          "model_id",
+          "session_or_task_id",
+          "remote_state",
+          "started_at",
+          "completed_at",
+          "verification_evidence_sha256",
+          "read_only_verification_performed",
+          "provider_execution_verified",
+          "generation_performed_by_runtime",
+          "paid_generation_performed_by_runtime",
+          "external_write_performed",
+          "idempotency_key_sha256",
+          "request_sha256",
+          "created_at",
+          "record_sha256"
+        ],
+        "title": "WriterProviderReconciliationRecord",
+        "type": "object"
+      },
       "WriterReceiptReconciliation": {
         "additionalProperties": false,
         "properties": {
@@ -9369,6 +9520,126 @@
           }
         },
         "summary": "Revoke Script Approval"
+      }
+    },
+    "/v1/episodes/{episode_id}/scripts/{revision}/writer-provider-reconciliation": {
+      "get": {
+        "operationId": "get_writer_provider_reconciliation_v1_episodes__episode_id__scripts__revision__writer_provider_reconciliation_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "episode_id",
+            "required": true,
+            "schema": {
+              "title": "Episode Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "revision",
+            "required": true,
+            "schema": {
+              "title": "Revision",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WriterProviderReconciliationRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Writer Provider Reconciliation"
+      },
+      "post": {
+        "operationId": "reconcile_writer_provider_v1_episodes__episode_id__scripts__revision__writer_provider_reconciliation_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "episode_id",
+            "required": true,
+            "schema": {
+              "title": "Episode Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "revision",
+            "required": true,
+            "schema": {
+              "title": "Revision",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WriterProviderReconciliationCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WriterProviderReconciliationRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reconcile Writer Provider"
       }
     },
     "/v1/episodes/{episode_id}/scripts/{revision}/writer-receipt-reconciliation": {

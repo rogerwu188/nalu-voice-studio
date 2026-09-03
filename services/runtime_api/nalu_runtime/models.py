@@ -163,7 +163,8 @@ class ProjectExport(BaseModel):
         "nalu.project-export/v19",
         "nalu.project-export/v20",
         "nalu.project-export/v21",
-    ] = "nalu.project-export/v21"
+        "nalu.project-export/v22",
+    ] = "nalu.project-export/v22"
     exported_at: str
     payload: dict[str, Any]
     payload_sha256: str
@@ -1021,6 +1022,46 @@ class WriterReceiptReconciliation(BaseModel):
     record_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
 
 
+class WriterProviderReconciliationCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    writer_receipt_record_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    confirmation_text: str = Field(min_length=1, max_length=300)
+
+    @field_validator("confirmation_text")
+    @classmethod
+    def reject_blank_confirmation(cls, value: str) -> str:
+        if value != value.strip():
+            raise ValueError("confirmation must not contain outer whitespace")
+        return value
+
+
+class WriterProviderReconciliationRecord(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: Literal["nalu.writer-provider-reconciliation/v1"]
+    episode_id: str
+    script_revision: int = Field(ge=1)
+    writer_receipt_record_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    receipt_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    provider: str
+    model_id: str
+    session_or_task_id: str
+    remote_state: Literal["completed"]
+    started_at: str
+    completed_at: str
+    verification_evidence_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    read_only_verification_performed: Literal[True]
+    provider_execution_verified: Literal[True]
+    generation_performed_by_runtime: Literal[False]
+    paid_generation_performed_by_runtime: Literal[False]
+    external_write_performed: Literal[False]
+    idempotency_key_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    request_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    created_at: str
+    record_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+
+
 class ScriptRevisionCreate(BaseModel):
     content: str = Field(min_length=1)
     summary_for_voice_review: str = Field(min_length=1)
@@ -1477,6 +1518,7 @@ class ProductionPackage(BaseModel):
     episode: dict[str, Any]
     approved_script: dict[str, Any]
     writer_receipt_reconciliation: dict[str, Any] | None = None
+    writer_provider_reconciliation: dict[str, Any] | None = None
     inherited_assets: list[dict[str, Any]]
     resolved_library: list[dict[str, Any]] = Field(default_factory=list)
     continuity: dict[str, Any] | None

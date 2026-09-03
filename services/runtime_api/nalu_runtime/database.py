@@ -651,6 +651,28 @@ MIGRATIONS = (
         );
         """,
     ),
+    (
+        26,
+        "script_writer_provider_reconciliations",
+        """
+        CREATE TABLE IF NOT EXISTS script_writer_provider_reconciliations (
+          episode_id TEXT NOT NULL,
+          script_revision INTEGER NOT NULL,
+          idempotency_key_sha256 TEXT NOT NULL UNIQUE,
+          request_json TEXT NOT NULL,
+          request_sha256 TEXT NOT NULL,
+          state TEXT NOT NULL CHECK(state IN ('submitting', 'confirmed', 'ambiguous')),
+          record_json TEXT,
+          record_sha256 TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY(episode_id, script_revision),
+          FOREIGN KEY(episode_id, script_revision)
+            REFERENCES script_writer_receipt_reconciliations(episode_id, script_revision)
+            ON DELETE CASCADE
+        );
+        """,
+    ),
 )
 
 
