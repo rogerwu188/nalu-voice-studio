@@ -162,7 +162,8 @@ class ProjectExport(BaseModel):
         "nalu.project-export/v18",
         "nalu.project-export/v19",
         "nalu.project-export/v20",
-    ] = "nalu.project-export/v20"
+        "nalu.project-export/v21",
+    ] = "nalu.project-export/v21"
     exported_at: str
     payload: dict[str, Any]
     payload_sha256: str
@@ -992,6 +993,34 @@ class ScriptAuthoringProvenance(BaseModel):
         return self
 
 
+class WriterReceiptReconciliation(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: Literal["nalu.writer-receipt-reconciliation/v1"]
+    episode_id: str
+    script_revision: int = Field(ge=1)
+    script_provenance_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    receipt_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    writer_run_id: str
+    writer_episode: str
+    writer_version: int = Field(ge=1)
+    agent_id: Literal["qingshan-claude-writer-agent", "qingshan-claude-writer"]
+    provider: str
+    model_id: str
+    session_or_task_id: str
+    input_bundle_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    writer_rules_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    authority_output_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    started_at: str
+    completed_at: str
+    artifact_binding_verified: Literal[True]
+    provider_execution_verified: Literal[False]
+    network_call_performed_by_runtime: Literal[False]
+    reconciled_by: str
+    created_at: str
+    record_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+
+
 class ScriptRevisionCreate(BaseModel):
     content: str = Field(min_length=1)
     summary_for_voice_review: str = Field(min_length=1)
@@ -1447,6 +1476,7 @@ class ProductionPackage(BaseModel):
     season: dict[str, Any]
     episode: dict[str, Any]
     approved_script: dict[str, Any]
+    writer_receipt_reconciliation: dict[str, Any] | None = None
     inherited_assets: list[dict[str, Any]]
     resolved_library: list[dict[str, Any]] = Field(default_factory=list)
     continuity: dict[str, Any] | None

@@ -65,6 +65,33 @@ def create_approved_episode(api: TestClient) -> tuple[dict, dict, dict]:
     return project, season, episode
 
 
+def writer_receipt_fixture(content: str) -> tuple[bytes, dict]:
+    declaration = {
+        "provider": "anthropic",
+        "model_id": "claude-opus-4-1-20250805",
+        "session_or_task_id": "writer-task-20260903-001",
+        "input_bundle_sha256": "a" * 64,
+        "writer_rules_sha256": "b" * 64,
+        "started_at": "2026-09-03T20:00:00+00:00",
+        "completed_at": "2026-09-03T20:01:00+00:00",
+    }
+    receipt = {
+        "schema": "qingshan.canonical_writer_run_receipt.v1",
+        "status": "COMPLETED",
+        "writer_run_id": "WRITER-E1-V2-QA001",
+        "episode": "E1",
+        "version": 2,
+        "agent_id": "qingshan-claude-writer-agent",
+        **declaration,
+        "input_bundle": {"sha256": declaration["input_bundle_sha256"]},
+        "writer_rules": {"combined_sha256": declaration["writer_rules_sha256"]},
+        "authority_output": {"sha256": hashlib.sha256(content.encode()).hexdigest()},
+    }
+    receipt_bytes = json.dumps(receipt, ensure_ascii=False, sort_keys=True).encode()
+    declaration["receipt_sha256"] = hashlib.sha256(receipt_bytes).hexdigest()
+    return receipt_bytes, declaration
+
+
 def test_project_season_episode_hierarchy(tmp_path: Path) -> None:
     api = client(tmp_path)
     project, season, episode = create_approved_episode(api)
@@ -370,7 +397,7 @@ def test_feedback_review_bundle_is_local_redacted_immutable_and_exported(
     assert bundle["attachments"] == []
     assert bundle["diagnostics"] == {
         "runtime_version": "0.1.0",
-        "schema_version": "24",
+        "schema_version": "25",
         "screen": "family-materials",
     }
     assert bundle["redaction_applied"] is True
@@ -388,7 +415,7 @@ def test_feedback_review_bundle_is_local_redacted_immutable_and_exported(
     assert api.get(f"/v1/feedback/{feedback['id']}/review-bundle").json() == bundle
 
     backup = api.get(f"/v1/projects/{project['id']}/export").json()
-    assert backup["schema_version"] == "nalu.project-export/v20"
+    assert backup["schema_version"] == "nalu.project-export/v21"
     assert (
         backup["payload"]["feedback_review_bundles"][0]["bundle_sha256"] == bundle["bundle_sha256"]
     )
@@ -596,13 +623,14 @@ def test_feedback_release_linkage_is_hash_bound_immutable_and_never_claims_relea
     assert current_feedback["status"] == "ready_for_review"
 
     backup = api.get(f"/v1/projects/{project['id']}/export").json()
-    assert backup["schema_version"] == "nalu.project-export/v20"
+    assert backup["schema_version"] == "nalu.project-export/v21"
     assert (
         backup["payload"]["feedback_release_linkages"][0]["linkage_sha256"]
         == linkage["linkage_sha256"]
     )
     legacy_backup = deepcopy(backup)
     legacy_backup["schema_version"] = "nalu.project-export/v16"
+    legacy_backup["payload"].pop("script_writer_receipt_reconciliations")
     legacy_backup["payload"].pop("feedback_development_results")
     legacy_backup["payload"].pop("feedback_release_evidence_reconciliations")
     for table in (
@@ -725,7 +753,7 @@ def test_feedback_triage_is_human_confirmed_inert_immutable_and_exported(
     assert current_feedback["status"] == "ready_for_review"
 
     backup = api.get(f"/v1/projects/{project['id']}/export").json()
-    assert backup["schema_version"] == "nalu.project-export/v20"
+    assert backup["schema_version"] == "nalu.project-export/v21"
     assert (
         backup["payload"]["feedback_triage_records"][0]["record_sha256"] == triage["record_sha256"]
     )
@@ -1232,7 +1260,7 @@ def test_feedback_external_export_is_authorized_idempotent_and_ambiguity_safe(
     assert len(release_evidence_verifier.calls) == 2
 
     backup = api.get(f"/v1/projects/{project['id']}/export").json()
-    assert backup["schema_version"] == "nalu.project-export/v20"
+    assert backup["schema_version"] == "nalu.project-export/v21"
     restored = client(tmp_path / "export-restored")
     assert restored.post("/v1/project-imports", json=backup).status_code == 201
     assert restored.get(endpoint).json() == receipt
@@ -1317,6 +1345,7 @@ def test_feedback_external_export_is_authorized_idempotent_and_ambiguity_safe(
 
     legacy_v12 = deepcopy(backup)
     legacy_v12["schema_version"] = "nalu.project-export/v12"
+    legacy_v12["payload"].pop("script_writer_receipt_reconciliations")
     legacy_v12["payload"].pop("feedback_external_reconciliations")
     legacy_v12["payload"].pop("feedback_development_work_orders")
     legacy_v12["payload"].pop("feedback_development_handoffs")
@@ -1755,6 +1784,7 @@ def test_feedback_external_export_is_authorized_idempotent_and_ambiguity_safe(
 
     legacy_v13 = deepcopy(reconciled_backup)
     legacy_v13["schema_version"] = "nalu.project-export/v13"
+    legacy_v13["payload"].pop("script_writer_receipt_reconciliations")
     legacy_v13["payload"].pop("feedback_development_work_orders")
     legacy_v13["payload"].pop("feedback_development_handoffs")
     legacy_v13["payload"].pop("feedback_development_handoff_reconciliations")
@@ -1981,7 +2011,7 @@ def test_memory_card_requires_explicit_confirmation_and_keeps_evidence(tmp_path:
     assert confirmations[0]["spoken_confirmation"] == "我确认这张记忆卡并归档"
 
     backup = api.get(f"/v1/projects/{project['id']}/export").json()
-    assert backup["schema_version"] == "nalu.project-export/v20"
+    assert backup["schema_version"] == "nalu.project-export/v21"
     assert backup["payload"]["memory_cards"][0]["asset_id"] == asset["id"]
 
     other = api.post("/v1/projects", json={"title": "另一个项目"}).json()
@@ -2235,6 +2265,188 @@ def test_script_authoring_provenance_detects_database_tampering_and_labels_legac
     assert legacy_provenance["writer_receipt_verified"] is False
 
 
+def test_writer_receipt_reconciliation_is_fail_closed_exported_and_packaged(
+    tmp_path: Path,
+) -> None:
+    api = client(tmp_path)
+    plan = api.post(
+        "/v1/project-plans",
+        json={"project": {"title": "Writer 回执测试", "planned_episode_count": 1}},
+    ).json()
+    project_id = plan["project"]["id"]
+    episode_id = plan["episodes"][0]["id"]
+    content = "外部 Writer 生成并由用户复核的剧本。"
+    receipt_bytes, declaration = writer_receipt_fixture(content)
+    script = api.post(
+        f"/v1/episodes/{episode_id}/scripts",
+        json={
+            "content": content,
+            "summary_for_voice_review": "外部 Writer 草稿",
+            "authoring": {
+                "origin": "external_ai_generated",
+                "external_writer": declaration,
+            },
+        },
+    ).json()
+    route = (
+        f"/v1/episodes/{episode_id}/scripts/{script['revision']}"
+        "/writer-receipt-reconciliations"
+    )
+    reconciled = api.post(
+        route,
+        content=receipt_bytes,
+        headers={"Content-Type": "application/octet-stream"},
+        params={"reconciled_by": "本地 QA"},
+    )
+    assert reconciled.status_code == 201
+    record = reconciled.json()
+    assert record["receipt_sha256"] == declaration["receipt_sha256"]
+    assert record["authority_output_sha256"] == hashlib.sha256(content.encode()).hexdigest()
+    assert record["artifact_binding_verified"] is True
+    assert record["provider_execution_verified"] is False
+    assert record["network_call_performed_by_runtime"] is False
+    record_body = {key: value for key, value in record.items() if key != "record_sha256"}
+    assert record["record_sha256"] == hashlib.sha256(
+        json.dumps(record_body, ensure_ascii=False, sort_keys=True).encode()
+    ).hexdigest()
+
+    assert (
+        api.post(
+            route,
+            content=receipt_bytes,
+            headers={"Content-Type": "application/octet-stream"},
+            params={"reconciled_by": "另一位审核人"},
+        ).json()
+        == record
+    )
+    mismatched = receipt_bytes.replace(b"QA001", b"QA002")
+    assert (
+        api.post(
+            route,
+            content=mismatched,
+            headers={"Content-Type": "application/octet-stream"},
+            params={"reconciled_by": "本地 QA"},
+        ).status_code
+        == 409
+    )
+    assert (
+        api.post(
+            route,
+            content=receipt_bytes,
+            headers={"Content-Type": "application/octet-stream"},
+            params={"reconciled_by": "   "},
+        ).status_code
+        == 409
+    )
+
+    approved = api.post(
+        f"/v1/episodes/{episode_id}/scripts/{script['revision']}/approve",
+        json={"approved_by": "user", "spoken_confirmation": "我确认这个剧本"},
+    )
+    assert approved.status_code == 200
+    run = api.post(
+        f"/v1/episodes/{episode_id}/production-runs",
+        json={"dry_run": True, "requested_model": "seedance-2.0-pro"},
+    )
+    assert run.status_code == 201
+    package = json.loads(Path(run.json()["package_path"]).read_text(encoding="utf-8"))
+    assert package["writer_receipt_reconciliation"] == record
+
+    backup = api.get(f"/v1/projects/{project_id}/export").json()
+    assert backup["schema_version"] == "nalu.project-export/v21"
+    assert len(backup["payload"]["script_writer_receipt_reconciliations"]) == 1
+    restored = client(tmp_path / "restored-writer-receipt")
+    assert restored.post("/v1/project-imports", json=backup).status_code == 201
+    restored_record = restored.get(
+        f"/v1/episodes/{episode_id}/scripts/{script['revision']}"
+        "/writer-receipt-reconciliation"
+    )
+    assert restored_record.status_code == 200
+    assert restored_record.json() == record
+
+    compatible_v20 = deepcopy(backup)
+    compatible_v20["schema_version"] = "nalu.project-export/v20"
+    compatible_v20["payload"].pop("script_writer_receipt_reconciliations")
+    compatible_v20["payload_sha256"] = hashlib.sha256(
+        json.dumps(compatible_v20["payload"], ensure_ascii=False, sort_keys=True).encode()
+    ).hexdigest()
+    assert (
+        client(tmp_path / "restored-v20")
+        .post("/v1/project-imports", json=compatible_v20)
+        .status_code
+        == 201
+    )
+
+    tampered = deepcopy(backup)
+    row = tampered["payload"]["script_writer_receipt_reconciliations"][0]
+    body = json.loads(row["record_json"])
+    body["reconciled_by"] = "篡改者"
+    row["record_json"] = json.dumps(body, ensure_ascii=False, sort_keys=True)
+    tampered["payload_sha256"] = hashlib.sha256(
+        json.dumps(tampered["payload"], ensure_ascii=False, sort_keys=True).encode()
+    ).hexdigest()
+    assert (
+        client(tmp_path / "tampered-writer-receipt")
+        .post("/v1/project-imports", json=tampered)
+        .status_code
+        == 409
+    )
+
+
+def test_writer_receipt_reconciliation_rejects_user_scripts_and_database_tampering(
+    tmp_path: Path,
+) -> None:
+    api = client(tmp_path)
+    _, _, episode = create_approved_episode(api)
+    receipt_bytes, _ = writer_receipt_fixture("第一集定稿剧本")
+    user_route = f"/v1/episodes/{episode['id']}/scripts/1/writer-receipt-reconciliations"
+    assert (
+        api.post(
+            user_route,
+            content=receipt_bytes,
+            headers={"Content-Type": "application/octet-stream"},
+            params={"reconciled_by": "本地 QA"},
+        ).status_code
+        == 409
+    )
+
+    plan = api.post(
+        "/v1/project-plans",
+        json={"project": {"title": "回执篡改测试", "planned_episode_count": 1}},
+    ).json()
+    episode_id = plan["episodes"][0]["id"]
+    content = "需要核验的外部剧本"
+    receipt_bytes, declaration = writer_receipt_fixture(content)
+    script = api.post(
+        f"/v1/episodes/{episode_id}/scripts",
+        json={
+            "content": content,
+            "summary_for_voice_review": "外部剧本",
+            "authoring": {
+                "origin": "external_ai_assisted",
+                "external_writer": declaration,
+            },
+        },
+    ).json()
+    route = f"/v1/episodes/{episode_id}/scripts/{script['revision']}"
+    assert (
+        api.post(
+            route + "/writer-receipt-reconciliations",
+            content=receipt_bytes,
+            headers={"Content-Type": "application/octet-stream"},
+            params={"reconciled_by": "本地 QA"},
+        ).status_code
+        == 201
+    )
+    with sqlite3.connect(tmp_path / "test.sqlite3") as connection:
+        connection.execute(
+            "UPDATE script_writer_receipt_reconciliations SET created_at = ? "
+            "WHERE episode_id = ? AND script_revision = ?",
+            ("2099-01-01T00:00:00+00:00", episode_id, script["revision"]),
+        )
+    assert api.get(route + "/writer-receipt-reconciliation").status_code == 409
+
+
 def test_atomic_multi_episode_project_plan(tmp_path: Path) -> None:
     api = client(tmp_path)
     response = api.post(
@@ -2479,6 +2691,7 @@ def test_project_rename_archive_export_and_restore(tmp_path: Path) -> None:
 
     legacy = deepcopy(backup)
     legacy["schema_version"] = "nalu.project-export/v1"
+    legacy["payload"].pop("script_writer_receipt_reconciliations")
     legacy["payload"].pop("season_plan_revisions")
     legacy["payload"].pop("season_plan_approval_records")
     legacy["payload"].pop("asset_consent_records")
@@ -2596,7 +2809,7 @@ def test_database_migration_preserves_existing_database(tmp_path: Path) -> None:
         connection.execute("INSERT INTO legacy_marker VALUES ('preserve-me')")
 
     api = create_app(database_path, tmp_path / "data")
-    assert api.state.repository.db.schema_version() == 24
+    assert api.state.repository.db.schema_version() == 25
     with sqlite3.connect(database_path) as connection:
         marker = connection.execute("SELECT value FROM legacy_marker").fetchone()[0]
         approval_table = connection.execute(
@@ -2648,7 +2861,7 @@ def test_populated_v1_database_upgrades_without_project_loss(tmp_path: Path) -> 
         connection.execute("DELETE FROM schema_migrations WHERE version >= 2")
 
     after = TestClient(create_app(database_path, data_root))
-    assert after.app.state.repository.db.schema_version() == 24
+    assert after.app.state.repository.db.schema_version() == 25
     assert after.get(f"/v1/projects/{project['id']}").json()["title"] == "我的一生"
     assert after.get(f"/v1/episodes/{episode['id']}").json()["approved_script_revision"] == 1
     approvals = after.get(f"/v1/episodes/{episode['id']}/script-approvals").json()
@@ -2836,6 +3049,7 @@ def test_project_season_and_episode_asset_scope_inheritance(tmp_path: Path) -> N
     backup = api.get(f"/v1/projects/{project['id']}/export").json()
     legacy_v3 = deepcopy(backup)
     legacy_v3["schema_version"] = "nalu.project-export/v3"
+    legacy_v3["payload"].pop("script_writer_receipt_reconciliations")
     legacy_v3["payload"].pop("feedback_items")
     legacy_v3["payload"].pop("feedback_review_bundles")
     legacy_v3["payload"].pop("feedback_release_linkages")
@@ -2922,7 +3136,7 @@ def test_complete_privacy_export_and_confirmed_project_deletion(tmp_path: Path) 
         assert {"project-export.json", "privacy-manifest.json", media_name} <= names
         assert archive.read(media_name) == b"private-photo-bytes"
         project_backup = json.loads(archive.read("project-export.json"))
-        assert project_backup["schema_version"] == "nalu.project-export/v20"
+        assert project_backup["schema_version"] == "nalu.project-export/v21"
         assert project_backup["payload"]["asset_consent_records"][0]["action_type"] == "granted"
         manifest = json.loads(archive.read("privacy-manifest.json"))
         assert manifest["database_included"] is False

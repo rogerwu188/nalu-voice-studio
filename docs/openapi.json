@@ -6061,7 +6061,7 @@
             "type": "string"
           },
           "schema_version": {
-            "default": "nalu.project-export/v20",
+            "default": "nalu.project-export/v21",
             "enum": [
               "nalu.project-export/v1",
               "nalu.project-export/v2",
@@ -6082,7 +6082,8 @@
               "nalu.project-export/v17",
               "nalu.project-export/v18",
               "nalu.project-export/v19",
-              "nalu.project-export/v20"
+              "nalu.project-export/v20",
+              "nalu.project-export/v21"
             ],
             "title": "Schema Version",
             "type": "string"
@@ -8269,6 +8270,146 @@
         ],
         "title": "VisualContinuityQAReport",
         "type": "object"
+      },
+      "WriterReceiptReconciliation": {
+        "additionalProperties": false,
+        "properties": {
+          "agent_id": {
+            "enum": [
+              "qingshan-claude-writer-agent",
+              "qingshan-claude-writer"
+            ],
+            "title": "Agent Id",
+            "type": "string"
+          },
+          "artifact_binding_verified": {
+            "const": true,
+            "title": "Artifact Binding Verified",
+            "type": "boolean"
+          },
+          "authority_output_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Authority Output Sha256",
+            "type": "string"
+          },
+          "completed_at": {
+            "title": "Completed At",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "episode_id": {
+            "title": "Episode Id",
+            "type": "string"
+          },
+          "input_bundle_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Input Bundle Sha256",
+            "type": "string"
+          },
+          "model_id": {
+            "title": "Model Id",
+            "type": "string"
+          },
+          "network_call_performed_by_runtime": {
+            "const": false,
+            "title": "Network Call Performed By Runtime",
+            "type": "boolean"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          },
+          "provider_execution_verified": {
+            "const": false,
+            "title": "Provider Execution Verified",
+            "type": "boolean"
+          },
+          "receipt_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Receipt Sha256",
+            "type": "string"
+          },
+          "reconciled_by": {
+            "title": "Reconciled By",
+            "type": "string"
+          },
+          "record_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Record Sha256",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "nalu.writer-receipt-reconciliation/v1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "script_provenance_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Script Provenance Sha256",
+            "type": "string"
+          },
+          "script_revision": {
+            "minimum": 1.0,
+            "title": "Script Revision",
+            "type": "integer"
+          },
+          "session_or_task_id": {
+            "title": "Session Or Task Id",
+            "type": "string"
+          },
+          "started_at": {
+            "title": "Started At",
+            "type": "string"
+          },
+          "writer_episode": {
+            "title": "Writer Episode",
+            "type": "string"
+          },
+          "writer_rules_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Writer Rules Sha256",
+            "type": "string"
+          },
+          "writer_run_id": {
+            "title": "Writer Run Id",
+            "type": "string"
+          },
+          "writer_version": {
+            "minimum": 1.0,
+            "title": "Writer Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "schema_version",
+          "episode_id",
+          "script_revision",
+          "script_provenance_sha256",
+          "receipt_sha256",
+          "writer_run_id",
+          "writer_episode",
+          "writer_version",
+          "agent_id",
+          "provider",
+          "model_id",
+          "session_or_task_id",
+          "input_bundle_sha256",
+          "writer_rules_sha256",
+          "authority_output_sha256",
+          "started_at",
+          "completed_at",
+          "artifact_binding_verified",
+          "provider_execution_verified",
+          "network_call_performed_by_runtime",
+          "reconciled_by",
+          "created_at",
+          "record_sha256"
+        ],
+        "title": "WriterReceiptReconciliation",
+        "type": "object"
       }
     }
   },
@@ -9228,6 +9369,125 @@
           }
         },
         "summary": "Revoke Script Approval"
+      }
+    },
+    "/v1/episodes/{episode_id}/scripts/{revision}/writer-receipt-reconciliation": {
+      "get": {
+        "operationId": "get_writer_receipt_reconciliation_v1_episodes__episode_id__scripts__revision__writer_receipt_reconciliation_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "episode_id",
+            "required": true,
+            "schema": {
+              "title": "Episode Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "revision",
+            "required": true,
+            "schema": {
+              "title": "Revision",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WriterReceiptReconciliation"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Writer Receipt Reconciliation"
+      }
+    },
+    "/v1/episodes/{episode_id}/scripts/{revision}/writer-receipt-reconciliations": {
+      "post": {
+        "operationId": "reconcile_writer_receipt_v1_episodes__episode_id__scripts__revision__writer_receipt_reconciliations_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "episode_id",
+            "required": true,
+            "schema": {
+              "title": "Episode Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "revision",
+            "required": true,
+            "schema": {
+              "title": "Revision",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "reconciled_by",
+            "required": true,
+            "schema": {
+              "maxLength": 160,
+              "minLength": 1,
+              "title": "Reconciled By",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "contentMediaType": "application/octet-stream",
+                "title": "Content",
+                "type": "string"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WriterReceiptReconciliation"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reconcile Writer Receipt"
       }
     },
     "/v1/episodes/{episode_id}/transition": {

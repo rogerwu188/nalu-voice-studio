@@ -633,6 +633,24 @@ MIGRATIONS = (
           ON director_strategy_revisions(target_episode_id, revision);
         """,
     ),
+    (
+        25,
+        "script_writer_receipt_reconciliations",
+        """
+        CREATE TABLE IF NOT EXISTS script_writer_receipt_reconciliations (
+          episode_id TEXT NOT NULL,
+          script_revision INTEGER NOT NULL,
+          receipt_sha256 TEXT NOT NULL,
+          record_json TEXT NOT NULL,
+          record_sha256 TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          PRIMARY KEY(episode_id, script_revision),
+          UNIQUE(receipt_sha256),
+          FOREIGN KEY(episode_id, script_revision)
+            REFERENCES script_revisions(episode_id, revision) ON DELETE CASCADE
+        );
+        """,
+    ),
 )
 
 

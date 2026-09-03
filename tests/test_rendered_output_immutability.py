@@ -2287,7 +2287,7 @@ def test_completed_media_qa_creates_offline_release_package_without_publishing(
         backup = verified_api.get(
             f"/v1/projects/{package['project_id']}/export"
         ).json()
-        assert backup["schema_version"] == "nalu.project-export/v20"
+        assert backup["schema_version"] == "nalu.project-export/v21"
         assert [row["id"] for row in backup["payload"]["production_runs"]] == [
             run["id"]
         ]
@@ -2314,6 +2314,7 @@ def test_completed_media_qa_creates_offline_release_package_without_publishing(
 
         legacy_v19 = deepcopy(backup)
         legacy_v19["schema_version"] = "nalu.project-export/v19"
+        legacy_v19["payload"].pop("script_writer_receipt_reconciliations")
         for table in (
             "production_runs",
             "publication_reconciliations",
@@ -2436,7 +2437,7 @@ def test_completed_media_qa_creates_offline_release_package_without_publishing(
         assert restarted_api.get(
             f"/v1/projects/{package['project_id']}/director-strategies"
         ).json() == [result["strategy"]]
-        assert restarted_api.get("/health").json()["schema_version"] == "24"
+        assert restarted_api.get("/health").json()["schema_version"] == "25"
 
     dry_run_path = Path(run["package_path"]).parent / "publication-dry-run-youtube.json"
     tampered = json.loads(dry_run_path.read_text(encoding="utf-8"))

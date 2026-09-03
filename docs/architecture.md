@@ -47,9 +47,12 @@ including approver identity, spoken confirmation and guardian authorization.
 New script revisions also retain a versioned, content/transcript-bound authoring
 record. Native typed and dictated revisions are distinguished; externally declared
 AI runs require an exact model and digest-only receipt metadata and remain explicitly
-unverified until a future trusted reconciliation path verifies them. This provenance
-never replaces the revision-specific narrative approval. Existing rows without the
-record are surfaced honestly as legacy and unverified. See
+unverified. A separate local reconciliation boundary can validate a Qingshan Writer
+v2 receipt against those sealed digests and copy the normalized evidence into the
+production package. Because the upstream receipt is unsigned, this proves artifact
+binding but never claims provider execution. This provenance never replaces the
+revision-specific narrative approval. Existing rows without the record are surfaced
+honestly as legacy and unverified. See
 [script authoring provenance](SCRIPT_AUTHORING_PROVENANCE.md).
 In the packaged application the single database is local at
 `~/Library/Application Support/Nalu Voice Studio/nalu.sqlite3`; it is not an
@@ -152,9 +155,10 @@ completed episode workspace.
 ## Workspace materialization
 
 Every run produces a clean `qingshan-workspace/` containing the approved script,
-work queue, task record, project asset indexes, inherited continuity, production
-policy, and a SHA-256 workspace manifest. Product paths use stable episode IDs
-and never call imported E40/E41-specific commands directly.
+any locally reconciled Writer receipt evidence, work queue, task record, project
+asset indexes, inherited continuity, production policy, and a SHA-256 workspace
+manifest. Product paths use stable episode IDs and never call imported
+E40/E41-specific commands directly.
 
 ## Continuous upstream productization
 

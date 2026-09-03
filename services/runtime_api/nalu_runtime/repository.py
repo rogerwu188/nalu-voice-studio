@@ -116,6 +116,7 @@ from .models import (
     SeasonPlanApprovalCreate,
     SeasonPlanRevision,
     SeasonPlanUpdate,
+    WriterReceiptReconciliation,
 )
 from .publication_learning import (
     PublicationLearningVerifier,
@@ -125,6 +126,7 @@ from .release_evidence import (
     ReleaseEvidenceVerificationError,
     ReleaseEvidenceVerifier,
 )
+from .writer_receipt import WriterReceiptVerificationError, verify_writer_receipt
 
 
 def utc_now() -> str:
@@ -581,6 +583,12 @@ class Repository:
                    JOIN seasons s ON s.id = e.season_id WHERE s.project_id = ?""",
                 (project_id,),
             ),
+            "script_writer_receipt_reconciliations": (
+                """SELECT r.* FROM script_writer_receipt_reconciliations r
+                   JOIN episodes e ON e.id = r.episode_id
+                   JOIN seasons s ON s.id = e.season_id WHERE s.project_id = ?""",
+                (project_id,),
+            ),
             "assets": ("SELECT * FROM assets WHERE project_id = ?", (project_id,)),
             "asset_consent_records": (
                 """SELECT r.* FROM asset_consent_records r
@@ -799,6 +807,14 @@ class Repository:
                 "source_transcript",
                 "narrative_metadata_json",
                 "approved_at",
+                "created_at",
+            ),
+            "script_writer_receipt_reconciliations": (
+                "episode_id",
+                "script_revision",
+                "receipt_sha256",
+                "record_json",
+                "record_sha256",
                 "created_at",
             ),
             "assets": (
@@ -1238,13 +1254,19 @@ class Repository:
         if backup.schema_version not in {
             "nalu.project-export/v19",
             "nalu.project-export/v20",
+            "nalu.project-export/v21",
         }:
             allowed_columns.pop("feedback_release_evidence_reconciliations")
-        if backup.schema_version != "nalu.project-export/v20":
+        if backup.schema_version not in {
+            "nalu.project-export/v20",
+            "nalu.project-export/v21",
+        }:
             allowed_columns.pop("production_runs")
             allowed_columns.pop("publication_reconciliations")
             allowed_columns.pop("publication_metric_snapshots")
             allowed_columns.pop("director_strategy_revisions")
+        if backup.schema_version != "nalu.project-export/v21":
+            allowed_columns.pop("script_writer_receipt_reconciliations")
         if backup.schema_version in {
             "nalu.project-export/v1",
             "nalu.project-export/v2",
@@ -1315,6 +1337,7 @@ class Repository:
             row.get("episode_id") not in episode_ids for row in backup.payload["script_revisions"]
         ):
             raise ConflictError("project export contains a script from another project")
+        script_provenance_by_key: dict[tuple[Any, Any], ScriptAuthoringProvenance] = {}
         for row in backup.payload["script_revisions"]:
             try:
                 metadata = decode(row.get("narrative_metadata_json", ""))
@@ -1322,10 +1345,12 @@ class Repository:
                 raise ConflictError("project export contains unreadable script metadata") from exc
             if not isinstance(metadata, dict):
                 raise ConflictError("project export contains invalid script metadata")
-            _verify_script_authoring_provenance(
-                content=row.get("content"),
-                source_transcript=row.get("source_transcript"),
-                raw_provenance=metadata.get(SCRIPT_AUTHORING_PROVENANCE_KEY),
+            script_provenance_by_key[(row.get("episode_id"), row.get("revision"))] = (
+                _verify_script_authoring_provenance(
+                    content=row.get("content"),
+                    source_transcript=row.get("source_transcript"),
+                    raw_provenance=metadata.get(SCRIPT_AUTHORING_PROVENANCE_KEY),
+                )
             )
         if any(
             row.get("project_id") != project_id
@@ -1360,6 +1385,33 @@ class Repository:
             (row.get("episode_id"), row.get("revision"))
             for row in backup.payload["script_revisions"]
         }
+        for row in backup.payload.get("script_writer_receipt_reconciliations", []):
+            key = (row.get("episode_id"), row.get("script_revision"))
+            try:
+                record_body = decode(row.get("record_json", ""))
+                record = WriterReceiptReconciliation.model_validate(
+                    {**record_body, "record_sha256": row.get("record_sha256")}
+                )
+            except (TypeError, ValueError, json.JSONDecodeError) as exc:
+                raise ConflictError(
+                    "project export contains invalid writer receipt reconciliation"
+                ) from exc
+            provenance = script_provenance_by_key.get(key)
+            if (
+                key not in script_revision_keys
+                or provenance is None
+                or record.episode_id != row.get("episode_id")
+                or record.script_revision != row.get("script_revision")
+                or record.script_provenance_sha256 != provenance.provenance_sha256
+                or record.receipt_sha256 != row.get("receipt_sha256")
+                or record.authority_output_sha256 != provenance.content_sha256
+                or record.created_at != row.get("created_at")
+                or hashlib.sha256(encode(record_body).encode()).hexdigest()
+                != row.get("record_sha256")
+            ):
+                raise ConflictError(
+                    "project export contains tampered writer receipt reconciliation"
+                )
         if any(
             row.get("episode_id") not in episode_ids
             or row.get("snapshot_id") not in snapshot_ids
@@ -1858,6 +1910,7 @@ class Repository:
                 "nalu.project-export/v18",
                 "nalu.project-export/v19",
                 "nalu.project-export/v20",
+                "nalu.project-export/v21",
             } and (
                 result is None
                 or linkage.development_result_sha256 != result.record_sha256
@@ -4930,6 +4983,127 @@ class Repository:
                 )
             ]
         return [self.get_script(episode_id, revision) for revision in revisions]
+
+    def reconcile_writer_receipt(
+        self,
+        episode_id: str,
+        revision: int,
+        receipt_bytes: bytes,
+        reconciled_by: str,
+    ) -> WriterReceiptReconciliation:
+        reconciled_by = reconciled_by.strip()
+        if not reconciled_by:
+            raise ConflictError("writer receipt reconciliation requires an accountable reviewer")
+        script = self.get_script(episode_id, revision)
+        provenance = script.authoring_provenance
+        external_writer = provenance.external_writer if provenance is not None else None
+        if (
+            provenance is None
+            or provenance.origin not in {"external_ai_generated", "external_ai_assisted"}
+            or external_writer is None
+        ):
+            raise ConflictError("only an externally authored script can reconcile a writer receipt")
+        try:
+            verified = verify_writer_receipt(
+                receipt_bytes,
+                declared_receipt_sha256=external_writer.receipt_sha256,
+                declared_provider=external_writer.provider,
+                declared_model_id=external_writer.model_id,
+                declared_session_or_task_id=external_writer.session_or_task_id,
+                declared_input_bundle_sha256=external_writer.input_bundle_sha256,
+                declared_writer_rules_sha256=external_writer.writer_rules_sha256,
+                declared_started_at=external_writer.started_at,
+                declared_completed_at=external_writer.completed_at,
+                script_content_sha256=provenance.content_sha256,
+            )
+        except WriterReceiptVerificationError as exc:
+            raise ConflictError(str(exc)) from exc
+        now = utc_now()
+        body = {
+            "schema_version": "nalu.writer-receipt-reconciliation/v1",
+            "episode_id": episode_id,
+            "script_revision": revision,
+            "script_provenance_sha256": provenance.provenance_sha256,
+            "receipt_sha256": verified["receipt_sha256"],
+            "writer_run_id": verified["writer_run_id"],
+            "writer_episode": verified["episode"],
+            "writer_version": verified["version"],
+            "agent_id": verified["agent_id"],
+            "provider": verified["provider"],
+            "model_id": verified["model_id"],
+            "session_or_task_id": verified["session_or_task_id"],
+            "input_bundle_sha256": verified["input_bundle_sha256"],
+            "writer_rules_sha256": verified["writer_rules_sha256"],
+            "authority_output_sha256": verified["authority_output_sha256"],
+            "started_at": verified["started_at"],
+            "completed_at": verified["completed_at"],
+            "artifact_binding_verified": True,
+            "provider_execution_verified": False,
+            "network_call_performed_by_runtime": False,
+            "reconciled_by": reconciled_by,
+            "created_at": now,
+        }
+        record_sha256 = _text_sha256(encode(body))
+        with self.db.connect() as connection:
+            existing = connection.execute(
+                """SELECT receipt_sha256 FROM script_writer_receipt_reconciliations
+                   WHERE episode_id = ? AND script_revision = ?""",
+                (episode_id, revision),
+            ).fetchone()
+            if existing is not None:
+                if existing["receipt_sha256"] != verified["receipt_sha256"]:
+                    raise ConflictError("script revision already has a different writer receipt")
+                return self.get_writer_receipt_reconciliation(episode_id, revision)
+            try:
+                connection.execute(
+                    """INSERT INTO script_writer_receipt_reconciliations
+                       (episode_id, script_revision, receipt_sha256, record_json,
+                        record_sha256, created_at) VALUES (?, ?, ?, ?, ?, ?)""",
+                    (
+                        episode_id,
+                        revision,
+                        verified["receipt_sha256"],
+                        encode(body),
+                        record_sha256,
+                        now,
+                    ),
+                )
+            except sqlite3.IntegrityError as exc:
+                raise ConflictError("writer receipt is already bound to another script") from exc
+        return self.get_writer_receipt_reconciliation(episode_id, revision)
+
+    def get_writer_receipt_reconciliation(
+        self, episode_id: str, revision: int
+    ) -> WriterReceiptReconciliation:
+        with self.db.connect() as connection:
+            row = connection.execute(
+                """SELECT * FROM script_writer_receipt_reconciliations
+                   WHERE episode_id = ? AND script_revision = ?""",
+                (episode_id, revision),
+            ).fetchone()
+        if row is None:
+            raise NotFoundError("writer receipt reconciliation not found")
+        try:
+            body = decode(row["record_json"])
+            record = WriterReceiptReconciliation.model_validate(
+                {**body, "record_sha256": row["record_sha256"]}
+            )
+        except (TypeError, ValueError, json.JSONDecodeError) as exc:
+            raise ConflictError("writer receipt reconciliation is invalid") from exc
+        script = self.get_script(episode_id, revision)
+        provenance = script.authoring_provenance
+        if (
+            record.episode_id != episode_id
+            or record.script_revision != revision
+            or record.receipt_sha256 != row["receipt_sha256"]
+            or record.created_at != row["created_at"]
+            or provenance is None
+            or record.script_provenance_sha256 != provenance.provenance_sha256
+            or record.authority_output_sha256 != provenance.content_sha256
+            or _text_sha256(encode(body)) != row["record_sha256"]
+        ):
+            raise ConflictError("writer receipt reconciliation digest mismatch")
+        return record
 
     def approve_script(
         self, episode_id: str, revision: int, approval: ApprovalCreate

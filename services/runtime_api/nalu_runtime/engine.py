@@ -66,7 +66,7 @@ from .publication_adapters import publication_adapter
 from .publication_learning import PublicationLearningVerifier
 from .qingshan_adapter import QingshanAdapter, QingshanAdapterError
 from .remote_submitter import DurableRemoteTaskSubmitter
-from .repository import ConflictError, Repository, new_id, utc_now
+from .repository import ConflictError, NotFoundError, Repository, new_id, utc_now
 from .secure_files import harden_tree, secure_directory, secure_file
 from .semantic_media_qa import inspect_semantic_asr, inspect_shot_boundaries
 from .semantic_recognizer import (
@@ -2036,6 +2036,14 @@ class ProductionService:
                 "this project has no approved production adapter; choose a supported pipeline"
             )
         script = self.repository.get_script(episode.id, episode.approved_script_revision)
+        try:
+            writer_receipt_reconciliation = (
+                self.repository.get_writer_receipt_reconciliation(
+                    episode.id, episode.approved_script_revision
+                )
+            )
+        except NotFoundError:
+            writer_receipt_reconciliation = None
         assets = self.repository.list_assets(project.id, episode.id)
         resolved_library = self.repository.resolved_project_library(project.id)
         continuity = self.repository.latest_continuity(season.id, episode.episode_number)
@@ -2141,6 +2149,11 @@ class ProductionService:
             season=season.model_dump(mode="json"),
             episode=episode.model_dump(mode="json"),
             approved_script=script.model_dump(mode="json"),
+            writer_receipt_reconciliation=(
+                writer_receipt_reconciliation.model_dump(mode="json")
+                if writer_receipt_reconciliation is not None
+                else None
+            ),
             inherited_assets=[
                 asset.model_dump(mode="json", exclude={"consent_granted_by", "consent_statement"})
                 for asset in assets

@@ -141,6 +141,7 @@ from .models import (
     SemanticMediaQARequest,
     StorageDiagnostics,
     VisualContinuityQAReport,
+    WriterReceiptReconciliation,
 )
 from .privacy_service import ProjectPrivacyService
 from .publication_learning import (
@@ -731,6 +732,30 @@ def create_app(
     @app.get("/v1/episodes/{episode_id}/scripts", response_model=list[ScriptRevision])
     def list_scripts(episode_id: str) -> list[ScriptRevision]:
         return repository.list_scripts(episode_id)
+
+    @app.post(
+        "/v1/episodes/{episode_id}/scripts/{revision}/writer-receipt-reconciliations",
+        response_model=WriterReceiptReconciliation,
+        status_code=201,
+    )
+    def reconcile_writer_receipt(
+        episode_id: str,
+        revision: int,
+        content: Annotated[bytes, Body(media_type="application/octet-stream")],
+        reconciled_by: Annotated[str, Query(min_length=1, max_length=160)],
+    ) -> WriterReceiptReconciliation:
+        return repository.reconcile_writer_receipt(
+            episode_id, revision, content, reconciled_by
+        )
+
+    @app.get(
+        "/v1/episodes/{episode_id}/scripts/{revision}/writer-receipt-reconciliation",
+        response_model=WriterReceiptReconciliation,
+    )
+    def get_writer_receipt_reconciliation(
+        episode_id: str, revision: int
+    ) -> WriterReceiptReconciliation:
+        return repository.get_writer_receipt_reconciliation(episode_id, revision)
 
     @app.post("/v1/episodes/{episode_id}/scripts/{revision}/approve", response_model=ScriptRevision)
     def approve_script(episode_id: str, revision: int, approval: ApprovalCreate) -> ScriptRevision:

@@ -25,8 +25,11 @@
       "type": "object",
       "required": ["episode_id", "revision", "content", "approved_at"]
     },
+    "writer_receipt_reconciliation": { "type": ["object", "null"] },
     "inherited_assets": { "type": "array", "items": { "type": "object" } },
+    "resolved_library": { "type": "array", "items": { "type": "object" } },
     "continuity": { "type": ["object", "null"] },
+    "continuity_preflight": { "type": ["object", "null"] },
     "production_policy": {
       "type": "object",
       "required": [
