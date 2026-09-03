@@ -699,6 +699,24 @@ Current evidence:
   artifact `9907427075` has GitHub digest
   `sha256:0d66ea1c90551f4ccacff5dbaf64cb9b66a1dffa96e8163498b0fee8aff32b4f`.
   This closes the portable-command-surface checkpoint, not SOP-07.
+- Commit `8ece75411457076c5e0602516351560fb811c189`, GitHub CI run
+  `33792752813`: Qingshan `v2026.09.03.4` was independently checked out at exact
+  commit `856870f1aa97452b85b229a118566b37219f2683`, tracked-tree SHA-256
+  `f5da9588330ca35355d9121401e19a2df56834a720af0764b529f7c004126e8b`.
+  All eight formerly missing registry paths are present; the independent static audit
+  now reports 69 registered gates, 66 coded gates and 66 runtime bindings with registry
+  status `PASS`. Promotion still fails closed because the installable package/CLI version
+  is `0.3.0` while portable-core manifest SHA-256
+  `95867754527f088328e48261aa9dcf1d2ed62b4834efe968630ba93998da3ff3`
+  declares `0.3.1`. The evolved audit keeps registry and public-interface status
+  independent and also binds Writer v2's provenance/receipt schemas, authorized agent
+  identities, rejection of generic model aliases and dispatcher provenance import
+  without importing or executing upstream code. All 170 Runtime tests, clean candidate
+  reproduction, HTTP/offline E2E, Swift tests, arm64, Intel and Universal builds,
+  bundled-Runtime smoke, staged update and rollback passed. Universal artifact
+  `9908224100` has GitHub digest
+  `sha256:2ffbbe0835e61ba017a54c970c1beb63f1bbd5edbb4009c86e05820b279c1bb7`.
+  This closes the registry-closure/Writer-v2 audit checkpoint, not promotion or SOP-07.
 - Still required before `PASS`: a corrected pinned Qingshan release whose registry
   integrity and complete registered tests pass, plus authorized real-provider sandbox
   task/result/receipt evidence. Offline authority and transport doubles are not a paid

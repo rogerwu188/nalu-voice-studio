@@ -36,18 +36,16 @@ It may support local contract work, but cannot authorize a paid request. Any add
 changed failure is unreviewed drift and fails closed. The exception must be removed—not
 carried forward—when the corrected upstream release is promoted.
 
-The latest reviewed candidate is `v2026.09.03.3` at commit
-`c88f875ceb1c6b5bbee037149af44594cbe9a53d`. Relative to the previous reviewed
-`v2026.09.02.2` candidate, the release changes 78 files (7,290 insertions and 2,639
-deletions) and adds the MIT-licensed `qingshan` 0.3.0 public CLI, a portable-core
-manifest, repository-owned submission and release preflight entry points, and a stock
-FFmpeg timeline renderer. Nalu reviews those surfaces independently without importing,
-installing, or running the quarantined candidate. The isolated static audit proves the
-package metadata, zero-dependency core, stable CLI entry point, portable required-file
-closure and absence of private BacklotOS/AgentCut imports in the public package. The
-upstream registry still fails independently: 69 gates and all 66 coded gates are
-runtime-bound, but eight registered evidence paths are missing. The previous
-host-specific absolute test path is fixed.
+The latest reviewed candidate is `v2026.09.03.4` at commit
+`856870f1aa97452b85b229a118566b37219f2683`. Relative to the previous reviewed
+`v2026.09.03.3` candidate, the release changes 16 files (921 insertions and four
+deletions), restores all eight registered evidence paths and makes the portable CI invoke
+the registry gate. Nalu's independent no-execution audit now proves all 69 registered
+gates are structurally complete and all 66 coded gates are runtime-bound. The candidate
+still cannot be promoted: its installable package and CLI declare version `0.3.0`, while
+`configs/PORTABLE_CORE_MANIFEST.json` declares `0.3.1`. Nalu records that exact public
+release-contract drift separately from registry integrity, keeps the source quarantined
+and does not run its registered suite or authorize a paid call.
 `configs/qingshan-candidate-audit.json` binds
 the exact candidate tree, registry digest and failure list. CI validates that the record
 remains `QUARANTINED`, cannot replace the active pin, cannot authorize paid execution,
@@ -66,6 +64,13 @@ commands and the four repository-owned render/submit/release entry points. GitHu
 `sha256:0d66ea1c90551f4ccacff5dbaf64cb9b66a1dffa96e8163498b0fee8aff32b4f`.
 Nalu keeps its stronger paid-transaction and decoded-media controls instead of adopting
 the upstream fallback as authority.
+Commit `8ece75411457076c5e0602516351560fb811c189` independently records the `.4`
+registry closure, the remaining `0.3.0`/`0.3.1` public-version conflict and Writer v2
+provenance contract. All four jobs passed in GitHub CI run `33792752813`; Universal
+artifact `9908224100` has digest
+`sha256:2ffbbe0835e61ba017a54c970c1beb63f1bbd5edbb4009c86e05820b279c1bb7`.
+Upstream portable-core CI run `33791985563` also passed, but it did not detect the
+cross-manifest version conflict and therefore is not promotion evidence.
 
 Nalu productized two safe `v2026.09.01.7` contracts without copying its runtime into the
 paid path: exact adapter/profile/logical/provider model identity at the final I/O boundary,
