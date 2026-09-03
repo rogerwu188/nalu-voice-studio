@@ -35,6 +35,14 @@ def test_candidate_audit_is_quarantined_and_fail_closed() -> None:
     assert len(audit["failures"]) == 8
     assert audit["public_interface_status"] == "PASS"
     assert audit["public_cli_entrypoint"] == "qingshan_engine.cli:main"
+    assert audit["public_cli_commands"] == [
+        "doctor",
+        "init",
+        "release-preflight",
+        "test",
+        "video-preflight",
+        "writer-doctor",
+    ]
 
 
 def test_latest_release_is_covered_only_by_active_or_reviewed_record() -> None:
@@ -132,6 +140,6 @@ def test_public_interface_audit_rejects_private_import(tmp_path: Path) -> None:
     report = auditor.validate_public_interface(tmp_path)
 
     assert report["public_interface_status"] == "FAIL"
-    assert report["public_interface_failures"] == [
-        "public_interface:private_import:qingshan_engine/cli.py:backlot_os"
+    assert "public_interface:private_import:qingshan_engine/cli.py:backlot_os" in report[
+        "public_interface_failures"
     ]

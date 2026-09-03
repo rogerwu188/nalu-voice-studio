@@ -95,6 +95,15 @@ def verify_candidate_audit(manifest: dict, audit: dict) -> list[str]:
         or not isinstance(audit.get("public_interface_version"), str)
         or re.fullmatch(r"\d+\.\d+\.\d+", audit.get("public_interface_version", "")) is None
         or audit.get("public_cli_entrypoint") != "qingshan_engine.cli:main"
+        or audit.get("public_cli_commands")
+        != ["doctor", "init", "release-preflight", "test", "video-preflight", "writer-doctor"]
+        or audit.get("portable_entrypoints")
+        != [
+            "tools/platform_release_preflight.py",
+            "tools/production_video_submission_gate.py",
+            "tools/render_portable_timeline.py",
+            "tools/submit_giggle_video_manifest_v2.py",
+        ]
         or audit.get("public_interface_failures") != []
     ):
         failures.append("candidate public engine interface is not portable")

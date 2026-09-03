@@ -9,6 +9,20 @@
   "public_interface_status": "PASS",
   "public_interface_version": "0.3.0",
   "public_cli_entrypoint": "qingshan_engine.cli:main",
+  "public_cli_commands": [
+    "doctor",
+    "init",
+    "release-preflight",
+    "test",
+    "video-preflight",
+    "writer-doctor"
+  ],
+  "portable_entrypoints": [
+    "tools/platform_release_preflight.py",
+    "tools/production_video_submission_gate.py",
+    "tools/render_portable_timeline.py",
+    "tools/submit_giggle_video_manifest_v2.py"
+  ],
   "portable_core_manifest_sha256": "82d0be29e3ec14d448e0647fe590900441877596bfff43b310e9b471fc5f0fd7",
   "public_interface_failures": [],
   "gate_count": 69,

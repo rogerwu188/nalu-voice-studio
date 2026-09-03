@@ -30,6 +30,20 @@ BLOCKING_MARKERS = ("BLOCK_SUBMIT", "FAIL_CLOSED", "FAIL_HARD")
 PUBLIC_PACKAGE = "qingshan-short-drama-engine"
 PUBLIC_CLI_ENTRYPOINT = "qingshan_engine.cli:main"
 FORBIDDEN_PUBLIC_IMPORTS = {"agentcut", "backlot_os", "backlotos"}
+REQUIRED_PUBLIC_COMMANDS = {
+    "doctor",
+    "init",
+    "release-preflight",
+    "test",
+    "video-preflight",
+    "writer-doctor",
+}
+REQUIRED_PORTABLE_ENTRYPOINTS = {
+    "tools/platform_release_preflight.py",
+    "tools/production_video_submission_gate.py",
+    "tools/render_portable_timeline.py",
+    "tools/submit_giggle_video_manifest_v2.py",
+}
 
 
 def run_git(checkout: Path, *args: str) -> str:
@@ -186,6 +200,22 @@ def imported_roots(path: Path) -> set[str]:
     return roots
 
 
+def declared_cli_commands(path: Path) -> set[str]:
+    tree = parsed_tree(path)
+    if tree is None:
+        return set()
+    commands: set[str] = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
+            continue
+        if node.func.attr != "add_parser" or not node.args:
+            continue
+        name = node.args[0]
+        if isinstance(name, ast.Constant) and isinstance(name.value, str):
+            commands.add(name.value)
+    return commands
+
+
 def validate_public_interface(base: Path) -> dict[str, Any]:
     """Validate the installable public engine surface without importing it."""
     failures: list[str] = []
@@ -194,6 +224,7 @@ def validate_public_interface(base: Path) -> dict[str, Any]:
     package_dir = base / "qingshan_engine"
     version = ""
     entrypoint = ""
+    cli_commands: set[str] = set()
 
     try:
         text = pyproject_path.read_text(encoding="utf-8")
@@ -225,6 +256,11 @@ def validate_public_interface(base: Path) -> dict[str, Any]:
         if not (base / relative).is_file():
             failures.append(f"public_interface:missing_path:{relative}")
 
+    cli_path = package_dir / "cli.py"
+    cli_commands = declared_cli_commands(cli_path)
+    for command in sorted(REQUIRED_PUBLIC_COMMANDS - cli_commands):
+        failures.append(f"public_interface:missing_cli_command:{command}")
+
     for path in sorted(package_dir.glob("*.py")):
         for imported in sorted(imported_roots(path) & FORBIDDEN_PUBLIC_IMPORTS):
             failures.append(f"public_interface:private_import:{path.relative_to(base)}:{imported}")
@@ -246,6 +282,9 @@ def validate_public_interface(base: Path) -> dict[str, Any]:
                     failures.append(f"public_interface:nonportable_required_path:{relative}")
                 elif not (base / relative).is_file():
                     failures.append(f"public_interface:missing_required_path:{relative}")
+            required_paths = {value for value in required if isinstance(value, str)}
+            for relative in sorted(REQUIRED_PORTABLE_ENTRYPOINTS - required_paths):
+                failures.append(f"public_interface:unregistered_entrypoint:{relative}")
     except (OSError, json.JSONDecodeError):
         failures.append("public_interface:invalid_portable_manifest")
 
@@ -253,6 +292,8 @@ def validate_public_interface(base: Path) -> dict[str, Any]:
         "public_interface_status": "PASS" if not failures else "FAIL",
         "public_interface_version": version,
         "public_cli_entrypoint": entrypoint,
+        "public_cli_commands": sorted(cli_commands),
+        "portable_entrypoints": sorted(REQUIRED_PORTABLE_ENTRYPOINTS),
         "portable_core_manifest_sha256": manifest_sha256,
         "public_interface_failures": failures,
     }
@@ -346,6 +387,8 @@ def compare_audit(actual: dict[str, Any], expected: dict[str, Any]) -> list[str]
         "public_interface_status",
         "public_interface_version",
         "public_cli_entrypoint",
+        "public_cli_commands",
+        "portable_entrypoints",
         "portable_core_manifest_sha256",
         "public_interface_failures",
         "gate_count",
