@@ -11,26 +11,26 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "5b1ee84acdcd8221c181013152e9ceb12040167a",
-  "last_advanced_at": "2026-09-03T19:00:12Z",
+  "observed_head": "5ad716eb341244f1a815aef5233f63be07c7ca01",
+  "last_advanced_at": "2026-09-03T21:34:37Z",
   "last_closed_checkpoint": {
-    "id": "qingshan-registry-closure-writer-v2-audit",
+    "id": "nalu-script-authoring-provenance",
     "sop": "SOP-07",
-    "product_commit": "8ece75411457076c5e0602516351560fb811c189",
-    "evidence_commit": "5b1ee84acdcd8221c181013152e9ceb12040167a",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33792752813",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33792752813/artifacts/9908224100",
+    "product_commit": "ab3e8598063920cec603e0e530b8d4524480e793",
+    "evidence_commit": "5ad716eb341244f1a815aef5233f63be07c7ca01",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33807969208",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33807969208/artifacts/9913876237",
     "result": "PASS"
   },
   "current_checkpoint": {
     "sop": "SOP-07",
     "status": "IN_PROGRESS",
-    "summary": "Qingshan v2026.09.03.4 closes all eight registry paths and passes structural gate integrity, but remains quarantined because its package/CLI says 0.3.0 while the portable manifest says 0.3.1. Writer v2 provenance semantics now have independent static audit and four-job CI evidence."
+    "summary": "Nalu now seals honest script-authoring provenance and separates unverified external Writer declarations from narrative approval. Qingshan v2026.09.03.4 remains quarantined because its package/CLI says 0.3.0 while the portable manifest says 0.3.1; no trusted Writer receipt reconciliation or paid-provider claim exists yet."
   },
   "next_action": {
     "sop": "SOP-07",
-    "id": "implement-nalu-script-authoring-provenance",
-    "summary": "Add an honest, versioned Nalu script-authoring provenance record that distinguishes user-authored revisions from externally declared AI runs and binds content, transcript, exact model, rules/input digests and receipt verification state without treating unverified client claims as production authority.",
+    "id": "implement-trusted-writer-receipt-reconciliation",
+    "summary": "Implement a local, fail-closed Writer v2 receipt reconciliation boundary that independently validates an immutable receipt artifact against the sealed script provenance, exact writer identity/model, rules/input/content digests and task timing; it must not contact a provider, spend credits or upgrade an unverified declaration on client assertion alone.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
