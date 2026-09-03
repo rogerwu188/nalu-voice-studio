@@ -83,6 +83,11 @@ struct ContentView: View {
                 model.errorMessage = error.localizedDescription
             }
             await model.load()
+            do {
+                try NativeConversationQAScenario.installIfRequested(on: model)
+            } catch {
+                model.errorMessage = error.localizedDescription
+            }
         }
         .task(id: selectedSeason?.id) {
             guard let seasonID = selectedSeason?.id else { return }
@@ -501,6 +506,7 @@ struct ContentView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(18)
                             .background(Color.blue.opacity(0.10), in: RoundedRectangle(cornerRadius: 16))
+                            .accessibilityIdentifier("nalu.conversation.live-transcript")
                         }
                         Color.clear.frame(height: 1).id("conversation-bottom")
                     }
@@ -514,6 +520,7 @@ struct ContentView: View {
                         proxy.scrollTo("conversation-bottom", anchor: .bottom)
                     }
                 }
+                .accessibilityIdentifier("nalu.conversation.scroll")
             }
             if let planningVoiceLabel = model.planningVoiceLabel {
                 Label("当前语音任务：\(planningVoiceLabel)", systemImage: "waveform.badge.mic")
