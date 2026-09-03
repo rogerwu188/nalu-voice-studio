@@ -11,26 +11,26 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "fc6628f9c6ecf83ed19a70290aefe892fb434fb4",
-  "last_advanced_at": "2026-09-03T22:22:05Z",
+  "observed_head": "c3aeaa34ad0a6bf2341b9595e90641aba16b7436",
+  "last_advanced_at": "2026-09-03T22:41:46Z",
   "last_closed_checkpoint": {
-    "id": "nalu-writer-provider-reconciliation-contract",
-    "sop": "SOP-07",
-    "product_commit": "f8e1faed776564ffa29e449b6902d02e9d4a8012",
-    "evidence_commit": "fc6628f9c6ecf83ed19a70290aefe892fb434fb4",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33812094698",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33812094698/artifacts/9915368729",
+    "id": "current-universal-native-entry-regression",
+    "sop": "SOP-02",
+    "product_commit": "a270ab267aa8645559d54064db21fb5d21faa432",
+    "evidence_commit": "c3aeaa34ad0a6bf2341b9595e90641aba16b7436",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33812804669",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33812804669/artifacts/9915641200",
     "result": "PASS"
   },
   "current_checkpoint": {
     "sop": "SOP-02",
     "status": "IN_PROGRESS",
-    "summary": "The safe Writer provider-reconciliation contract is implemented and CI-verified, but no test fixture is counted as real provider evidence. Qingshan v2026.09.03.4 remains quarantined for its 0.3.0 versus 0.3.1 public-version mismatch. Work now moves to downloaded Universal-artifact native UI regression evidence while paid provider, publication and signing actions remain fail-closed."
+    "summary": "The current Universal artifact now has same-candidate native evidence for visible cold-start liveness, immediate draft-project creation, direct media selection, fail-closed Realtime entry and owned Runtime cleanup. Real microphone transcript scrolling, spoken interruption recovery, VoiceOver/Accessibility Inspector and paid Realtime remain unaccepted, so SOP-02 stays IN_PROGRESS."
   },
   "next_action": {
     "sop": "SOP-02",
-    "id": "perform-universal-artifact-native-ui-regression",
-    "summary": "Download the exact Universal artifact from CI run 33812094698 and perform a fresh local native-window regression of the older-adult entry flow: visible live state, automatic transcript scrolling, immediate draft-project creation, media picker accessibility, conversational interruption recovery and disabled-without-credential Realtime entry. Record screenshots or accessibility-tree evidence without using paid Realtime.",
+    "id": "add-isolated-native-conversation-scroll-qa",
+    "summary": "Add a deterministic, temporary-directory-only native QA scenario under the existing NALU_ENABLE_LOCAL_QA boundary that fills a long conversation and then changes the live transcript. Use it to verify on a downloaded Universal artifact that both message and transcript updates visibly stay anchored at the current turn without requesting microphone permission or modifying user data. Keep the hook unavailable unless the isolated QA environment is exact.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
