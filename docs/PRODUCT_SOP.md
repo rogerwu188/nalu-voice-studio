@@ -661,6 +661,16 @@ Current evidence:
   Runtime/macOS CI jobs passed. Universal artifact `9872175147` has GitHub digest
   `sha256:71b31c0e1f18cb5b019cb5d53a343a63b81b23f84844f33ae27e8203bfb3b2fe`.
   This closes the cross-episode active-event checkpoint, not SOP-07.
+- Commit `d88db800998133c36a329c4a11e9668e6384f47b`, GitHub CI run
+  `33697265338`: every shot submitted to a future paid transport now carries an
+  explicit entry/exit state-delta across position, posture, contact, possession,
+  integrity or momentum. `CHANGE` requires a real changed endpoint; a deliberately
+  static shot must use `INTENTIONAL_HOLD` with a writer-authored dramatic reason.
+  Missing dimensions, duplicate/unknown dimensions, implicit no-change and unreasoned
+  holds fail before provider I/O. All 166 Runtime tests and all four Runtime/macOS CI
+  jobs passed. Universal artifact `9872367379` has GitHub digest
+  `sha256:76ea7e24a9b2614afe9a2f5c79f0b147f0245632c5bd0adf42e1010a22d8b4f0`.
+  This closes the shot state-delta checkpoint, not SOP-07.
 - Still required before `PASS`: a corrected pinned Qingshan release whose registry
   integrity and complete registered tests pass, plus authorized real-provider sandbox
   task/result/receipt evidence. Offline authority and transport doubles are not a paid
