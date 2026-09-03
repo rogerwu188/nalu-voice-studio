@@ -32,6 +32,8 @@ jobs:
       - run: python scripts/check_qingshan_upstream.py
       - name: Reproduce quarantined Qingshan candidate audit
         run: python scripts/audit_qingshan_candidate.py --json
+      - name: Execute exact Qingshan registered test contract
+        run: python scripts/test_qingshan_candidate.py --json
       - name: Test pinned Qingshan contract change
         working-directory: vendor/qingshan
         run: python -m unittest tools.tests.test_grouped_performance_contract

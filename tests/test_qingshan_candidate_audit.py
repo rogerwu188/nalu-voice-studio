@@ -23,6 +23,15 @@ def load_isolated_auditor():
     return module
 
 
+def load_registered_test_auditor():
+    path = Path(__file__).resolve().parents[1] / "scripts/test_qingshan_candidate.py"
+    spec = importlib.util.spec_from_file_location("test_qingshan_candidate_runner", path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 def test_candidate_audit_is_quarantined_and_fail_closed() -> None:
     checker = load_checker()
     manifest = json.loads(checker.MANIFEST_PATH.read_text())
@@ -50,6 +59,13 @@ def test_candidate_audit_is_quarantined_and_fail_closed() -> None:
     assert audit["writer_v2_status"] == "PASS"
     assert audit["writer_provenance_schema"] == "qingshan.canonical_writer_provenance.v1"
     assert "default" in audit["writer_generic_model_aliases"]
+    assert audit["registered_test_execution_performed"] is True
+    assert audit["registered_test_status"] == "PASS"
+    assert audit["registered_test_module_count"] == 33
+    assert audit["registered_portable_test_count"] == 208
+    assert audit["registered_portable_skipped_count"] == 1
+    assert audit["registered_writer_test_count"] == 6
+    assert audit["registered_test_failures"] == []
 
 
 def test_latest_release_is_covered_only_by_active_or_reviewed_record() -> None:
@@ -75,6 +91,39 @@ def test_candidate_audit_rejects_false_promotion_and_unknown_failures() -> None:
     failures = checker.verify_candidate_audit(manifest, tampered)
     assert "candidate audit contains an unsupported failure classification" in failures
     assert "failed candidate audit must remain quarantined and fail closed" in failures
+
+
+def test_candidate_audit_rejects_incomplete_registered_test_evidence() -> None:
+    checker = load_checker()
+    manifest = json.loads(checker.MANIFEST_PATH.read_text())
+    audit = json.loads(checker.CANDIDATE_AUDIT_PATH.read_text())
+    tampered = deepcopy(audit)
+    tampered["registered_test_status"] = "NOT_RUN"
+    tampered["registered_portable_test_count"] = 0
+
+    assert (
+        "candidate registered-test evidence is incomplete"
+        in checker.verify_candidate_audit(manifest, tampered)
+    )
+
+
+def test_registered_test_comparison_rejects_count_drift() -> None:
+    runner = load_registered_test_auditor()
+    expected = {
+        "registered_test_execution_performed": True,
+        "registered_test_status": "PASS",
+        "registered_test_module_count": 33,
+        "registered_portable_test_count": 208,
+        "registered_portable_skipped_count": 1,
+        "registered_writer_test_count": 6,
+        "registered_test_failures": [],
+    }
+    actual = deepcopy(expected)
+    actual["registered_portable_test_count"] = 207
+
+    assert runner.compare_test_evidence(actual, expected) == [
+        "candidate registered-test drift: registered_portable_test_count"
+    ]
 
 
 def test_candidate_audit_rejects_unportable_public_interface() -> None:

@@ -145,11 +145,27 @@ def verify_candidate_audit(manifest: dict, audit: dict) -> list[str]:
         or audit.get("writer_v2_failures") != []
     ):
         failures.append("candidate Writer v2 provenance contract is not portable")
+    registered_counts = (
+        audit.get("registered_test_module_count"),
+        audit.get("registered_portable_test_count"),
+        audit.get("registered_portable_skipped_count"),
+        audit.get("registered_writer_test_count"),
+    )
+    registered_test_record_valid = (
+        audit.get("registered_test_execution_performed") is True
+        and audit.get("registered_test_status") == "PASS"
+        and all(isinstance(value, int) and value >= 0 for value in registered_counts)
+        and audit.get("registered_test_module_count", 0) > 0
+        and audit.get("registered_portable_test_count", 0) > 0
+        and audit.get("registered_writer_test_count", 0) > 0
+        and audit.get("registered_test_failures") == []
+    )
+    if not registered_test_record_valid:
+        failures.append("candidate registered-test evidence is incomplete")
     if (
         audit.get("promotion_status") != "QUARANTINED"
         or audit.get("paid_execution_allowed") is not False
         or audit.get("replaces_active_pin") is not False
-        or audit.get("registered_test_execution_performed") is not False
     ):
         failures.append("failed candidate audit must remain quarantined and fail closed")
     return failures
@@ -203,7 +219,7 @@ def main() -> int:
         f"{candidate_audit['candidate_release']} @ {candidate_audit['candidate_commit']} "
         f"(registry={candidate_audit['integrity_status']}, "
         f"public_interface={candidate_audit['public_interface_status']}, "
-        "registered_tests=not_run)"
+        f"registered_tests={candidate_audit['registered_test_status']})"
     )
 
     if args.check_latest:
