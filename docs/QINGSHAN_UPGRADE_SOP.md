@@ -36,25 +36,30 @@ It may support local contract work, but cannot authorize a paid request. Any add
 changed failure is unreviewed drift and fails closed. The exception must be removed—not
 carried forward—when the corrected upstream release is promoted.
 
-The latest reviewed candidate is `v2026.09.02.2` at commit
-`671dfb09f62fbf0f6f9911bad52a40a5a80cd327`. Relative to the previous reviewed
-`v2026.09.01.7` candidate, the release changes 53 files (2,929 insertions and 120
-deletions) and adds same-scene chained opening anchors, entry-state-only keyframe
-generation, explicit editorial source windows, decoded-frame integrity telemetry and
-stronger combat, prop-state, patient-state, camera-authority and cross-episode event
-continuity contracts. Nalu reviews those contracts independently without promoting or
-running the quarantined candidate. An isolated checkout still fails the upstream
-registry-integrity function:
-69 gates, 66 coded/runtime-bound gates, eight missing registered paths and one
-host-specific absolute test path. The upstream validator can accidentally accept that
-absolute path on the machine where the unrelated file exists, so Nalu independently
-rejects every absolute registered path before considering promotion.
+The latest reviewed candidate is `v2026.09.03.3` at commit
+`c88f875ceb1c6b5bbee037149af44594cbe9a53d`. Relative to the previous reviewed
+`v2026.09.02.2` candidate, the release changes 78 files (7,290 insertions and 2,639
+deletions) and adds the MIT-licensed `qingshan` 0.3.0 public CLI, a portable-core
+manifest, repository-owned submission and release preflight entry points, and a stock
+FFmpeg timeline renderer. Nalu reviews those surfaces independently without importing,
+installing, or running the quarantined candidate. The isolated static audit proves the
+package metadata, zero-dependency core, stable CLI entry point, portable required-file
+closure and absence of private BacklotOS/AgentCut imports in the public package. The
+upstream registry still fails independently: 69 gates and all 66 coded gates are
+runtime-bound, but eight registered evidence paths are missing. The previous
+host-specific absolute test path is fixed.
 `configs/qingshan-candidate-audit.json` binds
 the exact candidate tree, registry digest and failure list. CI validates that the record
-remains `QUARANTINED`, cannot replace the active pin, cannot authorize paid execution
-and does not misreport the unrun complete registered suite as passing.
+remains `QUARANTINED`, cannot replace the active pin, cannot authorize paid execution,
+requires its public interface to remain portable and does not misreport the unrun
+complete registered suite as passing.
 Daily discovery treats both the active pin and this exact reviewed candidate as covered;
 only a newer, unaudited tag opens a new deduplicated upgrade issue.
+Product commit `0fe4cf18f2edc79b007be1970fecf99092d91590` passed all four jobs in
+GitHub CI run `33788826554`; Universal artifact `9906713225` has GitHub digest
+`sha256:ac7bfccd624c6405a23977f1ef399eb14e433179370e0846e162d426e65722fa`.
+This evidence closes only the public-interface audit checkpoint, not candidate promotion
+or SOP-07.
 
 Nalu productized two safe `v2026.09.01.7` contracts without copying its runtime into the
 paid path: exact adapter/profile/logical/provider model identity at the final I/O boundary,

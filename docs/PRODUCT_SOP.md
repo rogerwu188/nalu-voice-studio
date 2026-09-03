@@ -671,6 +671,23 @@ Current evidence:
   jobs passed. Universal artifact `9872367379` has GitHub digest
   `sha256:76ea7e24a9b2614afe9a2f5c79f0b147f0245632c5bd0adf42e1010a22d8b4f0`.
   This closes the shot state-delta checkpoint, not SOP-07.
+- Commit `0fe4cf18f2edc79b007be1970fecf99092d91590`, GitHub CI run
+  `33788826554`: Nalu independently checked out Qingshan `v2026.09.03.3` at exact
+  commit `c88f875ceb1c6b5bbee037149af44594cbe9a53d`, recomputed the 1,819-file tree
+  SHA-256 `4de2cbe4be467e706f35ad68509af5ac5912cca0438e5aaf2c188599c27ca12e`
+  and changed registry SHA-256
+  `caa51794451e33c5d0c3c1e7cc08c7e3d54293ce149509c12350dd84caed878e`.
+  A new no-execution audit verifies the MIT license binding, zero-dependency core,
+  stable `qingshan_engine.cli:main` entry point, version-matched portable-core manifest,
+  complete relative required-file closure and absence of private BacklotOS/AgentCut
+  imports in the public package. The former absolute-path defect is fixed, but eight
+  registered evidence paths are still missing, so the candidate remains quarantined,
+  cannot replace the active pin and cannot authorize paid execution. All 168 Runtime
+  tests, clean Linux candidate reproduction, HTTP/offline E2E, Swift tests, arm64,
+  Intel and Universal builds, bundled-Runtime smoke, staged update and rollback passed.
+  Universal artifact `9906713225` has GitHub digest
+  `sha256:ac7bfccd624c6405a23977f1ef399eb14e433179370e0846e162d426e65722fa`.
+  This closes the public-engine-interface audit checkpoint, not SOP-07.
 - Still required before `PASS`: a corrected pinned Qingshan release whose registry
   integrity and complete registered tests pass, plus authorized real-provider sandbox
   task/result/receipt evidence. Offline authority and transport doubles are not a paid
