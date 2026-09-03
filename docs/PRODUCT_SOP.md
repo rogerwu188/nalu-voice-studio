@@ -688,6 +688,17 @@ Current evidence:
   Universal artifact `9906713225` has GitHub digest
   `sha256:ac7bfccd624c6405a23977f1ef399eb14e433179370e0846e162d426e65722fa`.
   This closes the public-engine-interface audit checkpoint, not SOP-07.
+- Commit `562c602b9ffb06b3f222195b9bac45c5ab0dd6b4`, GitHub CI run
+  `33790673885`: the public-interface audit now requires all six stable Qingshan 0.3.0
+  commands (`init`, `doctor`, `test`, `writer-doctor`, `video-preflight` and
+  `release-preflight`) and binds the repository-owned production gate, standard
+  submitter, platform release preflight and stock-FFmpeg renderer as portable-core
+  entry points. This deliberately does not replace Nalu's stricter durable submitter,
+  package-bound authorization, idempotency, ambiguous-charge quarantine or decoded-media
+  release QA. All 168 Runtime tests and all four Runtime/macOS CI jobs passed; Universal
+  artifact `9907427075` has GitHub digest
+  `sha256:0d66ea1c90551f4ccacff5dbaf64cb9b66a1dffa96e8163498b0fee8aff32b4f`.
+  This closes the portable-command-surface checkpoint, not SOP-07.
 - Still required before `PASS`: a corrected pinned Qingshan release whose registry
   integrity and complete registered tests pass, plus authorized real-provider sandbox
   task/result/receipt evidence. Offline authority and transport doubles are not a paid

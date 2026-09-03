@@ -60,6 +60,12 @@ GitHub CI run `33788826554`; Universal artifact `9906713225` has GitHub digest
 `sha256:ac7bfccd624c6405a23977f1ef399eb14e433179370e0846e162d426e65722fa`.
 This evidence closes only the public-interface audit checkpoint, not candidate promotion
 or SOP-07.
+Commit `562c602b9ffb06b3f222195b9bac45c5ab0dd6b4` then bound all six public CLI
+commands and the four repository-owned render/submit/release entry points. GitHub CI run
+`33790673885` passed all four jobs; Universal artifact `9907427075` has digest
+`sha256:0d66ea1c90551f4ccacff5dbaf64cb9b66a1dffa96e8163498b0fee8aff32b4f`.
+Nalu keeps its stronger paid-transaction and decoded-media controls instead of adopting
+the upstream fallback as authority.
 
 Nalu productized two safe `v2026.09.01.7` contracts without copying its runtime into the
 paid path: exact adapter/profile/logical/provider model identity at the final I/O boundary,
