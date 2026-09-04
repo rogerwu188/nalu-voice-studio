@@ -2999,6 +2999,24 @@ def test_child_biometric_import_requires_guardian_without_leaving_data(
     assert records[0]["action_type"] == "granted"
     assert records[0]["guardian_approved"] is True
 
+    legacy_registration = api.post(
+        f"/v1/projects/{project['id']}/assets",
+        json={
+            "kind": kind,
+            "name": "绕过导入接口的登记尝试",
+            "local_uri": asset["local_uri"],
+            "subject_name": "小主人公",
+            "consent_granted": True,
+            "consent_scope": "project_only",
+            "consent_granted_by": "监护人",
+            "consent_statement": "我同意这份素材仅用于本项目",
+        },
+    )
+    assert legacy_registration.status_code == 409
+    assert "guardian approval" in legacy_registration.text
+    stored_assets = api.get(f"/v1/projects/{project['id']}/assets").json()
+    assert [stored["id"] for stored in stored_assets] == [asset["id"]]
+
 
 def test_local_asset_import_consent_revocation_and_path_safety(tmp_path: Path) -> None:
     api = client(tmp_path)
