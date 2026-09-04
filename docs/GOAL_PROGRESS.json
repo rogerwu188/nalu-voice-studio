@@ -11,26 +11,26 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "e195c32c1cbfc745a4672bf5feae3022edca881f",
-  "last_advanced_at": "2026-09-04T10:16:27Z",
+  "observed_head": "4d5d9aa38f6a663467685cc4d0805e44caf7b13f",
+  "last_advanced_at": "2026-09-04T10:27:23Z",
   "last_closed_checkpoint": {
-    "id": "recheck-qingshan-upstream-release",
-    "sop": "SOP-07",
-    "product_commit": "e195c32c1cbfc745a4672bf5feae3022edca881f",
-    "evidence_commit": "e195c32c1cbfc745a4672bf5feae3022edca881f",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33861854771",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33861854771/artifacts/9932589694",
+    "id": "bind-season-plan-approval-revision",
+    "sop": "SOP-03",
+    "product_commit": "222667607d849750033a2baa78a96a270bc7524b",
+    "evidence_commit": "4d5d9aa38f6a663467685cc4d0805e44caf7b13f",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33862585733",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33862585733/artifacts/9932880048",
     "result": "PASS"
   },
   "current_checkpoint": {
     "sop": "SOP-03",
     "status": "IN_PROGRESS",
-    "summary": "Credential-free discovery confirmed v2026.09.03.8 remains the latest reviewed Qingshan candidate and its public-interface mismatch remains quarantined; all CI jobs passed without changing the active pin or using a provider. Work advances to the stale season-plan approval authority found during current SOP-03 revalidation."
+    "summary": "Season-plan approval is now bound to the exact displayed revision and stale or omitted revisions fail closed under the SQLite write lock; all CI jobs passed. Work continues on the remaining SOP-03 hierarchy-creation transaction boundary."
   },
   "next_action": {
     "sop": "SOP-03",
-    "id": "bind-season-plan-approval-revision",
-    "summary": "Require every native season-plan approval to identify the exact displayed plan revision, reject omitted or stale revisions inside the SQLite write transaction, preserve v1 schema compatibility and prove the client/server path in full CI.",
+    "id": "harden-season-episode-creation-authority",
+    "summary": "Revalidate project and season ownership inside the same SQLite write transaction as season or episode creation, distinguish missing-parent failures from duplicate numbering, and prove no partial plan snapshot survives a stale preflight.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
