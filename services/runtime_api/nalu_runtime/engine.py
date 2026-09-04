@@ -918,7 +918,7 @@ class ProductionService:
                             "failure_count": len(existing.failures),
                         },
                     )
-                    return existing
+                    report = existing
             except (OSError, ValueError):
                 pass
         replace_text_durably(report_path, report.model_dump_json(indent=2) + "\n")
@@ -1038,7 +1038,7 @@ class ProductionService:
                             "semantic_asr_verified": False,
                         },
                     )
-                    return existing
+                    report = existing
             except (OSError, ValueError):
                 pass
         replace_text_durably(report_path, report.model_dump_json(indent=2) + "\n")
@@ -1148,6 +1148,7 @@ class ProductionService:
             report_sha256=self._canonical_sha256(body),
         )
         report_path = self._run_directory(run) / "postproduction-lineage-qa.json"
+        replayed_report = False
         if report_path.is_file():
             try:
                 existing = PostproductionLineageQAReport.model_validate_json(
@@ -1181,14 +1182,19 @@ class ProductionService:
                             "failure_count": len(existing.failures),
                         },
                     )
-                    return existing
+                    report = existing
+                    replayed_report = True
             except (OSError, ValueError):
                 pass
-            raise ConflictError("postproduction lineage QA already exists with different evidence")
-        try:
-            publish_exclusive_text(report_path, report.model_dump_json(indent=2) + "\n")
-        except FileExistsError as exc:
-            raise ConflictError("postproduction lineage QA was recorded concurrently") from exc
+            if not replayed_report:
+                raise ConflictError(
+                    "postproduction lineage QA already exists with different evidence"
+                )
+        if not replayed_report:
+            try:
+                publish_exclusive_text(report_path, report.model_dump_json(indent=2) + "\n")
+            except FileExistsError as exc:
+                raise ConflictError("postproduction lineage QA was recorded concurrently") from exc
         self.repository.append_run_event_once(
             run.id,
             "postproduction_lineage_qa_completed",
@@ -1313,6 +1319,7 @@ class ProductionService:
             report_sha256=self._canonical_sha256(body),
         )
         report_path = self._run_directory(run) / "visual-continuity-qa.json"
+        replayed_report = False
         if report_path.is_file():
             try:
                 existing = self.stored_visual_continuity_qa(run_id)
@@ -1341,14 +1348,17 @@ class ProductionService:
                             "human_review_replaced": False,
                         },
                     )
-                    return existing
+                    report = existing
+                    replayed_report = True
             except ConflictError:
                 pass
-            raise ConflictError("visual continuity QA already exists with different evidence")
-        try:
-            publish_exclusive_text(report_path, report.model_dump_json(indent=2) + "\n")
-        except FileExistsError as exc:
-            raise ConflictError("visual continuity QA was recorded concurrently") from exc
+            if not replayed_report:
+                raise ConflictError("visual continuity QA already exists with different evidence")
+        if not replayed_report:
+            try:
+                publish_exclusive_text(report_path, report.model_dump_json(indent=2) + "\n")
+            except FileExistsError as exc:
+                raise ConflictError("visual continuity QA was recorded concurrently") from exc
         self.repository.append_run_event_once(
             run.id,
             "visual_continuity_qa_completed",
@@ -1544,6 +1554,7 @@ class ProductionService:
             report_sha256=self._canonical_sha256(body),
         )
         report_path = self._run_directory(run) / "semantic-media-qa.json"
+        replayed_report = False
         if report_path.is_file():
             existing = self.stored_semantic_media_qa(run_id)
             if (
@@ -1572,12 +1583,15 @@ class ProductionService:
                         ),
                     },
                 )
-                return existing
-            raise ConflictError("semantic media QA already exists with different evidence")
-        try:
-            publish_exclusive_text(report_path, report.model_dump_json(indent=2) + "\n")
-        except FileExistsError as exc:
-            raise ConflictError("semantic media QA was created concurrently") from exc
+                report = existing
+                replayed_report = True
+            if not replayed_report:
+                raise ConflictError("semantic media QA already exists with different evidence")
+        if not replayed_report:
+            try:
+                publish_exclusive_text(report_path, report.model_dump_json(indent=2) + "\n")
+            except FileExistsError as exc:
+                raise ConflictError("semantic media QA was created concurrently") from exc
         self.repository.append_run_event_once(
             run.id,
             "semantic_media_qa_completed",

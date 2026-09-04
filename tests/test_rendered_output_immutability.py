@@ -989,6 +989,50 @@ def test_media_qa_recovers_exactly_one_event_after_durable_report_crash(
         )
 
 
+def test_failed_media_qa_recovers_repair_plan_after_event_commit_crash(tmp_path: Path) -> None:
+    api = client(tmp_path)
+    _project, episode, _entity = approved_episode_with_library(api)
+    run = api.post(
+        f"/v1/episodes/{episode['id']}/production-runs", json={"dry_run": True}
+    ).json()
+    api.app.state.repository.update_run_status(run["id"], RunStatus.QA_REVIEW)
+    run_directory = Path(run["package_path"]).parent
+    exports = run_directory / "qingshan-workspace" / "exports"
+    (exports / "E01_MASTER.mp4").write_bytes(b"invalid-mp4-fixture")
+    (exports / "E01_zh-CN.vtt").write_text(
+        "WEBVTT\n\n00:00.000 --> 00:01.000\n回家\n", encoding="utf-8"
+    )
+    api.post(
+        f"/v1/production-runs/{run['id']}/rendered-output-seal", json=seal_payload()
+    ).raise_for_status()
+
+    production = api.app.state.production
+    with (
+        patch.object(
+            production,
+            "_record_postproduction_repair_plan",
+            side_effect=RuntimeError("simulated exit before repair plan"),
+        ),
+        pytest.raises(RuntimeError, match="simulated exit"),
+    ):
+        api.post(f"/v1/production-runs/{run['id']}/media-structure-qa")
+
+    assert (run_directory / "media-structure-qa.json").is_file()
+    assert not (run_directory / "postproduction-repair-plan.json").exists()
+    restarted = client(tmp_path)
+    replay = restarted.post(f"/v1/production-runs/{run['id']}/media-structure-qa")
+    assert replay.status_code == 200
+    assert replay.json()["status"] == "FAIL"
+    repair = restarted.get(
+        f"/v1/production-runs/{run['id']}/postproduction-repair-plan"
+    )
+    assert repair.status_code == 200
+    assert [task["code"] for task in repair.json()["repair_tasks"]] == ["mp4_structure"]
+    events = restarted.get(f"/v1/production-runs/{run['id']}/events").json()
+    assert sum(event["event_type"] == "media_structure_qa_completed" for event in events) == 1
+    assert sum(event["event_type"] == "postproduction_repair_required" for event in events) == 1
+
+
 def test_verified_seal_and_human_qa_complete_atomically_and_retry_safely(
     tmp_path: Path,
 ) -> None:
