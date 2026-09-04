@@ -632,6 +632,17 @@ Current evidence:
   suites and architecture builds, Universal merge, bundle smoke, project-isolation
   rehearsal, staged update and rollback. This closes the deterministic stale-inventory
   deletion checkpoint, not human privacy/deletion, OCR or signed-install acceptance.
+- Commit `0db49b5bf0668cb349999fdb72417c3c3c49ddd8`, GitHub CI run
+  `33857969942` and Universal artifact `9931137482` (artifact digest
+  `sha256:9fab715a9365bed08ad1d0c85e0cd41ecf8884d4d2c8faa996acf87e578a102f`):
+  privacy export reads each managed medium exactly once, verifies that byte snapshot
+  against its import-time SHA-256 when available, and writes those same bytes into the
+  ZIP. Modified local media now fails closed before an archive is created; after the
+  original bytes are restored, the archived payload, manifest byte count and manifest
+  digest agree exactly. CI passed 240 Runtime tests, both native Swift suites and
+  architecture builds, Universal merge, bundle smoke, project-isolation rehearsal,
+  staged update and rollback. This closes the deterministic privacy-export byte-integrity
+  checkpoint, not human privacy/deletion, OCR or signed-install acceptance.
 - Still required before `PASS`: human privacy/deletion QA and clean-account OCR,
   correction and voice archive QA on the same signed release candidate. Automated
   Computer Use crashed while opening the new asset sheet, while Nalu stayed running,
