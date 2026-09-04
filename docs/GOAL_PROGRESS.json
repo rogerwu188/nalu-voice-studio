@@ -23,9 +23,9 @@
     "result": "PASS"
   },
   "current_checkpoint": {
-    "sop": "SOP-03",
+    "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "The current Universal packaged Runtime created and approved ten ordered episodes in isolated SQLite, survived a real process restart, and restored the versioned project export into a clean database with matching state and verified evidence/package digests. SOP-03 remains incomplete only on clean-account native-window, voice-only and accessibility acceptance, so safe work advances while those gates remain fail-closed."
+    "summary": "The current Universal packaged Runtime created and approved ten ordered episodes in isolated SQLite, survived a real process restart, and restored the versioned project export into a clean database with matching state and verified evidence/package digests. SOP-03 remains incomplete only on clean-account native-window, voice-only and accessibility acceptance; current safe work is revalidating SOP-04 script authority on the same candidate."
   },
   "next_action": {
     "sop": "SOP-04",
