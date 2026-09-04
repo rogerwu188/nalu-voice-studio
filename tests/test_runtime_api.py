@@ -2941,6 +2941,65 @@ def test_biometric_asset_requires_consent(tmp_path: Path) -> None:
     assert response.status_code == 422
 
 
+@pytest.mark.parametrize(
+    ("kind", "filename", "content_type"),
+    [
+        ("character_image", "child.jpg", "image/jpeg"),
+        ("voice_reference", "child.m4a", "audio/mp4"),
+    ],
+)
+def test_child_biometric_import_requires_guardian_without_leaving_data(
+    tmp_path: Path,
+    kind: str,
+    filename: str,
+    content_type: str,
+) -> None:
+    api = client(tmp_path)
+    project = api.post(
+        "/v1/projects",
+        json={"title": "儿童故事", "audience_mode": "child"},
+    ).json()
+    endpoint = f"/v1/projects/{project['id']}/asset-imports"
+    consent = {
+        "filename": filename,
+        "kind": kind,
+        "name": "儿童人物素材",
+        "subject_name": "小主人公",
+        "consent_granted": True,
+        "consent_scope": "project_only",
+        "consent_granted_by": "监护人",
+        "consent_statement": "我同意这份素材仅用于本项目",
+    }
+
+    rejected = api.post(
+        endpoint,
+        params=consent,
+        content=b"biometric-fixture",
+        headers={"Content-Type": content_type},
+    )
+
+    assert rejected.status_code == 409
+    assert "guardian approval" in rejected.text
+    assert api.get(f"/v1/projects/{project['id']}/assets").json() == []
+    project_asset_root = tmp_path / "data" / "assets" / project["id"]
+    assert not project_asset_root.exists()
+
+    accepted = api.post(
+        endpoint,
+        params={**consent, "guardian_approved": True},
+        content=b"biometric-fixture",
+        headers={"Content-Type": content_type},
+    )
+    assert accepted.status_code == 201
+    asset = accepted.json()
+    assert asset["guardian_approved"] is True
+    assert len(list(project_asset_root.rglob(filename))) == 1
+    records = api.get(f"/v1/assets/{asset['id']}/consent-records").json()
+    assert len(records) == 1
+    assert records[0]["action_type"] == "granted"
+    assert records[0]["guardian_approved"] is True
+
+
 def test_local_asset_import_consent_revocation_and_path_safety(tmp_path: Path) -> None:
     api = client(tmp_path)
     project, _, episode = create_approved_episode(api)
