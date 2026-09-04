@@ -2257,6 +2257,25 @@ Current evidence:
   closes the packaged evidence-provenance checkpoint only: real platform authorization,
   publication/metrics reconciliation, human VoiceOver/readback acceptance, Developer ID
   signing and notarization remain absent, so SOP-10 remains `IN_PROGRESS`.
+- Product commit `2687b50a34e4f95bd50023d6fee9deeca251ca17`, GitHub CI run
+  `33885124622`: offline release packages and platform-specific publication dry-runs now
+  use synced exclusive publication, so their private file bytes and parent-directory
+  entry are durable before SQLite audit acknowledgement. The exact-replay paths bind the
+  immutable manifest or plan digest to an idempotent event and restore a missing event
+  after restart without rewriting the file or performing a network call. The integration
+  fixture forced a process exit after each durable file but before its event commit,
+  restarted the Runtime twice, verified byte-for-byte and SHA-256 stability, and observed
+  exactly one recovered release-package event and one recovered dry-run event. Changed
+  title or channel metadata remains conflict-blocked. All 278 Runtime tests and the
+  Runtime, Apple Silicon, Intel and Universal jobs passed, including bundled-Runtime
+  smoke, project isolation, staged update, populated rollback and controlled-evolution
+  checks. Runtime QA artifact `9941635878` has digest
+  `sha256:2f4e0cf5c1124d31d8f845b318b8bf637dee48df9946631bddb13a75c3a86642`;
+  Universal artifact `9941733901` has digest
+  `sha256:729dbdd8dc2059c64204fec30619422116ce53079aad8f2175e68260a1f8887f`.
+  This closes the deterministic local release-file/event crash boundary only. It is not
+  authorized test-channel publication, remote reconciliation, signing, notarization or
+  SOP-10 completion.
 
 ## SOP-11 · macOS packaging, updates and operations — IN_PROGRESS
 
