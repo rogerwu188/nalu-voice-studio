@@ -558,14 +558,23 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
     window.naluRealtime = (() => {
       let pc = null, dc = null, stream = null, audio = null, disconnectTimer = null;
       let responseActive = false;
+      let stopping = false, failurePosted = false;
       const post = (kind, value) => window.webkit.messageHandlers.naluRealtime.postMessage({kind, value});
+      function fail(message) {
+        if (stopping || failurePosted) return;
+        failurePosted = true;
+        post("error", message);
+        stop(false, false);
+      }
       async function start(token) {
         try {
-          stop();
+          stop(false);
+          stopping = false;
+          failurePosted = false;
           post("status", "connecting");
           pc = new RTCPeerConnection();
           pc.onconnectionstatechange = () => {
-            if (!pc) return;
+            if (!pc || stopping) return;
             if (pc.connectionState === "connected") {
               if (disconnectTimer) clearTimeout(disconnectTimer);
               disconnectTimer = null;
@@ -575,11 +584,11 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
               if (disconnectTimer) clearTimeout(disconnectTimer);
               disconnectTimer = setTimeout(() => {
                 if (pc && pc.connectionState === "disconnected") {
-                  post("error", "网络连接中断，请检查网络后重新连接");
+                  fail("网络连接中断，请检查网络后重新连接");
                 }
               }, 3000);
             } else if (pc.connectionState === "failed") {
-              post("error", "实时语音连接已失败，请重新连接");
+              fail("实时语音连接已失败，请重新连接");
             }
           };
           audio = document.createElement("audio");
@@ -589,22 +598,31 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
           stream = await navigator.mediaDevices.getUserMedia({audio: true});
           pc.addTrack(stream.getTracks()[0]);
           dc = pc.createDataChannel("\#(RealtimeAPIContract.dataChannelLabel)");
-          dc.addEventListener("open", () => post("status", "connected"));
+          const channel = dc;
+          dc.addEventListener("open", () => {
+            if (!stopping && dc === channel) post("status", "connected");
+          });
+          dc.addEventListener("error", () => {
+            if (dc === channel) fail("实时语音通道发生错误，请重新连接");
+          });
+          dc.addEventListener("close", () => {
+            if (dc === channel) fail("实时语音通道已断开，请重新连接");
+          });
           dc.addEventListener("message", event => {
             if (typeof event.data !== "string" || event.data.length > 1048576) {
-              post("error", "实时语音消息过大或格式不正确，请重新连接");
+              fail("实时语音消息过大或格式不正确，请重新连接");
               return;
             }
             let value;
             try {
               value = JSON.parse(event.data);
             } catch (_) {
-              post("error", "实时语音消息无法读取，请重新连接");
+              fail("实时语音消息无法读取，请重新连接");
               return;
             }
             if (!value || typeof value !== "object" || Array.isArray(value) ||
                 typeof value.type !== "string") {
-              post("error", "实时语音消息缺少类型，请重新连接");
+              fail("实时语音消息缺少类型，请重新连接");
               return;
             }
             if (value.type === "input_audio_buffer.speech_started") post("status", "listening");
@@ -630,7 +648,7 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
               }));
             }
             if (value.type === "error") {
-              post("error", value.error?.message || value.message || "实时语音发生错误");
+              fail(value.error?.message || value.message || "实时语音发生错误");
             }
           });
           const offer = await pc.createOffer();
@@ -642,11 +660,11 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
           if (!response.ok) throw new Error("实时语音连接失败（" + response.status + "）");
           await pc.setRemoteDescription({type: "answer", sdp: await response.text()});
         } catch (error) {
-          post("error", error.message || "实时语音连接失败");
-          stop(false);
+          fail(error.message || "实时语音连接失败");
         }
       }
-      function stop(notify = true) {
+      function stop(notify = true, intentional = true) {
+        if (intentional) stopping = true;
         if (disconnectTimer) clearTimeout(disconnectTimer);
         disconnectTimer = null;
         if (dc) dc.close();

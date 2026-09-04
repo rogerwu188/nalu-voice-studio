@@ -173,6 +173,18 @@ final class RealtimeVoiceConfigurationTests: XCTestCase {
         XCTAssertTrue(RealtimeVoiceCoordinator.webRTCPage.contains("Array.isArray(value)"))
     }
 
+    func testEmbeddedPageConvergesChannelFailuresAndKeepsIntentionalStopQuiet() {
+        let page = RealtimeVoiceCoordinator.webRTCPage
+        XCTAssertTrue(page.contains("if (stopping || failurePosted) return"))
+        XCTAssertTrue(page.contains("failurePosted = true"))
+        XCTAssertTrue(page.contains(#"addEventListener("error""#))
+        XCTAssertTrue(page.contains(#"addEventListener("close""#))
+        XCTAssertTrue(page.contains("if (dc === channel) fail"))
+        XCTAssertTrue(page.contains("function stop(notify = true, intentional = true)"))
+        XCTAssertTrue(page.contains("if (intentional) stopping = true"))
+        XCTAssertTrue(page.contains("stop(false, false)"))
+    }
+
     func testInterviewToolCallAllowsOnlyExactNarrowSchema() throws {
         let valid = RealtimeInterviewToolCall.parse([
             "kind": "tool",
