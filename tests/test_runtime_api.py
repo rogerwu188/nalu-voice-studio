@@ -14,6 +14,7 @@ import nalu_runtime.asset_service as asset_service_module
 import nalu_runtime.engine as engine_module
 import pytest
 from fastapi.testclient import TestClient
+from jsonschema import Draft202012Validator
 from nalu_runtime.app import create_app
 from nalu_runtime.development_handoff import (
     DevelopmentHandoffLookup,
@@ -42,6 +43,13 @@ from nalu_runtime.models import (
 from nalu_runtime.qingshan_adapter import QingshanAdapterError
 from nalu_runtime.release_evidence import ReleaseEvidenceVerification
 from nalu_runtime.repository import ConflictError, NotFoundError
+
+
+def canonical_sha256(value: object) -> str:
+    encoded = json.dumps(
+        value, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
 
 
 def client(tmp_path: Path) -> TestClient:
@@ -4724,6 +4732,29 @@ def test_qingshan_models_use_distinct_versioned_compilers(tmp_path: Path) -> Non
             == (manifest["model_compilation_sha256"])
         )
         compilations[requested_model] = json.loads(compilation_path.read_text(encoding="utf-8"))
+
+    schema = json.loads(
+        Path("contracts/qingshan-model-compilation.schema.json").read_text(encoding="utf-8")
+    )
+    Draft202012Validator.check_schema(schema)
+    validator = Draft202012Validator(schema)
+    for compilation in compilations.values():
+        validator.validate(compilation)
+        sealed = deepcopy(compilation)
+        compilation_sha256 = sealed.pop("compilation_sha256")
+        assert canonical_sha256(sealed) == compilation_sha256
+
+    seedance_contract = compilations["seedance-2.0-pro"]["paid_boundary_contract"]
+    for required_field in seedance_contract:
+        changed = deepcopy(compilations["seedance-2.0-pro"])
+        changed["paid_boundary_contract"].pop(required_field)
+        assert list(validator.iter_errors(changed)), required_field
+    changed = deepcopy(compilations["seedance-2.0-pro"])
+    changed["paid_boundary_contract"]["unreviewed_field"] = True
+    assert list(validator.iter_errors(changed))
+    changed = deepcopy(compilations["MiniMax-H3"])
+    changed["provider_contract"]["unreviewed_field"] = True
+    assert list(validator.iter_errors(changed))
 
     seedance = compilations["seedance-2.0-pro"]
     h3 = compilations["MiniMax-H3"]

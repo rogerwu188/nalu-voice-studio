@@ -36,6 +36,13 @@ model binding, and workspace file binding. A stale package, hand-edited compiler
 model mismatch, unknown model, or attempt to enable paid submission in the local compiler
 fails closed.
 
+The committed Draft 2020-12 JSON Schema is an executable closed contract for compiler
+version `1.7.0`, not a descriptive subset. It enumerates every provider and paid-boundary
+field, couples model, adapter, profile, native limits and provider contract, and rejects
+unknown properties. CI validates generated Seedance and H3 compilations, independently
+recomputes their compilation digest, removes every paid-boundary field one at a time, and
+injects unknown paid/provider fields to prove both omission and unreviewed expansion fail.
+
 ## Paid boundary
 
 Compilation is not generation authorization. Its state is always

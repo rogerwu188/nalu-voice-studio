@@ -26,7 +26,7 @@
     "adapter_id": {
       "enum": ["nalu.qingshan.seedance2-pro", "nalu.qingshan.minimax-h3"]
     },
-    "adapter_version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+    "adapter_version": { "const": "1.7.0" },
     "profile_id": {
       "enum": ["SEEDANCE_2_STANDARD_GIGGLE", "MINIMAX_H3_GIGGLE"]
     },
@@ -66,34 +66,162 @@
         "additionalProperties": false
       }
     },
-    "provider_contract": { "type": "object" },
+    "provider_contract": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "schema_version", "generation_mode", "exact_first_frame",
+            "exact_end_frame", "image_reference_transport",
+            "audio_reference_transport", "dialogue_modes",
+            "release_upscale_required_above_native"
+          ],
+          "properties": {
+            "schema_version": { "const": "nalu.seedance2-pro-contract/v1" },
+            "generation_mode": { "const": "MULTI_REFERENCE_IMAGE_TO_VIDEO" },
+            "exact_first_frame": { "const": true },
+            "exact_end_frame": { "const": false },
+            "image_reference_transport": { "const": "PROVIDER_ASSET_ID_OR_PUBLIC_HTTPS" },
+            "audio_reference_transport": { "const": "PROVIDER_ASSET_ID_OR_PUBLIC_HTTPS" },
+            "dialogue_modes": {
+              "const": ["MODEL_NATIVE_TEXT_DIALOGUE", "EXACT_LINE_AUDIO_REFERENCE"]
+            },
+            "release_upscale_required_above_native": { "const": true }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "schema_version", "generation_mode", "exact_first_frame",
+            "exact_end_frame", "maximum_image_references",
+            "image_reference_transport", "audio_video_reference_transport",
+            "dialogue_modes", "fictional_identity_reference_policy",
+            "release_upscale_required_above_native"
+          ],
+          "properties": {
+            "schema_version": { "const": "nalu.minimax-h3-contract/v1" },
+            "generation_mode": { "const": "OMNI_MULTIMODAL" },
+            "exact_first_frame": { "const": true },
+            "exact_end_frame": { "const": true },
+            "maximum_image_references": { "const": 9 },
+            "image_reference_transport": { "const": "PROVIDER_UPLOAD_OR_PUBLIC_HTTPS" },
+            "audio_video_reference_transport": { "const": "PUBLIC_HTTPS_ONLY" },
+            "dialogue_modes": { "const": ["PUBLIC_HTTPS_AUDIO_REFERENCE"] },
+            "fictional_identity_reference_policy": {
+              "const": "SYNTHETIC_FICTIONAL_CHARACTERS_ONLY"
+            },
+            "release_upscale_required_above_native": { "const": true }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
     "paid_boundary_contract": {
       "type": "object",
       "required": [
-        "schema_version",
-        "duration_seconds_required",
-        "minimum_duration_seconds",
-        "maximum_duration_seconds",
+        "schema_version", "adapter_id_required", "profile_id_required",
+        "model_required", "provider_model_id_required", "duration_seconds_required",
+        "minimum_duration_seconds", "maximum_duration_seconds",
+        "exact_rendered_prompt_required", "maximum_prompt_runes",
         "explicit_combat_classification_required",
         "combat_choreography_contract_true_overrides",
         "explicit_noncombat_overrides_negative_prompt_cues",
-        "native_resolution_contract",
-        "delivery_resolution_contract",
-        "native_resolution_must_remain_honestly_labeled",
-        "silent_upscale_forbidden"
+        "native_resolution_contract", "delivery_resolution_contract",
+        "native_resolution_must_remain_honestly_labeled", "silent_upscale_forbidden",
+        "opening_anchor_required", "scene_first_anchor_kind",
+        "same_scene_continuation_anchor_kind", "generated_keyframe_state_contract",
+        "completion_state_leakage_forbidden", "camera_authority_required",
+        "camera_protected_fields", "camera_auto_enrichment_fields",
+        "camera_protected_field_mutation_forbidden",
+        "visible_prop_state_contract_required", "prop_state_endpoint_fields",
+        "prop_ownership_change_requires_writer_authority",
+        "prop_start_frame_visual_confirmation_required",
+        "first_scene_prior_event_relation_required", "prior_event_relations",
+        "continuing_event_static_opening_forbidden",
+        "continuing_event_writer_action_required", "shot_state_delta_contract_required",
+        "shot_state_delta_modes", "shot_state_delta_dimensions",
+        "intentional_hold_requires_writer_reason", "provider_scope_projection_required",
+        "provider_scope_schema", "provider_scope_production_package_binding_required",
+        "provider_scope_complete_character_catalog_required",
+        "episode_global_contract_provider_access_forbidden",
+        "exclusive_visible_living_entity_set_required",
+        "zero_background_population_required", "zero_unbound_living_entity_required",
+        "exclusive_reference_identity_owner_required",
+        "absent_episode_entity_prompt_scan_required"
       ],
       "properties": {
         "schema_version": { "const": "nalu.qingshan-paid-boundary-contract/v1" },
+        "adapter_id_required": {
+          "enum": ["nalu.qingshan.seedance2-pro", "nalu.qingshan.minimax-h3"]
+        },
+        "profile_id_required": {
+          "enum": ["SEEDANCE_2_STANDARD_GIGGLE", "MINIMAX_H3_GIGGLE"]
+        },
+        "model_required": { "enum": ["seedance-2.0-pro", "MiniMax-H3"] },
+        "provider_model_id_required": { "enum": ["seedance-2.0-pro", "MiniMax-H3"] },
         "duration_seconds_required": { "const": true },
         "minimum_duration_seconds": { "enum": [3, 4] },
         "maximum_duration_seconds": { "const": 15 },
+        "exact_rendered_prompt_required": { "const": true },
+        "maximum_prompt_runes": { "const": 10000 },
         "explicit_combat_classification_required": { "const": true },
         "combat_choreography_contract_true_overrides": { "const": true },
         "explicit_noncombat_overrides_negative_prompt_cues": { "const": true },
         "native_resolution_contract": { "enum": ["720p", "768p"] },
         "delivery_resolution_contract": { "enum": ["720p", "768p"] },
         "native_resolution_must_remain_honestly_labeled": { "const": true },
-        "silent_upscale_forbidden": { "const": true }
+        "silent_upscale_forbidden": { "const": true },
+        "opening_anchor_required": { "const": true },
+        "scene_first_anchor_kind": { "const": "GENERATED_ENTRY_KEYFRAME" },
+        "same_scene_continuation_anchor_kind": {
+          "const": "PREVIOUS_ACCEPTED_FINAL_FRAME"
+        },
+        "generated_keyframe_state_contract": { "const": "ENTRY_STATE_ONLY" },
+        "completion_state_leakage_forbidden": { "const": true },
+        "camera_authority_required": { "const": true },
+        "camera_protected_fields": {
+          "const": [
+            "shot_scale", "camera_height", "camera_side", "axis_relation",
+            "motion_family", "motion_direction", "start_framing", "end_framing",
+            "motivation", "lens_intent"
+          ]
+        },
+        "camera_auto_enrichment_fields": {
+          "const": [
+            "lens_mm", "shutter_visual_intent", "depth_of_field_intent",
+            "atmosphere_intent", "effect_intent"
+          ]
+        },
+        "camera_protected_field_mutation_forbidden": { "const": true },
+        "visible_prop_state_contract_required": { "const": true },
+        "prop_state_endpoint_fields": {
+          "const": ["owner", "hand", "position", "disposition"]
+        },
+        "prop_ownership_change_requires_writer_authority": { "const": true },
+        "prop_start_frame_visual_confirmation_required": { "const": true },
+        "first_scene_prior_event_relation_required": { "const": true },
+        "prior_event_relations": { "const": ["CONTINUING", "RESOLVED", "ELAPSED"] },
+        "continuing_event_static_opening_forbidden": { "const": true },
+        "continuing_event_writer_action_required": { "const": true },
+        "shot_state_delta_contract_required": { "const": true },
+        "shot_state_delta_modes": { "const": ["CHANGE", "INTENTIONAL_HOLD"] },
+        "shot_state_delta_dimensions": {
+          "const": [
+            "POSITION", "POSTURE", "CONTACT", "POSSESSION", "INTEGRITY", "MOMENTUM"
+          ]
+        },
+        "intentional_hold_requires_writer_reason": { "const": true },
+        "provider_scope_projection_required": { "const": true },
+        "provider_scope_schema": { "const": "nalu.qingshan-provider-scope/v1" },
+        "provider_scope_production_package_binding_required": { "const": true },
+        "provider_scope_complete_character_catalog_required": { "const": true },
+        "episode_global_contract_provider_access_forbidden": { "const": true },
+        "exclusive_visible_living_entity_set_required": { "const": true },
+        "zero_background_population_required": { "const": true },
+        "zero_unbound_living_entity_required": { "const": true },
+        "exclusive_reference_identity_owner_required": { "const": true },
+        "absent_episode_entity_prompt_scan_required": { "const": true }
       },
       "additionalProperties": false
     },
@@ -125,6 +253,11 @@
         "properties": {
           "adapter_id": { "const": "nalu.qingshan.seedance2-pro" },
           "profile_id": { "const": "SEEDANCE_2_STANDARD_GIGGLE" },
+          "provider_contract": {
+            "properties": {
+              "schema_version": { "const": "nalu.seedance2-pro-contract/v1" }
+            }
+          },
           "planning_defaults": {
             "properties": {
               "native_resolution": { "const": "720p" },
@@ -133,6 +266,10 @@
           },
           "paid_boundary_contract": {
             "properties": {
+              "adapter_id_required": { "const": "nalu.qingshan.seedance2-pro" },
+              "profile_id_required": { "const": "SEEDANCE_2_STANDARD_GIGGLE" },
+              "model_required": { "const": "seedance-2.0-pro" },
+              "provider_model_id_required": { "const": "seedance-2.0-pro" },
               "native_resolution_contract": { "const": "720p" },
               "delivery_resolution_contract": { "const": "720p" },
               "minimum_duration_seconds": { "const": 4 }
@@ -144,6 +281,11 @@
         "properties": {
           "adapter_id": { "const": "nalu.qingshan.minimax-h3" },
           "profile_id": { "const": "MINIMAX_H3_GIGGLE" },
+          "provider_contract": {
+            "properties": {
+              "schema_version": { "const": "nalu.minimax-h3-contract/v1" }
+            }
+          },
           "planning_defaults": {
             "properties": {
               "native_resolution": { "const": "768p" },
@@ -152,6 +294,10 @@
           },
           "paid_boundary_contract": {
             "properties": {
+              "adapter_id_required": { "const": "nalu.qingshan.minimax-h3" },
+              "profile_id_required": { "const": "MINIMAX_H3_GIGGLE" },
+              "model_required": { "const": "MiniMax-H3" },
+              "provider_model_id_required": { "const": "MiniMax-H3" },
               "native_resolution_contract": { "const": "768p" },
               "delivery_resolution_contract": { "const": "768p" },
               "minimum_duration_seconds": { "const": 3 }
