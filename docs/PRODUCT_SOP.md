@@ -1310,6 +1310,23 @@ Current evidence:
   `sha256:315ba4b84575f79111d7c6a8411d7e477ba0a275d325f7d8c3276149e6f7c1c7`.
   This closes the deterministic workspace-publication crash boundary only; it does not
   correct the quarantined upstream release or claim real-provider or paid-task QA.
+- Product commit `29d342a8abb911f464774dcf6f100d21865ffd88`, GitHub CI run
+  `33875530606`: the Qingshan preflight report now uses an exclusive private staging
+  file, complete-write and file sync, atomic replacement, and parent-directory sync.
+  Unsafe public or staging paths fail closed. Automated restart QA interrupted the
+  process after the replacement report became durable but remained private and again
+  after it became public. The first window retained the preceding complete public
+  report and a complete package-bound private replacement; the second exposed only the
+  complete replacement. A fresh Runtime then removed the abandoned staging file and
+  regenerated one valid `PASS` report bound to the same package digest. All 269 Runtime
+  tests and the Runtime, Apple Silicon, Intel and Universal CI jobs passed, including
+  bundled-Runtime smoke, project isolation, staged update, populated rollback and
+  controlled-evolution checks. Runtime QA artifact `9937766365` has digest
+  `sha256:7fc08e2152fc9f6de738e2ba0aba1080e5a79852cac5bc9017ec9d233e2a90a5`;
+  Universal artifact `9937962005` has digest
+  `sha256:5ac14be7076abeec8b5236f4c421d89dd77fd45f22b339274a9901f0f4d8d6f8`.
+  This closes the deterministic preflight-report crash boundary only; it does not
+  correct the quarantined upstream release or claim real-provider or paid-task QA.
 - Still required before `PASS`: a corrected pinned Qingshan release whose registry
   integrity and complete registered tests pass, plus authorized real-provider sandbox
   task/result/receipt evidence. Offline authority and transport doubles are not a paid
