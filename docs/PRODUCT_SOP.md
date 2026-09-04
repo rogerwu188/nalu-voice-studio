@@ -304,6 +304,19 @@ Current evidence:
   CI passed 193 Runtime tests, both native Swift suites and architecture builds,
   Universal merge, bundle smoke, staged update and rollback. This closes deterministic
   outbound tool-result bounding without claiming an authorized paid tool exchange.
+- Commits `227c00b4c9b8109035597af7ddbd380975bfe4da` and
+  `2cd54c02af0a89e16934bcea7b2f9a2014896c32`, GitHub CI run `33840428018`,
+  Universal artifact `9924849197` (artifact digest
+  `sha256:7c05440150acee53cd2f55ebcf78a32ad4da81705042724612cd26731f05298e`):
+  local spoken questions no longer assume cancellation completed after a fixed 100 ms.
+  The embedded response gate retains only the latest question, marks an outgoing response
+  request before sending it, waits for `response.created` / `response.done`, issues at
+  most one cancellation request, and serializes native tool-result responses through the
+  same lifecycle. Stop clears all pending work. Static lifecycle assertions and an
+  independent embedded-JavaScript syntax parse cover the contract; CI passed 193 Runtime
+  tests, both native Swift suites and architecture builds, Universal merge, bundle smoke,
+  staged update and rollback. This closes deterministic response serialization without
+  claiming live interruption latency or provider ordering acceptance.
 - Still required before `PASS`: authorized paid Realtime connectivity, interruption,
   real function-call, network-loss, session-expiry and provider usage/cost QA;
   VoiceOver/Accessibility Inspector audit; and a clean-account voice-only QA session
