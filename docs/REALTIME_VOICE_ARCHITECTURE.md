@@ -16,7 +16,9 @@ Nalu supports two explicit conversation modes. Neither mode replaces the other.
 ## Mode B — 自然语音对话
 
 - OpenAI Realtime provides native speech-to-speech conversation.
-- The target model is `gpt-realtime-2.1`; pin a snapshot before release qualification.
+- The target model is `gpt-realtime-2.1`. The current official model page does not expose
+  a distinct dated snapshot identifier, so release qualification must re-audit this alias
+  and pin a documented snapshot if OpenAI publishes one.
 - Use WebRTC for microphone input, model audio output, and the event data channel.
 - Use semantic VAD with low eagerness for older adults so pauses and word-finding do
   not prematurely end a turn. Enable interruption so a user can speak over Nalu.
@@ -47,6 +49,12 @@ secret and uses it to post its SDP offer to `/v1/realtime/calls`; the long-lived
 never injected into JavaScript, SDP, the data channel, SQLite, environment variables,
 exports or logs. The WebKit data store is non-persistent. Realtime remains fail-closed
 until the key exists and the user has accepted the per-session cloud-audio/cost notice.
+Before any secret reaches WebKit, the broker requires the official response envelope to
+contain an exact `realtime` / `gpt-realtime-2.1` session, an unmodified value no larger
+than 4,096 UTF-8 bytes, and at least five seconds of remaining lifetime. Missing,
+expired, wrong-session, wrong-model, padded, oversized and malformed responses are
+rejected locally. This validation does not replace the still-required credential-
+authorized live-session and packet-boundary QA.
 
 ## Implemented native path
 

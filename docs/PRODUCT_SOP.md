@@ -170,6 +170,20 @@ Current evidence:
   credential, provider, paid generation or user project database was used. This closes
   the deterministic native scroll-regression checkpoint, not real-speech, VoiceOver or
   clean-account human acceptance.
+- Commit `b88d06e66198e19c24d0c00beb7261f0b68323fe`, GitHub CI run
+  `33826230388`, Universal artifact `9920162212` (artifact digest
+  `sha256:0fa9b0d4cf6d3f2a59648667ad3ea711b8463695386451330d5f55efa69ad4c7`):
+  the native broker was checked against the current official OpenAI Realtime WebRTC,
+  client-secret, conversation, tool and VAD contracts on 2026-09-03. It now uses the
+  documented `/v1/realtime/client_secrets` and `/v1/realtime/calls` endpoints and
+  `oai-events` data-channel label, and fails closed unless the broker response contains
+  a bounded, unmodified secret with at least five seconds of usable lifetime and an
+  exact `realtime` / `gpt-realtime-2.1` session. Unit tests reject expired, wrong-type,
+  wrong-model, whitespace-mutated, oversized and malformed responses. The CI run passed
+  193 Runtime tests plus Swift tests, complete arm64 and x86_64 builds, Universal merge,
+  bundle smoke, staged-update and rollback QA. No credential was used and no paid or
+  live-audio session was started. This closes only the current-contract and broker-
+  validation checkpoint; it is not live Realtime acceptance.
 - Still required before `PASS`: authorized paid Realtime connectivity, interruption,
   real function-call, network-loss, session-expiry and provider usage/cost QA;
   VoiceOver/Accessibility Inspector audit; and a clean-account voice-only QA session
