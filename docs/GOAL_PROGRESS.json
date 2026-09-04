@@ -11,26 +11,26 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "22e47438aa4909295231d398219d73e8d9c0e5d4",
-  "last_advanced_at": "2026-09-04T04:43:01Z",
+  "observed_head": "933cf5dabcd5588ae4926f9a169cb738975566ee",
+  "last_advanced_at": "2026-09-04T04:51:41Z",
   "last_closed_checkpoint": {
-    "id": "bind-realtime-spoken-prompt-data",
+    "id": "coalesce-realtime-spoken-prompts",
     "sop": "SOP-02",
-    "product_commit": "b912d5591c3f2c47b542d292b4d2b7822204d63c",
-    "evidence_commit": "22e47438aa4909295231d398219d73e8d9c0e5d4",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33837130557",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33837130557/artifacts/9923764801",
+    "product_commit": "1c0574800015b5537ae2ffe2694d6d6daf436b3a",
+    "evidence_commit": "933cf5dabcd5588ae4926f9a169cb738975566ee",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33837925482",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33837925482/artifacts/9924017024",
     "result": "PASS"
   },
   "current_checkpoint": {
     "sop": "SOP-02",
     "status": "IN_PROGRESS",
-    "summary": "Realtime local follow-up questions are now normalized and bounded before queuing, then sent as an explicitly untrusted JSON data item rather than concatenated into per-response model instructions. Runtime, both native architectures, Universal packaging, staged update and rollback passed CI. SOP-02 remains incomplete without authorized paid connectivity, the real clean-account permission journey, packet inspection, live model behavior, real network/session-expiry and human accessibility acceptance; those requirements remain authorization gates while safe work continues elsewhere."
+    "summary": "Overlapping Realtime local question requests are now latest-wins through an owned cancellation timer and monotonic generation; stop and failure invalidate delayed delivery. Runtime, both native architectures, Universal packaging, staged update and rollback passed CI. SOP-02 remains incomplete without authorized paid connectivity, the real clean-account permission journey, packet inspection, live model behavior, real network/session-expiry and human accessibility acceptance; those requirements remain authorization gates while safe work continues elsewhere."
   },
   "next_action": {
     "sop": "SOP-02",
-    "id": "coalesce-realtime-spoken-prompts",
-    "summary": "Make overlapping local speakPrompt requests latest-wins across response cancellation and the delayed restart timer, so a stale question cannot be spoken after the visible interview has advanced. Add deterministic state-machine and embedded-script regression coverage without starting a paid session.",
+    "id": "validate-realtime-response-events",
+    "summary": "Harden embedded Realtime response event handling so malformed response.done output, excessive function calls or non-string transcript fields fail closed without throwing, stalling the visible state or growing native session memory. Add deterministic schema and limit coverage without starting a paid session.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
