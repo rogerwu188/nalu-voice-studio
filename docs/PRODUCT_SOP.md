@@ -1077,6 +1077,21 @@ Current evidence:
   `sha256:5ba5f5bc3a0a0de95fc2357548104385a85f081014ddb7a832a957ea0eaa319a`.
   No provider call or paid action occurred. This closes the prompt-rune preflight
   checkpoint, not Qingshan promotion, real-provider QA or SOP-07.
+- Product commit `474d1d0cf19e0f6df642317e065f7017507dbf9a`, GitHub CI run
+  `33842897568`: release discovery confirmed that `v2026.09.03.8` remains the newest
+  upstream release and requires no duplicate review. The human upgrade SOP now names
+  the same exact release and commit as the machine candidate record, replaces its stale
+  `.4` description with the executed `.8` registry/Writer/public-interface evidence,
+  and is checked by CI so documentation drift fails closed. The candidate remains
+  quarantined solely because package/CLI `0.3.0` disagrees with portable manifest
+  `0.3.1`; no pin, credential, provider request or paid authority changed. CI passed 197
+  Runtime tests, the isolated 209-test registered candidate suite plus six Writer tests,
+  both architecture Swift suites and builds, bundled-Runtime smoke, staged update,
+  populated rollback and Universal merge. Runtime QA artifact `9925541416` has digest
+  `sha256:99af642792ec604ea449cdeb4c6d1cda1ab1672dc91e53737ceb8b148e9f0240`;
+  Universal artifact `9925617047` has digest
+  `sha256:10c10cdbb9b96a035f87b5e321c87eef958b41c0e63865f00c0884ba36363f4d`.
+  This closes only the current discovery/document-consistency checkpoint.
 - Still required before `PASS`: a corrected pinned Qingshan release whose registry
   integrity and complete registered tests pass, plus authorized real-provider sandbox
   task/result/receipt evidence. Offline authority and transport doubles are not a paid
