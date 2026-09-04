@@ -7254,6 +7254,19 @@ class Repository:
         ):
             raise ConflictError("stored publication metrics entity binding mismatch")
         publication = self.get_publication_reconciliation(metrics.run_id, metrics.platform)
+        expected_request_sha256 = hashlib.sha256(
+            encode(
+                {
+                    "run_id": metrics.run_id,
+                    "publication_record_sha256": publication.record_sha256,
+                    "window_start": metrics.window_start,
+                    "window_end": metrics.window_end,
+                    "idempotency_key_sha256": metrics.idempotency_key_sha256,
+                }
+            ).encode()
+        ).hexdigest()
+        if metrics.request_sha256 != expected_request_sha256:
+            raise ConflictError("stored publication metrics request digest mismatch")
         if (
             metrics.publication_record_sha256 != publication.record_sha256
             or metrics.remote_publication_id != publication.remote_publication_id

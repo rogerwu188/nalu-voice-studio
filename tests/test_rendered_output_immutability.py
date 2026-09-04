@@ -2908,6 +2908,26 @@ def test_completed_media_qa_creates_offline_release_package_without_publishing(
         assert "entity binding mismatch" in rejected_metrics_entity.text
         rewrite_metrics_snapshot(original_metrics_body)
 
+        changed_metrics_request = deepcopy(original_metrics_body)
+        changed_metrics_request["request_sha256"] = "f" * 64
+        rewrite_metrics_snapshot(changed_metrics_request)
+        with sqlite3.connect(reconciliation_db) as connection:
+            connection.execute(
+                "UPDATE publication_metric_snapshots SET request_sha256 = ? WHERE id = ?",
+                ("f" * 64, result["metrics"]["id"]),
+            )
+        rejected_metrics_request = verified_api.get(
+            f"/v1/publication-metrics/{result['metrics']['id']}"
+        )
+        assert rejected_metrics_request.status_code == 409
+        assert "request digest mismatch" in rejected_metrics_request.text
+        rewrite_metrics_snapshot(original_metrics_body)
+        with sqlite3.connect(reconciliation_db) as connection:
+            connection.execute(
+                "UPDATE publication_metric_snapshots SET request_sha256 = ? WHERE id = ?",
+                (original_metrics_body["request_sha256"], result["metrics"]["id"]),
+            )
+
         relinked_publication_metrics = deepcopy(original_metrics_body)
         relinked_publication_metrics["publication_record_sha256"] = "f" * 64
         rewrite_metrics_snapshot(relinked_publication_metrics)

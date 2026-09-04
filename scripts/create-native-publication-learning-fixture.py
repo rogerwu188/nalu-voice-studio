@@ -170,8 +170,16 @@ def build_fixture(raw_root: Path) -> dict[str, Any]:
         )
 
     metrics_id = new_id("metrics")
-    request_sha256 = hashlib.sha256(b"native-publication-learning-fixture-request").hexdigest()
     key_sha256 = hashlib.sha256(uuid4().hex.encode()).hexdigest()
+    request_sha256 = digest(
+        {
+            "run_id": run_id,
+            "publication_record_sha256": publication_record_sha256,
+            "window_start": "2026-08-01T00:00:00+00:00",
+            "window_end": "2026-08-08T00:00:00+00:00",
+            "idempotency_key_sha256": key_sha256,
+        }
+    )
     metrics_body = {
         "schema_version": "nalu.publication-metrics/v1",
         "id": metrics_id,
