@@ -11,26 +11,26 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "aa8715740151179ed1850884eabdd34136a4145c",
-  "last_advanced_at": "2026-09-04T14:48:19Z",
+  "observed_head": "c35b00c8fd18c60909274050ee2be22780342e87",
+  "last_advanced_at": "2026-09-04T15:00:45Z",
   "last_closed_checkpoint": {
-    "id": "durable-release-and-publication-dry-run-publication",
+    "id": "release-artifact-symlink-recovery-hardening",
     "sop": "SOP-10",
-    "product_commit": "2687b50a34e4f95bd50023d6fee9deeca251ca17",
-    "evidence_commit": "aa8715740151179ed1850884eabdd34136a4145c",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33885124622",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33885124622/artifacts/9941733901",
+    "product_commit": "d6a4fb27ad719b378961b740aa348831e8d6cffb",
+    "evidence_commit": "c35b00c8fd18c60909274050ee2be22780342e87",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33886038527",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33886038527/artifacts/9942199014",
     "result": "PASS"
   },
   "current_checkpoint": {
     "sop": "SOP-10",
     "status": "IN_PROGRESS",
-    "summary": "SOP-10 release packages and publication dry-runs are now durably published and restore one digest-bound event after restart. Revalidation found that create_release_package reads an existing path before applying stored_release_package's symbolic-link rejection, so a link to external matching JSON could be accepted by the recovery branch."
+    "summary": "SOP-10 release-package recovery now rejects links and non-regular paths before reading or event recovery. Revalidation found that stored release packages and publication dry-runs validate run/package digests but do not explicitly bind their project_id and episode_id fields back to the current run, so locally rewritten cross-entity metadata with recomputed self-digests needs a fail-closed check."
   },
   "next_action": {
     "sop": "SOP-10",
-    "id": "release-artifact-symlink-recovery-hardening",
-    "summary": "Reject symbolic links and non-regular existing release-package paths before reading or recovering their events, while preserving exact regular-file replay and publication dry-run guards; prove an external matching package cannot be accepted or produce an audit event.",
+    "id": "release-artifact-cross-entity-binding",
+    "summary": "Bind stored release packages and publication dry-runs to the exact production run, project and episode after recomputing their canonical digests; reject locally rewritten cross-project or cross-episode metadata before replay/event recovery and preserve exact valid restart behavior.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
