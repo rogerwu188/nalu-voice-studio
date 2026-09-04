@@ -750,6 +750,25 @@ Current evidence:
   `sha256:130095d1bf4aa49efe066aa9c1712610c90e23d78745d63ffb99aadf92f06173`.
   This closes the deterministic managed-import crash boundary, not human privacy/deletion,
   clean-account OCR, voice archive or signed-install acceptance.
+- Product commit `d6232d5c16a944b7be72da3a0a11fc560df09be7`, GitHub CI run
+  `33877915504`: deletion of a managed family photo, recording or document now first
+  atomically retires its complete asset directory into a private hidden deletion stage and
+  syncs the parent directory before deleting the SQLite record. If the database transaction
+  fails, the original directory is restored; Runtime-start reconciliation restores staged
+  bytes when their database owner still exists and removes them when the committed record is
+  absent. Automated process-exit QA covered both database boundary windows: after file
+  retirement but before database deletion, restart restored exactly one registered asset and
+  its original bytes; after database deletion but before byte removal, restart removed the
+  private stage and left neither a row nor managed media. All 271 Runtime tests and the
+  Runtime, Apple Silicon, Intel and Universal jobs passed, including bundled-Runtime smoke,
+  project isolation, staged update, populated rollback and controlled-evolution checks.
+  Runtime QA artifact `9938711928` has digest
+  `sha256:3dabb4f985cb9d974520c431bec9c6235591b45e8acaae68360fa0de0b94607b`;
+  Universal artifact `9938849546` has digest
+  `sha256:14e79d9be90dc62e8a5c6eae36ab3c6b51b3bb0dded19d2dbde57ec29c228b1e`.
+  This closes the deterministic managed-deletion crash boundary without leaving media outside
+  privacy controls; it does not replace human privacy/deletion, clean-account OCR, voice
+  archive or signed-install acceptance.
 - Still required before `PASS`: human privacy/deletion QA and clean-account OCR,
   correction and voice archive QA on the same signed release candidate. Automated
   Computer Use crashed while opening the new asset sheet, while Nalu stayed running,
