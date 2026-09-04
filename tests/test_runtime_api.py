@@ -4848,3 +4848,31 @@ def test_run_events_are_ordered_under_concurrent_writes(tmp_path: Path) -> None:
 
     events = api.get(f"/v1/production-runs/{run['id']}/events").json()
     assert [event["sequence"] for event in events] == list(range(1, 10))
+
+
+def test_run_event_rechecks_run_after_stale_preflight(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    api = client(tmp_path)
+    _, _, episode = create_approved_episode(api)
+    run = api.post(
+        f"/v1/episodes/{episode['id']}/production-runs",
+        json={"dry_run": True},
+    ).json()
+    repository = api.app.state.repository
+    original_get_run = repository.get_run
+
+    def delete_after_preflight(run_id: str):
+        stale_run = original_get_run(run_id)
+        monkeypatch.setattr(repository, "get_run", original_get_run)
+        with repository.db.connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            connection.execute("DELETE FROM production_runs WHERE id = ?", (run_id,))
+        return stale_run
+
+    monkeypatch.setattr(repository, "get_run", delete_after_preflight)
+    with pytest.raises(NotFoundError, match="production run not found"):
+        repository.append_run_event(run["id"], "progress", payload={"percent": 50})
+
+    with repository.db.connect() as connection:
+        assert connection.execute("SELECT COUNT(*) FROM run_events").fetchone()[0] == 0

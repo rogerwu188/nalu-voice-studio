@@ -7515,6 +7515,11 @@ class Repository:
         event_id, now = new_id("evt"), utc_now()
         with self.db.connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
+            current = connection.execute(
+                "SELECT 1 FROM production_runs WHERE id = ?", (run_id,)
+            ).fetchone()
+            if current is None:
+                raise NotFoundError("production run not found")
             row = connection.execute(
                 "SELECT COALESCE(MAX(sequence), 0) + 1 AS sequence FROM run_events WHERE run_id = ?",
                 (run_id,),
