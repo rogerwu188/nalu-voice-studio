@@ -824,7 +824,7 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
               }
               const calls = output.filter(item => item && item.type === "function_call");
               if (calls.length > 1 || calls.some(call =>
-                  call.name !== "#(RealtimeSessionConfiguration.interviewToolName)" ||
+                  call.name !== "\#(RealtimeSessionConfiguration.interviewToolName)" ||
                   typeof call.call_id !== "string" || call.call_id.length === 0 ||
                   call.call_id.length > 512 || call.call_id.trim() !== call.call_id ||
                   typeof call.arguments !== "string" || call.arguments.length > 8192)) {
