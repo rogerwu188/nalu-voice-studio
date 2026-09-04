@@ -11,26 +11,26 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "fd7491022cc58c9cdf1dd920a9d915e4a2ee2781",
-  "last_advanced_at": "2026-09-04T10:40:14Z",
+  "observed_head": "741d664a1da0a6cc3bab5f0a63e30f5943b44d4a",
+  "last_advanced_at": "2026-09-04T10:49:41Z",
   "last_closed_checkpoint": {
-    "id": "harden-season-episode-creation-authority",
-    "sop": "SOP-03",
-    "product_commit": "452d5103b3d0016503a1d3bb38169e6f330ce0fa",
-    "evidence_commit": "fd7491022cc58c9cdf1dd920a9d915e4a2ee2781",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33863616633",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33863616633/artifacts/9933266845",
+    "id": "harden-script-approval-parent-authority",
+    "sop": "SOP-04",
+    "product_commit": "b968f68ac3b1076c8e249c51c1a13ff291c7205c",
+    "evidence_commit": "741d664a1da0a6cc3bab5f0a63e30f5943b44d4a",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33864513654",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33864513654/artifacts/9933581597",
     "result": "PASS"
   },
   "current_checkpoint": {
-    "sop": "SOP-04",
+    "sop": "SOP-01",
     "status": "IN_PROGRESS",
-    "summary": "SOP-03 hierarchy creation now distinguishes deleted parents from actual numbering collisions and leaves no partial child or plan snapshot; all CI jobs passed. Work advances to revalidate the script approval parent-authority boundary in SOP-04."
+    "summary": "Script approval and revocation now bind their audit record to the current locked project hierarchy and reject a hierarchy deleted after stale preflight; all CI jobs passed. Revalidation advances to the generic episode-transition stale-deletion boundary."
   },
   "next_action": {
-    "sop": "SOP-04",
-    "id": "harden-script-approval-parent-authority",
-    "summary": "Re-read the episode, season and project authority inside the same SQLite write transaction as script approval and revocation, return not-found for a deleted hierarchy, and prove stale preflight cannot write an approval record or transition event.",
+    "sop": "SOP-01",
+    "id": "harden-episode-transition-stale-deletion",
+    "summary": "Handle an episode deleted after transition preflight as an explicit not-found under the SQLite write lock, preserve state-change conflict semantics, and prove no lifecycle event or partial update is written.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
