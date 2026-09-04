@@ -1381,6 +1381,20 @@ Current evidence:
   258 Runtime tests, both native Swift suites and architecture builds, Universal merge,
   bundled smoke, packaged project-isolation, staged-update and rollback QA. This closes
   the deterministic cancellation/resume atomicity checkpoint, not real provider crash QA.
+- Commit `55791658a8d20dce0b72c2deca55000daa47a4b9`, GitHub CI run
+  `33868270489`, Runtime QA artifact `9934902326` and Universal artifact
+  `9935035998` (artifact digest
+  `sha256:4d097894f4fbf7185b4e52232239b126a9204882f439f6f030b20c85bafc40ff`):
+  a successful Qingshan preflight now commits the production-run row, immutable asset
+  bindings, initial ordered run event, episode transition and episode event, plus the
+  idempotent-operation completion in one SQLite write transaction. The commit rechecks
+  the exact approved script revision and current biometric/guardian consent under the
+  write lock. A late episode-event failpoint proves all preceding writes roll back
+  together, and a consent-revocation race creates no run or snapshot. CI passed 260
+  Runtime tests, both native Swift suites and architecture builds, Universal merge,
+  bundled smoke, packaged project-isolation, staged-update and rollback QA. This closes
+  the deterministic database commit boundary; package-directory crash recovery and real
+  provider crash QA remain open.
 - Still required before `PASS`: run authorized provider crash tests at every real
   network/charge/ledger boundary, reconcile real ambiguous charges against the provider
   and validate the stage explanations in a signed-app long-running production QA session.
