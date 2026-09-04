@@ -1922,6 +1922,22 @@ Current evidence:
   This closes the deterministic rendered-output seal/event crash boundary, not the
   remaining mutable-report durability, real-master Apple Speech or original-resolution
   human audiovisual QA.
+- Product commit `2b03e5eddae388cc6eb17e84ec1797728c1afac1`, GitHub CI run
+  `33881338870`: every SOP-09 repair plan and release-blocking QA report now reaches disk
+  durably before its SQLite audit event is attempted. Mutable repair, container-structure
+  and decoded-media reports use a synced private file, atomic replacement and parent-
+  directory sync; immutable lineage, visual-continuity and semantic reports use the same
+  synced exclusive-create primitive as output seals. Direct QA observed exact reopened
+  bytes and digests, verified file plus directory sync, and forced replacement failure to
+  prove the prior report remains intact with no hidden temporary file. All 276 Runtime
+  tests and the Runtime, Apple Silicon, Intel and Universal jobs passed, including bundled-
+  Runtime smoke, project isolation, staged update, populated rollback and controlled-
+  evolution checks. Runtime QA artifact `9940073541` has digest
+  `sha256:9172f992fd9f598c50ba21216a6514b48b99ea59242d33e89d3c1b25b8736a98`;
+  Universal artifact `9940158198` has digest
+  `sha256:4f380db4a6c420ed5b6b79a9359f5f93ee5b19a1fad33b6907e1b18fca6ebf92`.
+  This closes the deterministic SOP-09 QA-report filesystem durability checkpoint, not
+  missing-event recovery, real-master Apple Speech or original-resolution human QA.
 
 ## SOP-10 · Controlled release and learning loop — IN_PROGRESS
 
