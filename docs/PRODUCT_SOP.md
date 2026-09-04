@@ -2363,6 +2363,23 @@ Current evidence:
   No provider lookup, paid call, production or publication write occurred. This closes
   deterministic local learning-record graph integrity only, not authorized platform
   observation, human learning-loop acceptance, signing, notarization or SOP-10.
+- Product commit `bd2cb87868dfa0489da22e246f0fe16d9c78fac5`, GitHub CI run
+  `33892239160`: after read-only metric verification and local strategy preflight, the
+  Runtime now acquires the SQLite write lock and re-reads the completed run hierarchy,
+  published source episode, immutable publication identity, next episode selection and
+  target editability before inserting either the metric snapshot or director strategy.
+  A deterministic race fixture moved the selected next episode into preproduction after
+  preflight but before the transaction; the request failed closed and both learning tables
+  retained zero rows, after which an unchanged retry succeeded normally. All 278 Runtime
+  tests and the Runtime, Apple Silicon, Intel and Universal jobs passed, including
+  bundled-Runtime smoke, project isolation, staged update, populated rollback and
+  controlled-evolution checks. Runtime QA artifact `9944403931` has digest
+  `sha256:126c3403d706f0a8baa337a532bf0cdd7edb26898bc3a386d3b22374758abd35`;
+  Universal artifact `9944542694` has digest
+  `sha256:6ff555ae6d38d4c4df023b6f5679438a48b8a9a91eb783eb184d33145a8ba1b4`.
+  No provider lookup outside deterministic fixtures, paid call, production or publication
+  write occurred. This closes the local learning transaction authority checkpoint only,
+  not authorized platform observation, human acceptance, signing, notarization or SOP-10.
 
 ## SOP-11 · macOS packaging, updates and operations — IN_PROGRESS
 
