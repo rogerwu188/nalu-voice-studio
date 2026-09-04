@@ -11,26 +11,26 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "4864976997bf07ba0894a8db9da677de5032fb18",
-  "last_advanced_at": "2026-09-04T00:02:49Z",
+  "observed_head": "0d0e58cb5cd549115ef4b5a6d3875aa6aa1180f5",
+  "last_advanced_at": "2026-09-04T00:39:02Z",
   "last_closed_checkpoint": {
-    "id": "qingshan-v2026.09.03.7-independent-test-quarantine",
-    "sop": "SOP-07",
-    "product_commit": "f5192ead0bddab68714b1f2d4db2f601d8334e7f",
-    "evidence_commit": "9e884c4863c948c4b657fde35e364c264ad3433b",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33816952385",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33816952385/artifacts/9917002168",
+    "id": "packaged-runtime-isolation-descriptor-quit-native-qa",
+    "sop": "SOP-11",
+    "product_commit": "f2dfd40060e1bda300cd6f580f85b8d489d2f5ff",
+    "evidence_commit": "0d0e58cb5cd549115ef4b5a6d3875aa6aa1180f5",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33821294202",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33821294202/artifacts/9918470084",
     "result": "PASS"
   },
   "current_checkpoint": {
-    "sop": "SOP-11",
+    "sop": "SOP-07",
     "status": "IN_PROGRESS",
-    "summary": "CI run 33819052516 passed Runtime, Swift, arm64, x86_64 and Universal gates for product commit 9981d8e. Native execution of artifact 9917734459 then proved 1,200 database-backed reads retain at most one transient fixture descriptor and zero final or user-library descriptors. A second exact app spawned no Runtime and showed the intended isolation warning, but actual-window inspection exposed that its view model still read the first app's project after startup denial. Product commit 4864976 adds a per-request ownership gate and stops initial loading after startup denial; CI and a fresh packaged native rerun are pending."
+    "summary": "Exact Universal artifact 9918470084 from product commit f2dfd40 passed independent extraction, release verification and native ownership QA. Its owner loaded only the isolated fixture, 1,200 database reads ended with zero SQLite descriptors, a denied second process exposed no owner data, and normal Quit removed app, wrapper, child and port. SOP-10 and SOP-11 remain incomplete for authorization-controlled VoiceOver/publication/signing work. Upstream Qingshan now exposes v2026.09.03.8 after the quarantined .7 candidate, so the next safe checkpoint is an independent version/registry/compatibility evaluation before any pin change."
   },
   "next_action": {
-    "sop": "SOP-11",
-    "id": "verify-packaged-runtime-isolation-descriptor-and-quit-fix",
-    "summary": "Wait for GitHub CI run 33820116643 on product commit 4864976. If all Runtime, Swift, architecture and Universal gates pass, download that exact Universal artifact and rerun two-instance native QA. The denied second app must spawn no Runtime, send no project request and display no first-instance project; the owning app must still load the isolated fixture, retain no SQLite descriptors after repeated reads, and close its wrapper, child and port on normal Quit. Then record evidence without claiming VoiceOver, publication, Developer ID or notarization acceptance.",
+    "sop": "SOP-07",
+    "id": "evaluate-qingshan-v2026.09.03.8",
+    "summary": "Fetch exact upstream tag v2026.09.03.8 into a repository-external temporary directory. Verify release/tag/manifest/CLI version parity, inspect the diff from quarantined v2026.09.03.7, run the independent Qingshan registry and adapter compatibility suites, and fail closed unless every pin and registry contract is coherent. Record the exact upstream commit and test evidence before deciding whether to update the vendored production-line pin.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
