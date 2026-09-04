@@ -78,6 +78,18 @@ def test_latest_release_is_covered_only_by_active_or_reviewed_record() -> None:
     assert checker.release_requires_review("new", manifest, audit) is True
 
 
+def test_upgrade_sop_identifies_exact_reviewed_candidate() -> None:
+    checker = load_checker()
+    audit = json.loads(checker.CANDIDATE_AUDIT_PATH.read_text())
+    documentation = checker.UPGRADE_SOP_PATH.read_text()
+
+    assert checker.verify_upgrade_documentation(audit, documentation) == []
+    stale = documentation.replace(audit["candidate_release"], "v2026.09.03.4", 1)
+    assert checker.verify_upgrade_documentation(audit, stale) == [
+        "Qingshan upgrade SOP does not identify the exact reviewed candidate"
+    ]
+
+
 def test_candidate_audit_rejects_false_promotion_and_unknown_failures() -> None:
     checker = load_checker()
     manifest = json.loads(checker.MANIFEST_PATH.read_text())

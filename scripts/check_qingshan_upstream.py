@@ -15,6 +15,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST_PATH = ROOT / "configs" / "qingshan-upstream.json"
 CANDIDATE_AUDIT_PATH = ROOT / "configs" / "qingshan-candidate-audit.json"
+UPGRADE_SOP_PATH = ROOT / "docs" / "QINGSHAN_UPGRADE_SOP.md"
 VENDOR_ROOT = ROOT / "vendor" / "qingshan"
 
 
@@ -190,6 +191,17 @@ def release_requires_review(
     }
 
 
+def verify_upgrade_documentation(candidate_audit: dict, documentation: str) -> list[str]:
+    marker = "The latest reviewed candidate is "
+    expected = (
+        f"{marker}`{candidate_audit.get('candidate_release')}` at commit\n"
+        f"`{candidate_audit.get('candidate_commit')}`."
+    )
+    if documentation.count(marker) != 1 or expected not in documentation:
+        return ["Qingshan upgrade SOP does not identify the exact reviewed candidate"]
+    return []
+
+
 def write_output(name: str, value: str) -> None:
     output = os.environ.get("GITHUB_OUTPUT")
     if output:
@@ -209,6 +221,12 @@ def main() -> int:
         print(f"FAIL: candidate audit is unreadable: {exc}")
         return 1
     failures.extend(verify_candidate_audit(manifest, candidate_audit))
+    try:
+        upgrade_documentation = UPGRADE_SOP_PATH.read_text(encoding="utf-8")
+    except OSError as exc:
+        failures.append(f"Qingshan upgrade SOP is unreadable: {exc}")
+    else:
+        failures.extend(verify_upgrade_documentation(candidate_audit, upgrade_documentation))
     if failures:
         for failure in failures:
             print(f"FAIL: {failure}")

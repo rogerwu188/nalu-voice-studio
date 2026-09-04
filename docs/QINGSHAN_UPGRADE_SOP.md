@@ -36,41 +36,28 @@ It may support local contract work, but cannot authorize a paid request. Any add
 changed failure is unreviewed drift and fails closed. The exception must be removed—not
 carried forward—when the corrected upstream release is promoted.
 
-The latest reviewed candidate is `v2026.09.03.4` at commit
-`856870f1aa97452b85b229a118566b37219f2683`. Relative to the previous reviewed
-`v2026.09.03.3` candidate, the release changes 16 files (921 insertions and four
-deletions), restores all eight registered evidence paths and makes the portable CI invoke
-the registry gate. Nalu's independent no-execution audit now proves all 69 registered
-gates are structurally complete and all 66 coded gates are runtime-bound. The candidate
-still cannot be promoted: its installable package and CLI declare version `0.3.0`, while
-`configs/PORTABLE_CORE_MANIFEST.json` declares `0.3.1`. Nalu records that exact public
-release-contract drift separately from registry integrity, keeps the source quarantined
-and does not run its registered suite or authorize a paid call.
-`configs/qingshan-candidate-audit.json` binds
-the exact candidate tree, registry digest and failure list. CI validates that the record
-remains `QUARANTINED`, cannot replace the active pin, cannot authorize paid execution,
-requires its public interface to remain portable and does not misreport the unrun
-complete registered suite as passing.
+The latest reviewed candidate is `v2026.09.03.8` at commit
+`207ee38b18a635b200e0dbdba0815cafbd73ee28`. Its tracked-tree SHA-256 is
+`dc432d79633511e4ddae6f7b6adc2560b91efc140fba8ae199f86494645d5250`; the
+registry SHA-256 is
+`0b7d478904638f0d9e22452971b7aa8d95b9e7445355b53e364ff187fd0613a4`.
+Nalu's isolated audit proves all 69 registered gates are structurally complete and all
+66 coded gates are runtime-bound. With credential-like environment variables stripped,
+all 33 registered portable modules ran: 209 tests passed with one declared skip, and all
+six Writer-v2 tests passed. The candidate still cannot be promoted: its installable
+package and CLI declare version `0.3.0`, while the portable manifest declares `0.3.1`.
+`configs/qingshan-candidate-audit.json` binds that exact public-interface failure,
+candidate tree, registry, portable manifest, CLI surface, Writer contract and registered-
+test result. CI validates that the record remains `QUARANTINED`, cannot replace the
+active pin and cannot authorize paid execution. No provider credential or paid call is
+part of this evidence.
 Daily discovery treats both the active pin and this exact reviewed candidate as covered;
 only a newer, unaudited tag opens a new deduplicated upgrade issue.
-Product commit `0fe4cf18f2edc79b007be1970fecf99092d91590` passed all four jobs in
-GitHub CI run `33788826554`; Universal artifact `9906713225` has GitHub digest
-`sha256:ac7bfccd624c6405a23977f1ef399eb14e433179370e0846e162d426e65722fa`.
-This evidence closes only the public-interface audit checkpoint, not candidate promotion
-or SOP-07.
-Commit `562c602b9ffb06b3f222195b9bac45c5ab0dd6b4` then bound all six public CLI
-commands and the four repository-owned render/submit/release entry points. GitHub CI run
-`33790673885` passed all four jobs; Universal artifact `9907427075` has digest
-`sha256:0d66ea1c90551f4ccacff5dbaf64cb9b66a1dffa96e8163498b0fee8aff32b4f`.
-Nalu keeps its stronger paid-transaction and decoded-media controls instead of adopting
-the upstream fallback as authority.
-Commit `8ece75411457076c5e0602516351560fb811c189` independently records the `.4`
-registry closure, the remaining `0.3.0`/`0.3.1` public-version conflict and Writer v2
-provenance contract. All four jobs passed in GitHub CI run `33792752813`; Universal
-artifact `9908224100` has digest
-`sha256:2ffbbe0835e61ba017a54c970c1beb63f1bbd5edbb4009c86e05820b279c1bb7`.
-Upstream portable-core CI run `33791985563` also passed, but it did not detect the
-cross-manifest version conflict and therefore is not promotion evidence.
+Product commit `3000920f78d7e0d2446f0c99eb8264be6c975762` passed all four jobs in
+GitHub CI run `33822968508`; Universal artifact `9919040824` has GitHub digest
+`sha256:63e2dfe13afc1e5ff84af4ddf86c19a41e2774ab043757f3f454c1322dcaedc8`.
+This evidence closes only `.8` discovery and reproduction, not candidate promotion,
+real-provider QA or SOP-07.
 
 Nalu productized two safe `v2026.09.01.7` contracts without copying its runtime into the
 paid path: exact adapter/profile/logical/provider model identity at the final I/O boundary,
