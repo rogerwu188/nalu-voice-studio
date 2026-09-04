@@ -608,6 +608,17 @@ Current evidence:
   rehearsal, staged update and rollback. The Universal artifact proves the fix is in the
   package; this is a deterministic storage-ownership checkpoint, not human privacy,
   deletion, OCR or signed-install acceptance.
+- Commit `c01b60f745a730bf5b145d1c5aff9a53ed66393c`, GitHub CI run
+  `33855982828` and Universal artifact `9930437329` (artifact digest
+  `sha256:a958c9af8eabe2b5d579a4d0233b7cf44e907a206454be71bbca02b023fc5936`):
+  immutable production dependency lookup and asset-record deletion now execute under
+  one SQLite write transaction. Even when the service-level preview is stale and says
+  an asset is deletable, a production snapshot committed before the transaction causes
+  a stable conflict response; the database record, managed bytes and run binding all
+  remain intact. CI passed 238 Runtime tests, both native Swift suites and architecture
+  builds, Universal merge, bundle smoke, project-isolation rehearsal, staged update and
+  rollback. This closes the deterministic dependency/deletion race checkpoint, not
+  human privacy, complete deletion, OCR or signed-install acceptance.
 - Still required before `PASS`: human privacy/deletion QA and clean-account OCR,
   correction and voice archive QA on the same signed release candidate. Automated
   Computer Use crashed while opening the new asset sheet, while Nalu stayed running,
