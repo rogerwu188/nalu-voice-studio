@@ -1410,6 +1410,19 @@ Current evidence:
   closes the deterministic package/database crash boundary for explicitly idempotent
   starts; provider crash QA and crash recovery for a dry-run without a client key remain
   open.
+- Commit `b861af0b9217c91bc7ceed1b7f4d7aa3119da168`, GitHub CI run
+  `33870562505`, Runtime QA artifact `9935781789` and Universal artifact
+  `9935937900` (artifact digest
+  `sha256:41f70e5fefa246af996a371b91b32a165ba4cddab7083afad8428e6db1b26f46`):
+  every keyless dry-run now receives a stable server-side request identity before any
+  package filesystem mutation. Normal retries replay the one committed run, while a
+  simulated process crash is recovered by a fresh Runtime with the exact pending run ID
+  and package digest. The public contract documents that paid production still requires
+  a caller-supplied key; that gate is unchanged and executes before the internal dry-run
+  identity is assigned. CI passed 265 Runtime tests, both native Swift suites and
+  architecture builds, Universal merge, bundled smoke, packaged project-isolation,
+  staged-update and rollback QA. This closes the remaining deterministic keyless
+  preflight crash gap, not authorized provider crash testing.
 - Still required before `PASS`: run authorized provider crash tests at every real
   network/charge/ledger boundary, reconcile real ambiguous charges against the provider
   and validate the stage explanations in a signed-app long-running production QA session.
