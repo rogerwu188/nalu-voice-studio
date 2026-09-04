@@ -492,6 +492,22 @@ Current evidence:
   CI passed 194 Runtime tests, both native Swift suites and architecture builds,
   Universal merge, bundle smoke, staged update and rollback. This closes the missing
   deterministic guardian-negative checkpoint, not human spoken-summary acceptance.
+- Commit `db1cf4ee557b204fc9d0597052edfb4fd9a6d8f6`, GitHub CI run
+  `33854306245` and Universal artifact `9929739932` (artifact digest
+  `sha256:fc06b7cf1b6f0240bf44db24ebb8669d4bf3c2f82e565132b4216c3a04ba212d`):
+  script revision creation now acquires the SQLite write transaction and re-reads the
+  episode's authoritative state before changing it. A delayed request that passed a
+  stale preflight can no longer move an episode from preproduction back into script
+  review. Creating a legitimate correction after approval preserves the immutable
+  approval/history records but clears the current approved-revision pointer, so
+  production remains fail-closed until the new revision is explicitly approved.
+  Direct regressions cover both stale-preflight and post-approval-correction paths;
+  CI passed all 236 Runtime tests, both native Swift suites and architecture builds,
+  Universal merge, bundle smoke, project-isolation rehearsal, staged update and
+  rollback. The exact authority-race scenarios ran in the source Runtime suite; the
+  Universal artifact proves the accepted code was packaged but is not represented as
+  a direct packaged transaction rehearsal. This closes the current deterministic
+  authority-gate revalidation checkpoint, not the remaining human voice acceptance.
 - Still required before `PASS`: human spoken-summary fidelity QA and clean-account
   voice correction/approval evidence; implementation and synthesized playback alone
   do not satisfy the human acceptance criterion.
