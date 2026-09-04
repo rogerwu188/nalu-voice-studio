@@ -656,6 +656,18 @@ Current evidence:
   accepted implementation is packaged, but is not a substitute for clean-account spoken
   review. This closes the deterministic memory narrative-authority checkpoint, not human
   privacy/deletion, OCR or signed-install acceptance.
+- Commit `5163ac2853d869ad61b1038d5f7421a54cad518b`, GitHub CI run
+  `33859773956` and Universal artifact `9931842217` (artifact digest
+  `sha256:128557e3f970298deb06db3d1303db9176b945c96e74d767755eb4cd883eb8ed`):
+  memory-card create and update now re-read project ownership, biometric consent and child
+  guardian authorization under the same SQLite write lock as the card/revision write. A
+  revocation arriving after the service preflight therefore prevents a new card or an
+  upgrade to `visual_generation`, leaving no card or extra revision behind. Both race
+  fixtures passed ten repeated local runs; CI passed 244 Runtime tests, both native Swift
+  suites and architecture builds, Universal merge, bundle smoke, project-isolation
+  rehearsal, staged update and rollback. The Universal artifact proves the accepted code
+  is packaged; it does not replace human consent-language or accessibility QA. This closes
+  the deterministic memory visual-consent checkpoint, not SOP-05 as a whole.
 - Still required before `PASS`: human privacy/deletion QA and clean-account OCR,
   correction and voice archive QA on the same signed release candidate. Automated
   Computer Use crashed while opening the new asset sheet, while Nalu stayed running,
