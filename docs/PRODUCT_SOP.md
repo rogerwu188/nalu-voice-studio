@@ -850,6 +850,27 @@ Current evidence:
   `sha256:4c106115a9195c54008236d9ad25d11baea768890adc9806f3b2679d32e52c7e`.
   This closes the independently executed `.7` candidate checkpoint, not Qingshan
   promotion, real-provider verification, paid-provider QA or SOP-07.
+- Product commit `3000920f78d7e0d2446f0c99eb8264be6c975762`, GitHub CI run
+  `33822968508`: Nalu independently checked out the newer Qingshan
+  `v2026.09.03.8` at exact commit `207ee38b18a635b200e0dbdba0815cafbd73ee28`.
+  The `.7` to `.8` diff contains only 23 lines in the video-prompt compiler and its
+  test; it does not change the public package or portable manifest. The independent
+  audit recomputed tracked-tree SHA-256
+  `dc432d79633511e4ddae6f7b6adc2560b91efc140fba8ae199f86494645d5250`,
+  unchanged registry SHA-256
+  `0b7d478904638f0d9e22452971b7aa8d95b9e7445355b53e364ff187fd0613a4`
+  and unchanged portable-manifest SHA-256
+  `61db4eeaad2f26643713f38e0c9ebaedf6bea952e8a8305661d8ae9b8add676a`.
+  Registry and Writer-v2 checks remain `PASS` at 69 gates, 66 coded gates and 66
+  runtime bindings. With credential-like variables stripped, all 33 registered portable
+  modules ran: 209 tests passed with one declared skip, and six Writer tests passed.
+  Public-interface status remains `FAIL` because package/CLI `0.3.0` still disagrees
+  with portable manifest `0.3.1`; `.8` therefore replaces `.7` only as the latest
+  reviewed quarantine record, not as Nalu's active production pin or paid authority.
+  Runtime, Apple Silicon, Intel and Universal CI jobs all passed. Universal artifact
+  `9919040824` has GitHub digest
+  `sha256:63e2dfe13afc1e5ff84af4ddf86c19a41e2774ab043757f3f454c1322dcaedc8`.
+  This closes the `.8` discovery/reproduction checkpoint, not promotion or SOP-07.
 - Still required before `PASS`: a corrected pinned Qingshan release whose registry
   integrity and complete registered tests pass, plus authorized real-provider sandbox
   task/result/receipt evidence. Offline authority and transport doubles are not a paid
