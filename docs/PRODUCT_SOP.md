@@ -668,6 +668,18 @@ Current evidence:
   rehearsal, staged update and rollback. The Universal artifact proves the accepted code
   is packaged; it does not replace human consent-language or accessibility QA. This closes
   the deterministic memory visual-consent checkpoint, not SOP-05 as a whole.
+- Commit `5321b2494275bdb4f68c26bfa0aae3e722eab554`, GitHub CI run
+  `33860750645` and Universal artifact `9932331421` (artifact digest
+  `sha256:8141a7e1f9aa9c6943bb308da54f839cd4ff8a456d4034243ab665375e65717e`):
+  asset registration now revalidates project, season and episode existence and ownership
+  under the same SQLite write lock as the asset and consent-receipt insert. If any scope is
+  deleted after managed bytes are copied but before registration, the request returns a
+  stable not-found response, creates no database row and removes the staged file. Dedicated
+  project-, season- and episode-scope race fixtures each passed ten repeated local runs; CI
+  passed 247 Runtime tests, both native Swift suites and builds, Universal merge, bundle
+  smoke, project-isolation rehearsal, staged update and rollback. This closes the current
+  deterministic three-level asset-scope checkpoint, not human privacy/deletion or signed-
+  install acceptance.
 - Still required before `PASS`: human privacy/deletion QA and clean-account OCR,
   correction and voice archive QA on the same signed release candidate. Automated
   Computer Use crashed while opening the new asset sheet, while Nalu stayed running,
