@@ -73,6 +73,17 @@ Current evidence:
   existing data and adds digest-bound feedback-review bundles; project export v9 restores
   them while retaining v1-v8 import compatibility. All 69 Runtime tests, OpenAPI
   freshness/backward compatibility, real HTTP smoke and the complete macOS build passed.
+- Commit `6cbab9745827ba8f4ab62a19f853da22104b4edd`, GitHub CI run
+  `33865278670`, Runtime QA artifact `9933855286` and Universal artifact
+  `9933867436` (artifact digest
+  `sha256:5649b4da1a421e96853880e983ec7892cbfcc0c60a1509e817747124cabd6f14`):
+  generic episode transitions now handle an episode deleted after stale preflight as an
+  explicit not-found inside the SQLite write transaction instead of dereferencing a
+  missing row. A separately simulated concurrent state change remains a conflict and
+  cannot be overwritten; neither rejected path appends a lifecycle event. CI passed
+  254 Runtime tests, both native Swift suites and architecture builds, Universal merge,
+  bundled smoke, packaged project-isolation, staged-update and rollback QA. This
+  revalidates the lifecycle concurrency boundary without changing the SOP-01 PASS claim.
 
 ## SOP-02 · Voice interview and accessible conversation — IN_PROGRESS
 
