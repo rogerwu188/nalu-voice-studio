@@ -233,6 +233,18 @@ Current evidence:
   Runtime and Swift tests, both architecture builds, Universal merge, bundle smoke,
   staged update and rollback. This closes deterministic error-redaction only; packet
   inspection with an authorized live session remains outstanding.
+- Commit `c19e9e3ad0581fa678a778ab22df8b235155c68b`, GitHub CI run
+  `33835604189`, Universal artifact `9923264388` (artifact digest
+  `sha256:98d13e2f55a77807e527625948b1831339d65e938e13f1a8cb608b2583b0d980`):
+  the native bridge now accepts the embedded page's legitimate initial `connecting`
+  status instead of classifying it as an unverifiable event and immediately tearing down
+  the session. Every client-secret request is also bound to a native generation; stop,
+  failure or a newer retry invalidates all older generations, preventing a delayed secret
+  response or error from reviving or overwriting a stopped/replaced session. Unit tests
+  cover the connecting event plus stopped and superseded attempts. CI passed 193 Runtime
+  tests, both Swift suites and architecture builds, Universal merge, bundle smoke, staged
+  update and rollback. This closes deterministic initial-state and stale-response races;
+  real credentialed connection and interruption behavior remain unaccepted.
 - Still required before `PASS`: authorized paid Realtime connectivity, interruption,
   real function-call, network-loss, session-expiry and provider usage/cost QA;
   VoiceOver/Accessibility Inspector audit; and a clean-account voice-only QA session

@@ -95,6 +95,11 @@ secrets or request details into UI capture, feedback or support material.
   error use one failure gate, so capture is stopped and only one retry notice is shown.
   Intentional stop does not surface a false network error, and delayed callbacks from an
   older channel cannot fail its replacement.
+- The embedded page's initial `connecting` status is part of the native bridge allowlist;
+  it no longer fails validation and tears down a legitimate session before WebRTC opens.
+  Each client-secret request also carries a native connection generation. Stop, failure or
+  a newer retry invalidates older generations, so a delayed secret or delayed error cannot
+  revive or overwrite a session the user already stopped or replaced.
 - The user chooses a 5, 10 or 20 minute session ceiling. Nalu stops microphone capture and
   the peer connection at the ceiling; choosing a new session requires a fresh consent flow.
 - WebKit media capture is granted only while an explicitly consented session is
