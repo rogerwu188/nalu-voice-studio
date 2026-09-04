@@ -2421,6 +2421,38 @@ def test_completed_media_qa_creates_offline_release_package_without_publishing(
         ]
     ) == 1
     release_path.write_bytes(release_bytes)
+
+    tampered_package = deepcopy(package)
+    tampered_package["artifacts"][0]["sha256"] = "f" * 64
+    tampered_package["manifest_sha256"] = artifact_sha256(
+        tampered_package, "manifest_sha256"
+    )
+    release_path.write_text(
+        json.dumps(tampered_package, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    changed_artifact = api.post(
+        f"/v1/production-runs/{run['id']}/release-package", json=release_request
+    )
+    assert changed_artifact.status_code == 409
+    assert "artifact set" in changed_artifact.text
+    release_path.write_bytes(release_bytes)
+
+    tampered_package = deepcopy(package)
+    tampered_package["media_qa_report_sha256"] = "f" * 64
+    tampered_package["manifest_sha256"] = artifact_sha256(
+        tampered_package, "manifest_sha256"
+    )
+    release_path.write_text(
+        json.dumps(tampered_package, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    changed_qa = api.post(
+        f"/v1/production-runs/{run['id']}/release-package", json=release_request
+    )
+    assert changed_qa.status_code == 409
+    assert "QA binding mismatch" in changed_qa.text
+    release_path.write_bytes(release_bytes)
     changed = api.post(
         f"/v1/production-runs/{run['id']}/release-package",
         json={**release_request, "title": "静默替换标题"},
@@ -2528,6 +2560,57 @@ def test_completed_media_qa_creates_offline_release_package_without_publishing(
             if event["event_type"] == "publication_dry_run_created"
         ]
     ) == 1
+    dry_run_path.write_bytes(dry_run_bytes)
+
+    tampered_dry_run = deepcopy(dry_run)
+    tampered_dry_run["duplicate_guard_sha256"] = "f" * 64
+    tampered_dry_run["plan_sha256"] = artifact_sha256(
+        tampered_dry_run, "plan_sha256"
+    )
+    dry_run_path.write_text(
+        json.dumps(tampered_dry_run, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    changed_guard = api.post(
+        f"/v1/production-runs/{run['id']}/publication-dry-runs",
+        json=dry_run_request,
+    )
+    assert changed_guard.status_code == 409
+    assert "duplicate guard mismatch" in changed_guard.text
+    dry_run_path.write_bytes(dry_run_bytes)
+
+    tampered_dry_run = deepcopy(dry_run)
+    tampered_dry_run["adapter_version"] = "untrusted-adapter/v999"
+    tampered_dry_run["plan_sha256"] = artifact_sha256(
+        tampered_dry_run, "plan_sha256"
+    )
+    dry_run_path.write_text(
+        json.dumps(tampered_dry_run, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    changed_adapter = api.post(
+        f"/v1/production-runs/{run['id']}/publication-dry-runs",
+        json=dry_run_request,
+    )
+    assert changed_adapter.status_code == 409
+    assert "adapter version mismatch" in changed_adapter.text
+    dry_run_path.write_bytes(dry_run_bytes)
+
+    tampered_dry_run = deepcopy(dry_run)
+    tampered_dry_run["compiled_plan"]["network_operations"] = ["upload"]
+    tampered_dry_run["plan_sha256"] = artifact_sha256(
+        tampered_dry_run, "plan_sha256"
+    )
+    dry_run_path.write_text(
+        json.dumps(tampered_dry_run, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    changed_plan = api.post(
+        f"/v1/production-runs/{run['id']}/publication-dry-runs",
+        json=dry_run_request,
+    )
+    assert changed_plan.status_code == 409
+    assert "compiled plan mismatch" in changed_plan.text
     dry_run_path.write_bytes(dry_run_bytes)
     changed_channel = api.post(
         f"/v1/production-runs/{run['id']}/publication-dry-runs",

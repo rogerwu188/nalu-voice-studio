@@ -1842,6 +1842,42 @@ class ProductionService:
             raise ConflictError("sealed output integrity failed after release packaging")
         if package.output_seal_sha256 != integrity.seal.manifest_sha256:
             raise ConflictError("release package references a different output seal")
+        if package.platform_approvals:
+            raise ConflictError("offline release package contains platform approvals")
+        if [artifact.model_dump(mode="json") for artifact in package.artifacts] != [
+            artifact.model_dump(mode="json") for artifact in integrity.seal.artifacts
+        ]:
+            raise ConflictError("release package artifact set does not match output seal")
+        qa_bindings = (
+            (
+                "media structure",
+                package.media_qa_report_sha256,
+                self.stored_media_structure_qa(run.id),
+            ),
+            (
+                "decoded media",
+                package.decoded_media_qa_report_sha256,
+                self.stored_decoded_media_qa(run.id),
+            ),
+            (
+                "semantic media",
+                package.semantic_media_qa_report_sha256,
+                self.stored_semantic_media_qa(run.id),
+            ),
+            (
+                "postproduction lineage",
+                package.postproduction_lineage_qa_report_sha256,
+                self.stored_postproduction_lineage_qa(run.id),
+            ),
+            (
+                "visual continuity",
+                package.visual_continuity_qa_report_sha256,
+                self.stored_visual_continuity_qa(run.id),
+            ),
+        )
+        for label, package_report_sha256, report in qa_bindings:
+            if report.status != "PASS" or package_report_sha256 != report.report_sha256:
+                raise ConflictError(f"release package {label} QA binding mismatch")
         return package
 
     def create_publication_dry_run(
@@ -1966,7 +2002,7 @@ class ProductionService:
     def stored_publication_dry_run(self, run_id: str, platform: str) -> PublicationDryRun:
         run = self.repository.get_run(run_id)
         try:
-            publication_adapter(platform)
+            adapter = publication_adapter(platform)
         except ValueError as exc:
             raise ConflictError(str(exc)) from exc
         path = self._run_directory(run) / f"publication-dry-run-{platform}.json"
@@ -1989,9 +2025,31 @@ class ProductionService:
             or dry_run.platform != platform
         ):
             raise ConflictError("publication dry-run binding mismatch")
+        if dry_run.approval.platform != platform:
+            raise ConflictError("publication dry-run approval platform mismatch")
+        if dry_run.created_at != dry_run.approval.approved_at:
+            raise ConflictError("publication dry-run approval time mismatch")
         package = self.stored_release_package(run.id)
         if dry_run.release_manifest_sha256 != package.manifest_sha256:
             raise ConflictError("publication dry-run references a different release package")
+        duplicate_guard = self._canonical_sha256(
+            {
+                "run_id": run.id,
+                "platform": platform,
+                "channel_reference": dry_run.approval.channel_reference,
+                "release_manifest_sha256": package.manifest_sha256,
+            }
+        )
+        if dry_run.duplicate_guard_sha256 != duplicate_guard:
+            raise ConflictError("publication dry-run duplicate guard mismatch")
+        if dry_run.adapter_version != adapter.version:
+            raise ConflictError("publication dry-run adapter version mismatch")
+        try:
+            expected_plan = adapter.compile(package, dry_run.approval.channel_reference)
+        except ValueError as exc:
+            raise ConflictError(str(exc)) from exc
+        if dry_run.compiled_plan != expected_plan:
+            raise ConflictError("publication dry-run compiled plan mismatch")
         return dry_run
 
     def reconcile_publication(
