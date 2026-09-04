@@ -11,26 +11,26 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "b3df291dea65af5686c96535aa25f5d35ca33fe4",
-  "last_advanced_at": "2026-09-04T04:08:00Z",
+  "observed_head": "eecf3bec25d500da80abbe49345703c2de43f8d7",
+  "last_advanced_at": "2026-09-04T04:24:00Z",
   "last_closed_checkpoint": {
-    "id": "realtime-provider-error-redaction",
+    "id": "realtime-connection-attempt-generation",
     "sop": "SOP-02",
-    "product_commit": "d6a5ebe9c4d0d6d272bd162b0d7d410f7d722e6c",
-    "evidence_commit": "b3df291dea65af5686c96535aa25f5d35ca33fe4",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33835006637",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33835006637/artifacts/9923092849",
+    "product_commit": "c19e9e3ad0581fa678a778ab22df8b235155c68b",
+    "evidence_commit": "eecf3bec25d500da80abbe49345703c2de43f8d7",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33835604189",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33835604189/artifacts/9923264388",
     "result": "PASS"
   },
   "current_checkpoint": {
     "sop": "SOP-02",
     "status": "IN_PROGRESS",
-    "summary": "Raw provider, broker, JavaScript and WebKit failures no longer enter the visible Realtime status; known local failures use fixed help text and unknown errors collapse to bounded local messages. Runtime, both native architectures, Universal packaging, staged update and rollback passed CI. SOP-02 remains incomplete without authorized paid connectivity, packet inspection, live model behavior, real network/session-expiry and human accessibility acceptance; those requirements remain authorization gates while safe work continues elsewhere."
+    "summary": "The native bridge now accepts the legitimate initial connecting event, and a generation gate prevents stopped or superseded client-secret requests from reviving or overwriting a Realtime session. Runtime, both native architectures, Universal packaging, staged update and rollback passed CI. SOP-02 remains incomplete without authorized paid connectivity, packet inspection, live model behavior, real network/session-expiry and human accessibility acceptance; those requirements remain authorization gates while safe work continues elsewhere."
   },
   "next_action": {
     "sop": "SOP-02",
-    "id": "prevent-stale-realtime-session-start",
-    "summary": "Prevent an in-flight client-secret request from starting WebRTC after the user has stopped the session or a newer retry has superseded it. Add deterministic generation/cancellation regression coverage without reading credentials or starting a paid session.",
+    "id": "bind-realtime-media-permission-origin",
+    "summary": "Restrict WebKit microphone capture permission to the consented connecting state, exact trusted HTTPS origin, main frame and microphone-only request. Add deterministic rejection coverage for subframes, wrong hosts/protocols, camera and inactive states without requesting a real system permission.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
