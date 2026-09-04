@@ -45,12 +45,20 @@ jobs:
       - run: python scripts/real-http-smoke.py
       - run: python scripts/qa-macos-upgrade-rollback.py --evidence /tmp/nalu-upgrade-rollback-source.json
       - run: python scripts/qa-offline-e2e-rehearsal.py --evidence /tmp/nalu-offline-e2e-rehearsal.json
+      - name: Verify offline E2E rehearsal evidence
+        run: |
+          python scripts/verify-offline-e2e-evidence.py \
+            --report /tmp/nalu-offline-e2e-rehearsal.json \
+            --source-commit "$GITHUB_SHA" \
+            --repository . \
+            --evidence /tmp/nalu-offline-e2e-verification.json
       - uses: actions/upload-artifact@v7
         with:
           name: Nalu-Voice-Studio-runtime-QA
           path: |
             /tmp/nalu-upgrade-rollback-source.json
             /tmp/nalu-offline-e2e-rehearsal.json
+            /tmp/nalu-offline-e2e-verification.json
 
   macos-arm64:
     runs-on: macos-15

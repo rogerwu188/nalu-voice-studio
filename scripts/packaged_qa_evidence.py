@@ -66,6 +66,36 @@ ROLLBACK_FIELDS = {
     "network_scope",
     "report_sha256",
 }
+OFFLINE_E2E_FIELDS = {
+    "schema_version",
+    "source_commit",
+    "mode",
+    "scenarios",
+    "selected_test_count",
+    "pytest_stdout_sha256",
+    "source_sha256",
+    "sanitized_environment_names",
+    "paid_call_performed",
+    "publication_performed",
+    "external_write_performed",
+    "non_loopback_network_blocked",
+    "signed_install_used",
+    "notarized_install_used",
+    "real_provider_receipts_reconciled",
+    "real_publication_ids_reconciled",
+    "human_acceptance_performed",
+    "project_complete",
+    "evidence_sha256",
+}
+OFFLINE_E2E_SCENARIO_IDS = [
+    "SOP-12-01-older-adult-autobiography",
+    "SOP-12-02-guardian-child-fiction",
+    "SOP-12-03-ten-episode-continuity",
+    "SOP-12-04-failure-restart-resume-qa",
+    "SOP-12-05-offline-release-package",
+    "SOP-12-06-capability-routing",
+    "SOP-12-07-governed-usability-feedback",
+]
 
 
 def validate_evidence_identifiers(
@@ -281,6 +311,134 @@ def verify_upgrade_rollback_report(path: Path) -> dict[str, Any]:
             raise RuntimeError(f"upgrade-rollback report safety claim failed: {field}")
     _verify_compact_report_digest(report, label="upgrade-rollback report")
     return report
+
+
+def verify_offline_e2e_report(
+    path: Path, *, expected_source_commit: str
+) -> dict[str, Any]:
+    validate_source_commit(expected_source_commit)
+    report = _load_strict_json_object(path, label="offline E2E report")
+    if set(report) != OFFLINE_E2E_FIELDS:
+        raise RuntimeError("offline E2E report has missing or unexpected fields")
+    if report["schema_version"] != "nalu.offline-e2e-rehearsal/v1":
+        raise RuntimeError("offline E2E report schema is not supported")
+    if report["source_commit"] != expected_source_commit:
+        raise RuntimeError("offline E2E report source commit does not match")
+    if report["mode"] != "offline_structure_rehearsal_only":
+        raise RuntimeError("offline E2E report overclaims its rehearsal mode")
+    scenarios = report["scenarios"]
+    if not isinstance(scenarios, list) or [item.get("id") for item in scenarios] != (
+        OFFLINE_E2E_SCENARIO_IDS
+    ):
+        raise RuntimeError("offline E2E report does not contain the seven exact scenarios")
+    selected_tests: list[str] = []
+    for scenario in scenarios:
+        if not isinstance(scenario, dict) or set(scenario) != {
+            "id",
+            "tests",
+            "remaining_real_evidence",
+            "status",
+            "release_acceptance",
+        }:
+            raise RuntimeError("offline E2E scenario has missing or unexpected fields")
+        tests = scenario["tests"]
+        remaining = scenario["remaining_real_evidence"]
+        if (
+            not isinstance(tests, list)
+            or not tests
+            or any(not isinstance(value, str) or "::" not in value for value in tests)
+        ):
+            raise RuntimeError("offline E2E scenario test contract is malformed")
+        if (
+            not isinstance(remaining, list)
+            or not remaining
+            or any(not isinstance(value, str) or not value for value in remaining)
+        ):
+            raise RuntimeError("offline E2E scenario hides its remaining real evidence")
+        if scenario["status"] != "STRUCTURE_REHEARSED" or scenario[
+            "release_acceptance"
+        ] is not False:
+            raise RuntimeError("offline E2E scenario falsely claims release acceptance")
+        selected_tests.extend(tests)
+    unique_tests = list(dict.fromkeys(selected_tests))
+    if report["selected_test_count"] != len(unique_tests):
+        raise RuntimeError("offline E2E selected test count does not match scenarios")
+    source_hashes = report["source_sha256"]
+    expected_paths = {
+        test.split("::", 1)[0] for test in unique_tests
+    } | {"scripts/qa-offline-e2e-rehearsal.py", "tests/conftest.py"}
+    if not isinstance(source_hashes, dict) or set(source_hashes) != expected_paths:
+        raise RuntimeError("offline E2E source digest set does not match selected tests")
+    if any(
+        not isinstance(value, str) or not SHA256_PATTERN.fullmatch(value)
+        for value in source_hashes.values()
+    ):
+        raise RuntimeError("offline E2E source digest is malformed")
+    if not isinstance(report["pytest_stdout_sha256"], str) or not SHA256_PATTERN.fullmatch(
+        report["pytest_stdout_sha256"]
+    ):
+        raise RuntimeError("offline E2E pytest output digest is malformed")
+    names = report["sanitized_environment_names"]
+    if not isinstance(names, list) or any(not isinstance(name, str) for name in names):
+        raise RuntimeError("offline E2E sanitized environment names are malformed")
+    false_claims = (
+        "paid_call_performed",
+        "publication_performed",
+        "external_write_performed",
+        "signed_install_used",
+        "notarized_install_used",
+        "real_provider_receipts_reconciled",
+        "real_publication_ids_reconciled",
+        "human_acceptance_performed",
+        "project_complete",
+    )
+    if any(report[field] is not False for field in false_claims):
+        raise RuntimeError("offline E2E report contains a false completion or external claim")
+    if report["non_loopback_network_blocked"] is not True:
+        raise RuntimeError("offline E2E report did not block non-loopback network")
+    claimed = report["evidence_sha256"]
+    if not isinstance(claimed, str) or not SHA256_PATTERN.fullmatch(claimed):
+        raise RuntimeError("offline E2E canonical digest is malformed")
+    body = {key: value for key, value in report.items() if key != "evidence_sha256"}
+    encoded = json.dumps(
+        body, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    ).encode()
+    if not hmac.compare_digest(hashlib.sha256(encoded).hexdigest(), claimed):
+        raise RuntimeError("offline E2E canonical digest does not match its content")
+    return report
+
+
+def verify_offline_e2e_artifact_archive(
+    *,
+    archive_path: Path,
+    expected_artifact_digest: str,
+    report_path: Path,
+    report_member: str = "nalu-offline-e2e-rehearsal.json",
+) -> dict[str, str]:
+    if not expected_artifact_digest.startswith("sha256:"):
+        raise RuntimeError("CI artifact digest must use the sha256: prefix")
+    expected_sha = expected_artifact_digest.removeprefix("sha256:")
+    if not SHA256_PATTERN.fullmatch(expected_sha):
+        raise RuntimeError("CI artifact digest must contain exactly 64 lowercase hex digits")
+    actual_sha = regular_file_sha256(archive_path, label="artifact archive")
+    if not hmac.compare_digest(actual_sha, expected_sha):
+        raise RuntimeError("artifact archive SHA-256 does not match GitHub artifact digest")
+    report_sha = regular_file_sha256(report_path, label="offline E2E report")
+    try:
+        with zipfile.ZipFile(archive_path) as archive:
+            names = [info.filename for info in archive.infolist()]
+            if len(names) != len(set(names)):
+                raise RuntimeError("artifact archive contains duplicate member names")
+            if report_member not in names:
+                raise RuntimeError("artifact archive is missing offline E2E evidence")
+            if archive.read(report_member) != report_path.read_bytes():
+                raise RuntimeError("offline E2E report is not the report embedded in artifact")
+    except zipfile.BadZipFile as error:
+        raise RuntimeError("artifact archive is not a valid offline E2E evidence ZIP") from error
+    return {
+        "artifact_archive_sha256": actual_sha,
+        "offline_e2e_report_sha256": report_sha,
+    }
 
 
 def verify_update_artifact_archive(
