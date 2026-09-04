@@ -521,6 +521,23 @@ Current evidence:
   accessibility-tree QA verified the direct panel and safe cancel without selecting or
   transmitting a file. The single QA-created empty project was deleted and the Runtime
   reported `verified_absent: true`.
+- Product commits `6fcb56164f8e0ded44e16013f9ec1cb1eb9d46e2` and
+  `c37744c0fedf046b3213e2bc47c6e5793bb80f00`, GitHub CI run `33842279700`:
+  child character-photo and voice-reference imports now have direct negative QA at
+  both Runtime entry points. A complete subject-consent request without guardian
+  approval returns 409 before any database row or managed file is created; attempting
+  to re-register an already managed URI cannot bypass the same rule. The authorized
+  path creates exactly one managed file and one guardian-bound grant receipt. The
+  21-test offline E2E rehearsal binds this fixture to the guardian-child scenario and
+  explicitly remains non-release evidence. CI passed 196 Runtime tests, lint, OpenAPI,
+  real HTTP smoke, offline rehearsal, both architecture Swift suites and builds,
+  bundled-Runtime smoke, staged update, populated rollback and Universal merge.
+  Runtime QA artifact `9925355440` has digest
+  `sha256:a4af0e8cd638a18d816a130ea516d6097157d22eb0447cfb7a88fee976ad6802`;
+  Universal artifact `9925403717` has digest
+  `sha256:c4ba7983f988707ef8e53e6376c08bfaf6ed00f346951a36010d901cc92c8104`.
+  This closes the current automated child-biometric checkpoint, not human privacy,
+  deletion, OCR or signed-install acceptance.
 - Still required before `PASS`: human privacy/deletion QA and clean-account OCR,
   correction and voice archive QA on the same signed release candidate. Automated
   Computer Use crashed while opening the new asset sheet, while Nalu stayed running,
