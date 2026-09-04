@@ -1234,6 +1234,13 @@ Current evidence:
   Universal artifact `9925617047` has digest
   `sha256:10c10cdbb9b96a035f87b5e321c87eef958b41c0e63865f00c0884ba36363f4d`.
   This closes only the current discovery/document-consistency checkpoint.
+- On 2026-09-04, the credential-free latest-release check was repeated after commit
+  `5c1feec`: GitHub still reports `v2026.09.03.8` as the latest release, matching the
+  exact reviewed candidate `207ee38b18a635b200e0dbdba0815cafbd73ee28`, so no new
+  candidate checkout or duplicate promotion review was created. The active pin remains
+  `v2026.08.29.1`; `.8` remains quarantined for its `0.3.0` package/CLI versus `0.3.1`
+  portable-manifest mismatch. This is current no-change discovery evidence only, not a
+  promotion or provider-execution claim.
 - Still required before `PASS`: a corrected pinned Qingshan release whose registry
   integrity and complete registered tests pass, plus authorized real-provider sandbox
   task/result/receipt evidence. Offline authority and transport doubles are not a paid
