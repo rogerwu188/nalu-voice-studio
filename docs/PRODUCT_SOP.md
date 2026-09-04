@@ -2325,6 +2325,25 @@ Current evidence:
   No provider, paid or publication network operation occurred. This closes derived-content
   revalidation for local release artifacts only, not authorized test-channel publication,
   remote reconciliation, human acceptance, signing, notarization or SOP-10.
+- Product commit `33b464c0bbbe00242b75432f2514e173ba1616d5`, GitHub CI run
+  `33889884604`: publication reconciliation reads now bind the validated record to its
+  current production run, project and episode plus the SQLite row's platform, remote
+  identity, request and idempotency digests. Active records additionally reload and
+  revalidate the current release package and publication dry-run before read-only metrics
+  learning can consume them. Negative database fixtures changed the project identity,
+  row remote identity and release manifest while recomputing the record digest; each was
+  rejected before verifier access or metric creation. Imported backup records without
+  restored local media remain available as historical read-only evidence, but cannot
+  initiate new metrics synchronization until their trusted local release inputs exist.
+  All 278 Runtime tests and the Runtime, Apple Silicon, Intel and Universal jobs passed,
+  including bundled-Runtime smoke, project isolation, staged update, populated rollback
+  and controlled-evolution checks. Runtime QA artifact `9943471052` has digest
+  `sha256:6ac864d7badf471a0e48d92d7da88feb022f8d6fa5495610b6163febcbdbfc1e`;
+  Universal artifact `9943649673` has digest
+  `sha256:4f109d0f2f1b90a3ac7183d063a95cf028a63343097407bb741ef70fa2e0fff6`.
+  No provider lookup, paid call or publication write occurred. This closes the local
+  reconciliation cross-entity binding checkpoint only, not authorized remote identity
+  reconciliation, human acceptance, signing, notarization or SOP-10.
 
 ## SOP-11 · macOS packaging, updates and operations — IN_PROGRESS
 
