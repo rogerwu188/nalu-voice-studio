@@ -11,26 +11,26 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "5d5b551b9f77d704d34b2cb836608c1bc879ad86",
-  "last_advanced_at": "2026-09-04T22:23:00Z",
+  "observed_head": "7b85f90d936b94fc5c1eb7ef6236f8603c14d44a",
+  "last_advanced_at": "2026-09-04T22:39:56Z",
   "last_closed_checkpoint": {
-    "id": "provider-scope-isolation-productization",
+    "id": "provider-scope-package-authority",
     "sop": "SOP-07",
-    "product_commit": "4e16816993f122e4962562e2caebba230c6c1ba8",
-    "evidence_commit": "5d5b551b9f77d704d34b2cb836608c1bc879ad86",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33924635219",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33924635219/artifacts/9956558619",
+    "product_commit": "367e2ede7acf828a7c5496ea586b109b6698d6bf",
+    "evidence_commit": "7b85f90d936b94fc5c1eb7ef6236f8603c14d44a",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33925888764",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33925888764/artifacts/9956934894",
     "result": "PASS"
   },
   "current_checkpoint": {
     "sop": "SOP-07",
     "status": "IN_PROGRESS",
-    "summary": "Nalu now validates a versioned per-shot provider scope at the sole durable paid boundary, while Qingshan v2026.09.04.6 remains quarantined. The submitted scope is not yet independently bound to the approved production package's complete character catalog, so an untrusted caller could under-declare absent characters."
+    "summary": "Provider scope is now derived against the immutable approved production package and its complete character catalog. The committed qingshan-model-compilation JSON Schema still rejects valid current compiler output because its closed paid-boundary definition predates many implemented contract fields, so schema validation is not yet an executable authority."
   },
   "next_action": {
     "sop": "SOP-07",
-    "id": "provider-scope-package-authority",
-    "summary": "Bind every provider-scope projection to the immutable approved production package and independently prove that visible plus absent character IDs exactly cover the package's complete character catalog before provider validation or I/O.",
+    "id": "qingshan-compilation-schema-authority",
+    "summary": "Reconcile the closed qingshan-model-compilation JSON Schema with the complete current compiler contract, validate every generated model compilation in tests and CI, and prove unknown or missing paid-boundary fields fail closed.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
