@@ -11,26 +11,26 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "ee772b8f6e25665ff9b28981c2c11494f5d61f11",
-  "last_advanced_at": "2026-09-04T15:52:07Z",
+  "observed_head": "e0e80d22dbf5296a1c81f0d93352e7971850d412",
+  "last_advanced_at": "2026-09-04T16:03:11Z",
   "last_closed_checkpoint": {
-    "id": "publication-learning-derived-binding",
+    "id": "publication-learning-transaction-authority-revalidation",
     "sop": "SOP-10",
-    "product_commit": "3cb1e7bf8464f4cb808f30bd0f105c92fa1d7304",
-    "evidence_commit": "ee772b8f6e25665ff9b28981c2c11494f5d61f11",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33891140774",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33891140774/artifacts/9944142005",
+    "product_commit": "bd2cb87868dfa0489da22e246f0fe16d9c78fac5",
+    "evidence_commit": "e0e80d22dbf5296a1c81f0d93352e7971850d412",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33892239160",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33892239160/artifacts/9944542694",
     "result": "PASS"
   },
   "current_checkpoint": {
     "sop": "SOP-10",
     "status": "IN_PROGRESS",
-    "summary": "SOP-10 reconciliation, metrics and director-strategy records now form an independently revalidated local identity graph. Metrics verification happens outside the database transaction, so the owning hierarchy or next-episode editability can still change between preflight and strategy insertion unless authority is re-read under the final write lock."
+    "summary": "SOP-10 learning writes now revalidate the full authority graph under their final SQLite lock. Publication reconciliation itself still performs its independent provider lookup between an early lifecycle preflight and the final insert/status transition, leaving a stale-authority window if the run or episode changes while verification is in flight."
   },
   "next_action": {
     "sop": "SOP-10",
-    "id": "publication-learning-transaction-authority-revalidation",
-    "summary": "After the read-only provider lookup returns, acquire the SQLite write lock and re-read the run hierarchy, publication identity and target episode status before inserting metrics and a director strategy; reject stale authority without partial rows or strategy revisions.",
+    "id": "publication-reconciliation-transaction-authority-revalidation",
+    "summary": "After publication identity lookup returns, acquire the SQLite write lock and re-read the run hierarchy, episode release state and absence of competing publication identities before inserting the reconciliation and transitioning the episode; reject stale authority without a partial row or lifecycle event.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
