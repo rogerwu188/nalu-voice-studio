@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import fcntl
 import hashlib
 import json
 import os
 import time
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 from .continuity import audit_continuity
@@ -2022,6 +2025,38 @@ class ProductionService:
         request: ProductionRunCreate,
         idempotency_key: str | None = None,
     ) -> ProductionRun:
+        lock_identity = f"production-run:{episode_id}"
+        with self._production_start_lock(lock_identity):
+            return self._start_run_locked(episode_id, request, idempotency_key)
+
+    @contextmanager
+    def _production_start_lock(self, identity: str) -> Iterator[None]:
+        lock_root = self.data_root / "operation-locks"
+        secure_directory(lock_root)
+        lock_path = lock_root / f"{hashlib.sha256(identity.encode()).hexdigest()}.lock"
+        flags = os.O_CREAT | os.O_RDWR | getattr(os, "O_CLOEXEC", 0)
+        if hasattr(os, "O_NOFOLLOW"):
+            flags |= os.O_NOFOLLOW
+        descriptor = os.open(lock_path, flags, 0o600)
+        try:
+            secure_file(lock_path)
+            try:
+                fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError as exc:
+                raise ConflictError("production request is already in progress") from exc
+            try:
+                yield
+            finally:
+                fcntl.flock(descriptor, fcntl.LOCK_UN)
+        finally:
+            os.close(descriptor)
+
+    def _start_run_locked(
+        self,
+        episode_id: str,
+        request: ProductionRunCreate,
+        idempotency_key: str | None = None,
+    ) -> ProductionRun:
         episode = self.repository.get_episode(episode_id)
         if episode.approved_script_revision is None:
             raise ConflictError("an approved episode script is required before production")
@@ -2123,6 +2158,7 @@ class ProductionService:
 
         run_id = new_id("run")
         operation_scope = f"production-run:{episode_id}"
+        recovering_pending = False
         if idempotency_key:
             request_payload = json.dumps(
                 {"episode_id": episode_id, "request": request.model_dump(mode="json")},
@@ -2137,7 +2173,7 @@ class ProductionService:
             if claim_status == "completed":
                 return self.repository.get_run(run_id)
             if claim_status == "pending":
-                raise ConflictError("the idempotent production request is still in progress")
+                recovering_pending = True
             if claim_status == "failed":
                 raise ConflictError("the prior production request failed; inspect its evidence")
 
@@ -2193,11 +2229,60 @@ class ProductionService:
 
         now = utc_now()
         run_dir = self.data_root / "runs" / run_id
-        run_dir.mkdir(parents=True, exist_ok=False)
+        if recovering_pending:
+            if run_dir.is_symlink():
+                self.repository.finish_operation(
+                    operation_scope,
+                    idempotency_key,
+                    "failed",
+                    "pending production directory is an unsafe symbolic link",
+                )
+                raise ConflictError("pending production directory is unsafe")
+            run_dir.mkdir(parents=True, exist_ok=True)
+        else:
+            run_dir.mkdir(parents=True, exist_ok=False)
         secure_directory(run_dir)
         package_path = run_dir / "production-package.json"
-        package_path.write_text(package.model_dump_json(indent=2) + "\n", encoding="utf-8")
-        secure_file(package_path)
+        if recovering_pending and package_path.exists():
+            try:
+                if package_path.is_symlink() or not package_path.is_file():
+                    raise ValueError("package path is not a regular file")
+                recovered_package = ProductionPackage.model_validate_json(
+                    package_path.read_text(encoding="utf-8")
+                )
+                if recovered_package.model_dump(mode="json") != package.model_dump(mode="json"):
+                    raise ValueError("package content changed")
+                unexpected = {
+                    path.name
+                    for path in run_dir.iterdir()
+                    if path.name
+                    not in {
+                        "production-package.json",
+                        "qingshan-workspace",
+                        "qingshan-preflight-report.json",
+                    }
+                }
+                if unexpected:
+                    raise ValueError("run directory contains unexpected files")
+            except (OSError, ValueError) as exc:
+                self.repository.finish_operation(
+                    operation_scope,
+                    idempotency_key,
+                    "failed",
+                    f"pending production package could not be recovered: {exc}",
+                )
+                raise ConflictError("pending production package failed recovery verification") from exc
+        else:
+            if recovering_pending and any(run_dir.iterdir()):
+                self.repository.finish_operation(
+                    operation_scope,
+                    idempotency_key,
+                    "failed",
+                    "pending production directory has content but no immutable package",
+                )
+                raise ConflictError("pending production package is missing")
+            package_path.write_text(package.model_dump_json(indent=2) + "\n", encoding="utf-8")
+            secure_file(package_path)
 
         try:
             workspace = self.adapter.materialize_workspace(package_path)

@@ -7,6 +7,7 @@ import zipfile
 from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
 from pathlib import Path
+from threading import Event
 from urllib.parse import unquote, urlparse
 
 import pytest
@@ -4879,6 +4880,143 @@ def test_preflight_run_rechecks_biometric_consent_before_atomic_commit(
         assert connection.execute("SELECT COUNT(*) FROM production_runs").fetchone()[0] == 0
         assert connection.execute("SELECT COUNT(*) FROM production_run_assets").fetchone()[0] == 0
         assert connection.execute("SELECT COUNT(*) FROM run_events").fetchone()[0] == 0
+
+
+def test_pending_preflight_recovers_same_package_after_runtime_restart(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    first_api = client(tmp_path)
+    _, _, episode = create_approved_episode(first_api)
+    repository = first_api.app.state.repository
+
+    def crash_before_database_commit(*_args: object, **_kwargs: object) -> None:
+        raise RuntimeError("simulated runtime crash before database commit")
+
+    monkeypatch.setattr(repository, "commit_preflight_run", crash_before_database_commit)
+    headers = {"Idempotency-Key": "restart-preflight-recovery"}
+    with pytest.raises(RuntimeError, match="simulated runtime crash"):
+        first_api.post(
+            f"/v1/episodes/{episode['id']}/production-runs",
+            json={"dry_run": True},
+            headers=headers,
+        )
+    with repository.db.connect() as connection:
+        pending = connection.execute(
+            """SELECT resource_id, status FROM idempotent_operations
+               WHERE scope = ? AND idempotency_key = ?""",
+            (f"production-run:{episode['id']}", headers["Idempotency-Key"]),
+        ).fetchone()
+    assert pending["status"] == "pending"
+    package_path = tmp_path / "data" / "runs" / pending["resource_id"] / "production-package.json"
+    package_sha256 = json.loads(package_path.read_text(encoding="utf-8"))["package_sha256"]
+
+    restarted = client(tmp_path)
+    recovered = restarted.post(
+        f"/v1/episodes/{episode['id']}/production-runs",
+        json={"dry_run": True},
+        headers=headers,
+    )
+
+    assert recovered.status_code == 201
+    assert recovered.json()["id"] == pending["resource_id"]
+    assert json.loads(package_path.read_text(encoding="utf-8"))["package_sha256"] == package_sha256
+    assert restarted.get(f"/v1/episodes/{episode['id']}").json()["status"] == "preproduction"
+    with restarted.app.state.repository.db.connect() as connection:
+        assert connection.execute("SELECT COUNT(*) FROM production_runs").fetchone()[0] == 1
+        assert connection.execute("SELECT COUNT(*) FROM run_events").fetchone()[0] == 1
+        operation = connection.execute(
+            """SELECT status FROM idempotent_operations
+               WHERE scope = ? AND idempotency_key = ?""",
+            (f"production-run:{episode['id']}", headers["Idempotency-Key"]),
+        ).fetchone()
+        assert operation["status"] == "completed"
+
+
+def test_pending_preflight_quarantines_changed_package_after_restart(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    first_api = client(tmp_path)
+    _, _, episode = create_approved_episode(first_api)
+    repository = first_api.app.state.repository
+
+    def crash_before_database_commit(*_args: object, **_kwargs: object) -> None:
+        raise RuntimeError("simulated runtime crash before database commit")
+
+    monkeypatch.setattr(repository, "commit_preflight_run", crash_before_database_commit)
+    headers = {"Idempotency-Key": "tampered-preflight-recovery"}
+    with pytest.raises(RuntimeError, match="simulated runtime crash"):
+        first_api.post(
+            f"/v1/episodes/{episode['id']}/production-runs",
+            json={"dry_run": True},
+            headers=headers,
+        )
+    with repository.db.connect() as connection:
+        pending = connection.execute(
+            """SELECT resource_id FROM idempotent_operations
+               WHERE scope = ? AND idempotency_key = ?""",
+            (f"production-run:{episode['id']}", headers["Idempotency-Key"]),
+        ).fetchone()
+    package_path = tmp_path / "data" / "runs" / pending["resource_id"] / "production-package.json"
+    tampered = json.loads(package_path.read_text(encoding="utf-8"))
+    tampered["approved_script"]["content"] = "被篡改的崩溃恢复剧本"
+    package_path.write_text(json.dumps(tampered, ensure_ascii=False), encoding="utf-8")
+
+    restarted = client(tmp_path)
+    rejected = restarted.post(
+        f"/v1/episodes/{episode['id']}/production-runs",
+        json={"dry_run": True},
+        headers=headers,
+    )
+
+    assert rejected.status_code == 409
+    assert "failed recovery verification" in rejected.text
+    assert restarted.get(f"/v1/episodes/{episode['id']}").json()["status"] == "script_approved"
+    assert "被篡改" in package_path.read_text(encoding="utf-8")
+    with restarted.app.state.repository.db.connect() as connection:
+        assert connection.execute("SELECT COUNT(*) FROM production_runs").fetchone()[0] == 0
+        operation = connection.execute(
+            """SELECT status, error FROM idempotent_operations
+               WHERE scope = ? AND idempotency_key = ?""",
+            (f"production-run:{episode['id']}", headers["Idempotency-Key"]),
+        ).fetchone()
+        assert operation["status"] == "failed"
+        assert "could not be recovered" in operation["error"]
+
+
+def test_concurrent_production_start_cannot_steal_active_recovery_lock(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    api = client(tmp_path)
+    _, _, episode = create_approved_episode(api)
+    adapter = api.app.state.production.adapter
+    original_preflight = adapter.preflight
+    entered_preflight = Event()
+    release_preflight = Event()
+
+    def blocking_preflight(*args: object, **kwargs: object):
+        entered_preflight.set()
+        assert release_preflight.wait(timeout=10)
+        return original_preflight(*args, **kwargs)
+
+    monkeypatch.setattr(adapter, "preflight", blocking_preflight)
+    path = f"/v1/episodes/{episode['id']}/production-runs"
+    headers = {"Idempotency-Key": "concurrent-preflight-lock"}
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        first_future = executor.submit(
+            api.post,
+            path,
+            json={"dry_run": True},
+            headers=headers,
+        )
+        assert entered_preflight.wait(timeout=10)
+        competing = api.post(path, json={"dry_run": True}, headers=headers)
+        release_preflight.set()
+        first = first_future.result(timeout=10)
+
+    assert first.status_code == 201
+    assert competing.status_code == 409
+    assert "already in progress" in competing.text
+    assert len(api.get(f"/v1/production-runs/{first.json()['id']}/events").json()) == 1
 
 
 def test_prohibited_model_is_rejected(tmp_path: Path) -> None:
