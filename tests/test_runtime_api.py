@@ -25,6 +25,7 @@ from nalu_runtime.feedback_export import (
 )
 from nalu_runtime.models import (
     AssetDependencyReport,
+    MemoryCardUpdate,
     ProductionRun,
     RunStatus,
     ScriptRevisionCreate,
@@ -2030,6 +2031,124 @@ def test_memory_card_requires_explicit_confirmation_and_keeps_evidence(tmp_path:
         json={"asset_id": asset["id"], "title": "错误关联"},
     )
     assert cross_project.status_code == 409
+
+
+def test_memory_card_confirmation_rechecks_revision_after_stale_preflight(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    api = client(tmp_path)
+    project = api.post("/v1/projects", json={"title": "迟到确认测试"}).json()
+    asset = api.post(
+        f"/v1/projects/{project['id']}/asset-imports",
+        params={"filename": "memory.txt", "kind": "source_document", "name": "一段回忆"},
+        content=b"memory source",
+        headers={"Content-Type": "text/plain"},
+    ).json()
+    card = api.post(
+        f"/v1/projects/{project['id']}/memory-cards",
+        json={
+            "asset_id": asset["id"],
+            "title": "第一次离家",
+            "place": "旧地址",
+            "allowed_use": "story_development",
+        },
+    ).json()
+    repository = api.app.state.repository
+    original_get_memory_card = repository.get_memory_card
+    mutation_performed = False
+
+    def update_after_review(memory_id: str) -> object:
+        nonlocal mutation_performed
+        stale_card = original_get_memory_card(memory_id)
+        if not mutation_performed:
+            mutation_performed = True
+            repository.update_memory_card(
+                memory_id,
+                MemoryCardUpdate(
+                    place="用户刚刚更正的新地址",
+                    source_channel="voice",
+                    change_summary="确认落库前收到用户更正",
+                ),
+            )
+        return stale_card
+
+    monkeypatch.setattr(repository, "get_memory_card", update_after_review)
+    rejected = api.post(
+        f"/v1/memory-cards/{card['id']}/confirm",
+        json={
+            "confirmed_by": "本人",
+            "reviewed_revision": 1,
+            "review_channel": "voice_and_visual",
+            "spoken_confirmation": "我确认刚才读给我的版本",
+        },
+    )
+
+    assert rejected.status_code == 409
+    assert "changed after it was reviewed" in rejected.text
+    current = api.get(f"/v1/projects/{project['id']}/memory-cards").json()[0]
+    assert current["current_revision"] == 2
+    assert current["place"] == "用户刚刚更正的新地址"
+    assert current["confirmation_status"] == "draft"
+    assert api.get(f"/v1/memory-cards/{card['id']}/confirmations").json() == []
+
+
+def test_conflicting_memory_cards_cannot_be_confirmed_concurrently(tmp_path: Path) -> None:
+    api = client(tmp_path)
+    project = api.post("/v1/projects", json={"title": "并发家庭记忆"}).json()
+    card_ids: list[str] = []
+    for index, place in enumerate(("杭州火车站", "上海火车站"), start=1):
+        asset = api.post(
+            f"/v1/projects/{project['id']}/asset-imports",
+            params={
+                "filename": f"memory-{index}.txt",
+                "kind": "source_document",
+                "name": f"资料 {index}",
+            },
+            content=f"source {index}".encode(),
+            headers={"Content-Type": "text/plain"},
+        ).json()
+        card_ids.append(
+            api.post(
+                f"/v1/projects/{project['id']}/memory-cards",
+                json={
+                    "asset_id": asset["id"],
+                    "title": "第一次离开家乡",
+                    "approximate_date": "1982 年秋天",
+                    "place": place,
+                    "allowed_use": "story_development",
+                },
+            ).json()["id"]
+        )
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        responses = list(
+            executor.map(
+                lambda memory_id: api.post(
+                    f"/v1/memory-cards/{memory_id}/confirm",
+                    json={
+                        "confirmed_by": "本人",
+                        "reviewed_revision": 1,
+                        "review_channel": "voice_and_visual",
+                        "spoken_confirmation": "我确认这份资料",
+                    },
+                ),
+                card_ids,
+            )
+        )
+
+    assert sorted(response.status_code for response in responses) == [200, 409]
+    confirmed = api.get(
+        f"/v1/projects/{project['id']}/memory-cards", params={"confirmed_only": True}
+    ).json()
+    assert len(confirmed) == 1
+    draft = next(
+        card
+        for card in api.get(f"/v1/projects/{project['id']}/memory-cards").json()
+        if card["confirmation_status"] == "draft"
+    )
+    conflict = api.get(f"/v1/memory-cards/{draft['id']}/conflicts").json()
+    assert conflict["blocking"] is True
+    assert conflict["conflicts"][0]["kind"] == "event_place"
 
 
 def test_archive_audio_and_video_import_as_reference_without_generation_consent(

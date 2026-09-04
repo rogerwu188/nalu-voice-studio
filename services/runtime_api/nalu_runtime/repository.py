@@ -4286,12 +4286,19 @@ class Repository:
         card = self.get_memory_card(memory_id)
         if request.reviewed_revision != card.current_revision:
             raise ConflictError("memory card changed after it was reviewed")
-        conflict_report = self.memory_graph_conflicts(memory_id)
-        if conflict_report.blocking:
-            raise ConflictError(conflict_report.spoken_summary)
         record_id, now = new_id("mcr"), utc_now()
         with self.db.connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
+            current = connection.execute(
+                "SELECT current_revision FROM memory_cards WHERE id = ?", (memory_id,)
+            ).fetchone()
+            if current is None:
+                raise NotFoundError("memory card not found")
+            if current["current_revision"] != request.reviewed_revision:
+                raise ConflictError("memory card changed after it was reviewed")
+            conflict_report = self.memory_graph_conflicts(memory_id)
+            if conflict_report.blocking:
+                raise ConflictError(conflict_report.spoken_summary)
             existing = connection.execute(
                 """SELECT id FROM memory_card_confirmation_records
                    WHERE memory_id = ? AND reviewed_revision = ?""",
