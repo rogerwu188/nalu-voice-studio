@@ -2958,6 +2958,22 @@ def test_completed_media_qa_creates_offline_release_package_without_publishing(
         assert "metrics binding mismatch" in rejected_strategy_metrics.text
         rewrite_director_strategy(original_strategy_body)
 
+        strategy_content_mutations = (
+            ("observations", ["被篡改但重新计算摘要的观察。"]),
+            ("directives", ["绕过已确认剧本直接改变下一集。"]),
+            ("immutable_constraints", ["允许自动生产和发行。"]),
+        )
+        for field, changed_value in strategy_content_mutations:
+            changed_strategy_content = deepcopy(original_strategy_body)
+            changed_strategy_content[field] = changed_value
+            rewrite_director_strategy(changed_strategy_content)
+            rejected_strategy_content = verified_api.get(
+                f"/v1/projects/{package['project_id']}/director-strategies"
+            )
+            assert rejected_strategy_content.status_code == 409
+            assert "content mismatch" in rejected_strategy_content.text
+        rewrite_director_strategy(original_strategy_body)
+
         replay_metrics = verified_api.post(
             f"/v1/production-runs/{run['id']}/publication-metrics",
             headers={"Idempotency-Key": "publication-metrics-001"},

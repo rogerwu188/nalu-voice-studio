@@ -7315,6 +7315,17 @@ class Repository:
             or strategy.source_metrics_sha256 != metrics.snapshot_sha256
         ):
             raise ConflictError("stored director strategy metrics binding mismatch")
+        expected_observations, expected_directives = self._director_strategy_content(metrics)
+        if (
+            strategy.observations != expected_observations
+            or strategy.directives != expected_directives
+            or strategy.immutable_constraints != self._director_strategy_constraints()
+            or strategy.requires_script_revision_and_approval is not True
+            or strategy.production_started is not False
+            or strategy.publication_performed is not False
+            or strategy.created_at != metrics.created_at
+        ):
+            raise ConflictError("stored director strategy content mismatch")
         return strategy
 
     def sync_publication_metrics(
@@ -7563,11 +7574,7 @@ class Repository:
                 "revision": revision,
                 "observations": observations,
                 "directives": directives,
-                "immutable_constraints": [
-                    "不得改写已确认的角色、场景、道具、声音和连续性事实",
-                    "任何建议必须形成新的剧本修订并再次由用户确认",
-                    "这份策略不能启动生产、付费调用或发行",
-                ],
+                "immutable_constraints": self._director_strategy_constraints(),
                 "requires_script_revision_and_approval": True,
                 "production_started": False,
                 "publication_performed": False,
@@ -7642,6 +7649,14 @@ class Repository:
         if not directives:
             directives.append("保持当前结构，只对下一集开场钩子做一个可回退的小修订。")
         return observations, directives
+
+    @staticmethod
+    def _director_strategy_constraints() -> list[str]:
+        return [
+            "不得改写已确认的角色、场景、道具、声音和连续性事实",
+            "任何建议必须形成新的剧本修订并再次由用户确认",
+            "这份策略不能启动生产、付费调用或发行",
+        ]
 
     @staticmethod
     def _remote_task_from_row(row: Any) -> RemoteTaskBinding:
