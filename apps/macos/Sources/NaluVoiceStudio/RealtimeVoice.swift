@@ -125,6 +125,53 @@ struct RealtimeSessionConfiguration {
     }
 }
 
+struct RealtimeClientSecretEnvelope: Decodable {
+    struct Session: Decodable {
+        let type: String
+        let model: String
+    }
+
+    let value: String
+    let expiresAt: TimeInterval
+    let session: Session
+
+    private enum CodingKeys: String, CodingKey {
+        case value
+        case expiresAt = "expires_at"
+        case session
+    }
+}
+
+enum RealtimeAPIContract {
+    static let clientSecretsURL = URL(
+        string: "https://api.openai.com/v1/realtime/client_secrets"
+    )!
+    static let callsURL = "https://api.openai.com/v1/realtime/calls"
+    static let dataChannelLabel = "oai-events"
+    static let minimumClientSecretLifetime: TimeInterval = 5
+    static let maximumClientSecretBytes = 4_096
+
+    static func validatedClientSecret(from data: Data, now: Date = Date()) throws -> String {
+        guard let envelope = try? JSONDecoder().decode(
+            RealtimeClientSecretEnvelope.self,
+            from: data
+        ) else {
+            throw RealtimeVoiceError.invalidSessionResponse
+        }
+        let trimmedValue = envelope.value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmedValue == envelope.value,
+              !trimmedValue.isEmpty,
+              trimmedValue.utf8.count <= maximumClientSecretBytes,
+              envelope.expiresAt.isFinite,
+              envelope.expiresAt - now.timeIntervalSince1970 >= minimumClientSecretLifetime,
+              envelope.session.type == "realtime",
+              envelope.session.model == RealtimeSessionConfiguration.model else {
+            throw RealtimeVoiceError.invalidSessionResponse
+        }
+        return trimmedValue
+    }
+}
+
 struct RealtimeInterviewToolResult: Codable, Equatable {
     let accepted: Bool
     let message: String
@@ -187,11 +234,12 @@ actor RealtimeSessionBroker {
         guard let apiKey = try keychain.secret(for: .openAIRealtime) else {
             throw RealtimeVoiceError.missingCredential
         }
-        let url = URL(string: "https://api.openai.com/v1/realtime/client_secrets")!
-        var request = URLRequest(url: url)
+        var request = URLRequest(url: RealtimeAPIContract.clientSecretsURL)
         request.httpMethod = "POST"
+        request.cachePolicy = .reloadIgnoringLocalCacheData
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.httpBody = try RealtimeSessionConfiguration.requestBody(
             instructions: instructions
         )
@@ -200,12 +248,7 @@ actor RealtimeSessionBroker {
               (200..<300).contains(http.statusCode) else {
             throw RealtimeVoiceError.sessionRequestFailed
         }
-        guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let value = object["value"] as? String,
-              !value.isEmpty else {
-            throw RealtimeVoiceError.invalidSessionResponse
-        }
-        return value
+        return try RealtimeAPIContract.validatedClientSecret(from: data)
     }
 }
 
@@ -465,7 +508,7 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
         }
     }
 
-    private static let webRTCPage = #"""
+    static let webRTCPage = #"""
     <!doctype html><html><body><script>
     window.naluRealtime = (() => {
       let pc = null, dc = null, stream = null, audio = null, disconnectTimer = null;
@@ -500,7 +543,7 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
           pc.ontrack = event => { audio.srcObject = event.streams[0]; };
           stream = await navigator.mediaDevices.getUserMedia({audio: true});
           pc.addTrack(stream.getTracks()[0]);
-          dc = pc.createDataChannel("oai-events");
+          dc = pc.createDataChannel("\#(RealtimeAPIContract.dataChannelLabel)");
           dc.addEventListener("open", () => post("status", "connected"));
           dc.addEventListener("message", event => {
             const value = JSON.parse(event.data);
@@ -532,7 +575,7 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
           });
           const offer = await pc.createOffer();
           await pc.setLocalDescription(offer);
-          const response = await fetch("https://api.openai.com/v1/realtime/calls", {
+          const response = await fetch("\#(RealtimeAPIContract.callsURL)", {
             method: "POST", body: offer.sdp,
             headers: {Authorization: `Bearer ${token}`, "Content-Type": "application/sdp"}
           });

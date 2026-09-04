@@ -30,6 +30,85 @@ final class RealtimeVoiceConfigurationTests: XCTestCase {
         XCTAssertEqual(parameters["additionalProperties"] as? Bool, false)
     }
 
+    func testCurrentWebRTCContractUsesOfficialEndpointsAndChannel() {
+        XCTAssertEqual(
+            RealtimeAPIContract.clientSecretsURL.absoluteString,
+            "https://api.openai.com/v1/realtime/client_secrets"
+        )
+        XCTAssertEqual(
+            RealtimeAPIContract.callsURL,
+            "https://api.openai.com/v1/realtime/calls"
+        )
+        XCTAssertEqual(RealtimeAPIContract.dataChannelLabel, "oai-events")
+        XCTAssertTrue(
+            RealtimeVoiceCoordinator.webRTCPage.contains(
+                #"createDataChannel("oai-events")"#
+            )
+        )
+        XCTAssertTrue(
+            RealtimeVoiceCoordinator.webRTCPage.contains(
+                #"fetch("https://api.openai.com/v1/realtime/calls""#
+            )
+        )
+    }
+
+    func testClientSecretRequiresCurrentRealtimeSessionAndUsableTTL() throws {
+        let now = Date(timeIntervalSince1970: 2_000_000_000)
+        let data = try JSONSerialization.data(withJSONObject: [
+            "value": "ek_test_ephemeral",
+            "expires_at": 2_000_000_030,
+            "session": [
+                "type": "realtime",
+                "model": "gpt-realtime-2.1",
+            ],
+        ])
+        XCTAssertEqual(
+            try RealtimeAPIContract.validatedClientSecret(from: data, now: now),
+            "ek_test_ephemeral"
+        )
+    }
+
+    func testClientSecretFailsClosedForExpiredWrongOrOversizedResponses() throws {
+        let now = Date(timeIntervalSince1970: 2_000_000_000)
+        let variants: [[String: Any]] = [
+            [
+                "value": "ek_expired",
+                "expires_at": 2_000_000_004,
+                "session": ["type": "realtime", "model": "gpt-realtime-2.1"],
+            ],
+            [
+                "value": "ek_wrong_type",
+                "expires_at": 2_000_000_030,
+                "session": ["type": "transcription", "model": "gpt-realtime-2.1"],
+            ],
+            [
+                "value": "ek_wrong_model",
+                "expires_at": 2_000_000_030,
+                "session": ["type": "realtime", "model": "gpt-realtime-2"],
+            ],
+            [
+                "value": " ek_whitespace ",
+                "expires_at": 2_000_000_030,
+                "session": ["type": "realtime", "model": "gpt-realtime-2.1"],
+            ],
+            [
+                "value": String(repeating: "x", count: 4_097),
+                "expires_at": 2_000_000_030,
+                "session": ["type": "realtime", "model": "gpt-realtime-2.1"],
+            ],
+        ]
+
+        for variant in variants {
+            let data = try JSONSerialization.data(withJSONObject: variant)
+            XCTAssertThrowsError(
+                try RealtimeAPIContract.validatedClientSecret(from: data, now: now)
+            )
+        }
+        XCTAssertThrowsError(
+            try RealtimeAPIContract.validatedClientSecret(from: Data("{}".utf8), now: now)
+        )
+    }
+
     func testVisibleStatesDescribeConnectionAndInterruption() {
         XCTAssertEqual(RealtimeVoiceState.listening.label, "正在听您说话")
         XCTAssertTrue(RealtimeVoiceState.speaking.label.contains("随时插话"))
