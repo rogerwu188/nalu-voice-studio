@@ -10,6 +10,12 @@ final class RealtimeVoiceConfigurationTests: XCTestCase {
             JSONSerialization.jsonObject(with: data) as? [String: Any]
         )
         let session = try XCTUnwrap(root["session"] as? [String: Any])
+        let expiry = try XCTUnwrap(root["expires_after"] as? [String: Any])
+        XCTAssertEqual(expiry["anchor"] as? String, "created_at")
+        XCTAssertEqual(
+            expiry["seconds"] as? Int,
+            RealtimeSessionConfiguration.clientSecretLifetimeSeconds
+        )
         XCTAssertEqual(session["model"] as? String, "gpt-realtime-2.1")
         XCTAssertEqual(session["instructions"] as? String, "先回答，再回到采访。")
 
@@ -192,6 +198,11 @@ final class RealtimeVoiceConfigurationTests: XCTestCase {
                 "expires_at": 2_000_000_030,
                 "session": ["type": "realtime", "model": "gpt-realtime-2.1"],
             ],
+            [
+                "value": "ek_unexpected_long_lived",
+                "expires_at": 2_000_000_121,
+                "session": ["type": "realtime", "model": "gpt-realtime-2.1"],
+            ],
         ]
 
         for variant in variants {
@@ -349,6 +360,28 @@ final class RealtimeVoiceConfigurationTests: XCTestCase {
         XCTAssertTrue(RealtimeVoiceCoordinator.webRTCPage.contains("try {"))
         XCTAssertTrue(RealtimeVoiceCoordinator.webRTCPage.contains("value = JSON.parse(event.data)"))
         XCTAssertTrue(RealtimeVoiceCoordinator.webRTCPage.contains("Array.isArray(value)"))
+    }
+
+    func testResponseDoneExecutesToolsOnlyForCompletedResponses() {
+        let page = RealtimeVoiceCoordinator.webRTCPage
+
+        XCTAssertTrue(page.contains(#"typeof value.response.status !== "string""#))
+        XCTAssertTrue(page.contains(#"value.response.status === "cancelled""#))
+        XCTAssertTrue(page.contains("awaitingToolResult = false"))
+        XCTAssertTrue(page.contains(#"value.response.status !== "completed""#))
+        XCTAssertTrue(page.contains("实时语音回答未完成，请重新连接"))
+
+        let statusRange = try? XCTUnwrap(
+            page.range(of: #"value.response.status !== "completed""#)
+        )
+        let callRange = try? XCTUnwrap(
+            page.range(of: "const calls = output.filter")
+        )
+        if let statusRange, let callRange {
+            XCTAssertLessThan(statusRange.lowerBound, callRange.lowerBound)
+        } else {
+            XCTFail("Expected response status validation before tool execution")
+        }
     }
 
     func testEmbeddedPageConvergesChannelFailuresAndKeepsIntentionalStopQuiet() {

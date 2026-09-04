@@ -129,6 +129,7 @@ enum RealtimeSpokenPrompt {
 struct RealtimeSessionConfiguration {
     static let model = "gpt-realtime-2.1"
     static let interviewToolName = "record_interview_answer"
+    static let clientSecretLifetimeSeconds = 60
 
     static var interviewTool: [String: Any] {
         [
@@ -160,6 +161,10 @@ struct RealtimeSessionConfiguration {
     static func requestBody(instructions: String) throws -> Data {
         try JSONSerialization.data(
             withJSONObject: [
+                "expires_after": [
+                    "anchor": "created_at",
+                    "seconds": clientSecretLifetimeSeconds,
+                ],
                 "session": [
                     "type": "realtime",
                     "model": model,
@@ -213,6 +218,7 @@ enum RealtimeAPIContract {
     static let callsURL = "https://api.openai.com/v1/realtime/calls"
     static let dataChannelLabel = "oai-events"
     static let minimumClientSecretLifetime: TimeInterval = 5
+    static let maximumClientSecretLifetime: TimeInterval = 120
     static let maximumClientSecretBytes = 4_096
 
     static func validatedClientSecret(from data: Data, now: Date = Date()) throws -> String {
@@ -228,6 +234,7 @@ enum RealtimeAPIContract {
               trimmedValue.utf8.count <= maximumClientSecretBytes,
               envelope.expiresAt.isFinite,
               envelope.expiresAt - now.timeIntervalSince1970 >= minimumClientSecretLifetime,
+              envelope.expiresAt - now.timeIntervalSince1970 <= maximumClientSecretLifetime,
               envelope.session.type == "realtime",
               envelope.session.model == RealtimeSessionConfiguration.model else {
             throw RealtimeVoiceError.invalidSessionResponse
@@ -860,7 +867,21 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
               responseActive = false;
               responseRequestPending = false;
               cancellationRequested = false;
-              const output = value.response && value.response.output;
+              if (!value.response || typeof value.response !== "object" ||
+                  Array.isArray(value.response) || typeof value.response.status !== "string") {
+                fail("实时语音回答结构不正确，请重新连接");
+                return;
+              }
+              if (value.response.status === "cancelled") {
+                awaitingToolResult = false;
+                flushResponseRequest();
+                return;
+              }
+              if (value.response.status !== "completed") {
+                fail("实时语音回答未完成，请重新连接");
+                return;
+              }
+              const output = value.response.output;
               if (!Array.isArray(output)) {
                 fail("实时语音回答结构不正确，请重新连接");
                 return;
