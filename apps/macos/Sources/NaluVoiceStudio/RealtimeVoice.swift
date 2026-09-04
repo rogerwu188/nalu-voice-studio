@@ -237,13 +237,47 @@ enum RealtimeAPIContract {
 }
 
 struct RealtimeInterviewToolResult: Codable, Equatable {
+    static let maximumFieldCharacters = 1_000
+    static let maximumJSONBytes = 8_192
+
     let accepted: Bool
     let message: String
     let nextPrompt: String
     let requiresVisibleConfirmation: Bool
 
+    private static let transportFailure = RealtimeInterviewToolResult(
+        accepted: false,
+        message: "本地结果格式不正确，请回到可见界面确认。",
+        nextPrompt: "",
+        requiresVisibleConfirmation: true
+    )
+
+    private static func normalizedField(_ value: String) -> String {
+        String(
+            value.split(whereSeparator: { $0.isWhitespace })
+                .joined(separator: " ")
+                .prefix(maximumFieldCharacters)
+        )
+    }
+
+    func boundedForTransport() -> RealtimeInterviewToolResult {
+        let bounded = RealtimeInterviewToolResult(
+            accepted: accepted,
+            message: Self.normalizedField(message),
+            nextPrompt: Self.normalizedField(nextPrompt),
+            requiresVisibleConfirmation: requiresVisibleConfirmation
+        )
+        guard !bounded.message.isEmpty,
+              let encoded = try? JSONEncoder().encode(bounded),
+              encoded.count <= Self.maximumJSONBytes else {
+            return Self.transportFailure
+        }
+        return bounded
+    }
+
     func jsonString() -> String {
-        guard let data = try? JSONEncoder().encode(self),
+        let bounded = boundedForTransport()
+        guard let data = try? JSONEncoder().encode(bounded),
               let value = String(data: data, encoding: .utf8) else {
             return #"{"accepted":false,"message":"本地结果编码失败。","nextPrompt":"","requiresVisibleConfirmation":true}"#
         }
@@ -872,6 +906,11 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
       function completeToolCall(callID, output) {
         if (!dc || dc.readyState !== "open") {
           post("error", "语音采访结果无法返回，请重新连接");
+          return;
+        }
+        if (typeof callID !== "string" || callID.length === 0 || callID.length > 512 ||
+            typeof output !== "string" || output.length === 0 || output.length > 8192) {
+          post("error", "语音采访结果格式不正确，请重新连接");
           return;
         }
         dc.send(JSON.stringify({

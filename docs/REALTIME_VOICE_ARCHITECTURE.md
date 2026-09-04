@@ -87,6 +87,12 @@ secrets or request details into UI capture, feedback or support material.
 - Tool names and exact arguments are locally validated, payloads are bounded, duplicate
   call IDs are ignored, and function output returns through the documented
   `function_call_output` → `response.create` event sequence.
+- Native tool-result message and next-question fields are whitespace-normalized and
+  capped at 1,000 characters each before encoding. The complete output is limited to
+  8,192 UTF-8 bytes; empty or pathological output becomes a fixed rejected result that
+  requires visible confirmation. The embedded page independently validates the call ID
+  and serialized output before sending them as function-output data, while the following
+  `response.create` carries no dynamic instructions.
 - Unarmed approval, deletion, paid generation, biometric consent/use and publishing are
   not exposed as Realtime operations; those actions remain behind product gates.
 - The status strip has an indeterminate running indicator, explicit listening/thinking/
