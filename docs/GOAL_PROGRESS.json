@@ -11,26 +11,26 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "a65b88cf9e23ca9baf9d1b1465705f21108c0ba0",
-  "last_advanced_at": "2026-09-04T14:37:56Z",
+  "observed_head": "aa8715740151179ed1850884eabdd34136a4145c",
+  "last_advanced_at": "2026-09-04T14:48:19Z",
   "last_closed_checkpoint": {
-    "id": "crash-consistent-postproduction-repair-plan",
-    "sop": "SOP-09",
-    "product_commit": "d94a85ec47ee27293317a74e799ace41fdac6d06",
-    "evidence_commit": "a65b88cf9e23ca9baf9d1b1465705f21108c0ba0",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33883847784",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33883847784/artifacts/9941335109",
+    "id": "durable-release-and-publication-dry-run-publication",
+    "sop": "SOP-10",
+    "product_commit": "2687b50a34e4f95bd50023d6fee9deeca251ca17",
+    "evidence_commit": "aa8715740151179ed1850884eabdd34136a4145c",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33885124622",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33885124622/artifacts/9941733901",
     "result": "PASS"
   },
   "current_checkpoint": {
     "sop": "SOP-10",
     "status": "IN_PROGRESS",
-    "summary": "SOP-09 failed QA reports now restore their exact repair plan after a report/event crash. Revalidation found the next durability boundary in SOP-10: release-package and per-platform publication dry-run files can be acknowledged without syncing their bytes and parent directory, and replay returns an existing file before restoring a missing SQLite event."
+    "summary": "SOP-10 release packages and publication dry-runs are now durably published and restore one digest-bound event after restart. Revalidation found that create_release_package reads an existing path before applying stored_release_package's symbolic-link rejection, so a link to external matching JSON could be accepted by the recovery branch."
   },
   "next_action": {
     "sop": "SOP-10",
-    "id": "durable-release-and-publication-dry-run-publication",
-    "summary": "Publish release packages and per-platform publication dry-runs through synced exclusive creation, then recover exactly one digest-bound audit event after restart when the process exits after durable file publication but before the SQLite event commit; preserve conflict and no-network guarantees.",
+    "id": "release-artifact-symlink-recovery-hardening",
+    "summary": "Reject symbolic links and non-regular existing release-package paths before reading or recovering their events, while preserving exact regular-file replay and publication dry-run guards; prove an external matching package cannot be accepted or produce an audit event.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
