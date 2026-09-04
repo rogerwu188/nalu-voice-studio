@@ -2344,6 +2344,25 @@ Current evidence:
   No provider lookup, paid call or publication write occurred. This closes the local
   reconciliation cross-entity binding checkpoint only, not authorized remote identity
   reconciliation, human acceptance, signing, notarization or SOP-10.
+- Product commit `3cb1e7bf8464f4cb808f30bd0f105c92fa1d7304`, GitHub CI run
+  `33891140774`: stored publication metric snapshots now bind every identity and request
+  field to their SQLite row, owning run hierarchy and validated publication record;
+  stored director strategies bind their row identity and immutable revision to an episode
+  in the owning project and to the exact current metrics digest. Negative fixtures rewrote
+  the metric project or publication record and the strategy target episode or source
+  metrics digest, recomputed each outer record digest, and proved reads and replay fail
+  closed. The isolated native learning fixture now includes its own internally bound,
+  local-only reconciliation evidence, so packaged UI QA exercises the same graph without
+  contacting a provider or claiming a real publication. All 278 Runtime tests and the
+  Runtime, Apple Silicon, Intel and Universal jobs passed, including bundled-Runtime
+  smoke, project isolation, staged update, populated rollback and controlled-evolution
+  checks. Runtime QA artifact `9943993275` has digest
+  `sha256:02c2f4b4985824f0bc135ce32be5cfbd6ce2eed2ed06eea1253a28a4a28a35c0`;
+  Universal artifact `9944142005` has digest
+  `sha256:cc8400cd8c1a6440a7d5cc5fd317e8f444bea1502ff58ecbeeb1bffb94594202`.
+  No provider lookup, paid call, production or publication write occurred. This closes
+  deterministic local learning-record graph integrity only, not authorized platform
+  observation, human learning-loop acceptance, signing, notarization or SOP-10.
 
 ## SOP-11 · macOS packaging, updates and operations — IN_PROGRESS
 
