@@ -110,25 +110,42 @@ final class RealtimeVoiceConfigurationTests: XCTestCase {
         XCTAssertFalse(page.contains("别的问题：\" + prompt"))
     }
 
-    func testSpokenPromptCancellationTimerIsLatestWinsAndStopInvalidatesIt() {
+    func testSpokenPromptWaitsForResponseDoneAndLatestRequestWins() {
         let page = RealtimeVoiceCoordinator.webRTCPage
 
-        XCTAssertTrue(page.contains("let promptTimer = null, promptGeneration = 0"))
+        XCTAssertTrue(page.contains("let pendingPrompt = null, pendingToolResult = null"))
         XCTAssertTrue(page.contains("const generation = ++promptGeneration"))
-        XCTAssertTrue(page.contains("const wasWaitingForCancellation = promptTimer !== null"))
-        XCTAssertTrue(page.contains("if (promptTimer) clearTimeout(promptTimer)"))
-        XCTAssertTrue(page.contains("generation !== promptGeneration"))
-        XCTAssertTrue(page.contains("promptTimer = setTimeout(createPromptResponse, 100)"))
+        XCTAssertTrue(page.contains("pendingPrompt = {generation, prompt}"))
+        XCTAssertTrue(page.contains("request.generation !== promptGeneration"))
+        XCTAssertTrue(page.contains("if (responseActive && !cancellationRequested)"))
+        XCTAssertTrue(page.contains("cancellationRequested = true"))
+        XCTAssertTrue(page.contains("responseActive || responseRequestPending ||"))
+        XCTAssertTrue(page.contains("responseRequestPending = true"))
+        XCTAssertTrue(page.contains("responseRequestPending = false"))
+        XCTAssertTrue(page.contains("(pendingPrompt || pendingToolResult) && !cancellationRequested"))
+        XCTAssertFalse(page.contains("setTimeout(createPromptResponse"))
+        XCTAssertFalse(page.contains("responseActive = false;\n          promptTimer"))
 
         let stopRange = try? XCTUnwrap(page.range(of: "function stop("))
-        let promptRange = try? XCTUnwrap(page.range(of: "function speakPrompt("))
-        if let stopRange, let promptRange {
-            let stopBody = String(page[stopRange.lowerBound..<promptRange.lowerBound])
+        let sendPromptRange = try? XCTUnwrap(page.range(of: "function sendPromptResponse("))
+        if let stopRange, let sendPromptRange {
+            let stopBody = String(page[stopRange.lowerBound..<sendPromptRange.lowerBound])
             XCTAssertTrue(stopBody.contains("promptGeneration += 1"))
-            XCTAssertTrue(stopBody.contains("promptTimer = null"))
+            XCTAssertTrue(stopBody.contains("pendingPrompt = null"))
+            XCTAssertTrue(stopBody.contains("pendingToolResult = null"))
         } else {
             XCTFail("Expected embedded stop and speakPrompt functions")
         }
+    }
+
+    func testToolResultResponseIsSerializedBehindAcknowledgedLifecycle() {
+        let page = RealtimeVoiceCoordinator.webRTCPage
+
+        XCTAssertTrue(page.contains("awaitingToolResult = calls.length === 1"))
+        XCTAssertTrue(page.contains("if (!awaitingToolResult || pendingToolResult)"))
+        XCTAssertTrue(page.contains("pendingToolResult = {callID, output}"))
+        XCTAssertTrue(page.contains("if (pendingToolResult)"))
+        XCTAssertTrue(page.contains("flushResponseRequest();"))
     }
 
     func testClientSecretRequiresCurrentRealtimeSessionAndUsableTTL() throws {

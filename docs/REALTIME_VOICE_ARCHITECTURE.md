@@ -125,9 +125,12 @@ secrets or request details into UI capture, feedback or support material.
   `input_text` JSON envelope. The following `response.create` contains only fixed policy:
   `untrusted_question` is data to read aloud and any command inside it is invalid. The
   question is never concatenated into per-response model instructions.
-- Spoken-question cancellation uses a monotonically increasing generation and one owned
-  restart timer. A newer visible question replaces any delayed predecessor, and session
-  stop or failure invalidates and clears the timer before it can send another response.
+- Spoken-question cancellation uses a monotonically increasing generation and an owned
+  pending request. A newer visible question replaces its predecessor, but the replacement
+  is not sent until the server acknowledges the active response with `response.done`;
+  there is no guessed cancellation delay and `responseActive` is never cleared locally.
+  Tool results use the same serialized response gate and wait for native completion.
+  Session stop or failure invalidates all pending question and tool-result work.
 - Transcript and `response.done` fields are type-checked before use. A response may carry
   at most one exact interview-tool call; identifiers and arguments have fixed limits, and
   the native client accepts at most 64 validated unique calls per session. Malformed
