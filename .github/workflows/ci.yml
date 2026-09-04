@@ -144,6 +144,14 @@ jobs:
       - run: cp /tmp/nalu-publication-fixture-universal.json dist/nalu-publication-fixture-universal.json
       - run: ditto -c -k --keepParent "dist/Nalu Voice Studio.app" "dist/Nalu-Voice-Studio-macOS.zip"
       - run: shasum -a 256 "dist/Nalu-Voice-Studio-macOS.zip" > "dist/Nalu-Voice-Studio-macOS.zip.sha256"
+      - name: Verify packaged publication-learning evidence
+        run: |
+          python scripts/verify-packaged-publication-evidence.py \
+            --report dist/nalu-publication-fixture-universal.json \
+            --release-zip dist/Nalu-Voice-Studio-macOS.zip \
+            --release-zip-sha256 "$(awk '{print $1}' dist/Nalu-Voice-Studio-macOS.zip.sha256)" \
+            --source-commit "$GITHUB_SHA" \
+            --evidence dist/nalu-publication-verification-universal.json
       - uses: actions/upload-artifact@v7
         with:
           name: Nalu-Voice-Studio-macOS
@@ -153,3 +161,4 @@ jobs:
             dist/nalu-upgrade-rollback-universal.json
             dist/nalu-staged-update-universal.json
             dist/nalu-publication-fixture-universal.json
+            dist/nalu-publication-verification-universal.json
