@@ -69,11 +69,38 @@ class AssetService:
     def _after_asset_database_commit(_asset: Asset) -> None:
         """Crash-test seam after SQLite commit but before import-marker cleanup."""
 
+    @staticmethod
+    def _after_asset_retirement(_directory: Path) -> None:
+        """Crash-test seam after managed bytes become private but before SQLite deletion."""
+
+    @staticmethod
+    def _after_asset_database_deletion(_directory: Path) -> None:
+        """Crash-test seam after SQLite deletion but before managed-byte removal."""
+
     def _recover_interrupted_imports(self) -> None:
         for project_directory in self.root.iterdir():
             if project_directory.is_symlink() or not project_directory.is_dir():
                 raise ConflictError("managed asset project directory is unsafe")
             for candidate in list(project_directory.iterdir()):
+                if candidate.name.startswith(".ast_") and candidate.name.endswith(".deleting"):
+                    if candidate.is_symlink() or not candidate.is_dir():
+                        raise ConflictError("managed asset deletion stage is unsafe")
+                    asset_id = candidate.name[1 : -len(".deleting")]
+                    final_directory = project_directory / asset_id
+                    try:
+                        asset = self.repository.get_asset(asset_id)
+                    except NotFoundError:
+                        shutil.rmtree(candidate)
+                    else:
+                        if (
+                            final_directory.exists()
+                            or final_directory.is_symlink()
+                            or asset.project_id != project_directory.name
+                        ):
+                            raise ConflictError("managed asset deletion recovery binding changed")
+                        os.rename(candidate, final_directory)
+                    self._sync_directory(project_directory)
+                    continue
                 if candidate.name.startswith(".ast_") and candidate.name.endswith(".pending"):
                     if candidate.is_symlink() or not candidate.is_dir():
                         raise ConflictError("managed asset staging directory is unsafe")
@@ -238,9 +265,30 @@ class AssetService:
             raise ConflictError(report.explanation)
         path = self._managed_path(asset.project_id, asset.local_uri)
         directory = path.parent
-        self.repository.delete_asset_record(asset_id)
-        if directory.is_dir():
-            shutil.rmtree(directory)
+        project_directory = directory.parent
+        deleting = project_directory / f".{asset.id}.deleting"
+        if (
+            directory.is_symlink()
+            or not directory.is_dir()
+            or path.is_symlink()
+            or not path.is_file()
+            or deleting.exists()
+            or deleting.is_symlink()
+        ):
+            raise ConflictError("managed asset deletion path is unsafe")
+        os.rename(directory, deleting)
+        self._sync_directory(project_directory)
+        self._after_asset_retirement(deleting)
+        try:
+            self.repository.delete_asset_record(asset_id)
+        except Exception:
+            if not directory.exists() and deleting.is_dir():
+                os.rename(deleting, directory)
+                self._sync_directory(project_directory)
+            raise
+        self._after_asset_database_deletion(deleting)
+        shutil.rmtree(deleting)
+        self._sync_directory(project_directory)
 
     def _managed_path(self, project_id: str, local_uri: str) -> Path:
         parsed = urlparse(local_uri)

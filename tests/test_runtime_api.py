@@ -3715,6 +3715,86 @@ def test_managed_asset_import_recovers_both_database_crash_windows(
     assert (committed_directory / "memory.txt").read_bytes() == b"committed family memory"
 
 
+def test_managed_asset_deletion_recovers_both_database_crash_windows(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    api = client(tmp_path)
+    project = api.post("/v1/projects", json={"title": "家庭档案"}).json()
+    imported = api.post(
+        f"/v1/projects/{project['id']}/asset-imports",
+        params={
+            "filename": "portrait.jpg",
+            "kind": "scene_reference",
+            "name": "旧照片",
+        },
+        content=b"irreplaceable family portrait",
+        headers={"Content-Type": "image/jpeg"},
+    ).json()
+    asset_id = imported["id"]
+    stored_path = Path(unquote(urlparse(imported["local_uri"]).path))
+    directory = stored_path.parent
+    deleting = directory.parent / f".{asset_id}.deleting"
+    original_after_retirement = asset_service_module.AssetService._after_asset_retirement
+    original_after_deletion = (
+        asset_service_module.AssetService._after_asset_database_deletion
+    )
+
+    class SimulatedProcessExit(BaseException):
+        pass
+
+    def crash_before_database_deletion(_directory: Path) -> None:
+        raise SimulatedProcessExit("simulated exit before asset database deletion")
+
+    monkeypatch.setattr(
+        asset_service_module.AssetService,
+        "_after_asset_retirement",
+        staticmethod(crash_before_database_deletion),
+    )
+    with pytest.raises(SimulatedProcessExit, match="before asset database deletion"):
+        api.delete(f"/v1/assets/{asset_id}")
+
+    assert not directory.exists()
+    assert (deleting / "portrait.jpg").read_bytes() == b"irreplaceable family portrait"
+    assert api.app.state.repository.get_asset(asset_id).id == asset_id
+
+    monkeypatch.setattr(
+        asset_service_module.AssetService,
+        "_after_asset_retirement",
+        staticmethod(original_after_retirement),
+    )
+    restarted = client(tmp_path)
+    assert not deleting.exists()
+    assert stored_path.read_bytes() == b"irreplaceable family portrait"
+    assert restarted.get(f"/v1/projects/{project['id']}/assets").json()[0]["id"] == asset_id
+
+    def crash_after_database_deletion(_directory: Path) -> None:
+        raise SimulatedProcessExit("simulated exit after asset database deletion")
+
+    monkeypatch.setattr(
+        asset_service_module.AssetService,
+        "_after_asset_database_deletion",
+        staticmethod(crash_after_database_deletion),
+    )
+    with pytest.raises(SimulatedProcessExit, match="after asset database deletion"):
+        restarted.delete(f"/v1/assets/{asset_id}")
+
+    assert not directory.exists()
+    assert (deleting / "portrait.jpg").read_bytes() == b"irreplaceable family portrait"
+    with pytest.raises(NotFoundError, match="asset not found"):
+        restarted.app.state.repository.get_asset(asset_id)
+
+    monkeypatch.setattr(
+        asset_service_module.AssetService,
+        "_after_asset_database_deletion",
+        staticmethod(original_after_deletion),
+    )
+    recovered = client(tmp_path)
+
+    assert recovered.get(f"/v1/projects/{project['id']}/assets").json() == []
+    assert not directory.exists()
+    assert not deleting.exists()
+
+
 def test_project_scoped_asset_rechecks_scope_after_stale_preflight(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
