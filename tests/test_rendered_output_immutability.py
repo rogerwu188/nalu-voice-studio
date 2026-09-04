@@ -2388,6 +2388,39 @@ def test_completed_media_qa_creates_offline_release_package_without_publishing(
     assert len(release_events) == 1
     assert release_events[0]["payload"]["manifest_sha256"] == package["manifest_sha256"]
     assert release_events[0]["payload"]["recovered_after_restart"] is True
+
+    def artifact_sha256(value: dict, digest_field: str) -> str:
+        return hashlib.sha256(
+            json.dumps(
+                {key: item for key, item in value.items() if key != digest_field},
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8")
+        ).hexdigest()
+
+    tampered_package = deepcopy(package)
+    tampered_package["project_id"] = "project_from_another_local_record"
+    tampered_package["manifest_sha256"] = artifact_sha256(
+        tampered_package, "manifest_sha256"
+    )
+    release_path.write_text(
+        json.dumps(tampered_package, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    cross_project = api.post(
+        f"/v1/production-runs/{run['id']}/release-package", json=release_request
+    )
+    assert cross_project.status_code == 409
+    assert "binding mismatch" in cross_project.text
+    assert len(
+        [
+            event
+            for event in api.get(f"/v1/production-runs/{run['id']}/events").json()
+            if event["event_type"] == "release_package_created"
+        ]
+    ) == 1
+    release_path.write_bytes(release_bytes)
     changed = api.post(
         f"/v1/production-runs/{run['id']}/release-package",
         json={**release_request, "title": "静默替换标题"},
@@ -2473,6 +2506,29 @@ def test_completed_media_qa_creates_offline_release_package_without_publishing(
     assert len(dry_run_events) == 1
     assert dry_run_events[0]["payload"]["plan_sha256"] == dry_run["plan_sha256"]
     assert dry_run_events[0]["payload"]["recovered_after_restart"] is True
+    tampered_dry_run = deepcopy(dry_run)
+    tampered_dry_run["episode_id"] = "episode_from_another_local_record"
+    tampered_dry_run["plan_sha256"] = artifact_sha256(
+        tampered_dry_run, "plan_sha256"
+    )
+    dry_run_path.write_text(
+        json.dumps(tampered_dry_run, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    cross_episode = api.post(
+        f"/v1/production-runs/{run['id']}/publication-dry-runs",
+        json=dry_run_request,
+    )
+    assert cross_episode.status_code == 409
+    assert "binding mismatch" in cross_episode.text
+    assert len(
+        [
+            event
+            for event in api.get(f"/v1/production-runs/{run['id']}/events").json()
+            if event["event_type"] == "publication_dry_run_created"
+        ]
+    ) == 1
+    dry_run_path.write_bytes(dry_run_bytes)
     changed_channel = api.post(
         f"/v1/production-runs/{run['id']}/publication-dry-runs",
         json={**dry_run_request, "channel_reference": "different-channel"},

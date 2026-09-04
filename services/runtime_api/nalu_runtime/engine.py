@@ -1831,8 +1831,12 @@ class ProductionService:
         body = package.model_dump(mode="json", exclude={"manifest_sha256"})
         if self._canonical_sha256(body) != package.manifest_sha256:
             raise ConflictError("release package digest mismatch")
-        if package.run_id != run.id:
-            raise ConflictError("release package belongs to another run")
+        if (
+            package.run_id != run.id
+            or package.project_id != run.project_id
+            or package.episode_id != run.episode_id
+        ):
+            raise ConflictError("release package binding mismatch")
         integrity = self.rendered_output_integrity(run.id)
         if not integrity.integrity_ok:
             raise ConflictError("sealed output integrity failed after release packaging")
@@ -1978,7 +1982,12 @@ class ProductionService:
         approval_body = dry_run.approval.model_dump(mode="json", exclude={"approval_sha256"})
         if self._canonical_sha256(approval_body) != dry_run.approval.approval_sha256:
             raise ConflictError("publication approval digest mismatch")
-        if dry_run.run_id != run.id or dry_run.platform != platform:
+        if (
+            dry_run.run_id != run.id
+            or dry_run.project_id != run.project_id
+            or dry_run.episode_id != run.episode_id
+            or dry_run.platform != platform
+        ):
             raise ConflictError("publication dry-run binding mismatch")
         package = self.stored_release_package(run.id)
         if dry_run.release_manifest_sha256 != package.manifest_sha256:
