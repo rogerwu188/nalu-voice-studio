@@ -28,6 +28,7 @@ from nalu_runtime.models import (
     ApprovalRevocationCreate,
     AssetConsentRevocationCreate,
     AssetDependencyReport,
+    EpisodeTransitionRequest,
     MemoryCardUpdate,
     ProductionRun,
     RunStatus,
@@ -3384,6 +3385,86 @@ def test_episode_lifecycle_and_restart_recovery(tmp_path: Path) -> None:
     )
     assert replay.status_code == 201
     assert replay.json()["id"] == run["id"]
+
+
+def test_episode_transition_handles_deletion_after_stale_preflight(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    api = client(tmp_path)
+    project = api.post("/v1/projects", json={"title": "删除中的状态转换"}).json()
+    season = api.post(
+        f"/v1/projects/{project['id']}/seasons",
+        json={"title": "第一季", "season_number": 1},
+    ).json()
+    episode = api.post(
+        f"/v1/seasons/{season['id']}/episodes",
+        json={"title": "第一集", "episode_number": 1},
+    ).json()
+    repository = api.app.state.repository
+    original_get_episode = repository.get_episode
+
+    def delete_after_preflight(episode_id: str):
+        stale_episode = original_get_episode(episode_id)
+        monkeypatch.setattr(repository, "get_episode", original_get_episode)
+        with repository.db.connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            connection.execute("DELETE FROM projects WHERE id = ?", (project["id"],))
+        return stale_episode
+
+    monkeypatch.setattr(repository, "get_episode", delete_after_preflight)
+    with pytest.raises(NotFoundError, match="episode not found"):
+        repository.transition_episode(
+            episode["id"],
+            EpisodeTransitionRequest(
+                target_status="blocked",
+                requested_by="test",
+                reason="应被删除阻断",
+            ),
+        )
+
+    with repository.db.connect() as connection:
+        assert connection.execute("SELECT COUNT(*) FROM episode_events").fetchone()[0] == 0
+
+
+def test_episode_transition_rejects_state_changed_after_preflight(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    api = client(tmp_path)
+    project = api.post("/v1/projects", json={"title": "并发状态转换"}).json()
+    season = api.post(
+        f"/v1/projects/{project['id']}/seasons",
+        json={"title": "第一季", "season_number": 1},
+    ).json()
+    episode = api.post(
+        f"/v1/seasons/{season['id']}/episodes",
+        json={"title": "第一集", "episode_number": 1},
+    ).json()
+    repository = api.app.state.repository
+    original_get_episode = repository.get_episode
+
+    def change_after_preflight(episode_id: str):
+        stale_episode = original_get_episode(episode_id)
+        monkeypatch.setattr(repository, "get_episode", original_get_episode)
+        with repository.db.connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            connection.execute(
+                "UPDATE episodes SET status = ? WHERE id = ?", ("blocked", episode_id)
+            )
+        return stale_episode
+
+    monkeypatch.setattr(repository, "get_episode", change_after_preflight)
+    with pytest.raises(ConflictError, match="state changed"):
+        repository.transition_episode(
+            episode["id"],
+            EpisodeTransitionRequest(
+                target_status="script_review",
+                requested_by="test",
+                reason="陈旧请求不应覆盖",
+            ),
+        )
+
+    assert api.get(f"/v1/episodes/{episode['id']}").json()["status"] == "blocked"
+    assert api.get(f"/v1/episodes/{episode['id']}/events").json() == []
 
 
 def test_database_migration_preserves_existing_database(tmp_path: Path) -> None:

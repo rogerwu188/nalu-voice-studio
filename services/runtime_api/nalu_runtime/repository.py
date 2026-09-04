@@ -5077,11 +5077,12 @@ class Repository:
         now = utc_now()
         with self.db.connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
-            current = EpisodeStatus(
-                connection.execute(
-                    "SELECT status FROM episodes WHERE id = ?", (episode_id,)
-                ).fetchone()["status"]
-            )
+            current_row = connection.execute(
+                "SELECT status FROM episodes WHERE id = ?", (episode_id,)
+            ).fetchone()
+            if current_row is None:
+                raise NotFoundError("episode not found")
+            current = EpisodeStatus(current_row["status"])
             if current != episode.status:
                 raise ConflictError("episode state changed; reload and retry")
             connection.execute(
