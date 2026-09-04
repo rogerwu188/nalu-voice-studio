@@ -69,7 +69,7 @@ from .publication_learning import PublicationLearningVerifier
 from .qingshan_adapter import QingshanAdapter, QingshanAdapterError
 from .remote_submitter import DurableRemoteTaskSubmitter
 from .repository import ConflictError, NotFoundError, Repository, new_id, utc_now
-from .secure_files import harden_tree, secure_directory, secure_file
+from .secure_files import harden_tree, publish_exclusive_text, secure_directory, secure_file
 from .semantic_media_qa import inspect_semantic_asr, inspect_shot_boundaries
 from .semantic_recognizer import (
     AppleSpeechRecognizer,
@@ -555,16 +555,10 @@ class ProductionService:
             )
         except (KeyError, TypeError, ValueError, LocalVisualAnalyzerError) as exc:
             raise ConflictError(str(exc)) from exc
-        temporary = result_path.with_name(f".{new_id('local-visual-analysis')}.tmp")
-        temporary.write_text(result.model_dump_json(indent=2) + "\n", encoding="utf-8")
-        secure_file(temporary)
         try:
-            os.link(temporary, result_path)
+            publish_exclusive_text(result_path, result.model_dump_json(indent=2) + "\n")
         except FileExistsError as exc:
             raise ConflictError("local visual analysis was recorded concurrently") from exc
-        finally:
-            temporary.unlink(missing_ok=True)
-        secure_file(result_path)
         self.repository.record_local_visual_analysis(
             run.id,
             result_sha256=result.result_sha256,
@@ -639,16 +633,10 @@ class ProductionService:
             manifest_sha256=self._canonical_sha256(seal_without_hash),
         )
         seal_path = run_directory / "rendered-output-seal.json"
-        temporary_path = run_directory / f".{new_id('output-seal')}.tmp"
-        temporary_path.write_text(seal.model_dump_json(indent=2) + "\n", encoding="utf-8")
-        secure_file(temporary_path)
         try:
-            os.link(temporary_path, seal_path)
+            publish_exclusive_text(seal_path, seal.model_dump_json(indent=2) + "\n")
         except FileExistsError as exc:
             raise ConflictError("rendered outputs are already sealed for this run") from exc
-        finally:
-            temporary_path.unlink(missing_ok=True)
-        secure_file(seal_path)
         for artifact in artifacts:
             secure_file(exports_root / artifact.relative_path)
         self.repository.append_run_event(

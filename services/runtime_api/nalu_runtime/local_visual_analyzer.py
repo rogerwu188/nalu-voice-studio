@@ -15,7 +15,7 @@ import av
 
 from .models import LocalVisualAnalysisResult, PostproductionMaterializationResult
 from .repository import utc_now
-from .secure_files import secure_directory, secure_file
+from .secure_files import publish_exclusive_text, secure_directory, secure_file
 from .visual_continuity_qa import MINIMUM_CONFIDENCE, canonical_sha256
 
 
@@ -634,12 +634,7 @@ def execute_local_visual_analysis(
                 "local visual analysis already exists with different evidence"
             )
     else:
-        temporary = manifest_path.with_name(f".{manifest_path.name}.{os.urandom(6).hex()}.tmp")
-        temporary.write_text(encoded_manifest, encoding="utf-8")
-        secure_file(temporary)
-        os.link(temporary, manifest_path)
-        temporary.unlink(missing_ok=True)
-        secure_file(manifest_path)
+        publish_exclusive_text(manifest_path, encoded_manifest)
     artifact = {
         "kind": "visual_continuity_manifest",
         "relative_path": str(manifest_path.relative_to(exports)),
