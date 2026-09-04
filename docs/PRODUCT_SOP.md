@@ -266,6 +266,17 @@ Current evidence:
   deterministic regression coverage. CI passed all Runtime and Swift tests, arm64 and
   Intel builds, Universal merge, bundle smoke, staged update and rollback. This closes
   the spoken-prompt data boundary without claiming authorized live model-behavior QA.
+- Commit `1c0574800015b5537ae2ffe2694d6d6daf436b3a`, GitHub CI run
+  `33837925482`, Universal artifact `9924017024` (artifact digest
+  `sha256:9203114bbb6bde2d4714b980115c03cad32f4cd0c3f239521dd0e4fa73780a86`):
+  overlapping local spoken-question requests now share one owned cancellation timer and
+  monotonically increasing generation. A newer visible interview question supersedes a
+  delayed predecessor, while stop and failure invalidate and clear pending delivery.
+  Regression assertions bind the generation check, timer ownership and stop invalidation;
+  the embedded script passed an independent syntax parse. CI passed all Runtime and Swift
+  tests, arm64 and Intel builds, Universal merge, bundle smoke, staged update and rollback.
+  This closes deterministic stale-question scheduling without claiming live interruption
+  timing or audible human acceptance.
 - Still required before `PASS`: authorized paid Realtime connectivity, interruption,
   real function-call, network-loss, session-expiry and provider usage/cost QA;
   VoiceOver/Accessibility Inspector audit; and a clean-account voice-only QA session
