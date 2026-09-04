@@ -11,26 +11,26 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "0dd06dbcc4de74eb4a4570e3cf271250c4c6126d",
-  "last_advanced_at": "2026-09-04T13:22:10Z",
+  "observed_head": "2e40732f5b9bc80bc59d16aec7e706d264405431",
+  "last_advanced_at": "2026-09-04T13:32:44Z",
   "last_closed_checkpoint": {
-    "id": "crash-consistent-managed-asset-import",
+    "id": "crash-consistent-managed-asset-deletion",
     "sop": "SOP-05",
-    "product_commit": "2812eed304733cebbbe8c22af282b1ac24882d87",
-    "evidence_commit": "0dd06dbcc4de74eb4a4570e3cf271250c4c6126d",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33876769475",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33876769475/artifacts/9938468938",
+    "product_commit": "d6232d5c16a944b7be72da3a0a11fc560df09be7",
+    "evidence_commit": "2e40732f5b9bc80bc59d16aec7e706d264405431",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33877915504",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33877915504/artifacts/9938849546",
     "result": "PASS"
   },
   "current_checkpoint": {
-    "sop": "SOP-05",
+    "sop": "SOP-09",
     "status": "IN_PROGRESS",
-    "summary": "Managed family-media import now reconciles both sides of the file/SQLite commit boundary and leaves either no import or one digest-verified registered asset after restart. Revalidation found that single-asset deletion still removes the SQLite record before deleting managed bytes, so a process exit can permanently orphan a user's photo, recording or document outside all privacy controls."
+    "summary": "Managed family-media deletion now reconciles both sides of the file/SQLite boundary and leaves either one restored registered asset or no record and no bytes after restart. Revalidation found that rendered-output seals and local visual-analysis evidence use exclusive file publication without syncing the file and parent directory; a crash can therefore acknowledge or database-bind evidence that is not durably present after restart."
   },
   "next_action": {
-    "sop": "SOP-05",
-    "id": "crash-consistent-managed-asset-deletion",
-    "summary": "Atomically move a deletable managed asset into a private deletion stage before the SQLite transaction, reconcile that stage on Runtime restart, and prove process exits before and after database deletion restore the registered asset or securely remove its bytes without privacy orphans.",
+    "sop": "SOP-09",
+    "id": "durable-postproduction-evidence-publication",
+    "summary": "Introduce one exclusive, file-and-directory-synced publication primitive for rendered-output seals and local visual-analysis evidence, preserve concurrent-create fail-closed behavior, and prove acknowledged evidence survives process restart with its exact digest before any SQLite event or analysis binding is accepted.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
