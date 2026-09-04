@@ -374,6 +374,20 @@ Current evidence:
   tests, 27 Swift tests, the complete app build, bundled-Runtime smoke and artifact
   upload. A real artifact accessibility-tree check confirmed the documentary project
   row reads “纪录片系列 · 计划 6 章”; the temporary QA project was then verified deleted.
+- Current Universal candidate commit `2cd54c02af0a89e16934bcea7b2f9a2014896c32`,
+  GitHub CI run `33840428018`, artifact `9924849197` (artifact digest
+  `sha256:7c05440150acee53cd2f55ebcf78a32ad4da81705042724612cd26731f05298e`):
+  the packaged Runtime created ten ordered episodes in isolated local SQLite, approved
+  each script, stopped and restarted the real packaged process, then restored the
+  versioned project export into a clean database. The downloaded Universal evidence
+  reports database schema `26` before/after restart, identical episode IDs/numbers/states,
+  backup digest `bdcc059b4098b5b9028c203ed014340bc989b414fa353fd7a562a88918558bf8`
+  and verified report digest
+  `8707bbc7592ba607844efedefbc1cda377df999164f7ccb6b44e2bdccdb3b8c7`.
+  The downloaded zip also matches its packaged checksum
+  `00d6d4cffa578498d4fdef3b30e69175bf60bc6ac0e28926dabc9d6f1e147012`.
+  This revalidates deterministic restart/export/import on the current unsigned candidate;
+  it does not replace clean-account native-window or accessibility acceptance.
 - Still required before `PASS`: clean-account voice-only, accessibility and restart/import
   QA evidence on the same release candidate. Implementation alone is not acceptance.
 
