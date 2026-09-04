@@ -4746,6 +4746,68 @@ def test_qingshan_preflight_rejects_compilation_path_escape(tmp_path: Path) -> N
         api.app.state.production.adapter.preflight(package_path, workspace)
 
 
+def test_qingshan_workspace_atomic_promotion_recovers_both_crash_windows(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    api = client(tmp_path)
+    _, _, episode = create_approved_episode(api)
+    run = api.post(
+        f"/v1/episodes/{episode['id']}/production-runs",
+        json={"dry_run": True},
+    ).json()
+    package_path = Path(run["package_path"])
+    final_workspace = package_path.with_name("qingshan-workspace")
+    staging_workspace = package_path.with_name(".qingshan-workspace.pending")
+    previous_workspace = package_path.with_name(".qingshan-workspace.previous")
+    package_sha256 = json.loads(package_path.read_text(encoding="utf-8"))["package_sha256"]
+
+    class SimulatedProcessExit(BaseException):
+        pass
+
+    adapter = api.app.state.production.adapter
+
+    def crash_after_retirement(_path: Path) -> None:
+        raise SimulatedProcessExit("simulated exit after workspace retirement")
+
+    monkeypatch.setattr(adapter, "_after_workspace_retirement", crash_after_retirement)
+    with pytest.raises(SimulatedProcessExit, match="after workspace retirement"):
+        adapter.materialize_workspace(package_path)
+
+    assert not final_workspace.exists()
+    for complete_tree in (staging_workspace, previous_workspace):
+        manifest = json.loads(
+            (complete_tree / "workspace-manifest.json").read_text(encoding="utf-8")
+        )
+        assert manifest["production_package_sha256"] == package_sha256
+
+    promoted_api = client(tmp_path)
+    promoted_adapter = promoted_api.app.state.production.adapter
+
+    def crash_after_promotion(_path: Path) -> None:
+        raise SimulatedProcessExit("simulated exit after workspace promotion")
+
+    monkeypatch.setattr(promoted_adapter, "_after_workspace_promotion", crash_after_promotion)
+    with pytest.raises(SimulatedProcessExit, match="after workspace promotion"):
+        promoted_adapter.materialize_workspace(package_path)
+
+    assert final_workspace.is_dir()
+    assert previous_workspace.is_dir()
+    assert not staging_workspace.exists()
+    assert json.loads(
+        (final_workspace / "workspace-manifest.json").read_text(encoding="utf-8")
+    )["production_package_sha256"] == package_sha256
+
+    recovered_api = client(tmp_path)
+    recovered_adapter = recovered_api.app.state.production.adapter
+    recovered = recovered_adapter.materialize_workspace(package_path)
+
+    assert recovered == final_workspace
+    assert not staging_workspace.exists()
+    assert not previous_workspace.exists()
+    report = recovered_adapter.preflight(package_path, recovered)
+    assert json.loads(report.read_text(encoding="utf-8"))["status"] == "PASS"
+
+
 def test_production_run_idempotency_and_paid_key_requirement(tmp_path: Path) -> None:
     api = client(tmp_path)
     _, _, episode = create_approved_episode(api)

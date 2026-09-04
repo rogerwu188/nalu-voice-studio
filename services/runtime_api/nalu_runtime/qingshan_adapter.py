@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import shutil
+import stat
 import unicodedata
 from pathlib import Path
 
@@ -12,6 +14,7 @@ from .qingshan_compilers import (
     verify_compilation,
 )
 from .qingshan_gate_audit import GateRegistryAuditError, audit_gate_registry
+from .secure_files import harden_tree
 
 
 class QingshanAdapterError(RuntimeError):
@@ -49,6 +52,121 @@ class QingshanAdapter:
             value, ensure_ascii=False, sort_keys=True, separators=(",", ":")
         ).encode("utf-8")
         return hashlib.sha256(encoded).hexdigest()
+
+    @staticmethod
+    def _sync_directory(path: Path) -> None:
+        flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0)
+        if hasattr(os, "O_NOFOLLOW"):
+            flags |= os.O_NOFOLLOW
+        if hasattr(os, "O_DIRECTORY"):
+            flags |= os.O_DIRECTORY
+        descriptor = os.open(path, flags)
+        try:
+            if not stat.S_ISDIR(os.fstat(descriptor).st_mode):
+                raise QingshanAdapterError("Qingshan workspace directory is unsafe")
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
+
+    @classmethod
+    def _sync_tree(cls, root: Path) -> None:
+        directories = [root]
+        for path in root.rglob("*"):
+            if path.is_symlink():
+                raise QingshanAdapterError("Qingshan staging workspace contains a symlink")
+            if path.is_dir():
+                directories.append(path)
+                continue
+            flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0)
+            if hasattr(os, "O_NOFOLLOW"):
+                flags |= os.O_NOFOLLOW
+            descriptor = os.open(path, flags)
+            try:
+                if not stat.S_ISREG(os.fstat(descriptor).st_mode):
+                    raise QingshanAdapterError(
+                        "Qingshan staging workspace contains a non-regular file"
+                    )
+                os.fsync(descriptor)
+            finally:
+                os.close(descriptor)
+        for directory in sorted(
+            directories, key=lambda candidate: len(candidate.parts), reverse=True
+        ):
+            cls._sync_directory(directory)
+
+    @staticmethod
+    def _remove_workspace_tree(path: Path) -> None:
+        if not path.exists() and not path.is_symlink():
+            return
+        if path.is_symlink() or not path.is_dir():
+            raise QingshanAdapterError("Qingshan workspace promotion path is unsafe")
+        shutil.rmtree(path)
+
+    @classmethod
+    def _recover_workspace_promotion(
+        cls, final_workspace: Path, staging_workspace: Path, previous_workspace: Path
+    ) -> None:
+        parent = final_workspace.parent
+        if previous_workspace.exists() or previous_workspace.is_symlink():
+            if previous_workspace.is_symlink() or not previous_workspace.is_dir():
+                raise QingshanAdapterError("Qingshan previous workspace is unsafe")
+            if final_workspace.exists() or final_workspace.is_symlink():
+                if final_workspace.is_symlink() or not final_workspace.is_dir():
+                    raise QingshanAdapterError("Qingshan final workspace is unsafe")
+                cls._remove_workspace_tree(previous_workspace)
+                cls._sync_directory(parent)
+            else:
+                os.rename(previous_workspace, final_workspace)
+                cls._sync_directory(parent)
+        cls._remove_workspace_tree(staging_workspace)
+        cls._sync_directory(parent)
+
+    @classmethod
+    def _verify_staged_workspace(cls, workspace: Path, package_sha256: str) -> None:
+        manifest_path = workspace / "workspace-manifest.json"
+        if manifest_path.is_symlink() or not manifest_path.is_file():
+            raise QingshanAdapterError("Qingshan staging workspace manifest is absent or unsafe")
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise QingshanAdapterError("Qingshan staging workspace manifest is invalid") from exc
+        if manifest.get("production_package_sha256") != package_sha256:
+            raise QingshanAdapterError("Qingshan staging workspace package binding changed")
+        declared = manifest.get("files")
+        if not isinstance(declared, list):
+            raise QingshanAdapterError("Qingshan staging workspace file inventory is invalid")
+        actual_paths = {
+            path.relative_to(workspace).as_posix()
+            for path in workspace.rglob("*")
+            if path.is_file() and path != manifest_path
+        }
+        declared_paths: set[str] = set()
+        for entry in declared:
+            relative = Path(str(entry.get("path") if isinstance(entry, dict) else ""))
+            candidate = workspace / relative
+            if (
+                not relative.parts
+                or relative.is_absolute()
+                or ".." in relative.parts
+                or candidate.is_symlink()
+                or not candidate.is_file()
+                or not candidate.resolve().is_relative_to(workspace.resolve())
+            ):
+                raise QingshanAdapterError("Qingshan staging workspace file path is unsafe")
+            relative_text = relative.as_posix()
+            if relative_text in declared_paths or cls._sha256(candidate) != entry.get("sha256"):
+                raise QingshanAdapterError("Qingshan staging workspace file digest changed")
+            declared_paths.add(relative_text)
+        if declared_paths != actual_paths:
+            raise QingshanAdapterError("Qingshan staging workspace file inventory changed")
+
+    @staticmethod
+    def _after_workspace_retirement(_previous_workspace: Path) -> None:
+        """Crash-test seam after the old complete workspace is moved aside."""
+
+    @staticmethod
+    def _after_workspace_promotion(_final_workspace: Path) -> None:
+        """Crash-test seam after the new complete workspace becomes durable."""
 
     @staticmethod
     def _normalized_subject(value: object) -> str:
@@ -240,9 +358,11 @@ class QingshanAdapter:
     def materialize_workspace(self, package_path: Path) -> Path:
         """Create a clean, episode-agnostic Qingshan workspace from a Nalu package."""
         package = json.loads(package_path.read_text(encoding="utf-8"))
-        workspace = package_path.parent / "qingshan-workspace"
-        if workspace.exists():
-            shutil.rmtree(workspace)
+        final_workspace = package_path.parent / "qingshan-workspace"
+        workspace = package_path.parent / ".qingshan-workspace.pending"
+        previous_workspace = package_path.parent / ".qingshan-workspace.previous"
+        self._recover_workspace_promotion(final_workspace, workspace, previous_workspace)
+        workspace.mkdir(mode=0o700)
         for relative in (
             "source",
             "workflow/tasks",
@@ -540,7 +660,27 @@ class QingshanAdapter:
             ],
         }
         self._write_json(workspace / "workspace-manifest.json", manifest)
-        return workspace
+        self._verify_staged_workspace(workspace, package["package_sha256"])
+        harden_tree(workspace)
+        self._sync_tree(workspace)
+        if final_workspace.exists() or final_workspace.is_symlink():
+            if final_workspace.is_symlink() or not final_workspace.is_dir():
+                raise QingshanAdapterError("Qingshan final workspace is unsafe")
+            os.rename(final_workspace, previous_workspace)
+            self._sync_directory(final_workspace.parent)
+            self._after_workspace_retirement(previous_workspace)
+        try:
+            os.rename(workspace, final_workspace)
+            self._sync_directory(final_workspace.parent)
+        except BaseException:
+            if not final_workspace.exists() and previous_workspace.is_dir():
+                os.rename(previous_workspace, final_workspace)
+                self._sync_directory(final_workspace.parent)
+            raise
+        self._after_workspace_promotion(final_workspace)
+        self._remove_workspace_tree(previous_workspace)
+        self._sync_directory(final_workspace.parent)
+        return final_workspace
 
     def preflight(self, package_path: Path, workspace: Path | None = None) -> Path:
         package = json.loads(package_path.read_text(encoding="utf-8"))
