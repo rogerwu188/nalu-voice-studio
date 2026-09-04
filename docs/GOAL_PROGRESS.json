@@ -11,26 +11,26 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "3009b9765ab704862f8338c1b177825213a224f4",
-  "last_advanced_at": "2026-09-04T21:47:00Z",
+  "observed_head": "732ea8f6a1487eca1f8b2f58c55018e30474806e",
+  "last_advanced_at": "2026-09-04T21:53:00Z",
   "last_closed_checkpoint": {
-    "id": "director-strategy-content-rederivation",
+    "id": "director-strategy-target-revision-integrity",
     "sop": "SOP-10",
-    "product_commit": "5fa7c7c9188b61582ae5e554ab7f32697f56c00d",
-    "evidence_commit": "3009b9765ab704862f8338c1b177825213a224f4",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33921816830",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33921816830/artifacts/9955569115",
+    "product_commit": "ac6faa427b16960bdf91b917ed7ecd351b6c2804",
+    "evidence_commit": "732ea8f6a1487eca1f8b2f58c55018e30474806e",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33922756503",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33922756503/artifacts/9955797310",
     "result": "PASS"
   },
   "current_checkpoint": {
-    "sop": "SOP-10",
+    "sop": "SOP-07",
     "status": "IN_PROGRESS",
-    "summary": "SOP-10 publication metrics and strategy content now fail closed under digest-preserving semantic tampering. A director-strategy row can still be relinked together with its JSON and digest to a different episode in the same project, or have its revision changed, without reconstructing the expected next-episode target and project revision sequence."
+    "summary": "SOP-10 deterministic strategy target and revision integrity is closed, while authorized publication and human acceptance remain blocked. Qingshan released v2026.09.04.6 after Nalu's latest reviewed v2026.09.03.8 candidate, so the newer upstream must be independently audited before any production pin can move."
   },
   "next_action": {
-    "sop": "SOP-10",
-    "id": "director-strategy-target-revision-integrity",
-    "summary": "Reconstruct the next-episode target from the source metrics episode and enforce a contiguous immutable project revision sequence; reject coordinated row, JSON and digest relinking to another same-project episode or revision.",
+    "sop": "SOP-07",
+    "id": "qingshan-v2026-09-04-6-candidate-audit",
+    "summary": "Fetch Qingshan v2026.09.04.6 into an isolated review checkout, regenerate its registry/public-interface/registered-test contract report, and promote the Nalu pin only if every productization gate passes unchanged.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
