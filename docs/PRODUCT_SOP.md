@@ -871,6 +871,19 @@ Current evidence:
   `9919040824` has GitHub digest
   `sha256:63e2dfe13afc1e5ff84af4ddf86c19a41e2774ab043757f3f454c1322dcaedc8`.
   This closes the `.8` discovery/reproduction checkpoint, not promotion or SOP-07.
+- Product commit `8597ad02ee4f091c98a97fd4479a66d630481989`, GitHub CI run
+  `33824616662`: Nalu productizes `.8`'s safe provider-prompt finding independently
+  while leaving the release quarantined. Compiler contract version 1.5.0 requires the
+  exact rendered prompt and declares an inclusive 10,000-rune maximum. The single
+  durable paid-task boundary recomputes that length immediately before any provider
+  transport; a 10,001-rune prompt fails with zero transport calls while an exact
+  10,000-rune prompt is accepted by the deterministic idempotent fixture. All 193
+  Runtime tests and the Runtime, Apple Silicon, Intel and Universal CI jobs passed
+  (jobs `100874565305`, `100874565474`, `100874565488`, `100875506187`). Universal
+  artifact `9919607848` has GitHub digest
+  `sha256:5ba5f5bc3a0a0de95fc2357548104385a85f081014ddb7a832a957ea0eaa319a`.
+  No provider call or paid action occurred. This closes the prompt-rune preflight
+  checkpoint, not Qingshan promotion, real-provider QA or SOP-07.
 - Still required before `PASS`: a corrected pinned Qingshan release whose registry
   integrity and complete registered tests pass, plus authorized real-provider sandbox
   task/result/receipt evidence. Offline authority and transport doubles are not a paid
