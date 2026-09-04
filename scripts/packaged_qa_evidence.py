@@ -34,6 +34,38 @@ PUBLICATION_REPORT_CHECKS = {
 PUBLICATION_NETWORK_SCOPE = (
     "loopback only; no provider, paid model, production or publication"
 )
+STAGED_UPDATE_FIELDS = {
+    "schema_version",
+    "status",
+    "runtime_mode",
+    "old_version",
+    "old_build",
+    "new_version",
+    "new_build",
+    "manifest_sha256",
+    "tampered_manifest_rejected",
+    "downgrade_or_replay_rejected",
+    "unconfirmed_update_rolled_back",
+    "confirmed_update_committed",
+    "protected_project_data_sha256",
+    "protected_project_data_preserved",
+    "network_scope",
+    "report_sha256",
+}
+ROLLBACK_FIELDS = {
+    "schema_version",
+    "status",
+    "runtime_mode",
+    "scope",
+    "project",
+    "schema_version_before",
+    "schema_version_after_restart",
+    "backup_sha256",
+    "restart_state_preserved",
+    "clean_backup_rollback_preserved",
+    "network_scope",
+    "report_sha256",
+}
 
 
 def validate_evidence_identifiers(
@@ -131,6 +163,185 @@ def verify_publication_learning_report(path: Path) -> dict[str, Any]:
     if not hmac.compare_digest(actual, claimed):
         raise RuntimeError("publication report canonical digest does not match its content")
     return report
+
+
+def _load_strict_json_object(path: Path, *, label: str) -> dict[str, Any]:
+    raw = path.read_bytes() if path.is_file() and not path.is_symlink() else None
+    if raw is None:
+        raise RuntimeError(f"{label} must be a regular, non-symbolic-link file")
+    try:
+        value = json.loads(raw, object_pairs_hook=_reject_duplicate_keys)
+    except (json.JSONDecodeError, UnicodeDecodeError) as error:
+        raise RuntimeError(f"{label} must be valid UTF-8 JSON") from error
+    if not isinstance(value, dict):
+        raise TypeError(f"{label} must be a JSON object")
+    return value
+
+
+def _verify_compact_report_digest(report: dict[str, Any], *, label: str) -> None:
+    claimed = report.get("report_sha256")
+    if not isinstance(claimed, str) or not SHA256_PATTERN.fullmatch(claimed):
+        raise RuntimeError(f"{label} canonical digest is malformed")
+    body = {key: value for key, value in report.items() if key != "report_sha256"}
+    encoded = json.dumps(
+        body, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    ).encode()
+    actual = hashlib.sha256(encoded).hexdigest()
+    if not hmac.compare_digest(actual, claimed):
+        raise RuntimeError(f"{label} canonical digest does not match its content")
+
+
+def verify_staged_update_report(path: Path) -> dict[str, Any]:
+    report = _load_strict_json_object(path, label="staged-update report")
+    if set(report) != STAGED_UPDATE_FIELDS:
+        raise RuntimeError("staged-update report has missing or unexpected fields")
+    if report["schema_version"] != "nalu.macos-staged-update-qa/v1":
+        raise RuntimeError("staged-update report schema is not supported")
+    if report["status"] != "PASS" or report["runtime_mode"] != "packaged_update_helper":
+        raise RuntimeError("staged-update report does not describe a passing packaged run")
+    if (
+        not isinstance(report["old_build"], int)
+        or isinstance(report["old_build"], bool)
+        or not isinstance(report["new_build"], int)
+        or isinstance(report["new_build"], bool)
+        or report["new_build"] != report["old_build"] + 1
+    ):
+        raise RuntimeError("staged-update report build transition is not monotonic")
+    if (
+        not isinstance(report["old_version"], str)
+        or not report["old_version"]
+        or not isinstance(report["new_version"], str)
+        or not report["new_version"]
+        or report["old_version"] == report["new_version"]
+    ):
+        raise RuntimeError("staged-update report version transition is invalid")
+    for field in ("manifest_sha256", "protected_project_data_sha256"):
+        if not isinstance(report[field], str) or not SHA256_PATTERN.fullmatch(report[field]):
+            raise RuntimeError(f"staged-update report {field} is malformed")
+    for field in (
+        "tampered_manifest_rejected",
+        "downgrade_or_replay_rejected",
+        "unconfirmed_update_rolled_back",
+        "confirmed_update_committed",
+        "protected_project_data_preserved",
+    ):
+        if report[field] is not True:
+            raise RuntimeError(f"staged-update report safety claim failed: {field}")
+    if report["network_scope"] != (
+        "offline only; no download, paid model, publication or release"
+    ):
+        raise RuntimeError("staged-update report network scope is not offline-only")
+    _verify_compact_report_digest(report, label="staged-update report")
+    return report
+
+
+def verify_upgrade_rollback_report(path: Path) -> dict[str, Any]:
+    report = _load_strict_json_object(path, label="upgrade-rollback report")
+    if set(report) != ROLLBACK_FIELDS:
+        raise RuntimeError("upgrade-rollback report has missing or unexpected fields")
+    if report["schema_version"] != "nalu.macos-upgrade-rollback-qa/v1":
+        raise RuntimeError("upgrade-rollback report schema is not supported")
+    if report["status"] != "PASS" or report["runtime_mode"] != "packaged":
+        raise RuntimeError("upgrade-rollback report does not describe a passing packaged run")
+    if report["scope"] != (
+        "Runtime restart and clean backup rollback only; not a signed/notarized app update"
+    ):
+        raise RuntimeError("upgrade-rollback report overclaims its test scope")
+    if report["network_scope"] != (
+        "loopback only; no update download, provider, paid model or publication"
+    ):
+        raise RuntimeError("upgrade-rollback report network scope is not loopback-only")
+    if report["schema_version_before"] != report["schema_version_after_restart"]:
+        raise RuntimeError("upgrade-rollback report schema changed across restart")
+    if not isinstance(report["schema_version_before"], str) or not report[
+        "schema_version_before"
+    ].isdigit():
+        raise RuntimeError("upgrade-rollback report schema version is malformed")
+    project = report["project"]
+    if not isinstance(project, dict) or set(project) != {
+        "project_id",
+        "episode_numbers",
+        "statuses",
+    }:
+        raise RuntimeError("upgrade-rollback report project snapshot is malformed")
+    if not isinstance(project["project_id"], str) or not project["project_id"].startswith(
+        "prj_"
+    ):
+        raise RuntimeError("upgrade-rollback report project ID is malformed")
+    if project["episode_numbers"] != list(range(1, 11)) or project["statuses"] != [
+        "script_approved"
+    ] * 10:
+        raise RuntimeError("upgrade-rollback report does not preserve ten approved episodes")
+    if not isinstance(report["backup_sha256"], str) or not SHA256_PATTERN.fullmatch(
+        report["backup_sha256"]
+    ):
+        raise RuntimeError("upgrade-rollback report backup digest is malformed")
+    for field in ("restart_state_preserved", "clean_backup_rollback_preserved"):
+        if report[field] is not True:
+            raise RuntimeError(f"upgrade-rollback report safety claim failed: {field}")
+    _verify_compact_report_digest(report, label="upgrade-rollback report")
+    return report
+
+
+def verify_update_artifact_archive(
+    *,
+    archive_path: Path,
+    expected_artifact_digest: str,
+    staged_report_path: Path,
+    rollback_report_path: Path,
+    release_zip_path: Path,
+    staged_member: str = "nalu-staged-update-universal.json",
+    rollback_member: str = "nalu-upgrade-rollback-universal.json",
+    release_member: str = "Nalu-Voice-Studio-macOS.zip",
+    checksum_member: str = "Nalu-Voice-Studio-macOS.zip.sha256",
+) -> dict[str, str]:
+    if not expected_artifact_digest.startswith("sha256:"):
+        raise RuntimeError("CI artifact digest must use the sha256: prefix")
+    expected_archive_sha = expected_artifact_digest.removeprefix("sha256:")
+    if not SHA256_PATTERN.fullmatch(expected_archive_sha):
+        raise RuntimeError("CI artifact digest must contain exactly 64 lowercase hex digits")
+    actual_archive_sha = regular_file_sha256(archive_path, label="artifact archive")
+    if not hmac.compare_digest(actual_archive_sha, expected_archive_sha):
+        raise RuntimeError("artifact archive SHA-256 does not match GitHub artifact digest")
+    staged_sha = regular_file_sha256(staged_report_path, label="staged-update report")
+    rollback_sha = regular_file_sha256(rollback_report_path, label="upgrade-rollback report")
+    release_sha = regular_file_sha256(release_zip_path, label="release ZIP")
+    try:
+        with zipfile.ZipFile(archive_path) as archive:
+            names = [info.filename for info in archive.infolist()]
+            if len(names) != len(set(names)):
+                raise RuntimeError("artifact archive contains duplicate member names")
+            required = {staged_member, rollback_member, release_member, checksum_member}
+            if not required.issubset(names):
+                raise RuntimeError("artifact archive is missing update evidence members")
+            if archive.read(staged_member) != staged_report_path.read_bytes():
+                raise RuntimeError("staged-update report is not the report embedded in artifact")
+            if archive.read(rollback_member) != rollback_report_path.read_bytes():
+                raise RuntimeError("upgrade-rollback report is not the report embedded in artifact")
+            with archive.open(release_member) as handle:
+                embedded_release_sha = _stream_sha256(handle)
+            if not hmac.compare_digest(embedded_release_sha, release_sha):
+                raise RuntimeError("release ZIP is not the release embedded in artifact")
+            checksum_text = archive.read(checksum_member).decode("utf-8").strip()
+    except (zipfile.BadZipFile, UnicodeDecodeError) as error:
+        raise RuntimeError("artifact archive is not a valid update evidence ZIP") from error
+    checksum_parts = checksum_text.split()
+    checksum_path = PurePosixPath(checksum_parts[1]) if len(checksum_parts) == 2 else None
+    if (
+        checksum_path is None
+        or checksum_path.is_absolute()
+        or ".." in checksum_path.parts
+        or checksum_path.name != release_member
+    ):
+        raise RuntimeError("artifact release checksum manifest is malformed")
+    if not hmac.compare_digest(checksum_parts[0], release_sha):
+        raise RuntimeError("artifact release checksum does not match embedded release ZIP")
+    return {
+        "artifact_archive_sha256": actual_archive_sha,
+        "staged_update_report_sha256": staged_sha,
+        "upgrade_rollback_report_sha256": rollback_sha,
+        "release_zip_sha256": release_sha,
+    }
 
 
 def verify_publication_artifact_archive(

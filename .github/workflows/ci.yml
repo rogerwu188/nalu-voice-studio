@@ -152,6 +152,15 @@ jobs:
             --release-zip-sha256 "$(awk '{print $1}' dist/Nalu-Voice-Studio-macOS.zip.sha256)" \
             --source-commit "$GITHUB_SHA" \
             --evidence dist/nalu-publication-verification-universal.json
+      - name: Verify packaged update and rollback evidence
+        run: |
+          python scripts/verify-packaged-update-evidence.py \
+            --staged-report dist/nalu-staged-update-universal.json \
+            --rollback-report dist/nalu-upgrade-rollback-universal.json \
+            --release-zip dist/Nalu-Voice-Studio-macOS.zip \
+            --release-zip-sha256 "$(awk '{print $1}' dist/Nalu-Voice-Studio-macOS.zip.sha256)" \
+            --source-commit "$GITHUB_SHA" \
+            --evidence dist/nalu-update-verification-universal.json
       - uses: actions/upload-artifact@v7
         with:
           name: Nalu-Voice-Studio-macOS
@@ -162,3 +171,4 @@ jobs:
             dist/nalu-staged-update-universal.json
             dist/nalu-publication-fixture-universal.json
             dist/nalu-publication-verification-universal.json
+            dist/nalu-update-verification-universal.json
