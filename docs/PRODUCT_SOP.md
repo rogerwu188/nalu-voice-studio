@@ -643,6 +643,19 @@ Current evidence:
   architecture builds, Universal merge, bundle smoke, project-isolation rehearsal,
   staged update and rollback. This closes the deterministic privacy-export byte-integrity
   checkpoint, not human privacy/deletion, OCR or signed-install acceptance.
+- Commit `3a1150e785e88b6f6b67bfb796759c0a365a66fe`, GitHub CI run
+  `33858842840` and Universal artifact `9931493742` (artifact digest
+  `sha256:71c07398210726e7516d03dfb06ed2152ad8b87187708782b1ed49885834aad4`):
+  memory-card confirmation now rechecks the exact reviewed revision after acquiring the
+  SQLite write lock, and evaluates narrative conflicts under that same lock. A correction
+  arriving after a stale preflight cannot confirm the newer draft, and two concurrently
+  confirmed, mutually conflicting event/place cards cannot both become narrative authority.
+  CI passed 242 Runtime tests, both native Swift suites and architecture builds, Universal
+  merge, bundle smoke, project-isolation rehearsal, staged update and rollback. The source
+  Runtime tests directly exercise the transaction races; the Universal artifact proves the
+  accepted implementation is packaged, but is not a substitute for clean-account spoken
+  review. This closes the deterministic memory narrative-authority checkpoint, not human
+  privacy/deletion, OCR or signed-install acceptance.
 - Still required before `PASS`: human privacy/deletion QA and clean-account OCR,
   correction and voice archive QA on the same signed release candidate. Automated
   Computer Use crashed while opening the new asset sheet, while Nalu stayed running,
