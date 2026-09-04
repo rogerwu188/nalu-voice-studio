@@ -1370,6 +1370,17 @@ Current evidence:
   Runtime tests, both native Swift suites and architecture builds, Universal merge,
   bundled smoke, packaged project-isolation, staged-update and rollback QA. This closes
   the deterministic run-event deletion boundary, not authorized provider crash testing.
+- Commit `1331d3cf4a1d4da72ce9f6a0ef7d107b55730f00`, GitHub CI run
+  `33866987329`, Runtime QA artifact `9934417886` and Universal artifact
+  `9934578076` (artifact digest
+  `sha256:87f0c5374a2bc117453040a11d0a5eb949943c77d5c6038acf03ed0cb37851de`):
+  cancellation and resume now commit the run status and its ordered audit event in one
+  SQLite transaction bound to the exact preflight status. Event-insert failpoints prove
+  both status changes roll back instead of leaving an eventless state; two concurrent
+  cancellations produce one successful state/event pair and one conflict. CI passed
+  258 Runtime tests, both native Swift suites and architecture builds, Universal merge,
+  bundled smoke, packaged project-isolation, staged-update and rollback QA. This closes
+  the deterministic cancellation/resume atomicity checkpoint, not real provider crash QA.
 - Still required before `PASS`: run authorized provider crash tests at every real
   network/charge/ledger boundary, reconcile real ambiguous charges against the provider
   and validate the stage explanations in a signed-app long-running production QA session.
