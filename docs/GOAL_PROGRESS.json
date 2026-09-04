@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "9981d8eca6d14c694709f7cf6c742558ecf5ddbf",
-  "last_advanced_at": "2026-09-03T23:45:52Z",
+  "observed_head": "4864976997bf07ba0894a8db9da677de5032fb18",
+  "last_advanced_at": "2026-09-04T00:02:49Z",
   "last_closed_checkpoint": {
     "id": "qingshan-v2026.09.03.7-independent-test-quarantine",
     "sop": "SOP-07",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-11",
     "status": "IN_PROGRESS",
-    "summary": "Actual-window QA of the downloaded Universal artifact exposed deterministic SQLite descriptor retention, an unmanaged second app attaching to the isolated QA Runtime, and a bundled Runtime remaining alive after normal app Quit. Product commit 9981d8e closes database contexts explicitly, refuses every healthy loopback Runtime not owned by this supervisor, and synchronously waits for managed Runtime termination. Python regression is 191 PASS; native build and packaged-process QA are pending."
+    "summary": "CI run 33819052516 passed Runtime, Swift, arm64, x86_64 and Universal gates for product commit 9981d8e. Native execution of artifact 9917734459 then proved 1,200 database-backed reads retain at most one transient fixture descriptor and zero final or user-library descriptors. A second exact app spawned no Runtime and showed the intended isolation warning, but actual-window inspection exposed that its view model still read the first app's project after startup denial. Product commit 4864976 adds a per-request ownership gate and stops initial loading after startup denial; CI and a fresh packaged native rerun are pending."
   },
   "next_action": {
     "sop": "SOP-11",
     "id": "verify-packaged-runtime-isolation-descriptor-and-quit-fix",
-    "summary": "Wait for GitHub CI run 33818988489 on product commit 9981d8e. If all Runtime, Swift, architecture and Universal gates pass, download that exact Universal artifact and launch it against a fresh temporary publication-learning fixture. Verify one app cannot attach to an unmanaged QA Runtime, repeated refreshes do not accumulate SQLite descriptors, normal Quit closes the wrapper and child Runtime, and no user Nalu database is opened. Then resume the populated publication-learning actual-window checkpoint without claiming VoiceOver, publication, Developer ID or notarization acceptance.",
+    "summary": "Wait for GitHub CI run 33820116643 on product commit 4864976. If all Runtime, Swift, architecture and Universal gates pass, download that exact Universal artifact and rerun two-instance native QA. The denied second app must spawn no Runtime, send no project request and display no first-instance project; the owning app must still load the isolated fixture, retain no SQLite descriptors after repeated reads, and close its wrapper, child and port on normal Quit. Then record evidence without claiming VoiceOver, publication, Developer ID or notarization acceptance.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
