@@ -4762,8 +4762,14 @@ class Repository:
     def create_season(self, project_id: str, request: SeasonCreate) -> Season:
         self.get_project(project_id)
         season_id, now = new_id("sea"), utc_now()
-        try:
-            with self.db.connect() as connection:
+        with self.db.connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            project = connection.execute(
+                "SELECT 1 FROM projects WHERE id = ?", (project_id,)
+            ).fetchone()
+            if project is None:
+                raise NotFoundError("project not found")
+            try:
                 connection.execute(
                     """INSERT INTO seasons VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
                     (
@@ -4777,9 +4783,9 @@ class Repository:
                         now,
                     ),
                 )
-                self._snapshot_season_plan(connection, season_id, "")
-        except Exception as exc:
-            raise ConflictError("season number already exists") from exc
+            except sqlite3.IntegrityError as exc:
+                raise ConflictError("season number already exists") from exc
+            self._snapshot_season_plan(connection, season_id, "")
         return self.get_season(season_id)
 
     def get_season(self, season_id: str) -> Season:
@@ -4948,8 +4954,14 @@ class Repository:
     def create_episode(self, season_id: str, request: EpisodeCreate) -> Episode:
         self.get_season(season_id)
         episode_id, now = new_id("ep"), utc_now()
-        try:
-            with self.db.connect() as connection:
+        with self.db.connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            season = connection.execute(
+                "SELECT 1 FROM seasons WHERE id = ?", (season_id,)
+            ).fetchone()
+            if season is None:
+                raise NotFoundError("season not found")
+            try:
                 connection.execute(
                     """INSERT INTO episodes VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (
@@ -4966,9 +4978,9 @@ class Repository:
                         now,
                     ),
                 )
-                self._snapshot_season_plan(connection, season_id, "")
-        except Exception as exc:
-            raise ConflictError("episode number already exists") from exc
+            except sqlite3.IntegrityError as exc:
+                raise ConflictError("episode number already exists") from exc
+            self._snapshot_season_plan(connection, season_id, "")
         return self.get_episode(episode_id)
 
     def update_episode_plan(self, episode_id: str, request: EpisodePlanUpdate) -> Episode:

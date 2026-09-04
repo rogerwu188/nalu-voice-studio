@@ -3022,6 +3022,97 @@ def test_concurrent_episode_planning_has_stable_numbering(tmp_path: Path) -> Non
     assert len({episode["id"] for episode in episodes}) == 10
 
 
+def test_season_creation_rechecks_project_after_stale_preflight(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    api = client(tmp_path)
+    project = api.post("/v1/projects", json={"title": "删除中的项目"}).json()
+    repository = api.app.state.repository
+    original_get_project = repository.get_project
+
+    def delete_after_preflight(project_id: str):
+        stale_project = original_get_project(project_id)
+        monkeypatch.setattr(repository, "get_project", original_get_project)
+        with repository.db.connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            connection.execute("DELETE FROM projects WHERE id = ?", (project_id,))
+        return stale_project
+
+    monkeypatch.setattr(repository, "get_project", delete_after_preflight)
+    rejected = api.post(
+        f"/v1/projects/{project['id']}/seasons",
+        json={"title": "不应保存的一季", "season_number": 1},
+    )
+
+    assert rejected.status_code == 404
+    assert "project not found" in rejected.text
+    with repository.db.connect() as connection:
+        assert connection.execute("SELECT COUNT(*) FROM seasons").fetchone()[0] == 0
+        assert connection.execute("SELECT COUNT(*) FROM season_plan_revisions").fetchone()[0] == 0
+
+
+def test_episode_creation_rechecks_season_after_stale_preflight(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    api = client(tmp_path)
+    project = api.post("/v1/projects", json={"title": "删除中的季"}).json()
+    season = api.post(
+        f"/v1/projects/{project['id']}/seasons",
+        json={"title": "第一季", "season_number": 1},
+    ).json()
+    repository = api.app.state.repository
+    original_get_season = repository.get_season
+
+    def delete_after_preflight(season_id: str):
+        stale_season = original_get_season(season_id)
+        monkeypatch.setattr(repository, "get_season", original_get_season)
+        with repository.db.connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            connection.execute("DELETE FROM seasons WHERE id = ?", (season_id,))
+        return stale_season
+
+    monkeypatch.setattr(repository, "get_season", delete_after_preflight)
+    rejected = api.post(
+        f"/v1/seasons/{season['id']}/episodes",
+        json={"title": "不应保存的一集", "episode_number": 1},
+    )
+
+    assert rejected.status_code == 404
+    assert "season not found" in rejected.text
+    with repository.db.connect() as connection:
+        assert connection.execute("SELECT COUNT(*) FROM episodes").fetchone()[0] == 0
+        assert connection.execute("SELECT COUNT(*) FROM season_plan_revisions").fetchone()[0] == 0
+
+
+def test_hierarchy_creation_reports_only_actual_number_collisions(tmp_path: Path) -> None:
+    api = client(tmp_path)
+    project = api.post("/v1/projects", json={"title": "编号边界"}).json()
+    season_request = {"title": "第一季", "season_number": 1}
+    season = api.post(f"/v1/projects/{project['id']}/seasons", json=season_request).json()
+
+    duplicate_season = api.post(
+        f"/v1/projects/{project['id']}/seasons", json=season_request
+    )
+    assert duplicate_season.status_code == 409
+    assert "season number already exists" in duplicate_season.text
+
+    episode_request = {"title": "第一集", "episode_number": 1}
+    assert api.post(f"/v1/seasons/{season['id']}/episodes", json=episode_request).status_code == 201
+    duplicate_episode = api.post(
+        f"/v1/seasons/{season['id']}/episodes", json=episode_request
+    )
+    assert duplicate_episode.status_code == 409
+    assert "episode number already exists" in duplicate_episode.text
+
+    with api.app.state.repository.db.connect() as connection:
+        assert connection.execute("SELECT COUNT(*) FROM seasons").fetchone()[0] == 1
+        assert connection.execute("SELECT COUNT(*) FROM episodes").fetchone()[0] == 1
+        assert (
+            connection.execute("SELECT COUNT(*) FROM season_plan_revisions").fetchone()[0]
+            == 2
+        )
+
+
 def test_each_episode_has_independent_production_progress(tmp_path: Path) -> None:
     api = client(tmp_path)
     plan = api.post(
