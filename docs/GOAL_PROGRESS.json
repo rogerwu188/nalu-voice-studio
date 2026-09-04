@@ -11,26 +11,26 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "746cb1ebfdfd7e48ed4cdc67318bb77710b7010a",
-  "last_advanced_at": "2026-09-04T04:43:00Z",
+  "observed_head": "22e47438aa4909295231d398219d73e8d9c0e5d4",
+  "last_advanced_at": "2026-09-04T04:43:01Z",
   "last_closed_checkpoint": {
-    "id": "realtime-media-capture-origin",
+    "id": "bind-realtime-spoken-prompt-data",
     "sop": "SOP-02",
-    "product_commit": "8ff5fda42dfb5ff8a6492e5f918b74f149704e10",
-    "evidence_commit": "746cb1ebfdfd7e48ed4cdc67318bb77710b7010a",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33836160599",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33836160599/artifacts/9923496237",
+    "product_commit": "b912d5591c3f2c47b542d292b4d2b7822204d63c",
+    "evidence_commit": "22e47438aa4909295231d398219d73e8d9c0e5d4",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33837130557",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33837130557/artifacts/9923764801",
     "result": "PASS"
   },
   "current_checkpoint": {
     "sop": "SOP-02",
     "status": "IN_PROGRESS",
-    "summary": "WebKit microphone permission is now restricted to the consented connecting state, exact trusted HTTPS main-frame origin on its default TLS port and microphone-only capture; every other state, origin, frame and capture type fails closed. Runtime, both native architectures, Universal packaging, staged update and rollback passed CI. SOP-02 remains incomplete without authorized paid connectivity, the real clean-account permission journey, packet inspection, live model behavior, real network/session-expiry and human accessibility acceptance; those requirements remain authorization gates while safe work continues elsewhere."
+    "summary": "Realtime local follow-up questions are now normalized and bounded before queuing, then sent as an explicitly untrusted JSON data item rather than concatenated into per-response model instructions. Runtime, both native architectures, Universal packaging, staged update and rollback passed CI. SOP-02 remains incomplete without authorized paid connectivity, the real clean-account permission journey, packet inspection, live model behavior, real network/session-expiry and human accessibility acceptance; those requirements remain authorization gates while safe work continues elsewhere."
   },
   "next_action": {
     "sop": "SOP-02",
-    "id": "bind-realtime-spoken-prompt-data",
-    "summary": "Audit and harden the Realtime speakPrompt path so local planning questions are bounded and treated only as quoted data, never appended as executable model instructions. Add deterministic injection and oversize regression coverage without starting a paid session.",
+    "id": "coalesce-realtime-spoken-prompts",
+    "summary": "Make overlapping local speakPrompt requests latest-wins across response cancellation and the delayed restart timer, so a stale question cannot be spoken after the visible interview has advanced. Add deterministic state-machine and embedded-script regression coverage without starting a paid session.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
