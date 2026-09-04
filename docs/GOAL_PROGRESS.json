@@ -11,26 +11,26 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "6f632bdb202a12aae07a001620e78c66d172e75b",
-  "last_advanced_at": "2026-09-04T15:24:26Z",
+  "observed_head": "dbf7b429cb8694ee523a71aad0440ad303fa8d66",
+  "last_advanced_at": "2026-09-04T15:38:49Z",
   "last_closed_checkpoint": {
-    "id": "release-artifact-derived-content-revalidation",
+    "id": "publication-reconciliation-cross-entity-binding",
     "sop": "SOP-10",
-    "product_commit": "1fbee021dd3849e66649d4783f28017b6ae51a68",
-    "evidence_commit": "6f632bdb202a12aae07a001620e78c66d172e75b",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33888340689",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33888340689/artifacts/9943088344",
+    "product_commit": "33b464c0bbbe00242b75432f2514e173ba1616d5",
+    "evidence_commit": "dbf7b429cb8694ee523a71aad0440ad303fa8d66",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33889884604",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33889884604/artifacts/9943649673",
     "result": "PASS"
   },
   "current_checkpoint": {
     "sop": "SOP-10",
     "status": "IN_PROGRESS",
-    "summary": "SOP-10 release packages and dry-runs now bind both owning entities and independently regenerated derived content. The next integrity boundary is a stored publication reconciliation record whose row and JSON digests can be rewritten together unless retrieval rebinds it to the current run, project, episode, platform, remote identity and authoritative release/dry-run inputs."
+    "summary": "SOP-10 active publication reconciliations now bind their current run hierarchy, database identity and revalidated local release inputs before learning; imported history remains read-only. Stored metric snapshots and director strategies still rely mainly on self-digests and need independent row, publication, source-metrics, target-episode and revision binding before they can safely drive later creative decisions."
   },
   "next_action": {
     "sop": "SOP-10",
-    "id": "publication-reconciliation-cross-entity-binding",
-    "summary": "Revalidate every stored publication reconciliation against its current run/project/episode, SQLite row platform and remote identity, request digest, current release package and current publication dry-run; reject cross-entity or relinked self-consistent database tampering before metrics and learning consume it.",
+    "id": "publication-learning-derived-binding",
+    "summary": "Independently bind stored publication metric snapshots to their SQLite row, owning run and validated publication record, then bind director strategies to the current metrics snapshot, owning project, target episode and immutable revision; reject recomputed cross-entity tampering before replay or display.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
