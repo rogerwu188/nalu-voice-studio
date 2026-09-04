@@ -11,26 +11,26 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "8c19723d732b84ed3dde1dece2ae67a5834cb10f",
-  "last_advanced_at": "2026-09-04T21:16:54Z",
+  "observed_head": "de22a2d",
+  "last_advanced_at": "2026-09-04T21:30:36Z",
   "last_closed_checkpoint": {
-    "id": "publication-reconciliation-request-rederivation",
+    "id": "publication-metrics-request-rederivation",
     "sop": "SOP-10",
-    "product_commit": "a709e1d2339f4153d24b53c559c1f774808fcab4",
-    "evidence_commit": "8c19723d732b84ed3dde1dece2ae67a5834cb10f",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33894546583",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33894546583/artifacts/9945489139",
+    "product_commit": "017d53541f7d5aff0b982ea959d5fc7bb096caa3",
+    "evidence_commit": "de22a2d",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33920648953",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33920648953/artifacts/9955133074",
     "result": "PASS"
   },
   "current_checkpoint": {
     "sop": "SOP-10",
     "status": "IN_PROGRESS",
-    "summary": "SOP-10 new publication reconciliations now carry and independently regenerate their complete request identity while legacy history remains readable. Publication metrics snapshots already store every input needed to regenerate their request digest, but retrieval currently compares only the opaque JSON and row values rather than recomputing that request."
+    "summary": "SOP-10 publication reconciliation and metrics requests are now independently regenerated before use. Director strategies bind to a validated metrics digest, but their derived observations, directives and immutable constraints can still be altered together with the outer strategy digest without independent semantic regeneration."
   },
   "next_action": {
     "sop": "SOP-10",
-    "id": "publication-metrics-request-rederivation",
-    "summary": "Regenerate every stored metrics request digest from the bound run, validated publication-record digest, time window and idempotency-key hash; reject recomputed snapshot tampering with a stale request digest before replay, display or strategy use.",
+    "id": "director-strategy-content-rederivation",
+    "summary": "Regenerate director observations, directives and immutable constraints from the validated metrics snapshot on every read; reject a recomputed outer strategy digest whose stored advice no longer matches deterministic derived content.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
