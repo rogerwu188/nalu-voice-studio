@@ -444,6 +444,19 @@ Current evidence:
   Universal merge, bundled smoke, staged-update and rollback QA. This closes the
   deterministic stale-approval authority checkpoint, not the remaining clean-account
   human voice/accessibility acceptance.
+- Commit `452d5103b3d0016503a1d3bb38169e6f330ce0fa`, GitHub CI run
+  `33863616633`, Runtime QA artifact `9933144895` and Universal artifact
+  `9933266845` (artifact digest
+  `sha256:742e86c84b6dc1cd665673c0e9a6da74abcbc118cd0b6b97328b82b85d2cb8cc`):
+  season and episode creation now re-read their authoritative parent inside the same
+  SQLite write transaction as the child row and season-plan snapshot. A parent deleted
+  after stale preflight returns not-found and leaves no child or plan revision, while
+  only a real unique-number constraint is reported as a numbering conflict. Direct
+  regressions prove both stale-parent paths and unchanged row/revision counts after
+  duplicate attempts. CI passed 250 Runtime tests, both native Swift suites and
+  architecture builds, Universal merge, bundled smoke, packaged project-isolation,
+  staged-update and rollback QA. This closes the deterministic hierarchy-creation
+  transaction checkpoint, not the remaining clean-account human acceptance.
 - Still required before `PASS`: clean-account voice-only, accessibility and restart/import
   QA evidence on the same release candidate. Implementation alone is not acceptance.
 
