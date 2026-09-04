@@ -1885,6 +1885,25 @@ Current evidence:
   merge, bundled smoke, project isolation, staged-update, rollback and controlled-
   evolution verification. This closes the deterministic postproduction tree durability
   boundary, not real-master Apple Speech or original-resolution human audiovisual QA.
+- Product commit `3d7c9b060c59cd15a0e2f00872e20f796ab17577`, GitHub CI run
+  `33878943656`: rendered-output seals, local visual-analysis results and their generated
+  continuity manifests now share one exclusive durable publication primitive. Each artifact
+  is written through a private no-follow/no-replace file, flushed and synced, hard-linked
+  without replacing concurrent evidence, and has both directory-entry publication and
+  temporary-file cleanup synced before the caller can bind a SQLite event. Direct tests
+  observed file and directory syncs, reopened and rehashed the acknowledged bytes, and proved
+  a competing publication cannot replace the first artifact or leave hidden temporary files.
+  The existing visual-analysis crash-boundary fixture still proved a durable result can be
+  recovered into exactly one SQLite event without rerunning the analyzer. All 273 Runtime
+  tests and the Runtime, Apple Silicon, Intel and Universal jobs passed, including bundled-
+  Runtime smoke, project isolation, staged update, populated rollback and controlled-
+  evolution checks. Runtime QA artifact `9939251031` has digest
+  `sha256:b81cac2f39c0445aaf2d9bfe4aff8cf5a57bf50417766bcf82c11f4c6040c339`;
+  Universal artifact `9939249573` has digest
+  `sha256:cffdb4e16d5650a46a91151056c90a984d5dcaa6f3ef067c455a61be8bdd8b12`.
+  This closes the deterministic postproduction-evidence filesystem durability checkpoint,
+  not the remaining seal-event crash recovery, real-master Apple Speech or original-
+  resolution human audiovisual QA.
 
 ## SOP-10 · Controlled release and learning loop — IN_PROGRESS
 
