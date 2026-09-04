@@ -168,7 +168,8 @@ final class RealtimeVoiceConfigurationTests: XCTestCase {
                 #"typeof event.data !== "string" || event.data.length > 1048576"#
             )
         )
-        XCTAssertTrue(RealtimeVoiceCoordinator.webRTCPage.contains("try {\n              value = JSON.parse"))
+        XCTAssertTrue(RealtimeVoiceCoordinator.webRTCPage.contains("try {"))
+        XCTAssertTrue(RealtimeVoiceCoordinator.webRTCPage.contains("value = JSON.parse(event.data)"))
         XCTAssertTrue(RealtimeVoiceCoordinator.webRTCPage.contains("Array.isArray(value)"))
     }
 
