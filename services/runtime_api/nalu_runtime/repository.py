@@ -4642,18 +4642,54 @@ class Repository:
         )
 
     def delete_project_records(
-        self, project_id: str, request: ProjectDeletionRequest
+        self,
+        project_id: str,
+        request: ProjectDeletionRequest,
+        *,
+        expected_asset_ids: list[str],
+        expected_run_ids: list[str],
     ) -> tuple[int, int]:
-        preview = self.project_deletion_preview(project_id)
-        if request.confirmation_title != preview.project_title:
-            raise ConflictError("project title confirmation does not match")
-        if preview.production_run_count and not request.delete_production_snapshots:
-            raise ConflictError("immutable production snapshot deletion was not confirmed")
         with self.db.connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
+            project = connection.execute(
+                "SELECT title FROM projects WHERE id = ?", (project_id,)
+            ).fetchone()
+            if project is None:
+                raise NotFoundError("project not found")
+            if request.confirmation_title != project["title"]:
+                raise ConflictError("project title confirmation does not match")
+            current_asset_ids = sorted(
+                row["id"]
+                for row in connection.execute(
+                    "SELECT id FROM assets WHERE project_id = ?", (project_id,)
+                )
+            )
+            current_run_ids = sorted(
+                row["id"]
+                for row in connection.execute(
+                    "SELECT id FROM production_runs WHERE project_id = ?", (project_id,)
+                )
+            )
+            if current_asset_ids != sorted(expected_asset_ids):
+                raise ConflictError("project assets changed after deletion preview")
+            if current_run_ids != sorted(expected_run_ids):
+                raise ConflictError("production snapshots changed after deletion preview")
+            if current_run_ids and not request.delete_production_snapshots:
+                raise ConflictError("immutable production snapshot deletion was not confirmed")
             connection.execute("DELETE FROM production_runs WHERE project_id = ?", (project_id,))
             connection.execute("DELETE FROM projects WHERE id = ?", (project_id,))
-        return preview.asset_count, preview.production_run_count
+        return len(current_asset_ids), len(current_run_ids)
+
+    def project_asset_ids(self, project_id: str) -> list[str]:
+        self.get_project(project_id)
+        with self.db.connect() as connection:
+            return [
+                row["id"]
+                for row in connection.execute(
+                    "SELECT id FROM assets WHERE project_id = ? ORDER BY id",
+                    (project_id,),
+                )
+            ]
 
     def project_run_ids(self, project_id: str) -> list[str]:
         self.get_project(project_id)

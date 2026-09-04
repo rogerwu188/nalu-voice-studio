@@ -23,7 +23,12 @@ from nalu_runtime.feedback_export import (
     IssueTrackerLookup,
     IssueTrackerReceipt,
 )
-from nalu_runtime.models import AssetDependencyReport, ScriptRevisionCreate
+from nalu_runtime.models import (
+    AssetDependencyReport,
+    ProductionRun,
+    RunStatus,
+    ScriptRevisionCreate,
+)
 from nalu_runtime.qingshan_adapter import QingshanAdapterError
 from nalu_runtime.release_evidence import ReleaseEvidenceVerification
 from nalu_runtime.repository import ConflictError
@@ -3511,6 +3516,79 @@ def test_complete_privacy_export_and_confirmed_project_deletion(tmp_path: Path) 
     assert not (tmp_path / "data" / "assets" / project["id"]).exists()
     assert not (tmp_path / "data" / "runs" / run["id"]).exists()
     assert list((tmp_path / "data" / "privacy-exports").glob(f"{project['id']}-*")) == []
+
+
+def test_project_deletion_rejects_snapshot_created_after_preview(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    api = client(tmp_path)
+    project, season, episode = create_approved_episode(api)
+    imported = api.post(
+        f"/v1/projects/{project['id']}/asset-imports",
+        params={"filename": "family.txt", "kind": "source_document", "name": "家庭资料"},
+        content=b"family archive",
+        headers={"Content-Type": "text/plain"},
+    ).json()
+    first_run = api.post(
+        f"/v1/episodes/{episode['id']}/production-runs",
+        json={"dry_run": True},
+        headers={"Idempotency-Key": "deletion-inventory-first-run"},
+    ).json()
+    repository = api.app.state.repository
+    original_delete = repository.delete_project_records
+    late_run_id = "run_late_deletion_inventory"
+    late_run_root = tmp_path / "data" / "runs" / late_run_id
+
+    def insert_late_run_then_delete(
+        target_project_id: str,
+        request: object,
+        *,
+        expected_asset_ids: list[str],
+        expected_run_ids: list[str],
+    ) -> tuple[int, int]:
+        late_run_root.mkdir(parents=True)
+        package_path = late_run_root / "production-package.json"
+        package_path.write_text("{}\n", encoding="utf-8")
+        repository.save_run(
+            ProductionRun(
+                id=late_run_id,
+                project_id=project["id"],
+                season_id=season["id"],
+                episode_id=episode["id"],
+                status=RunStatus.PREFLIGHT,
+                dry_run=True,
+                requested_model="fixture",
+                estimated_budget_credits=None,
+                package_path=str(package_path),
+                created_at="2026-09-04T00:00:00Z",
+                updated_at="2026-09-04T00:00:00Z",
+            )
+        )
+        return original_delete(
+            target_project_id,
+            request,
+            expected_asset_ids=expected_asset_ids,
+            expected_run_ids=expected_run_ids,
+        )
+
+    monkeypatch.setattr(repository, "delete_project_records", insert_late_run_then_delete)
+    rejected = api.request(
+        "DELETE",
+        f"/v1/projects/{project['id']}",
+        json={
+            "confirmation_title": project["title"],
+            "requested_by": "user",
+            "delete_production_snapshots": True,
+        },
+    )
+
+    assert rejected.status_code == 409
+    assert "changed after deletion preview" in rejected.text
+    assert api.get(f"/v1/projects/{project['id']}").status_code == 200
+    assert set(repository.project_run_ids(project["id"])) == {first_run["id"], late_run_id}
+    assert Path(unquote(urlparse(imported["local_uri"]).path)).read_bytes() == b"family archive"
+    assert Path(first_run["package_path"]).is_file()
+    assert (late_run_root / "production-package.json").is_file()
 
 
 def test_production_requires_approved_script(tmp_path: Path) -> None:

@@ -74,6 +74,7 @@ class ProjectPrivacyService:
         self, project_id: str, request: ProjectDeletionRequest
     ) -> ProjectDeletionResult:
         preview = self.repository.project_deletion_preview(project_id)
+        asset_ids = self.repository.project_asset_ids(project_id)
         run_ids = self.repository.project_run_ids(project_id)
         if request.confirmation_title != preview.project_title:
             raise ConflictError("project title confirmation does not match")
@@ -100,19 +101,41 @@ class ProjectPrivacyService:
                 resolved.rename(staged)
                 moved.append((staged, resolved))
             asset_count, run_count = self.repository.delete_project_records(
-                project_id, request
+                project_id,
+                request,
+                expected_asset_ids=asset_ids,
+                expected_run_ids=run_ids,
             )
         except Exception:
             for staged, original in reversed(moved):
                 secure_directory(original.parent)
-                staged.rename(original)
+                if original.is_dir() and staged.is_dir():
+                    for child in staged.iterdir():
+                        destination = original / child.name
+                        if destination.exists():
+                            raise ConflictError(
+                                "project deletion rollback found conflicting local data"
+                            )
+                        child.rename(destination)
+                    staged.rmdir()
+                elif original.exists():
+                    raise ConflictError("project deletion rollback target already exists")
+                else:
+                    staged.rename(original)
             shutil.rmtree(staging)
             raise
         shutil.rmtree(staging)
         try:
             self.repository.get_project(project_id)
         except NotFoundError:
-            verified_absent = all(not original.exists() for _, original in moved)
+            asset_root = self.data_root / "assets" / project_id
+            run_roots_absent = all(
+                not (self.data_root / "runs" / run_id).exists() for run_id in run_ids
+            )
+            exports_absent = not export_root.is_dir() or not any(
+                export_root.glob(f"{project_id}-*.zip")
+            )
+            verified_absent = not asset_root.exists() and run_roots_absent and exports_absent
         else:
             verified_absent = False
         return ProjectDeletionResult(
