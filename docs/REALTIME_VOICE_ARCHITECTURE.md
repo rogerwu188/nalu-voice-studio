@@ -122,6 +122,10 @@ secrets or request details into UI capture, feedback or support material.
 - Spoken-question cancellation uses a monotonically increasing generation and one owned
   restart timer. A newer visible question replaces any delayed predecessor, and session
   stop or failure invalidates and clears the timer before it can send another response.
+- Transcript and `response.done` fields are type-checked before use. A response may carry
+  at most one exact interview-tool call; identifiers and arguments have fixed limits, and
+  the native client accepts at most 64 validated unique calls per session. Malformed
+  response output cannot throw inside the message handler or grow the native dedupe set.
 
 Still required: a credential-authorized paid connectivity/interruption/tool-call test,
 provider usage/cost reconciliation, live network-loss/session-expiry recovery, packet

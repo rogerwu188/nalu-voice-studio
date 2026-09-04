@@ -333,6 +333,34 @@ final class RealtimeVoiceConfigurationTests: XCTestCase {
         ]))
     }
 
+    func testToolCallLedgerDeduplicatesBoundsAndResetsEachSession() {
+        var ledger = RealtimeToolCallLedger()
+        XCTAssertEqual(RealtimeToolCallLedger.maximumCallsPerSession, 64)
+
+        for index in 0..<RealtimeToolCallLedger.maximumCallsPerSession {
+            XCTAssertEqual(ledger.admit("call_\(index)"), .accepted)
+        }
+        XCTAssertEqual(ledger.admit("call_0"), .duplicate)
+        XCTAssertEqual(ledger.admit("call_over_limit"), .limitExceeded)
+
+        ledger.reset()
+        XCTAssertEqual(ledger.admit("call_after_reset"), .accepted)
+    }
+
+    func testEmbeddedPageValidatesResponseEventsBeforeUsingTheirFields() {
+        let page = RealtimeVoiceCoordinator.webRTCPage
+
+        XCTAssertTrue(page.contains("typeof value.transcript !== \"string\""))
+        XCTAssertTrue(page.contains("const output = value.response && value.response.output"))
+        XCTAssertTrue(page.contains("if (!Array.isArray(output))"))
+        XCTAssertTrue(page.contains("const calls = output.filter"))
+        XCTAssertTrue(page.contains("if (calls.length > 1"))
+        XCTAssertTrue(page.contains("call.name !== \"record_interview_answer\""))
+        XCTAssertTrue(page.contains("call.call_id.length > 512"))
+        XCTAssertTrue(page.contains("call.arguments.length > 8192"))
+        XCTAssertFalse(page.contains("value.response?.output?.filter"))
+    }
+
     func testSessionLimitIsBoundedAndReadable() {
         XCTAssertEqual(RealtimeSessionLimit.normalized(5), 5)
         XCTAssertEqual(RealtimeSessionLimit.normalized(20), 20)

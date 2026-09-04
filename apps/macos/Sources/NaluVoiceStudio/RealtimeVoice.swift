@@ -317,6 +317,28 @@ struct RealtimeInterviewToolCall: Equatable {
     }
 }
 
+struct RealtimeToolCallLedger {
+    enum Admission: Equatable {
+        case accepted
+        case duplicate
+        case limitExceeded
+    }
+
+    static let maximumCallsPerSession = 64
+    private var callIDs: Set<String> = []
+
+    mutating func admit(_ callID: String) -> Admission {
+        if callIDs.contains(callID) { return .duplicate }
+        guard callIDs.count < Self.maximumCallsPerSession else { return .limitExceeded }
+        callIDs.insert(callID)
+        return .accepted
+    }
+
+    mutating func reset() {
+        callIDs.removeAll()
+    }
+}
+
 struct RealtimeConnectionAttemptGate {
     private(set) var generation: UInt = 0
 
@@ -432,7 +454,7 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
     private weak var webView: WKWebView?
     private var isPageReady = false
     private var pendingToken: String?
-    private var completedToolCallIDs: Set<String> = []
+    private var toolCallLedger = RealtimeToolCallLedger()
     private var lastInstructions: String?
     private var sessionClock: Task<Void, Never>?
     private var dataChannelReady = false
@@ -461,7 +483,7 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
         sessionElapsedSeconds = 0
         sessionLimitMinutes = RealtimeSessionLimit.normalized(limitMinutes)
         lastInstructions = instructions
-        completedToolCallIDs.removeAll()
+        toolCallLedger.reset()
         dataChannelReady = false
         retryAllowed = false
         state = .connecting
@@ -515,7 +537,7 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
         sessionStartedAt = nil
         sessionElapsedSeconds = 0
         stopSessionClock()
-        completedToolCallIDs.removeAll()
+        toolCallLedger.reset()
         dataChannelReady = false
         pendingSpokenPrompt = nil
         lastInstructions = nil
@@ -630,10 +652,22 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
     }
 
     private func handleToolCall(_ payload: [String: Any]) {
-        guard let callID = payload["callID"] as? String,
-              !callID.isEmpty,
-              !completedToolCallIDs.contains(callID) else { return }
-        completedToolCallIDs.insert(callID)
+        guard let call = RealtimeInterviewToolCall.parse(payload) else {
+            failSession(
+                reason: "收到无法验证的实时语音操作，请重新连接。",
+                allowRetry: true
+            )
+            return
+        }
+        switch toolCallLedger.admit(call.callID) {
+        case .duplicate:
+            return
+        case .limitExceeded:
+            failSession(reason: "本次语音操作过多，请重新连接。", allowRetry: true)
+            return
+        case .accepted:
+            break
+        }
 
         let rejected = RealtimeInterviewToolResult(
             accepted: false,
@@ -641,12 +675,11 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
             nextPrompt: "",
             requiresVisibleConfirmation: true
         )
-        guard let call = RealtimeInterviewToolCall.parse(payload),
-              let onInterviewAnswer else {
-            completeToolCall(callID: callID, result: rejected)
+        guard let onInterviewAnswer else {
+            completeToolCall(callID: call.callID, result: rejected)
             return
         }
-        completeToolCall(callID: callID, result: onInterviewAnswer(call.answer))
+        completeToolCall(callID: call.callID, result: onInterviewAnswer(call.answer))
     }
 
     private func completeToolCall(callID: String, result: RealtimeInterviewToolResult) {
@@ -768,18 +801,39 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
             }
             if (value.type === "response.output_audio.delta") post("status", "speaking");
             if (value.type === "conversation.item.input_audio_transcription.completed") {
-              post("user", value.transcript || "");
+              if (typeof value.transcript !== "string" || value.transcript.length === 0) {
+                fail("实时语音转写格式不正确，请重新连接");
+                return;
+              }
+              post("user", value.transcript);
             }
             if (value.type === "response.output_audio_transcript.done") {
-              post("assistant", value.transcript || "");
+              if (typeof value.transcript !== "string" || value.transcript.length === 0) {
+                fail("实时语音回答格式不正确，请重新连接");
+                return;
+              }
+              post("assistant", value.transcript);
               post("status", "listening");
             }
             if (value.type === "response.done") {
               responseActive = false;
-              const calls = value.response?.output?.filter(item => item.type === "function_call") || [];
+              const output = value.response && value.response.output;
+              if (!Array.isArray(output)) {
+                fail("实时语音回答结构不正确，请重新连接");
+                return;
+              }
+              const calls = output.filter(item => item && item.type === "function_call");
+              if (calls.length > 1 || calls.some(call =>
+                  call.name !== "#(RealtimeSessionConfiguration.interviewToolName)" ||
+                  typeof call.call_id !== "string" || call.call_id.length === 0 ||
+                  call.call_id.length > 512 || call.call_id.trim() !== call.call_id ||
+                  typeof call.arguments !== "string" || call.arguments.length > 8192)) {
+                fail("实时语音操作格式不正确，请重新连接");
+                return;
+              }
               calls.forEach(call => window.webkit.messageHandlers.naluRealtime.postMessage({
-                kind: "tool", name: call.name || "", callID: call.call_id || "",
-                arguments: call.arguments || "{}"
+                kind: "tool", name: call.name, callID: call.call_id,
+                arguments: call.arguments
               }));
             }
             if (value.type === "error") fail("实时语音服务报告错误，请重新连接");
