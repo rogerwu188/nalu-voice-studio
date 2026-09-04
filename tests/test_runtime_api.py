@@ -24,6 +24,7 @@ from nalu_runtime.feedback_export import (
     IssueTrackerReceipt,
 )
 from nalu_runtime.models import (
+    AssetConsentRevocationCreate,
     AssetDependencyReport,
     MemoryCardUpdate,
     ProductionRun,
@@ -2149,6 +2150,113 @@ def test_conflicting_memory_cards_cannot_be_confirmed_concurrently(tmp_path: Pat
     conflict = api.get(f"/v1/memory-cards/{draft['id']}/conflicts").json()
     assert conflict["blocking"] is True
     assert conflict["conflicts"][0]["kind"] == "event_place"
+
+
+def test_memory_card_create_rechecks_visual_consent_under_write_lock(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    api = client(tmp_path)
+    project = api.post("/v1/projects", json={"title": "创建授权竞态"}).json()
+    asset = api.post(
+        f"/v1/projects/{project['id']}/asset-imports",
+        params={
+            "filename": "portrait.jpg",
+            "kind": "character_image",
+            "name": "本人照片",
+            "subject_name": "本人",
+            "consent_granted": True,
+            "consent_granted_by": "本人",
+            "consent_statement": "同意用于本项目生成画面",
+        },
+        content=b"portrait bytes",
+        headers={"Content-Type": "image/jpeg"},
+    ).json()
+    repository = api.app.state.repository
+    original_get_asset = repository.get_asset
+
+    def revoke_after_preflight(asset_id: str) -> object:
+        stale_asset = original_get_asset(asset_id)
+        monkeypatch.setattr(repository, "get_asset", original_get_asset)
+        repository.revoke_asset_consent(
+            asset_id,
+            AssetConsentRevocationCreate(requested_by="本人", reason="保存前撤销授权"),
+        )
+        return stale_asset
+
+    monkeypatch.setattr(repository, "get_asset", revoke_after_preflight)
+    rejected = api.post(
+        f"/v1/projects/{project['id']}/memory-cards",
+        json={
+            "asset_id": asset["id"],
+            "title": "本人照片",
+            "allowed_use": "visual_generation",
+        },
+    )
+
+    assert rejected.status_code == 409
+    assert "active biometric consent" in rejected.text
+    assert api.get(f"/v1/projects/{project['id']}/memory-cards").json() == []
+    assert (
+        api.get(f"/v1/assets/{asset['id']}/consent-records").json()[-1]["action_type"]
+        == "revoked"
+    )
+
+
+def test_memory_card_update_rechecks_visual_consent_under_write_lock(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    api = client(tmp_path)
+    project = api.post("/v1/projects", json={"title": "修改授权竞态"}).json()
+    asset = api.post(
+        f"/v1/projects/{project['id']}/asset-imports",
+        params={
+            "filename": "portrait.jpg",
+            "kind": "character_image",
+            "name": "本人照片",
+            "subject_name": "本人",
+            "consent_granted": True,
+            "consent_granted_by": "本人",
+            "consent_statement": "同意用于本项目生成画面",
+        },
+        content=b"portrait bytes",
+        headers={"Content-Type": "image/jpeg"},
+    ).json()
+    card = api.post(
+        f"/v1/projects/{project['id']}/memory-cards",
+        json={
+            "asset_id": asset["id"],
+            "title": "本人照片",
+            "allowed_use": "story_development",
+        },
+    ).json()
+    repository = api.app.state.repository
+    original_get_asset = repository.get_asset
+
+    def revoke_after_preflight(asset_id: str) -> object:
+        stale_asset = original_get_asset(asset_id)
+        monkeypatch.setattr(repository, "get_asset", original_get_asset)
+        repository.revoke_asset_consent(
+            asset_id,
+            AssetConsentRevocationCreate(requested_by="本人", reason="修改前撤销授权"),
+        )
+        return stale_asset
+
+    monkeypatch.setattr(repository, "get_asset", revoke_after_preflight)
+    rejected = api.patch(
+        f"/v1/memory-cards/{card['id']}",
+        json={
+            "allowed_use": "visual_generation",
+            "source_channel": "voice",
+            "change_summary": "允许生成画面",
+        },
+    )
+
+    assert rejected.status_code == 409
+    assert "active biometric consent" in rejected.text
+    current = api.get(f"/v1/projects/{project['id']}/memory-cards").json()[0]
+    assert current["current_revision"] == 1
+    assert current["allowed_use"] == "story_development"
+    assert api.get(f"/v1/memory-cards/{card['id']}/revisions").json()[0]["revision"] == 1
 
 
 def test_archive_audio_and_video_import_as_reference_without_generation_consent(

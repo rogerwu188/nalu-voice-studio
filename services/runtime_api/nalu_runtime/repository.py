@@ -4116,6 +4116,37 @@ class Repository:
             ready_for_authorized_rollout=ready,
         )
 
+    @staticmethod
+    def _assert_memory_asset_authority(
+        connection: sqlite3.Connection,
+        project_id: str,
+        asset_id: str,
+        allowed_use: str,
+    ) -> None:
+        project = connection.execute(
+            "SELECT audience_mode FROM projects WHERE id = ?", (project_id,)
+        ).fetchone()
+        if project is None:
+            raise NotFoundError("project not found")
+        asset = connection.execute(
+            """SELECT project_id, kind, consent_granted, guardian_approved
+               FROM assets WHERE id = ?""",
+            (asset_id,),
+        ).fetchone()
+        if asset is None:
+            raise NotFoundError("asset not found")
+        if asset["project_id"] != project_id:
+            raise ConflictError("memory evidence belongs to another project")
+        if allowed_use != "visual_generation" or asset["kind"] not in {
+            "character_image",
+            "voice_reference",
+        }:
+            return
+        if not bool(asset["consent_granted"]):
+            raise ConflictError("visual generation requires active biometric consent")
+        if project["audience_mode"] == "child" and not bool(asset["guardian_approved"]):
+            raise ConflictError("child visual generation requires guardian approval")
+
     def create_memory_card(self, project_id: str, request: MemoryCardCreate) -> MemoryCard:
         project = self.get_project(project_id)
         asset = self.get_asset(request.asset_id)
@@ -4133,6 +4164,10 @@ class Repository:
         memory_id, now = new_id("mem"), utc_now()
         try:
             with self.db.connect() as connection:
+                connection.execute("BEGIN IMMEDIATE")
+                self._assert_memory_asset_authority(
+                    connection, project_id, request.asset_id, request.allowed_use
+                )
                 connection.execute(
                     """INSERT INTO memory_cards VALUES (
                        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
@@ -4169,7 +4204,7 @@ class Repository:
                         now,
                     ),
                 )
-        except Exception as exc:
+        except sqlite3.IntegrityError as exc:
             raise ConflictError("this asset already has a memory card") from exc
         return self.get_memory_card(memory_id)
 
@@ -4232,6 +4267,21 @@ class Repository:
         people = content["people"]
         with self.db.connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
+            locked = connection.execute(
+                """SELECT project_id, asset_id, current_revision
+                   FROM memory_cards WHERE id = ?""",
+                (memory_id,),
+            ).fetchone()
+            if locked is None:
+                raise NotFoundError("memory card not found")
+            if locked["current_revision"] != current.current_revision:
+                raise ConflictError("memory card changed before this update")
+            self._assert_memory_asset_authority(
+                connection,
+                locked["project_id"],
+                locked["asset_id"],
+                content["allowed_use"],
+            )
             connection.execute(
                 """UPDATE memory_cards SET title = ?, description = ?, ocr_text = ?,
                    spoken_context = ?, approximate_date = ?, place = ?, people_json = ?,
