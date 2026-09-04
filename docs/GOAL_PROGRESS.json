@@ -11,26 +11,26 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "c9c7c8f87188ea441f38782d057c46b7231bcc99",
-  "last_advanced_at": "2026-09-04T14:07:25Z",
+  "observed_head": "3794b73c32d522b4fdd8a14a69779bdc93c79036",
+  "last_advanced_at": "2026-09-04T14:23:42Z",
   "last_closed_checkpoint": {
-    "id": "durable-postproduction-qa-report-publication",
+    "id": "crash-consistent-postproduction-qa-events",
     "sop": "SOP-09",
-    "product_commit": "2b03e5eddae388cc6eb17e84ec1797728c1afac1",
-    "evidence_commit": "c9c7c8f87188ea441f38782d057c46b7231bcc99",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33881338870",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33881338870/artifacts/9940158198",
+    "product_commit": "4a50ad21aadd670a2517db3438d7579dc759633f",
+    "evidence_commit": "3794b73c32d522b4fdd8a14a69779bdc93c79036",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33882498857",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33882498857/artifacts/9940783454",
     "result": "PASS"
   },
   "current_checkpoint": {
     "sop": "SOP-09",
     "status": "IN_PROGRESS",
-    "summary": "Every SOP-09 repair plan and QA report is now durably published before its SQLite audit event. Revalidation found the remaining database boundary: several report methods return an already valid durable report after restart without restoring the audit event that was lost in a process exit immediately after file publication."
+    "summary": "SOP-09 durable reports now recover exactly one digest-bound SQLite event after restart. Revalidation found a later boundary on failed QA: if the process exits after the report and event commit but before the repair plan is created, replay returns the existing report immediately and never restores the mandatory repair instructions."
   },
   "next_action": {
     "sop": "SOP-09",
-    "id": "crash-consistent-postproduction-qa-events",
-    "summary": "Bind SOP-09 report audit events idempotently to each exact durable report digest, recover a missing event on replay after restart, retain legitimate new events for changed mutable reports, and prove no duplicate or mismatched evidence event can be created.",
+    "id": "crash-consistent-postproduction-repair-plan",
+    "summary": "Ensure every replayed failed SOP-09 report re-derives and idempotently restores its exact repair plan after restart, without changing a passing report or duplicating plan events; prove a process exit after report event but before plan creation cannot strand a failed run without repair instructions.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
