@@ -1518,7 +1518,7 @@ def test_visual_continuity_redecodes_frames_and_creates_domain_repair(
     }
 
 
-def test_runtime_materializes_postproduction_and_recovers_after_state_commit_crash(
+def test_runtime_materializes_postproduction_and_recovers_after_promotion_and_state_crashes(
     tmp_path: Path,
 ) -> None:
     api = client(tmp_path)
@@ -1541,13 +1541,18 @@ def test_runtime_materializes_postproduction_and_recovers_after_state_commit_cra
     exports = Path(run["package_path"]).parent / "qingshan-workspace" / "exports"
     request = postproduction_materialization_fixture(run, exports)
 
+    from nalu_runtime import postproduction_materializer
+
+    class SimulatedProcessExit(BaseException):
+        pass
+
     with (
         patch.object(
-            repository,
-            "mark_postproduction_materialized",
-            side_effect=RuntimeError("simulated crash before SQLite state commit"),
+            postproduction_materializer,
+            "_after_durable_promotion",
+            side_effect=SimulatedProcessExit("simulated crash after durable promotion"),
         ),
-        pytest.raises(RuntimeError, match="simulated crash"),
+        pytest.raises(SimulatedProcessExit, match="simulated crash"),
     ):
         api.post(
             f"/v1/production-runs/{run['id']}/postproduction-materializations",
@@ -1557,8 +1562,25 @@ def test_runtime_materializes_postproduction_and_recovers_after_state_commit_cra
     assert api.get(f"/v1/episodes/{episode['id']}").json()["status"] == "postproduction"
     finalized = list((exports / "materialized").glob("*/materialization-result.json"))
     assert len(finalized) == 1
+    assert not list(exports.glob(".nalu-postproduction-*"))
 
-    completed = api.post(
+    restarted = client(tmp_path)
+    restarted_repository = restarted.app.state.repository
+    with (
+        patch.object(
+            restarted_repository,
+            "mark_postproduction_materialized",
+            side_effect=RuntimeError("simulated crash before SQLite state commit"),
+        ),
+        pytest.raises(RuntimeError, match="simulated crash"),
+    ):
+        restarted.post(
+            f"/v1/production-runs/{run['id']}/postproduction-materializations",
+            json=request,
+        )
+    assert len(list((exports / "materialized").glob("*/materialization-result.json"))) == 1
+
+    completed = restarted.post(
         f"/v1/production-runs/{run['id']}/postproduction-materializations",
         json=request,
     )
@@ -1576,26 +1598,26 @@ def test_runtime_materializes_postproduction_and_recovers_after_state_commit_cra
         "music",
         "sfx",
     }
-    assert api.get(f"/v1/production-runs/{run['id']}").json()["status"] == "qa_review"
-    assert api.get(f"/v1/episodes/{episode['id']}").json()["status"] == "qa_review"
-    replay = api.post(
+    assert restarted.get(f"/v1/production-runs/{run['id']}").json()["status"] == "qa_review"
+    assert restarted.get(f"/v1/episodes/{episode['id']}").json()["status"] == "qa_review"
+    replay = restarted.post(
         f"/v1/production-runs/{run['id']}/postproduction-materializations",
         json=request,
     )
     assert replay.status_code == 201
     assert replay.json() == result
-    events = api.get(f"/v1/production-runs/{run['id']}/events").json()
+    events = restarted.get(f"/v1/production-runs/{run['id']}/events").json()
     assert sum(event["event_type"] == "postproduction_materialized" for event in events) == 1
 
     changed = {**request, "requested_by": "different-worker"}
-    changed_response = api.post(
+    changed_response = restarted.post(
         f"/v1/production-runs/{run['id']}/postproduction-materializations",
         json=changed,
     )
     assert changed_response.status_code == 409
     assert "different plan" in changed_response.text
 
-    seal = api.post(
+    seal = restarted.post(
         f"/v1/production-runs/{run['id']}/rendered-output-seal",
         json={
             "sealed_by": "local-qa-worker",
@@ -1614,7 +1636,7 @@ def test_runtime_materializes_postproduction_and_recovers_after_state_commit_cra
         },
     )
     assert seal.status_code == 201
-    lineage = api.post(f"/v1/production-runs/{run['id']}/postproduction-lineage-qa")
+    lineage = restarted.post(f"/v1/production-runs/{run['id']}/postproduction-lineage-qa")
     assert lineage.status_code == 200
     report = lineage.json()
     assert report["status"] == "PASS"
@@ -1627,7 +1649,7 @@ def test_runtime_materializes_postproduction_and_recovers_after_state_commit_cra
         "sfx",
     }
 
-    after_seal = api.post(
+    after_seal = restarted.post(
         f"/v1/production-runs/{run['id']}/postproduction-materializations",
         json=request,
     )

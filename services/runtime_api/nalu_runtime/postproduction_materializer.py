@@ -7,6 +7,7 @@ import math
 import os
 import secrets
 import shutil
+import stat
 from array import array
 from collections.abc import Callable, Iterable, Iterator
 from contextlib import contextmanager
@@ -43,6 +44,56 @@ CancellationProbe = Callable[[], bool]
 def _raise_if_cancelled(should_cancel: CancellationProbe | None) -> None:
     if should_cancel is not None and should_cancel():
         raise PostproductionMaterializationError("postproduction materialization was cancelled")
+
+
+def _open_no_follow(path: Path, *, directory: bool = False) -> int:
+    flags = os.O_RDONLY
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    if directory and hasattr(os, "O_DIRECTORY"):
+        flags |= os.O_DIRECTORY
+    return os.open(path, flags)
+
+
+def _sync_directory(path: Path) -> None:
+    descriptor = _open_no_follow(path, directory=True)
+    try:
+        if not stat.S_ISDIR(os.fstat(descriptor).st_mode):
+            raise PostproductionMaterializationError(
+                f"postproduction directory is unsafe: {path.name}"
+            )
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
+def _sync_completed_tree(root: Path) -> None:
+    """Make a complete immutable tree durable before its atomic publication."""
+
+    directories = [root]
+    for path in root.rglob("*"):
+        if path.is_symlink():
+            raise PostproductionMaterializationError(
+                f"postproduction staging path is unsafe: {path.name}"
+            )
+        if path.is_dir():
+            directories.append(path)
+            continue
+        descriptor = _open_no_follow(path)
+        try:
+            if not stat.S_ISREG(os.fstat(descriptor).st_mode):
+                raise PostproductionMaterializationError(
+                    f"postproduction staging file is unsafe: {path.name}"
+                )
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
+    for directory in sorted(directories, key=lambda value: len(value.parts), reverse=True):
+        _sync_directory(directory)
+
+
+def _after_durable_promotion(_final_root: Path) -> None:
+    """Crash-test seam after a complete tree becomes durably visible."""
 
 
 @contextmanager
@@ -894,6 +945,7 @@ def _materialize_postproduction_locked(
         )
 
         harden_tree(stage)
+        _sync_completed_tree(stage)
         _raise_if_cancelled(should_cancel)
         try:
             os.rename(stage, final_root)
@@ -902,6 +954,8 @@ def _materialize_postproduction_locked(
             if existing is None:
                 raise
             return existing
+        _sync_directory(materialized_parent)
+        _after_durable_promotion(final_root)
         harden_tree(final_root)
         _raise_if_cancelled(should_cancel)
         inspected = inspect_postproduction_lineage(
