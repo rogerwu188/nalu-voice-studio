@@ -1022,7 +1022,14 @@ def create_app(
     def start_production(
         episode_id: str,
         request: ProductionRunCreate,
-        idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+        idempotency_key: str | None = Header(
+            default=None,
+            alias="Idempotency-Key",
+            description=(
+                "Required for paid production. Keyless dry runs receive a stable "
+                "server-side recovery identity."
+            ),
+        ),
     ) -> ProductionRun:
         return production.start_run(episode_id, request, idempotency_key)
 

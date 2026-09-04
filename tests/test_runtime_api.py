@@ -4795,6 +4795,28 @@ def test_production_run_idempotency_and_paid_key_requirement(tmp_path: Path) -> 
     )
 
 
+def test_keyless_dry_run_replays_server_assigned_idempotency_claim(tmp_path: Path) -> None:
+    api = client(tmp_path)
+    _, _, episode = create_approved_episode(api)
+    path = f"/v1/episodes/{episode['id']}/production-runs"
+
+    first = api.post(path, json={"dry_run": True})
+    replay = api.post(path, json={"dry_run": True})
+
+    assert first.status_code == replay.status_code == 201
+    assert first.json()["id"] == replay.json()["id"]
+    with api.app.state.repository.db.connect() as connection:
+        operations = connection.execute(
+            """SELECT idempotency_key, resource_id, status
+               FROM idempotent_operations WHERE scope = ?""",
+            (f"production-run:{episode['id']}",),
+        ).fetchall()
+    assert len(operations) == 1
+    assert operations[0]["idempotency_key"].startswith("nalu-internal-dry-run:")
+    assert operations[0]["resource_id"] == first.json()["id"]
+    assert operations[0]["status"] == "completed"
+
+
 def test_preflight_run_database_mutations_roll_back_together(
     tmp_path: Path,
 ) -> None:
@@ -4930,6 +4952,49 @@ def test_pending_preflight_recovers_same_package_after_runtime_restart(
             (f"production-run:{episode['id']}", headers["Idempotency-Key"]),
         ).fetchone()
         assert operation["status"] == "completed"
+
+
+def test_keyless_pending_preflight_recovers_after_runtime_restart(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    first_api = client(tmp_path)
+    _, _, episode = create_approved_episode(first_api)
+    repository = first_api.app.state.repository
+
+    def crash_before_database_commit(*_args: object, **_kwargs: object) -> None:
+        raise RuntimeError("simulated keyless runtime crash before database commit")
+
+    monkeypatch.setattr(repository, "commit_preflight_run", crash_before_database_commit)
+    path = f"/v1/episodes/{episode['id']}/production-runs"
+    with pytest.raises(RuntimeError, match="simulated keyless runtime crash"):
+        first_api.post(path, json={"dry_run": True})
+
+    with repository.db.connect() as connection:
+        pending = connection.execute(
+            """SELECT idempotency_key, resource_id, status
+               FROM idempotent_operations WHERE scope = ?""",
+            (f"production-run:{episode['id']}",),
+        ).fetchone()
+    assert pending["idempotency_key"].startswith("nalu-internal-dry-run:")
+    assert pending["status"] == "pending"
+    run_id = pending["resource_id"]
+    package_path = tmp_path / "data" / "runs" / run_id / "production-package.json"
+    package_sha256 = json.loads(package_path.read_text(encoding="utf-8"))["package_sha256"]
+
+    restarted = client(tmp_path)
+    recovered = restarted.post(path, json={"dry_run": True})
+
+    assert recovered.status_code == 201
+    assert recovered.json()["id"] == run_id
+    assert json.loads(package_path.read_text(encoding="utf-8"))["package_sha256"] == package_sha256
+    with restarted.app.state.repository.db.connect() as connection:
+        assert connection.execute("SELECT COUNT(*) FROM production_runs").fetchone()[0] == 1
+        operation = connection.execute(
+            """SELECT status FROM idempotent_operations
+               WHERE scope = ? AND idempotency_key = ?""",
+            (f"production-run:{episode['id']}", pending["idempotency_key"]),
+        ).fetchone()
+    assert operation["status"] == "completed"
 
 
 def test_pending_preflight_quarantines_changed_package_after_restart(

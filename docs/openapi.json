@@ -9232,6 +9232,7 @@
             }
           },
           {
+            "description": "Required for paid production. Keyless dry runs receive a stable server-side recovery identity.",
             "in": "header",
             "name": "Idempotency-Key",
             "required": false,
@@ -9244,6 +9245,7 @@
                   "type": "null"
                 }
               ],
+              "description": "Required for paid production. Keyless dry runs receive a stable server-side recovery identity.",
               "title": "Idempotency-Key"
             }
           }

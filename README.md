@@ -166,6 +166,9 @@ backup boundaries and deletion behavior.
 Retryable project-plan and production-run mutations accept `Idempotency-Key`.
 Paid production requires that header, and a key is cryptographically bound to
 its original request so it cannot be reused with changed model or budget data.
+When a dry-run caller omits the header, the Runtime assigns a stable internal
+request identity so a restart recovers the exact run and package instead of
+creating an orphan or duplicate.
 Remote task persistence and restart semantics are documented in
 [the durable recovery contract](docs/REMOTE_TASK_RECOVERY.md).
 Failed release gates create persistent work according to

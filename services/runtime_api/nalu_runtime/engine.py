@@ -2156,35 +2156,39 @@ class ProductionService:
                     + ", ".join(missing_guardian)
                 )
 
-        run_id = new_id("run")
         operation_scope = f"production-run:{episode_id}"
+        request_payload = json.dumps(
+            {"episode_id": episode_id, "request": request.model_dump(mode="json")},
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        request_sha = hashlib.sha256(request_payload.encode()).hexdigest()
+        # Dry-run callers are allowed to omit the public header, but filesystem
+        # materialization still needs a durable identity across process crashes.
+        # Paid starts were rejected above unless the caller supplied its own key.
+        effective_idempotency_key = (
+            idempotency_key or f"nalu-internal-dry-run:{request_sha}"
+        )
+        run_id = new_id("run")
         recovering_pending = False
-        if idempotency_key:
-            request_payload = json.dumps(
-                {"episode_id": episode_id, "request": request.model_dump(mode="json")},
-                ensure_ascii=False,
-                sort_keys=True,
-                separators=(",", ":"),
-            )
-            request_sha = hashlib.sha256(request_payload.encode()).hexdigest()
-            run_id, claim_status = self.repository.claim_operation(
-                operation_scope, idempotency_key, request_sha, run_id
-            )
-            if claim_status == "completed":
-                return self.repository.get_run(run_id)
-            if claim_status == "pending":
-                recovering_pending = True
-            if claim_status == "failed":
-                raise ConflictError("the prior production request failed; inspect its evidence")
+        run_id, claim_status = self.repository.claim_operation(
+            operation_scope, effective_idempotency_key, request_sha, run_id
+        )
+        if claim_status == "completed":
+            return self.repository.get_run(run_id)
+        if claim_status == "pending":
+            recovering_pending = True
+        if claim_status == "failed":
+            raise ConflictError("the prior production request failed; inspect its evidence")
 
         if episode.status != EpisodeStatus.SCRIPT_APPROVED:
-            if idempotency_key:
-                self.repository.finish_operation(
-                    operation_scope,
-                    idempotency_key,
-                    "failed",
-                    f"episode in {episode.status} cannot start a new production run",
-                )
+            self.repository.finish_operation(
+                operation_scope,
+                effective_idempotency_key,
+                "failed",
+                f"episode in {episode.status} cannot start a new production run",
+            )
             raise ConflictError(f"episode in {episode.status} cannot start a new production run")
 
         package = ProductionPackage(
@@ -2233,7 +2237,7 @@ class ProductionService:
             if run_dir.is_symlink():
                 self.repository.finish_operation(
                     operation_scope,
-                    idempotency_key,
+                    effective_idempotency_key,
                     "failed",
                     "pending production directory is an unsafe symbolic link",
                 )
@@ -2267,7 +2271,7 @@ class ProductionService:
             except (OSError, ValueError) as exc:
                 self.repository.finish_operation(
                     operation_scope,
-                    idempotency_key,
+                    effective_idempotency_key,
                     "failed",
                     f"pending production package could not be recovered: {exc}",
                 )
@@ -2276,7 +2280,7 @@ class ProductionService:
             if recovering_pending and any(run_dir.iterdir()):
                 self.repository.finish_operation(
                     operation_scope,
-                    idempotency_key,
+                    effective_idempotency_key,
                     "failed",
                     "pending production directory has content but no immutable package",
                 )
@@ -2288,10 +2292,9 @@ class ProductionService:
             workspace = self.adapter.materialize_workspace(package_path)
             self.adapter.preflight(package_path, workspace)
         except QingshanAdapterError as exc:
-            if idempotency_key:
-                self.repository.finish_operation(
-                    operation_scope, idempotency_key, "failed", str(exc)
-                )
+            self.repository.finish_operation(
+                operation_scope, effective_idempotency_key, "failed", str(exc)
+            )
             raise ConflictError(f"Qingshan preflight failed: {exc}") from exc
         finally:
             harden_tree(run_dir)
@@ -2316,8 +2319,8 @@ class ProductionService:
             run,
             assets,
             approved_script_revision=episode.approved_script_revision,
-            operation_scope=operation_scope if idempotency_key else None,
-            idempotency_key=idempotency_key,
+            operation_scope=operation_scope,
+            idempotency_key=effective_idempotency_key,
         )
 
     def cancel_run(self, run_id: str, request: RunActionRequest) -> ProductionRun:
