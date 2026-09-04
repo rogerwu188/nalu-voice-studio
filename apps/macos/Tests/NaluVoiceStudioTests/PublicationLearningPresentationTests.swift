@@ -28,6 +28,7 @@ private final class PublicationLearningURLProtocol: URLProtocol, @unchecked Send
     override func stopLoading() {}
 }
 
+@Suite(.serialized)
 struct PublicationLearningPresentationTests {
     @Test func nativeClientSendsNoRequestWithoutRuntimeOwnership() async {
         let configuration = URLSessionConfiguration.ephemeral
