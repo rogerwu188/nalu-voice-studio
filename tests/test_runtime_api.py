@@ -3356,6 +3356,122 @@ def test_child_biometric_import_requires_guardian_without_leaving_data(
     assert [stored["id"] for stored in stored_assets] == [asset["id"]]
 
 
+def test_project_scoped_asset_rechecks_scope_after_stale_preflight(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    api = client(tmp_path)
+    project = api.post("/v1/projects", json={"title": "删除中的项目"}).json()
+    repository = api.app.state.repository
+    original_get_project = repository.get_project
+    calls = 0
+
+    def delete_on_repository_preflight(project_id: str) -> object:
+        nonlocal calls
+        calls += 1
+        stale_project = original_get_project(project_id)
+        if calls == 2:
+            monkeypatch.setattr(repository, "get_project", original_get_project)
+            with repository.db.connect() as connection:
+                connection.execute("BEGIN IMMEDIATE")
+                connection.execute("DELETE FROM projects WHERE id = ?", (project_id,))
+        return stale_project
+
+    monkeypatch.setattr(repository, "get_project", delete_on_repository_preflight)
+    rejected = api.post(
+        f"/v1/projects/{project['id']}/asset-imports",
+        params={
+            "filename": "project-note.txt",
+            "kind": "source_document",
+            "name": "项目资料",
+        },
+        content=b"project-scoped source",
+        headers={"Content-Type": "text/plain"},
+    )
+
+    assert rejected.status_code == 404
+    assert "project not found" in rejected.text
+    with repository.db.connect() as connection:
+        assert connection.execute("SELECT COUNT(*) FROM assets").fetchone()[0] == 0
+    project_asset_root = tmp_path / "data" / "assets" / project["id"]
+    assert not any(path.is_file() for path in project_asset_root.rglob("*"))
+
+
+def test_season_scoped_asset_rechecks_scope_after_stale_preflight(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    api = client(tmp_path)
+    project = api.post("/v1/projects", json={"title": "删除中的季"}).json()
+    season = api.post(
+        f"/v1/projects/{project['id']}/seasons",
+        json={"title": "第一季", "season_number": 1},
+    ).json()
+    repository = api.app.state.repository
+    original_get_season = repository.get_season
+
+    def delete_after_preflight(season_id: str) -> object:
+        stale_season = original_get_season(season_id)
+        monkeypatch.setattr(repository, "get_season", original_get_season)
+        with repository.db.connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            connection.execute("DELETE FROM seasons WHERE id = ?", (season_id,))
+        return stale_season
+
+    monkeypatch.setattr(repository, "get_season", delete_after_preflight)
+    rejected = api.post(
+        f"/v1/projects/{project['id']}/asset-imports",
+        params={
+            "filename": "season-note.txt",
+            "kind": "source_document",
+            "name": "本季资料",
+            "season_id": season["id"],
+        },
+        content=b"season-scoped source",
+        headers={"Content-Type": "text/plain"},
+    )
+
+    assert rejected.status_code == 404
+    assert "asset season not found" in rejected.text
+    assert api.get(f"/v1/projects/{project['id']}/assets").json() == []
+    project_asset_root = tmp_path / "data" / "assets" / project["id"]
+    assert not any(path.is_file() for path in project_asset_root.rglob("*"))
+
+
+def test_episode_scoped_asset_rechecks_scope_after_stale_preflight(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    api = client(tmp_path)
+    project, _, episode = create_approved_episode(api)
+    repository = api.app.state.repository
+    original_get_episode = repository.get_episode
+
+    def delete_after_preflight(episode_id: str) -> object:
+        stale_episode = original_get_episode(episode_id)
+        monkeypatch.setattr(repository, "get_episode", original_get_episode)
+        with repository.db.connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            connection.execute("DELETE FROM episodes WHERE id = ?", (episode_id,))
+        return stale_episode
+
+    monkeypatch.setattr(repository, "get_episode", delete_after_preflight)
+    rejected = api.post(
+        f"/v1/projects/{project['id']}/asset-imports",
+        params={
+            "filename": "episode-note.txt",
+            "kind": "source_document",
+            "name": "仅用于本集的资料",
+            "episode_id": episode["id"],
+        },
+        content=b"episode-scoped source",
+        headers={"Content-Type": "text/plain"},
+    )
+
+    assert rejected.status_code == 404
+    assert "asset episode not found" in rejected.text
+    assert api.get(f"/v1/projects/{project['id']}/assets").json() == []
+    project_asset_root = tmp_path / "data" / "assets" / project["id"]
+    assert not any(path.is_file() for path in project_asset_root.rglob("*"))
+
+
 def test_local_asset_import_consent_revocation_and_path_safety(tmp_path: Path) -> None:
     api = client(tmp_path)
     project, _, episode = create_approved_episode(api)

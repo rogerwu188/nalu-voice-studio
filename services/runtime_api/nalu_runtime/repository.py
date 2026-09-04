@@ -5670,6 +5670,35 @@ class Repository:
         asset_id, now = asset_id or new_id("ast"), utc_now()
         with self.db.connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
+            project = connection.execute(
+                "SELECT audience_mode FROM projects WHERE id = ?", (project_id,)
+            ).fetchone()
+            if project is None:
+                raise NotFoundError("project not found")
+            if request.season_id:
+                season = connection.execute(
+                    "SELECT project_id FROM seasons WHERE id = ?", (request.season_id,)
+                ).fetchone()
+                if season is None:
+                    raise NotFoundError("asset season not found")
+                if season["project_id"] != project_id:
+                    raise ConflictError("asset season belongs to another project")
+            if request.episode_id:
+                episode = connection.execute(
+                    """SELECT s.project_id FROM episodes e
+                       JOIN seasons s ON s.id = e.season_id WHERE e.id = ?""",
+                    (request.episode_id,),
+                ).fetchone()
+                if episode is None:
+                    raise NotFoundError("asset episode not found")
+                if episode["project_id"] != project_id:
+                    raise ConflictError("asset episode belongs to another project")
+            if (
+                project["audience_mode"] == "child"
+                and request.kind in {"character_image", "voice_reference"}
+                and not request.guardian_approved
+            ):
+                raise ConflictError("child biometric assets require guardian approval")
             duplicate = connection.execute(
                 "SELECT id FROM assets WHERE project_id = ? AND local_uri = ?",
                 (project_id, request.local_uri),
