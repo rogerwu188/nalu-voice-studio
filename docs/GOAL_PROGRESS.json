@@ -11,26 +11,26 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "d0286f83e08667a6382de3b8433abd23f4feef43",
-  "last_advanced_at": "2026-09-04T09:51:37Z",
+  "observed_head": "a8323f02aa2d1d82c35bd0e7b149def92535b0cf",
+  "last_advanced_at": "2026-09-04T10:08:02Z",
   "last_closed_checkpoint": {
-    "id": "revalidate-current-memory-visual-consent",
+    "id": "revalidate-current-asset-scope-isolation",
     "sop": "SOP-05",
-    "product_commit": "5163ac2853d869ad61b1038d5f7421a54cad518b",
-    "evidence_commit": "d0286f83e08667a6382de3b8433abd23f4feef43",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33859773956",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33859773956/artifacts/9931842217",
+    "product_commit": "5321b2494275bdb4f68c26bfa0aae3e722eab554",
+    "evidence_commit": "a8323f02aa2d1d82c35bd0e7b149def92535b0cf",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33860750645",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33860750645/artifacts/9932331421",
     "result": "PASS"
   },
   "current_checkpoint": {
-    "sop": "SOP-05",
+    "sop": "SOP-07",
     "status": "IN_PROGRESS",
-    "summary": "Memory-card create/update now serialize project ownership, biometric consent and child guardian authorization with the card/revision write. The accepted commit passed 244 Runtime tests and both native architectures through Universal packaging. SOP-05 remains in progress while project, season and episode scope isolation is revalidated."
+    "summary": "Project, season and episode asset-scope validation now serializes with asset and consent-receipt insertion; the accepted commit passed 247 Runtime tests and both native architectures through Universal packaging. SOP-05 now has only human clean-account acceptance gaps, so work advances to the next unblocked deterministic gate: Qingshan upstream discovery and quarantine revalidation."
   },
   "next_action": {
-    "sop": "SOP-05",
-    "id": "revalidate-current-asset-scope-isolation",
-    "summary": "Exercise project, season and episode asset creation/listing against deletion and cross-project races under isolated SQLite; make scope validation transactional wherever a stale preflight could persist an invalid binding, with deterministic tests and no external services.",
+    "sop": "SOP-07",
+    "id": "recheck-qingshan-upstream-release",
+    "summary": "Fetch current Qingshan release metadata and compare it with the quarantined candidate/pin. If a newer candidate exists, run the full isolated registry and registered-test audit and productize only independently verified safe findings; otherwise refresh the exact no-change evidence without provider calls.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
