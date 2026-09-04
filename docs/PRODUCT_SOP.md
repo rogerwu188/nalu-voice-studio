@@ -2407,6 +2407,33 @@ Current evidence:
   staged-update and rollback evidence-file SHA-256 values are
   `197172d03fda0c1807dc1003e5c0f6e4b210f1ed7b1441d028bd159213fd0d71` and
   `632a501deaa490e4fc1a0b7e31166d94ab8fe016325f3a1fc1c8626210ca5f32`.
+- Commit `c89e53e76b5b9d979264eb2bd9763cc502894b88` turns the current packaged
+  controlled-evolution boundary into a release gate and independently verifiable receipt.
+  The verifier opens the actual application ZIP, rejects duplicate/missing policy members,
+  and requires feedback export and development handoff to remain disabled, unauthorized,
+  bounded and target-free. It also proves both packaged policy bytes match their exact
+  source-commit blobs, verifies the inner ZIP checksum and can bind that ZIP to GitHub's
+  downloaded outer artifact digest. Enabled/targeted policies and release substitution
+  are permanent negative fixtures. The receipt explicitly records that automatic code
+  change, merge and release are disabled and that no external write occurred. GitHub CI
+  run `33850429521` passed 228 Runtime tests, lint and contract audits, real HTTP and all
+  offline rehearsals, both architecture builds and the Universal build, including all
+  four packaged evidence verifiers.
+- Universal artifact `9928305786` has GitHub digest
+  `sha256:f855f94f2188ffd37a1dcd74090cc73e2c5b09d6bb0a0513d45da88407ff8202`.
+  A fresh repository-external download reproduced that outer digest and bound the exact
+  inner ZIP SHA-256
+  `39740f8510c913a1393ed375a666776a62247040c85644cdfef730b0e5f366f4`.
+  Packaged feedback-export and development-handoff policy SHA-256 values remain
+  `96475ba5a2908b74f2e04db512d6c097abe73453d360871cc0149287480c1146`
+  and `b4836edda2f612f20b0e7221177d3d346f15eb64887b1eca804d0050dd2bd14e`.
+  The independently bound receipt file has SHA-256
+  `620fadb1c51e5b27c2e719ac202c026444104726282d790901ff5020e1fbf760`
+  and canonical digest
+  `84ea954884d232b2013251cf462fcfc8494ec23f6b4ff91b3680cd8434d21427`.
+  This closes the current-candidate default-deny packaging checkpoint only. It does not
+  perform administrator-authorized export, agent development, human review or a signed
+  installed improvement/rollback, so SOP-13 remains `IN_PROGRESS`.
 - Still required before `PASS`: administrator-authorized external issue export, agent
   development integration after human triage, independently obtained rather than locally
   supplied review/CI/Apple/installation receipts, a real Developer ID/notarized staged
