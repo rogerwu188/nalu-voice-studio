@@ -7315,6 +7315,36 @@ class Repository:
             or strategy.source_metrics_sha256 != metrics.snapshot_sha256
         ):
             raise ConflictError("stored director strategy metrics binding mismatch")
+        source = self.get_episode(metrics.episode_id)
+        source_season = self.get_season(source.season_id)
+        with self.db.connect() as connection:
+            expected_target = connection.execute(
+                """SELECT e.id FROM episodes e
+                   JOIN seasons s ON s.id = e.season_id
+                   WHERE s.project_id = ? AND (
+                     s.season_number > ? OR
+                     (s.season_number = ? AND e.episode_number > ?)
+                   )
+                   ORDER BY s.season_number, e.episode_number LIMIT 1""",
+                (
+                    project.id,
+                    source_season.season_number,
+                    source_season.season_number,
+                    source.episode_number,
+                ),
+            ).fetchone()
+            project_revisions = [
+                int(item["revision"])
+                for item in connection.execute(
+                    """SELECT revision FROM director_strategy_revisions
+                       WHERE project_id = ? ORDER BY revision""",
+                    (project.id,),
+                ).fetchall()
+            ]
+        if expected_target is None or strategy.target_episode_id != expected_target["id"]:
+            raise ConflictError("stored director strategy target derivation mismatch")
+        if project_revisions != list(range(1, len(project_revisions) + 1)):
+            raise ConflictError("stored director strategy revision sequence mismatch")
         expected_observations, expected_directives = self._director_strategy_content(metrics)
         if (
             strategy.observations != expected_observations

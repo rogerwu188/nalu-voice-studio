@@ -2974,6 +2974,46 @@ def test_completed_media_qa_creates_offline_release_package_without_publishing(
             assert "content mismatch" in rejected_strategy_content.text
         rewrite_director_strategy(original_strategy_body)
 
+        coordinated_strategy_target = deepcopy(original_strategy_body)
+        coordinated_strategy_target["target_episode_id"] = episode["id"]
+        rewrite_director_strategy(coordinated_strategy_target)
+        with sqlite3.connect(reconciliation_db) as connection:
+            connection.execute(
+                "UPDATE director_strategy_revisions SET target_episode_id = ? WHERE id = ?",
+                (episode["id"], result["strategy"]["id"]),
+            )
+        rejected_derived_target = verified_api.get(
+            f"/v1/projects/{package['project_id']}/director-strategies"
+        )
+        assert rejected_derived_target.status_code == 409
+        assert "target derivation mismatch" in rejected_derived_target.text
+        rewrite_director_strategy(original_strategy_body)
+        with sqlite3.connect(reconciliation_db) as connection:
+            connection.execute(
+                "UPDATE director_strategy_revisions SET target_episode_id = ? WHERE id = ?",
+                (next_episode["id"], result["strategy"]["id"]),
+            )
+
+        coordinated_strategy_revision = deepcopy(original_strategy_body)
+        coordinated_strategy_revision["revision"] = 2
+        rewrite_director_strategy(coordinated_strategy_revision)
+        with sqlite3.connect(reconciliation_db) as connection:
+            connection.execute(
+                "UPDATE director_strategy_revisions SET revision = 2 WHERE id = ?",
+                (result["strategy"]["id"],),
+            )
+        rejected_revision_sequence = verified_api.get(
+            f"/v1/projects/{package['project_id']}/director-strategies"
+        )
+        assert rejected_revision_sequence.status_code == 409
+        assert "revision sequence mismatch" in rejected_revision_sequence.text
+        rewrite_director_strategy(original_strategy_body)
+        with sqlite3.connect(reconciliation_db) as connection:
+            connection.execute(
+                "UPDATE director_strategy_revisions SET revision = 1 WHERE id = ?",
+                (result["strategy"]["id"],),
+            )
+
         replay_metrics = verified_api.post(
             f"/v1/production-runs/{run['id']}/publication-metrics",
             headers={"Idempotency-Key": "publication-metrics-001"},
