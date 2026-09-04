@@ -103,7 +103,10 @@ secrets or request details into UI capture, feedback or support material.
 - The user chooses a 5, 10 or 20 minute session ceiling. Nalu stops microphone capture and
   the peer connection at the ceiling; choosing a new session requires a fresh consent flow.
 - WebKit media capture is granted only while an explicitly consented session is
-  connecting; macOS still enforces the app-level microphone permission.
+  connecting, from the exact `https://api.openai.com` main-frame origin on its default
+  TLS port, and only for a microphone-only request. Subframes, other protocols, hosts or
+  ports, camera requests and inactive states are denied; macOS still enforces the app-
+  level microphone permission.
 - The original local push-to-talk control remains available and is disabled only while
   a live Realtime session is active.
 - The Realtime prompt requires Nalu to answer an interruption first, then return to the

@@ -245,6 +245,16 @@ Current evidence:
   tests, both Swift suites and architecture builds, Universal merge, bundle smoke, staged
   update and rollback. This closes deterministic initial-state and stale-response races;
   real credentialed connection and interruption behavior remain unaccepted.
+- Commit `8ff5fda42dfb5ff8a6492e5f918b74f149704e10`, GitHub CI run
+  `33836160599`, Universal artifact `9923496237` (artifact digest
+  `sha256:b50dcd81b9f8b92726533a9f61eb569d1d07ba82b5c287b779283275e86d36d6`):
+  WebKit capture permission is now bound to all of the consented connecting state, exact
+  `https://api.openai.com` origin on port 0/443, main frame and microphone-only request.
+  Subframes, other protocols/hosts/ports, camera requests and inactive states fail closed.
+  The policy matrix has deterministic positive and negative tests. CI passed 193 Runtime
+  tests, both Swift suites and architecture builds, Universal merge, bundle smoke, staged
+  update and rollback. This closes code-level origin/capture authorization; the real clean-
+  account macOS permission journey and human confirmation remain outstanding.
 - Still required before `PASS`: authorized paid Realtime connectivity, interruption,
   real function-call, network-loss, session-expiry and provider usage/cost QA;
   VoiceOver/Accessibility Inspector audit; and a clean-account voice-only QA session
