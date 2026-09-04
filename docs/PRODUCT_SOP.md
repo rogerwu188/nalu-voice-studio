@@ -1292,6 +1292,24 @@ Current evidence:
   `v2026.08.29.1`; `.8` remains quarantined for its `0.3.0` package/CLI versus `0.3.1`
   portable-manifest mismatch. This is current no-change discovery evidence only, not a
   promotion or provider-execution claim.
+- Product commit `3af5ff35ab8be65d1ddaa41ee09f3b287e21600a`, GitHub CI run
+  `33874201552`: Qingshan workspace materialization now builds into a private fixed-name
+  staging directory, verifies the manifest package binding, complete declared file
+  inventory, safe paths and exact digests, rejects links and non-regular members, and
+  durably syncs the entire tree before publication. Promotion preserves the preceding
+  complete workspace until the new tree is ready and syncs the workspace parent after
+  every rename. Automated restart QA exercised both process-exit windows: after retiring
+  the previous workspace and after promoting the replacement. Recovery exposed no
+  partial public workspace, restored or retained one package-bound complete tree, removed
+  all pending/previous remnants, and finished with a passing execution preflight. All
+  268 Runtime tests and the Runtime, Apple Silicon, Intel and Universal jobs passed,
+  including bundled-Runtime smoke, project isolation, staged update, populated rollback
+  and controlled-evolution checks. Runtime QA artifact `9937263367` has digest
+  `sha256:ce67c1889aa57a25050919f45c3e94b5753ac315fc9acad3d352140b736a0054`;
+  Universal artifact `9937517494` has digest
+  `sha256:315ba4b84575f79111d7c6a8411d7e477ba0a275d325f7d8c3276149e6f7c1c7`.
+  This closes the deterministic workspace-publication crash boundary only; it does not
+  correct the quarantined upstream release or claim real-provider or paid-task QA.
 - Still required before `PASS`: a corrected pinned Qingshan release whose registry
   integrity and complete registered tests pass, plus authorized real-provider sandbox
   task/result/receipt evidence. Offline authority and transport doubles are not a paid
