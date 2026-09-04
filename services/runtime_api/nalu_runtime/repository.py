@@ -7116,6 +7116,40 @@ class Repository:
         record_sha256 = hashlib.sha256(encode(record_body).encode()).hexdigest()
         with self.db.connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
+            locked_authority = connection.execute(
+                """SELECT r.project_id, r.episode_id, r.status AS run_status,
+                          e.status AS episode_status, s.project_id AS season_project_id
+                   FROM production_runs r
+                   JOIN episodes e ON e.id = r.episode_id
+                   JOIN seasons s ON s.id = e.season_id
+                   WHERE r.id = ?""",
+                (run.id,),
+            ).fetchone()
+            if locked_authority is None or (
+                locked_authority["project_id"] != run.project_id
+                or locked_authority["episode_id"] != run.episode_id
+                or locked_authority["season_project_id"] != run.project_id
+                or RunStatus(locked_authority["run_status"]) != RunStatus.COMPLETED
+                or EpisodeStatus(locked_authority["episode_status"])
+                not in {EpisodeStatus.READY_TO_PUBLISH, EpisodeStatus.PUBLISHED}
+            ):
+                raise ConflictError("publication authority changed during verification")
+            competing_identity = connection.execute(
+                """SELECT 1 FROM publication_reconciliations
+                   WHERE (run_id = ? AND platform = ?)
+                      OR idempotency_key_sha256 = ?
+                      OR (platform = ? AND remote_publication_id = ?)
+                   LIMIT 1""",
+                (
+                    run.id,
+                    request.platform,
+                    key_sha256,
+                    request.platform,
+                    request.remote_publication_id,
+                ),
+            ).fetchone()
+            if competing_identity is not None:
+                raise ConflictError("publication identity changed during verification")
             try:
                 connection.execute(
                     "INSERT INTO publication_reconciliations VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
@@ -7130,7 +7164,7 @@ class Repository:
                         now,
                     ),
                 )
-                if episode.status == EpisodeStatus.READY_TO_PUBLISH:
+                if EpisodeStatus(locked_authority["episode_status"]) == EpisodeStatus.READY_TO_PUBLISH:
                     connection.execute(
                         "UPDATE episodes SET status = ?, updated_at = ? WHERE id = ?",
                         (EpisodeStatus.PUBLISHED, now, episode.id),

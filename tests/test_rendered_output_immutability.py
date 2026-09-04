@@ -2646,6 +2646,46 @@ def test_completed_media_qa_creates_offline_release_package_without_publishing(
 
     verifier = DeterministicPublicationVerifier(package["manifest_sha256"])
     with client(tmp_path, verifier) as verified_api:
+        reconciliation_db = tmp_path / "test.sqlite3"
+        original_publication_lookup = verifier.lookup_publication
+
+        def block_episode_after_publication_lookup(**request):
+            verified_publication = original_publication_lookup(**request)
+            with sqlite3.connect(reconciliation_db) as connection:
+                connection.execute(
+                    "UPDATE episodes SET status = ? WHERE id = ?",
+                    ("blocked", episode["id"]),
+                )
+            return verified_publication
+
+        with patch.object(
+            verifier,
+            "lookup_publication",
+            side_effect=block_episode_after_publication_lookup,
+        ):
+            stale_publication_authority = verified_api.post(
+                f"/v1/production-runs/{run['id']}/publication-reconciliation",
+                headers={"Idempotency-Key": "publication-reconcile-stale-authority"},
+                json=reconciliation_request,
+            )
+        assert stale_publication_authority.status_code == 409
+        assert "authority changed" in stale_publication_authority.text
+        with sqlite3.connect(reconciliation_db) as connection:
+            assert connection.execute(
+                "SELECT COUNT(*) FROM publication_reconciliations"
+            ).fetchone()[0] == 0
+            connection.execute(
+                "UPDATE episodes SET status = ? WHERE id = ?",
+                ("ready_to_publish", episode["id"]),
+            )
+        assert not any(
+            event["event_type"] == "publication_reconciled"
+            for event in verified_api.get(
+                f"/v1/episodes/{episode['id']}/events"
+            ).json()
+        )
+        verifier.publication_calls = 0
+
         reconciled = verified_api.post(
             f"/v1/production-runs/{run['id']}/publication-reconciliation",
             headers={"Idempotency-Key": "publication-reconcile-001"},
@@ -2674,7 +2714,6 @@ def test_completed_media_qa_creates_offline_release_package_without_publishing(
         assert replacement.status_code == 409
         assert "different immutable identity" in replacement.text
 
-        reconciliation_db = tmp_path / "test.sqlite3"
         original_record_body = {
             key: value
             for key, value in publication_record.items()
