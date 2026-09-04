@@ -1409,6 +1409,25 @@ Current evidence:
   No provider transport, credential or paid call was used. This closes the local
   provider-visible scope-validation checkpoint only, not package-derived scope authority,
   real-provider QA, corrected upstream promotion or SOP-07.
+- Product commit `367e2ede7acf828a7c5496ea586b109b6698d6bf`, GitHub CI run
+  `33925888764`: compiler contract `1.7.0` no longer trusts a caller-supplied shot
+  projection as authority. At the sole durable paid boundary, Nalu reloads and hashes the
+  immutable approved production package, derives the complete confirmed character-ID
+  catalog from its frozen `resolved_library`, verifies the projection's package and
+  catalog digests, and requires visible plus absent IDs to be a disjoint exact cover.
+  Automated negative cases under-declared an absent character, relinked the package,
+  changed the catalog digest and overlapped the visible/absent sets; every case failed
+  before intent persistence and kept provider transport calls at zero. The exact valid
+  projection reached the deterministic idempotent double once. All 282 Runtime tests and
+  the Runtime, Apple Silicon, Intel and Universal jobs passed, including reproduced
+  upstream quarantine, bundled-Runtime smoke, project isolation, staged update, populated
+  rollback and controlled-evolution checks. Runtime QA artifact `9956829141` has digest
+  `sha256:c218a872d0e72ad7cbad6edbd0e16f70c04587cdaf28c3f7d38167b2f85b86ca`;
+  Universal artifact `9956934894` has digest
+  `sha256:ade55c43e472e80748a9b1f2ef1a91882a957c49c5836958d9b7688429c2ff00`.
+  No credential, provider request or paid call was used. This closes package-derived
+  provider-scope authority only, not corrected upstream promotion, real-provider QA or
+  SOP-07.
 - Still required before `PASS`: a corrected pinned Qingshan release whose registry
   integrity and complete registered tests pass, plus authorized real-provider sandbox
   task/result/receipt evidence. Offline authority and transport doubles are not a paid
