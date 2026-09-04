@@ -309,4 +309,44 @@ final class RealtimeVoiceConfigurationTests: XCTestCase {
         XCTAssertFalse(gate.accepts(first))
         XCTAssertFalse(gate.accepts(retry))
     }
+
+    func testMediaCaptureRequiresConsentedTrustedMainFrameMicrophone() {
+        let allowed = RealtimeMediaCapturePolicy.canGrant(
+            state: .connecting,
+            scheme: "https",
+            host: "api.openai.com",
+            port: 443,
+            isMainFrame: true,
+            isMicrophoneOnly: true
+        )
+        XCTAssertTrue(allowed)
+
+        let denied: [Bool] = [
+            RealtimeMediaCapturePolicy.canGrant(
+                state: .off, scheme: "https", host: "api.openai.com", port: 443,
+                isMainFrame: true, isMicrophoneOnly: true
+            ),
+            RealtimeMediaCapturePolicy.canGrant(
+                state: .connecting, scheme: "http", host: "api.openai.com", port: 80,
+                isMainFrame: true, isMicrophoneOnly: true
+            ),
+            RealtimeMediaCapturePolicy.canGrant(
+                state: .connecting, scheme: "https", host: "example.com", port: 443,
+                isMainFrame: true, isMicrophoneOnly: true
+            ),
+            RealtimeMediaCapturePolicy.canGrant(
+                state: .connecting, scheme: "https", host: "api.openai.com", port: 8443,
+                isMainFrame: true, isMicrophoneOnly: true
+            ),
+            RealtimeMediaCapturePolicy.canGrant(
+                state: .connecting, scheme: "https", host: "api.openai.com", port: 443,
+                isMainFrame: false, isMicrophoneOnly: true
+            ),
+            RealtimeMediaCapturePolicy.canGrant(
+                state: .connecting, scheme: "https", host: "api.openai.com", port: 443,
+                isMainFrame: true, isMicrophoneOnly: false
+            ),
+        ]
+        XCTAssertTrue(denied.allSatisfy { !$0 })
+    }
 }

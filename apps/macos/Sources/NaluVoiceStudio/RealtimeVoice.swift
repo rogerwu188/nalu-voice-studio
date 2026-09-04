@@ -324,6 +324,27 @@ struct RealtimeConnectionAttemptGate {
     }
 }
 
+enum RealtimeMediaCapturePolicy {
+    static let trustedScheme = "https"
+    static let trustedHost = "api.openai.com"
+
+    static func canGrant(
+        state: RealtimeVoiceState,
+        scheme: String,
+        host: String,
+        port: Int,
+        isMainFrame: Bool,
+        isMicrophoneOnly: Bool
+    ) -> Bool {
+        state == .connecting
+            && scheme.lowercased() == trustedScheme
+            && host.lowercased() == trustedHost
+            && (port == 0 || port == 443)
+            && isMainFrame
+            && isMicrophoneOnly
+    }
+}
+
 actor RealtimeSessionBroker {
     private let keychain = KeychainSecretStore()
     private let session: URLSession
@@ -503,10 +524,18 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
         type: WKMediaCaptureType,
         decisionHandler: @escaping (WKPermissionDecision) -> Void
     ) {
-        // macOS still owns the app-level microphone permission. This grants the
-        // embedded, non-persistent WebRTC view only after Nalu's explicit cloud
-        // audio consent sheet has initiated a session.
-        decisionHandler(state == .connecting ? .grant : .deny)
+        // macOS still owns the app-level microphone permission. The embedded,
+        // non-persistent WebRTC view receives only microphone access, from its
+        // exact main-frame origin, after Nalu's explicit cloud-audio consent.
+        let allowed = RealtimeMediaCapturePolicy.canGrant(
+            state: state,
+            scheme: origin.protocol,
+            host: origin.host,
+            port: origin.port,
+            isMainFrame: frame.isMainFrame,
+            isMicrophoneOnly: type == .microphone
+        )
+        decisionHandler(allowed ? .grant : .deny)
     }
 
     func userContentController(
