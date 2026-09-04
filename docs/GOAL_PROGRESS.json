@@ -11,26 +11,26 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "4e60f4adcb21482d0d51d0ae528d561bbd2928a7",
-  "last_advanced_at": "2026-09-04T13:09:00Z",
+  "observed_head": "b504c1302ba4c038ce0ac1027d13fbb792cff369",
+  "last_advanced_at": "2026-09-04T12:39:34Z",
   "last_closed_checkpoint": {
-    "id": "atomic-production-package-promotion",
-    "sop": "SOP-08",
-    "product_commit": "d4a93fc64ac602458cd656e5c7dcaea5613f26cb",
-    "evidence_commit": "4e60f4adcb21482d0d51d0ae528d561bbd2928a7",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33871628686",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33871628686/artifacts/9936502837",
+    "id": "durable-postproduction-tree-promotion",
+    "sop": "SOP-09",
+    "product_commit": "79fdb4d912c9407c201de634a2d78111d9ea72df",
+    "evidence_commit": "b504c1302ba4c038ce0ac1027d13fbb792cff369",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33873288043",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33873288043/artifacts/9937001457",
     "result": "PASS"
   },
   "current_checkpoint": {
-    "sop": "SOP-09",
+    "sop": "SOP-07",
     "status": "IN_PROGRESS",
-    "summary": "The production package now survives interruption through synced staging and atomic promotion, and all deterministic SOP-08 preflight boundaries are closed. SOP-08 still needs authorized provider and signed-app QA. Revalidation of SOP-09 found that postproduction outputs are atomically renamed but neither the completed staging tree nor its parent directory is explicitly synced, leaving an unproven power-loss durability boundary."
+    "summary": "Postproduction outputs now use synced-tree atomic promotion and recover exactly after process interruption, while SOP-09 still needs real-master Apple Speech and human audiovisual QA. Revalidation found that the Qingshan adapter deletes and recreates its public workspace in place, so a process exit can expose a partial workspace until the next production-start recovery rematerializes it."
   },
   "next_action": {
-    "sop": "SOP-09",
-    "id": "durable-postproduction-tree-promotion",
-    "summary": "Flush and sync every completed postproduction artifact and directory before atomic tree promotion, sync the containing directory after promotion, and add interruption/replay fixtures proving only a complete verified result can become visible.",
+    "sop": "SOP-07",
+    "id": "atomic-qingshan-workspace-promotion",
+    "summary": "Build and verify a Qingshan workspace in a private staging directory, durably sync it, atomically promote it without exposing partial capability or manifest files, and prove crash/restart recovery preserves the exact package binding.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
