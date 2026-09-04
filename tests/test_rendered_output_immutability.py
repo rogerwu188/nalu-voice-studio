@@ -2316,12 +2316,35 @@ def test_completed_media_qa_creates_offline_release_package_without_publishing(
         "description": "林叔穿着蓝色外套回到家。",
         "prepared_by": "local-user",
     }
+    repository = api.app.state.repository
+    with (
+        patch.object(
+            repository,
+            "append_run_event_once",
+            side_effect=RuntimeError("simulated exit before release package event commit"),
+        ),
+        pytest.raises(RuntimeError, match="simulated exit"),
+    ):
+        api.post(
+            f"/v1/production-runs/{run['id']}/release-package",
+            json=release_request,
+        )
+    release_path = Path(run["package_path"]).parent / "release-package.json"
+    release_bytes = release_path.read_bytes()
+    release_file_sha256 = hashlib.sha256(release_bytes).hexdigest()
+    assert not any(
+        event.event_type == "release_package_created"
+        for event in repository.list_run_events(run["id"])
+    )
+
+    api = client(tmp_path)
     release = api.post(
-        f"/v1/production-runs/{run['id']}/release-package",
-        json=release_request,
+        f"/v1/production-runs/{run['id']}/release-package", json=release_request
     )
     assert release.status_code == 201
     package = release.json()
+    assert release_path.read_bytes() == release_bytes
+    assert hashlib.sha256(release_path.read_bytes()).hexdigest() == release_file_sha256
     assert package["publishing_enabled"] is False
     assert package["platform_approvals"] == []
     assert package["output_seal_sha256"] == seal["manifest_sha256"]
@@ -2341,6 +2364,14 @@ def test_completed_media_qa_creates_offline_release_package_without_publishing(
     )
     assert replay.status_code == 201
     assert replay.json() == package
+    release_events = [
+        event
+        for event in api.get(f"/v1/production-runs/{run['id']}/events").json()
+        if event["event_type"] == "release_package_created"
+    ]
+    assert len(release_events) == 1
+    assert release_events[0]["payload"]["manifest_sha256"] == package["manifest_sha256"]
+    assert release_events[0]["payload"]["recovered_after_restart"] is True
     changed = api.post(
         f"/v1/production-runs/{run['id']}/release-package",
         json={**release_request, "title": "静默替换标题"},
@@ -2367,12 +2398,38 @@ def test_completed_media_qa_creates_offline_release_package_without_publishing(
         "approved_by": "local-user",
         "spoken_confirmation": "我确认进行 YouTube 发布演练",
     }
+    repository = api.app.state.repository
+    with (
+        patch.object(
+            repository,
+            "append_run_event_once",
+            side_effect=RuntimeError("simulated exit before publication dry-run event commit"),
+        ),
+        pytest.raises(RuntimeError, match="simulated exit"),
+    ):
+        api.post(
+            f"/v1/production-runs/{run['id']}/publication-dry-runs",
+            json=dry_run_request,
+        )
+    dry_run_path = (
+        Path(run["package_path"]).parent / "publication-dry-run-youtube.json"
+    )
+    dry_run_bytes = dry_run_path.read_bytes()
+    dry_run_file_sha256 = hashlib.sha256(dry_run_bytes).hexdigest()
+    assert not any(
+        event.event_type == "publication_dry_run_created"
+        for event in repository.list_run_events(run["id"])
+    )
+
+    api = client(tmp_path)
     publication = api.post(
         f"/v1/production-runs/{run['id']}/publication-dry-runs",
         json=dry_run_request,
     )
     assert publication.status_code == 201
     dry_run = publication.json()
+    assert dry_run_path.read_bytes() == dry_run_bytes
+    assert hashlib.sha256(dry_run_path.read_bytes()).hexdigest() == dry_run_file_sha256
     assert dry_run["platform"] == "youtube"
     assert dry_run["adapter_version"] == "nalu.youtube-dry-run/v1"
     assert dry_run["dry_run"] is True
@@ -2392,6 +2449,14 @@ def test_completed_media_qa_creates_offline_release_package_without_publishing(
         ).json()
         == dry_run
     )
+    dry_run_events = [
+        event
+        for event in api.get(f"/v1/production-runs/{run['id']}/events").json()
+        if event["event_type"] == "publication_dry_run_created"
+    ]
+    assert len(dry_run_events) == 1
+    assert dry_run_events[0]["payload"]["plan_sha256"] == dry_run["plan_sha256"]
+    assert dry_run_events[0]["payload"]["recovered_after_restart"] is True
     changed_channel = api.post(
         f"/v1/production-runs/{run['id']}/publication-dry-runs",
         json={**dry_run_request, "channel_reference": "different-channel"},

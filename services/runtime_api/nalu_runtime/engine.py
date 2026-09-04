@@ -1760,6 +1760,23 @@ class ProductionService:
                 and existing.description == request.description
                 and existing.prepared_by == request.prepared_by
             ):
+                self.repository.append_run_event_once(
+                    run.id,
+                    "release_package_created",
+                    dedupe_key="manifest_sha256",
+                    dedupe_value=existing.manifest_sha256,
+                    from_status=run.status,
+                    to_status=run.status,
+                    message=(
+                        "Offline release package recovered; platform publishing remains "
+                        "disabled."
+                    ),
+                    payload={
+                        "manifest_sha256": existing.manifest_sha256,
+                        "publishing_enabled": False,
+                        "recovered_after_restart": True,
+                    },
+                )
                 return existing
             raise ConflictError("release package already exists with different metadata")
 
@@ -1788,25 +1805,22 @@ class ProductionService:
             **body,
             manifest_sha256=self._canonical_sha256(body),
         )
-        temporary = release_path.with_name(f".{new_id('release-package')}.tmp")
-        temporary.write_text(package.model_dump_json(indent=2) + "\n", encoding="utf-8")
-        secure_file(temporary)
         try:
-            os.link(temporary, release_path)
+            publish_exclusive_text(release_path, package.model_dump_json(indent=2) + "\n")
         except FileExistsError as exc:
             raise ConflictError("release package was created concurrently") from exc
-        finally:
-            temporary.unlink(missing_ok=True)
-        secure_file(release_path)
-        self.repository.append_run_event(
+        self.repository.append_run_event_once(
             run.id,
             "release_package_created",
+            dedupe_key="manifest_sha256",
+            dedupe_value=package.manifest_sha256,
             from_status=run.status,
             to_status=run.status,
             message="Offline release package created; platform publishing remains disabled.",
             payload={
                 "manifest_sha256": package.manifest_sha256,
                 "publishing_enabled": False,
+                "recovered_after_restart": False,
             },
         )
         return package
@@ -1863,6 +1877,25 @@ class ProductionService:
                 and approval.guardian_approval == request.guardian_approval
                 and existing.release_manifest_sha256 == package.manifest_sha256
             ):
+                self.repository.append_run_event_once(
+                    run.id,
+                    "publication_dry_run_created",
+                    dedupe_key="plan_sha256",
+                    dedupe_value=existing.plan_sha256,
+                    from_status=run.status,
+                    to_status=run.status,
+                    message=(
+                        "Platform-specific dry-run recovered; network publishing remained "
+                        "disabled."
+                    ),
+                    payload={
+                        "platform": request.platform,
+                        "plan_sha256": existing.plan_sha256,
+                        "duplicate_guard_sha256": existing.duplicate_guard_sha256,
+                        "network_call_performed": False,
+                        "recovered_after_restart": True,
+                    },
+                )
                 return existing
             raise ConflictError(
                 "publication dry-run already exists for this platform with different approval"
@@ -1910,19 +1943,15 @@ class ProductionService:
             **body,
             plan_sha256=self._canonical_sha256(body),
         )
-        temporary = dry_run_path.with_name(f".{new_id('publication-dry-run')}.tmp")
-        temporary.write_text(dry_run.model_dump_json(indent=2) + "\n", encoding="utf-8")
-        secure_file(temporary)
         try:
-            os.link(temporary, dry_run_path)
+            publish_exclusive_text(dry_run_path, dry_run.model_dump_json(indent=2) + "\n")
         except FileExistsError as exc:
             raise ConflictError("publication dry-run was created concurrently") from exc
-        finally:
-            temporary.unlink(missing_ok=True)
-        secure_file(dry_run_path)
-        self.repository.append_run_event(
+        self.repository.append_run_event_once(
             run.id,
             "publication_dry_run_created",
+            dedupe_key="plan_sha256",
+            dedupe_value=dry_run.plan_sha256,
             from_status=run.status,
             to_status=run.status,
             message="Platform-specific dry-run created; network publishing remained disabled.",
@@ -1931,6 +1960,7 @@ class ProductionService:
                 "plan_sha256": dry_run.plan_sha256,
                 "duplicate_guard_sha256": duplicate_guard,
                 "network_call_performed": False,
+                "recovered_after_restart": False,
             },
         )
         return dry_run
