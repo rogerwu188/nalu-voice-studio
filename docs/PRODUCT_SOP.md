@@ -2292,6 +2292,21 @@ Current evidence:
   This closes the managed release-package path-containment checkpoint only, not real
   platform publication/reconciliation, human acceptance, signing, notarization or
   SOP-10.
+- Product commit `a003451089cec816d60823eaece7d124368aeaf2`, GitHub CI run
+  `33887300646`: stored release packages and publication dry-runs now require their
+  project and episode identities to match the owning production run after their canonical
+  self-digests are recomputed. Regression fixtures changed a package to another project
+  and a dry-run to another episode, recomputed each otherwise-valid SHA-256, and proved
+  both exact replay paths fail closed without adding an event; restoring the original
+  durable bytes retained normal recovery. All 278 Runtime tests and the Runtime, Apple
+  Silicon, Intel and Universal jobs passed, including bundled-Runtime smoke, project
+  isolation, staged update, populated rollback and controlled-evolution checks. Runtime
+  QA artifact `9942508207` has digest
+  `sha256:d52d2d8da46932c6678e7c1317f9c6cd065e6ef8491d69f9a4c7d301abe33a49`;
+  Universal artifact `9942618267` has digest
+  `sha256:fd017b67088694b74fb3667096b8c4dd83137fc755348b5477cbc0322ec1a357`.
+  This closes cross-entity release-artifact replay only, not derived-content revalidation,
+  authorized publication, human acceptance, signing, notarization or SOP-10.
 
 ## SOP-11 · macOS packaging, updates and operations — IN_PROGRESS
 
