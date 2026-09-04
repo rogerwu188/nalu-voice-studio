@@ -429,6 +429,21 @@ Current evidence:
   bundle smoke, staged update and rollback. No user database, provider, paid call or external
   write was used. This closes deterministic current-candidate planning isolation, not the
   outstanding clean-account human voice/accessibility acceptance.
+- Commit `222667607d849750033a2baa78a96a270bc7524b`, GitHub CI run
+  `33862585733`, Runtime QA artifact `9932766688` and Universal artifact
+  `9932880048` (artifact digest
+  `sha256:207dec0a803a762c43ef9624da683038c5b108012eb04dc3d19955db4f9c9446`):
+  season-plan approval now identifies the exact plan revision displayed to the user.
+  The Runtime acquires the SQLite write transaction, re-reads the authoritative latest
+  revision and rejects omitted or stale approval requests with conflict before creating
+  an approval record. The native visual and voice paths send their displayed revision,
+  and the response contract always exposes the bound revision. Regression tests prove
+  that an older client cannot approve without a revision and that a plan changed after
+  review cannot receive a stale approval. CI passed 247 Runtime tests, 76 XCTest tests
+  plus 29 Swift Testing tests on both architectures, the arm64 and x86_64 builds,
+  Universal merge, bundled smoke, staged-update and rollback QA. This closes the
+  deterministic stale-approval authority checkpoint, not the remaining clean-account
+  human voice/accessibility acceptance.
 - Still required before `PASS`: clean-account voice-only, accessibility and restart/import
   QA evidence on the same release candidate. Implementation alone is not acceptance.
 
