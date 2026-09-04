@@ -7173,7 +7173,41 @@ class Repository:
         ):
             raise ConflictError("stored publication metrics digest mismatch")
         stored["snapshot_sha256"] = row["snapshot_sha256"]
-        return PublicationMetricsSnapshot.model_validate(stored)
+        metrics = PublicationMetricsSnapshot.model_validate(stored)
+        run = self.get_run(metrics.run_id)
+        row_binding = (
+            metrics.id,
+            metrics.run_id,
+            metrics.platform,
+            metrics.remote_publication_id,
+            metrics.window_start,
+            metrics.window_end,
+            metrics.request_sha256,
+            metrics.idempotency_key_sha256,
+            metrics.created_at,
+        )
+        expected_row_binding = (
+            row["id"],
+            row["run_id"],
+            row["platform"],
+            row["remote_publication_id"],
+            row["window_start"],
+            row["window_end"],
+            row["request_sha256"],
+            row["idempotency_key_sha256"],
+            row["created_at"],
+        )
+        if row_binding != expected_row_binding or (
+            metrics.project_id != run.project_id or metrics.episode_id != run.episode_id
+        ):
+            raise ConflictError("stored publication metrics entity binding mismatch")
+        publication = self.get_publication_reconciliation(metrics.run_id, metrics.platform)
+        if (
+            metrics.publication_record_sha256 != publication.record_sha256
+            or metrics.remote_publication_id != publication.remote_publication_id
+        ):
+            raise ConflictError("stored publication metrics publication binding mismatch")
+        return metrics
 
     def get_director_strategy(self, strategy_id: str) -> DirectorStrategyRevision:
         with self.db.connect() as connection:
@@ -7186,7 +7220,37 @@ class Repository:
         if hashlib.sha256(encode(stored).encode()).hexdigest() != row["strategy_sha256"]:
             raise ConflictError("stored director strategy digest mismatch")
         stored["strategy_sha256"] = row["strategy_sha256"]
-        return DirectorStrategyRevision.model_validate(stored)
+        strategy = DirectorStrategyRevision.model_validate(stored)
+        row_binding = (
+            strategy.id,
+            strategy.project_id,
+            strategy.target_episode_id,
+            strategy.source_metrics_id,
+            strategy.revision,
+            strategy.created_at,
+        )
+        expected_row_binding = (
+            row["id"],
+            row["project_id"],
+            row["target_episode_id"],
+            row["source_metrics_id"],
+            row["revision"],
+            row["created_at"],
+        )
+        if row_binding != expected_row_binding:
+            raise ConflictError("stored director strategy entity binding mismatch")
+        project = self.get_project(strategy.project_id)
+        target = self.get_episode(strategy.target_episode_id)
+        target_season = self.get_season(target.season_id)
+        if target_season.project_id != project.id:
+            raise ConflictError("stored director strategy target binding mismatch")
+        metrics = self.get_publication_metrics_snapshot(strategy.source_metrics_id)
+        if (
+            metrics.project_id != project.id
+            or strategy.source_metrics_sha256 != metrics.snapshot_sha256
+        ):
+            raise ConflictError("stored director strategy metrics binding mismatch")
+        return strategy
 
     def sync_publication_metrics(
         self,

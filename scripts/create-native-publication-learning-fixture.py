@@ -118,6 +118,47 @@ def build_fixture(raw_root: Path) -> dict[str, Any]:
             ),
         )
 
+    publication_key_sha256 = hashlib.sha256(uuid4().hex.encode()).hexdigest()
+    publication_request_sha256 = hashlib.sha256(
+        b"native-publication-learning-fixture-publication-request"
+    ).hexdigest()
+    publication_body = {
+        "schema_version": "nalu.publication-reconciliation/v1",
+        "run_id": run_id,
+        "project_id": project.id,
+        "episode_id": source_episode.id,
+        "platform": "bilibili",
+        "remote_publication_id": "local_qa_not_published",
+        "remote_state": "published",
+        "release_manifest_sha256": "3" * 64,
+        "publication_dry_run_sha256": "4" * 64,
+        "channel_reference": "local-qa-history-only",
+        "published_at": "2026-08-01T00:00:00+00:00",
+        "verification_evidence_sha256": "5" * 64,
+        "read_only_verification_performed": True,
+        "publication_performed": False,
+        "replacement_performed": False,
+        "external_write_performed": False,
+        "idempotency_key_sha256": publication_key_sha256,
+        "request_sha256": publication_request_sha256,
+        "created_at": now,
+    }
+    publication_record_sha256 = digest(publication_body)
+    with database.connect() as connection:
+        connection.execute(
+            "INSERT INTO publication_reconciliations VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                run_id,
+                publication_body["platform"],
+                publication_body["remote_publication_id"],
+                publication_request_sha256,
+                publication_key_sha256,
+                canonical(publication_body),
+                publication_record_sha256,
+                now,
+            ),
+        )
+
     metrics_id = new_id("metrics")
     request_sha256 = hashlib.sha256(b"native-publication-learning-fixture-request").hexdigest()
     key_sha256 = hashlib.sha256(uuid4().hex.encode()).hexdigest()
@@ -129,7 +170,7 @@ def build_fixture(raw_root: Path) -> dict[str, Any]:
         "episode_id": source_episode.id,
         "platform": "bilibili",
         "remote_publication_id": "local_qa_not_published",
-        "publication_record_sha256": "1" * 64,
+        "publication_record_sha256": publication_record_sha256,
         "window_start": "2026-08-01T00:00:00+00:00",
         "window_end": "2026-08-08T00:00:00+00:00",
         "views": 1280,

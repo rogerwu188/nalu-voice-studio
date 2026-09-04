@@ -2781,6 +2781,78 @@ def test_completed_media_qa_creates_offline_release_package_without_publishing(
         assert verified_api.get(
             f"/v1/projects/{package['project_id']}/director-strategies"
         ).json() == [result["strategy"]]
+
+        original_metrics_body = {
+            key: value
+            for key, value in result["metrics"].items()
+            if key != "snapshot_sha256"
+        }
+        original_strategy_body = {
+            key: value
+            for key, value in result["strategy"].items()
+            if key != "strategy_sha256"
+        }
+
+        def rewrite_metrics_snapshot(snapshot_body: dict) -> None:
+            snapshot_json = json.dumps(snapshot_body, ensure_ascii=False, sort_keys=True)
+            snapshot_sha256 = hashlib.sha256(snapshot_json.encode()).hexdigest()
+            with sqlite3.connect(reconciliation_db) as connection:
+                connection.execute(
+                    """UPDATE publication_metric_snapshots
+                       SET snapshot_json = ?, snapshot_sha256 = ? WHERE id = ?""",
+                    (snapshot_json, snapshot_sha256, result["metrics"]["id"]),
+                )
+
+        def rewrite_director_strategy(strategy_body: dict) -> None:
+            strategy_json = json.dumps(strategy_body, ensure_ascii=False, sort_keys=True)
+            strategy_sha256 = hashlib.sha256(strategy_json.encode()).hexdigest()
+            with sqlite3.connect(reconciliation_db) as connection:
+                connection.execute(
+                    """UPDATE director_strategy_revisions
+                       SET strategy_json = ?, strategy_sha256 = ? WHERE id = ?""",
+                    (strategy_json, strategy_sha256, result["strategy"]["id"]),
+                )
+
+        cross_project_metrics = deepcopy(original_metrics_body)
+        cross_project_metrics["project_id"] = "project_from_another_metrics_snapshot"
+        rewrite_metrics_snapshot(cross_project_metrics)
+        rejected_metrics_entity = verified_api.get(
+            f"/v1/publication-metrics/{result['metrics']['id']}"
+        )
+        assert rejected_metrics_entity.status_code == 409
+        assert "entity binding mismatch" in rejected_metrics_entity.text
+        rewrite_metrics_snapshot(original_metrics_body)
+
+        relinked_publication_metrics = deepcopy(original_metrics_body)
+        relinked_publication_metrics["publication_record_sha256"] = "f" * 64
+        rewrite_metrics_snapshot(relinked_publication_metrics)
+        rejected_metrics_publication = verified_api.get(
+            f"/v1/publication-metrics/{result['metrics']['id']}"
+        )
+        assert rejected_metrics_publication.status_code == 409
+        assert "publication binding mismatch" in rejected_metrics_publication.text
+        rewrite_metrics_snapshot(original_metrics_body)
+
+        relinked_strategy_target = deepcopy(original_strategy_body)
+        relinked_strategy_target["target_episode_id"] = episode["id"]
+        rewrite_director_strategy(relinked_strategy_target)
+        rejected_strategy_target = verified_api.get(
+            f"/v1/projects/{package['project_id']}/director-strategies"
+        )
+        assert rejected_strategy_target.status_code == 409
+        assert "entity binding mismatch" in rejected_strategy_target.text
+        rewrite_director_strategy(original_strategy_body)
+
+        relinked_strategy_metrics = deepcopy(original_strategy_body)
+        relinked_strategy_metrics["source_metrics_sha256"] = "f" * 64
+        rewrite_director_strategy(relinked_strategy_metrics)
+        rejected_strategy_metrics = verified_api.get(
+            f"/v1/projects/{package['project_id']}/director-strategies"
+        )
+        assert rejected_strategy_metrics.status_code == 409
+        assert "metrics binding mismatch" in rejected_strategy_metrics.text
+        rewrite_director_strategy(original_strategy_body)
+
         replay_metrics = verified_api.post(
             f"/v1/production-runs/{run['id']}/publication-metrics",
             headers={"Idempotency-Key": "publication-metrics-001"},
