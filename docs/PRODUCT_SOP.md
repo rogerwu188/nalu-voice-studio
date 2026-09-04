@@ -2276,6 +2276,22 @@ Current evidence:
   This closes the deterministic local release-file/event crash boundary only. It is not
   authorized test-channel publication, remote reconciliation, signing, notarization or
   SOP-10 completion.
+- Product commit `d6a4fb27ad719b378961b740aa348831e8d6cffb`, GitHub CI run
+  `33886038527`: release-package recovery now rejects symbolic links and non-regular
+  paths before reading JSON or restoring an audit event. The regression fixture moved
+  the exact valid package bytes outside the managed run directory, replaced the expected
+  path with a link, and proved the matching request still fails closed without creating
+  `release_package_created`; restoring the same bytes as a local regular file then
+  recovered normally and remained idempotent. All 278 Runtime tests and the Runtime,
+  Apple Silicon, Intel and Universal jobs passed, including bundled-Runtime smoke,
+  project isolation, staged update, populated rollback and controlled-evolution checks.
+  Runtime QA artifact `9941990035` has digest
+  `sha256:1d6474f5e56f9f11eaa66ed2127e88bdec3b6023bb3db0339b2679372f9e5809`;
+  Universal artifact `9942199014` has digest
+  `sha256:607e363c7fbccb32401ab025bde2018f82d41af873b7943cd157384a6339d174`.
+  This closes the managed release-package path-containment checkpoint only, not real
+  platform publication/reconciliation, human acceptance, signing, notarization or
+  SOP-10.
 
 ## SOP-11 · macOS packaging, updates and operations — IN_PROGRESS
 
