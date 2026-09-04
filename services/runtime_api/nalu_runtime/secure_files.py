@@ -50,6 +50,30 @@ def publish_exclusive_text(path: Path, encoded: str) -> None:
         sync_directory(path.parent)
 
 
+def replace_text_durably(path: Path, encoded: str) -> None:
+    """Atomically replace a mutable text artifact and persist the replacement."""
+    temporary = path.with_name(f".{path.name}.{secrets.token_hex(8)}.tmp")
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_CLOEXEC", 0)
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    descriptor = os.open(temporary, flags, 0o600)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as target:
+            descriptor = -1
+            target.write(encoded)
+            target.flush()
+            os.fsync(target.fileno())
+        secure_file(temporary)
+        os.replace(temporary, path)
+        secure_file(path)
+        sync_directory(path.parent)
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+        temporary.unlink(missing_ok=True)
+        sync_directory(path.parent)
+
+
 def harden_tree(root: Path) -> None:
     if not root.exists():
         return

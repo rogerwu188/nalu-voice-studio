@@ -44,3 +44,42 @@ def test_publish_exclusive_text_preserves_existing_artifact_and_cleans_temporary
 
     assert destination.read_text(encoding="utf-8") == "first\n"
     assert list(tmp_path.glob(".*.tmp")) == []
+
+
+def test_replace_text_durably_syncs_replacement_and_reopens_exact_bytes(tmp_path: Path) -> None:
+    destination = tmp_path / "mutable-report.json"
+    destination.write_text("old\n", encoding="utf-8")
+    encoded = '{"status":"FAIL","revision":2}\n'
+    real_fsync = secure_files.os.fsync
+    synced_kinds: list[str] = []
+
+    def observe_fsync(descriptor: int) -> None:
+        target = Path(f"/dev/fd/{descriptor}")
+        synced_kinds.append("directory" if target.resolve().is_dir() else "file")
+        real_fsync(descriptor)
+
+    with patch.object(secure_files.os, "fsync", side_effect=observe_fsync):
+        secure_files.replace_text_durably(destination, encoded)
+
+    reopened = destination.read_bytes()
+    assert reopened == encoded.encode()
+    assert hashlib.sha256(reopened).hexdigest() == hashlib.sha256(encoded.encode()).hexdigest()
+    assert "file" in synced_kinds
+    assert synced_kinds.count("directory") >= 2
+    assert list(tmp_path.glob(".*.tmp")) == []
+
+
+def test_replace_text_durably_cleans_temporary_file_when_promotion_fails(
+    tmp_path: Path,
+) -> None:
+    destination = tmp_path / "mutable-report.json"
+    destination.write_text("old\n", encoding="utf-8")
+
+    with (
+        patch.object(secure_files.os, "replace", side_effect=OSError("disk promotion failed")),
+        pytest.raises(OSError, match="disk promotion failed"),
+    ):
+        secure_files.replace_text_durably(destination, "new\n")
+
+    assert destination.read_text(encoding="utf-8") == "old\n"
+    assert list(tmp_path.glob(".*.tmp")) == []

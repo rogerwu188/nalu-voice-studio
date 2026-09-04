@@ -69,7 +69,13 @@ from .publication_learning import PublicationLearningVerifier
 from .qingshan_adapter import QingshanAdapter, QingshanAdapterError
 from .remote_submitter import DurableRemoteTaskSubmitter
 from .repository import ConflictError, NotFoundError, Repository, new_id, utc_now
-from .secure_files import harden_tree, publish_exclusive_text, secure_directory, secure_file
+from .secure_files import (
+    harden_tree,
+    publish_exclusive_text,
+    replace_text_durably,
+    secure_directory,
+    secure_file,
+)
 from .semantic_media_qa import inspect_semantic_asr, inspect_shot_boundaries
 from .semantic_recognizer import (
     AppleSpeechRecognizer,
@@ -794,11 +800,7 @@ class ProductionService:
             **body,
             plan_sha256=self._canonical_sha256(body),
         )
-        temporary = plan_path.with_name(f".{new_id('repair-plan')}.tmp")
-        temporary.write_text(plan.model_dump_json(indent=2) + "\n", encoding="utf-8")
-        secure_file(temporary)
-        os.replace(temporary, plan_path)
-        secure_file(plan_path)
+        replace_text_durably(plan_path, plan.model_dump_json(indent=2) + "\n")
         self.repository.append_run_event(
             run.id,
             "postproduction_repair_required",
@@ -890,11 +892,7 @@ class ProductionService:
                     return existing
             except (OSError, ValueError):
                 pass
-        temporary = report_path.with_name(f".{new_id('media-qa')}.tmp")
-        temporary.write_text(report.model_dump_json(indent=2) + "\n", encoding="utf-8")
-        secure_file(temporary)
-        os.replace(temporary, report_path)
-        secure_file(report_path)
+        replace_text_durably(report_path, report.model_dump_json(indent=2) + "\n")
         self.repository.append_run_event(
             run.id,
             "media_structure_qa_completed",
@@ -994,11 +992,7 @@ class ProductionService:
                     return existing
             except (OSError, ValueError):
                 pass
-        temporary = report_path.with_name(f".{new_id('decoded-media-qa')}.tmp")
-        temporary.write_text(report.model_dump_json(indent=2) + "\n", encoding="utf-8")
-        secure_file(temporary)
-        os.replace(temporary, report_path)
-        secure_file(report_path)
+        replace_text_durably(report_path, report.model_dump_json(indent=2) + "\n")
         self.repository.append_run_event(
             run.id,
             "decoded_media_qa_completed",
@@ -1123,16 +1117,10 @@ class ProductionService:
             except (OSError, ValueError):
                 pass
             raise ConflictError("postproduction lineage QA already exists with different evidence")
-        temporary = report_path.with_name(f".{new_id('postproduction-lineage-qa')}.tmp")
-        temporary.write_text(report.model_dump_json(indent=2) + "\n", encoding="utf-8")
-        secure_file(temporary)
         try:
-            os.link(temporary, report_path)
+            publish_exclusive_text(report_path, report.model_dump_json(indent=2) + "\n")
         except FileExistsError as exc:
             raise ConflictError("postproduction lineage QA was recorded concurrently") from exc
-        finally:
-            temporary.unlink(missing_ok=True)
-        secure_file(report_path)
         self.repository.append_run_event(
             run.id,
             "postproduction_lineage_qa_completed",
@@ -1269,16 +1257,10 @@ class ProductionService:
             except ConflictError:
                 pass
             raise ConflictError("visual continuity QA already exists with different evidence")
-        temporary = report_path.with_name(f".{new_id('visual-continuity-qa')}.tmp")
-        temporary.write_text(report.model_dump_json(indent=2) + "\n", encoding="utf-8")
-        secure_file(temporary)
         try:
-            os.link(temporary, report_path)
+            publish_exclusive_text(report_path, report.model_dump_json(indent=2) + "\n")
         except FileExistsError as exc:
             raise ConflictError("visual continuity QA was recorded concurrently") from exc
-        finally:
-            temporary.unlink(missing_ok=True)
-        secure_file(report_path)
         self.repository.append_run_event(
             run.id,
             "visual_continuity_qa_completed",
@@ -1485,16 +1467,10 @@ class ProductionService:
             ):
                 return existing
             raise ConflictError("semantic media QA already exists with different evidence")
-        temporary = report_path.with_name(f".{new_id('semantic-media-qa')}.tmp")
-        temporary.write_text(report.model_dump_json(indent=2) + "\n", encoding="utf-8")
-        secure_file(temporary)
         try:
-            os.link(temporary, report_path)
+            publish_exclusive_text(report_path, report.model_dump_json(indent=2) + "\n")
         except FileExistsError as exc:
             raise ConflictError("semantic media QA was created concurrently") from exc
-        finally:
-            temporary.unlink(missing_ok=True)
-        secure_file(report_path)
         self.repository.append_run_event(
             run.id,
             "semantic_media_qa_completed",
