@@ -1739,16 +1739,10 @@ class ProductionService:
                 )
 
         release_path = self._run_directory(run) / "release-package.json"
-        if release_path.is_file():
-            try:
-                existing = ReleasePackage.model_validate_json(
-                    release_path.read_text(encoding="utf-8")
-                )
-            except (OSError, ValueError) as exc:
-                raise ConflictError("existing release package is unreadable or invalid") from exc
-            existing_body = existing.model_dump(mode="json", exclude={"manifest_sha256"})
-            if self._canonical_sha256(existing_body) != existing.manifest_sha256:
-                raise ConflictError("existing release package digest mismatch")
+        if release_path.exists() or release_path.is_symlink():
+            if release_path.is_symlink() or not release_path.is_file():
+                raise ConflictError("existing release package path is unsafe")
+            existing = self.stored_release_package(run.id)
             if (
                 existing.output_seal_sha256 == integrity.seal.manifest_sha256
                 and existing.media_qa_report_sha256 == media_qa.report_sha256

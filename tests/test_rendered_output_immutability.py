@@ -2337,6 +2337,22 @@ def test_completed_media_qa_creates_offline_release_package_without_publishing(
         for event in repository.list_run_events(run["id"])
     )
 
+    external_package = tmp_path / "external-release-package.json"
+    external_package.write_bytes(release_bytes)
+    release_path.unlink()
+    release_path.symlink_to(external_package)
+    linked_replay = client(tmp_path).post(
+        f"/v1/production-runs/{run['id']}/release-package", json=release_request
+    )
+    assert linked_replay.status_code == 409
+    assert "path is unsafe" in linked_replay.text
+    assert not any(
+        event.event_type == "release_package_created"
+        for event in repository.list_run_events(run["id"])
+    )
+    release_path.unlink()
+    release_path.write_bytes(release_bytes)
+
     api = client(tmp_path)
     release = api.post(
         f"/v1/production-runs/{run['id']}/release-package", json=release_request
