@@ -138,8 +138,43 @@ final class RealtimeVoiceConfigurationTests: XCTestCase {
         XCTAssertEqual(try JSONDecoder().decode(String.self, from: data), "ek_test_'\"\\\n</script>")
     }
 
+    func testRealtimeBridgeAllowsOnlyBoundedExactEvents() {
+        XCTAssertEqual(
+            RealtimeBridgeEvent.parse(["kind": "status", "value": "listening"]),
+            RealtimeBridgeEvent(kind: .status, value: "listening")
+        )
+        XCTAssertEqual(
+            RealtimeBridgeEvent.parse(["kind": "user", "value": "这是我的故事"]),
+            RealtimeBridgeEvent(kind: .user, value: "这是我的故事")
+        )
+        XCTAssertNil(RealtimeBridgeEvent.parse(["kind": "status", "value": "unknown"]))
+        XCTAssertNil(RealtimeBridgeEvent.parse(["kind": "user", "value": ""]))
+        XCTAssertNil(RealtimeBridgeEvent.parse([
+            "kind": "assistant",
+            "value": String(repeating: "x", count: 65_537),
+        ]))
+        XCTAssertNil(RealtimeBridgeEvent.parse([
+            "kind": "error",
+            "value": String(repeating: "x", count: 2_049),
+        ]))
+        XCTAssertNil(RealtimeBridgeEvent.parse([
+            "kind": "user", "value": "回答", "unexpected": true,
+        ]))
+    }
+
+    func testEmbeddedPageRejectsMalformedAndOversizedDataChannelMessages() {
+        XCTAssertTrue(
+            RealtimeVoiceCoordinator.webRTCPage.contains(
+                #"typeof event.data !== "string" || event.data.length > 1048576"#
+            )
+        )
+        XCTAssertTrue(RealtimeVoiceCoordinator.webRTCPage.contains("try {\n              value = JSON.parse"))
+        XCTAssertTrue(RealtimeVoiceCoordinator.webRTCPage.contains("Array.isArray(value)"))
+    }
+
     func testInterviewToolCallAllowsOnlyExactNarrowSchema() throws {
         let valid = RealtimeInterviewToolCall.parse([
+            "kind": "tool",
             "name": "record_interview_answer",
             "callID": "call_123",
             "arguments": #"{"answer":"  我自己使用  "}"#,
@@ -147,19 +182,35 @@ final class RealtimeVoiceConfigurationTests: XCTestCase {
         XCTAssertEqual(valid, RealtimeInterviewToolCall(callID: "call_123", answer: "我自己使用"))
 
         XCTAssertNil(RealtimeInterviewToolCall.parse([
+            "kind": "tool",
             "name": "delete_project",
             "callID": "call_456",
             "arguments": #"{"answer":"删除"}"#,
         ]))
         XCTAssertNil(RealtimeInterviewToolCall.parse([
+            "kind": "tool",
             "name": "record_interview_answer",
             "callID": "call_789",
             "arguments": #"{"answer":"同意","publish":true}"#,
         ]))
         XCTAssertNil(RealtimeInterviewToolCall.parse([
+            "kind": "tool",
             "name": "record_interview_answer",
             "callID": String(repeating: "x", count: 513),
             "arguments": #"{"answer":"我自己使用"}"#,
+        ]))
+        XCTAssertNil(RealtimeInterviewToolCall.parse([
+            "kind": "tool",
+            "name": "record_interview_answer",
+            "callID": " call_123 ",
+            "arguments": #"{"answer":"我自己使用"}"#,
+        ]))
+        XCTAssertNil(RealtimeInterviewToolCall.parse([
+            "kind": "tool",
+            "name": "record_interview_answer",
+            "callID": "call_123",
+            "arguments": #"{"answer":"我自己使用"}"#,
+            "unexpected": true,
         ]))
     }
 

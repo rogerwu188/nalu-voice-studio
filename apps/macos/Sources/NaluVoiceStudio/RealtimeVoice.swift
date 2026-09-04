@@ -194,14 +194,52 @@ enum RealtimeJavaScriptBridge {
     }
 }
 
+struct RealtimeBridgeEvent: Equatable {
+    enum Kind: String {
+        case status
+        case user
+        case assistant
+        case error
+    }
+
+    static let maximumTranscriptBytes = 65_536
+    static let maximumErrorBytes = 2_048
+    static let allowedStatuses = Set([
+        "connected", "listening", "thinking", "speaking", "reconnecting", "off",
+    ])
+
+    let kind: Kind
+    let value: String
+
+    static func parse(_ payload: [String: Any]) -> RealtimeBridgeEvent? {
+        guard Set(payload.keys) == Set(["kind", "value"]),
+              let rawKind = payload["kind"] as? String,
+              let kind = Kind(rawValue: rawKind),
+              let value = payload["value"] as? String else { return nil }
+
+        switch kind {
+        case .status:
+            guard allowedStatuses.contains(value) else { return nil }
+        case .user, .assistant:
+            guard !value.isEmpty, value.utf8.count <= maximumTranscriptBytes else { return nil }
+        case .error:
+            guard !value.isEmpty, value.utf8.count <= maximumErrorBytes else { return nil }
+        }
+        return RealtimeBridgeEvent(kind: kind, value: value)
+    }
+}
+
 struct RealtimeInterviewToolCall: Equatable {
     let callID: String
     let answer: String
 
     static func parse(_ payload: [String: Any]) -> RealtimeInterviewToolCall? {
-        guard payload["name"] as? String == RealtimeSessionConfiguration.interviewToolName,
+        guard Set(payload.keys) == Set(["kind", "name", "callID", "arguments"]),
+              payload["kind"] as? String == "tool",
+              payload["name"] as? String == RealtimeSessionConfiguration.interviewToolName,
               let callID = payload["callID"] as? String,
               !callID.isEmpty,
+              callID.trimmingCharacters(in: .whitespacesAndNewlines) == callID,
               callID.utf8.count <= 512,
               let arguments = payload["arguments"] as? String,
               arguments.utf8.count <= 8_192,
@@ -390,9 +428,21 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
         didReceive message: WKScriptMessage
     ) {
         guard let payload = message.body as? [String: Any],
-              let kind = payload["kind"] as? String else { return }
-        if kind == "status", let value = payload["value"] as? String {
-            switch value {
+              let kind = payload["kind"] as? String else {
+            failSession(reason: "收到无法验证的实时语音消息，请重新连接。", allowRetry: true)
+            return
+        }
+        if kind == "tool" {
+            handleToolCall(payload)
+            return
+        }
+        guard let event = RealtimeBridgeEvent.parse(payload) else {
+            failSession(reason: "收到无法验证的实时语音消息，请重新连接。", allowRetry: true)
+            return
+        }
+        switch event.kind {
+        case .status:
+            switch event.value {
             case "connected", "listening":
                 dataChannelReady = true
                 if sessionStartedAt == nil {
@@ -410,17 +460,12 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
             case "off": state = .off
             default: break
             }
-            return
-        }
-        if kind == "user", let text = payload["text"] as? String, !text.isEmpty {
-            onUserTranscript?(text)
-        } else if kind == "assistant",
-                  let text = payload["text"] as? String, !text.isEmpty {
-            onAssistantTranscript?(text)
-        } else if kind == "error", let text = payload["text"] as? String {
-            failSession(reason: text, allowRetry: true)
-        } else if kind == "tool" {
-            handleToolCall(payload)
+        case .user:
+            onUserTranscript?(event.value)
+        case .assistant:
+            onAssistantTranscript?(event.value)
+        case .error:
+            failSession(reason: event.value, allowRetry: true)
         }
     }
 
@@ -546,7 +591,22 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
           dc = pc.createDataChannel("\#(RealtimeAPIContract.dataChannelLabel)");
           dc.addEventListener("open", () => post("status", "connected"));
           dc.addEventListener("message", event => {
-            const value = JSON.parse(event.data);
+            if (typeof event.data !== "string" || event.data.length > 1048576) {
+              post("error", "实时语音消息过大或格式不正确，请重新连接");
+              return;
+            }
+            let value;
+            try {
+              value = JSON.parse(event.data);
+            } catch (_) {
+              post("error", "实时语音消息无法读取，请重新连接");
+              return;
+            }
+            if (!value || typeof value !== "object" || Array.isArray(value) ||
+                typeof value.type !== "string") {
+              post("error", "实时语音消息缺少类型，请重新连接");
+              return;
+            }
             if (value.type === "input_audio_buffer.speech_started") post("status", "listening");
             if (value.type === "input_audio_buffer.speech_stopped") post("status", "thinking");
             if (value.type === "response.created") {
