@@ -1484,6 +1484,30 @@ Current evidence:
   and `55f1b155daf537ce8e6f82acf86edea5940c699f99dd368bd6c74f7f7b9d9953`.
   Static contract preservation is now a permanent release gate, but it still is not an
   actual VoiceOver/readback/layout observation. SOP-10 remains `IN_PROGRESS`.
+- Product commits `4864976`, `8433ded` and `f2dfd40` close a packaged-app isolation
+  regression found during native review. Every native `RuntimeClient` request now requires
+  the current app to own a ready child Runtime; a denied second process sends no request,
+  stops initial loading and presents the red “本地制片厂未连接 ×” state instead of attaching
+  to another process's loopback server. The injected transport test proves the denied
+  client makes zero `URLProtocol` requests. GitHub CI run `33821294202` on exact product
+  commit `f2dfd40060e1bda300cd6f580f85b8d489d2f5ff` passed 191 Runtime tests, Swift tests,
+  both architecture builds and the Universal build, bundle smoke, staged-update and
+  populated rollback gates.
+- Universal artifact `9918470084` has GitHub artifact digest
+  `sha256:124d1450cbaf911ccbb727bbc0b400fcbb5477bbcd7f25172cea0dc0a32ad401`.
+  A fresh repository-external download passed full extraction, strict deep ad-hoc
+  signature validation and the Universal release verifier; its inner ZIP SHA-256 is
+  `27103d7ffcbf123ce6528d130693321dc9d3ca247c6ae5fa4d1230ff844f0718`.
+  On an Apple Silicon Mac, the exact downloaded app loaded an isolated completed fixture
+  and exposed “发行身份已核验 · 只读”, “第 1 集 · 第一集 · 那张旧照片” and
+  “100% · 制作完成”. Its actual accessibility tree contained the stable metrics,
+  observations, directives and safety identifiers, plus a refresh button whose help says
+  it only reads verified local records and a readback button whose help says it reads
+  metrics, next-episode advice and safety guidance. A simultaneous second exact process
+  spawned no Runtime and exposed no publication identity, episode or completion data.
+  This is automated Accessibility API observation, not a human VoiceOver or audible
+  readback acceptance, and no provider or publication action occurred; SOP-10 therefore
+  remains `IN_PROGRESS`.
 
 ## SOP-11 · macOS packaging, updates and operations — IN_PROGRESS
 
@@ -1628,6 +1652,27 @@ Current evidence:
   `7052afb140caf7e7371daa842a4f075f3a26a5f8196456c65886c52165316f01` and
   `dd0e3abb68ae8e574af57d1a8d3190b32577fc599c322afdb577bbea5e2d255c`.
   This proves only the offline/local-fixture boundary; no production origin was contacted.
+- Commit `9981d8e` makes every Runtime database connection a closing context manager,
+  refuses reuse of an unmanaged loopback listener and synchronously terminates the owned
+  Runtime process tree. Commits `4864976`, `8433ded` and `f2dfd40` extend the ownership
+  boundary through every native request and give startup denial an unambiguous red
+  disconnected state. CI run `33821294202` passed all Runtime, Swift, arm64, x86_64,
+  Universal, packaged smoke, staged-update and populated-rollback jobs on exact product
+  commit `f2dfd40060e1bda300cd6f580f85b8d489d2f5ff`.
+- Fresh native QA used that run's exact Universal artifact `9918470084` (GitHub digest
+  `sha256:124d1450cbaf911ccbb727bbc0b400fcbb5477bbcd7f25172cea0dc0a32ad401`,
+  inner ZIP SHA-256
+  `27103d7ffcbf123ce6528d130693321dc9d3ca247c6ae5fa4d1230ff844f0718`).
+  The owning app loaded only its temporary SQLite fixture. During 1,200 successful
+  database-backed project-list requests, 285 concurrent descriptor samples observed at
+  most one transient fixture SQLite descriptor, zero descriptors beneath the user's
+  normal Application Support database, and zero fixture/user descriptors after the
+  requests. A simultaneous denied process spawned no child Runtime, sent no project
+  request and displayed no owner data. A normal application Quit then removed the native
+  app, PyInstaller wrapper, Runtime child and TCP listener on port 8765 in 1,493 ms.
+  These close the packaged ownership/descriptor/quit regression checkpoint only; the
+  artifact remains ad-hoc signed and is not clean-install, Developer ID, hardened-runtime
+  or notarization acceptance.
 - Still required before `PASS`: Developer ID signing, hardened runtime, notarized
   universal release evidence, an authorized real update origin and production public key,
   authorized production discovery/download QA, and clean-Mac old-version-to-new-version
