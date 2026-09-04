@@ -11,26 +11,26 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "9c841a7ebc2976e8f2795fbe97858d6b10a7b3d5",
-  "last_advanced_at": "2026-09-04T08:32:29Z",
+  "observed_head": "2346882259bc62daee007d8c6865afb25f00eb75",
+  "last_advanced_at": "2026-09-04T08:45:18Z",
   "last_closed_checkpoint": {
-    "id": "revalidate-current-project-plan-isolation",
-    "sop": "SOP-03",
-    "product_commit": "c79246bdd31ead6e7068590bee6b967a51fe6fb3",
-    "evidence_commit": "9c841a7ebc2976e8f2795fbe97858d6b10a7b3d5",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33853153296",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33853153296/artifacts/9929332807",
+    "id": "revalidate-current-script-authority-gates",
+    "sop": "SOP-04",
+    "product_commit": "db1cf4ee557b204fc9d0597052edfb4fd9a6d8f6",
+    "evidence_commit": "2346882259bc62daee007d8c6865afb25f00eb75",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33854306245",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33854306245/artifacts/9929739932",
     "result": "PASS"
   },
   "current_checkpoint": {
-    "sop": "SOP-04",
+    "sop": "SOP-05",
     "status": "IN_PROGRESS",
-    "summary": "The current Universal package now carries a commit-bound, loopback-only rehearsal proving three concurrent ten-episode projects remain disjoint through edits, approval locking, export and clean SQLite restore, including rejection of re-digested cross-project structural tampering. SOP-03 still requires clean-account human voice and accessibility QA. Safe work advances to revalidate script revision authority and production gating."
+    "summary": "Script revision writes now re-check episode authority inside the SQLite write transaction, and corrections invalidate current approval without deleting immutable history. The accepted commit passed 236 Runtime tests and both native architectures through Universal packaging. SOP-04 still requires human spoken-summary and clean-account voice QA; safe work advances to current asset, consent and privacy isolation."
   },
   "next_action": {
-    "sop": "SOP-04",
-    "id": "revalidate-current-script-authority-gates",
-    "summary": "Exercise script correction history, stale approval, revocation, guardian denial, spoken-summary provenance and production admission against isolated SQLite on the current candidate; add packaged evidence or close deterministic implementation gaps without a provider or paid call.",
+    "sop": "SOP-05",
+    "id": "revalidate-current-asset-consent-isolation",
+    "summary": "Exercise imported-media managed paths, project/season/episode scope isolation, consent and guardian authorization, revocation, dependency reporting, memory-card provenance and export/restore against isolated SQLite; add deterministic or packaged evidence and close any fail-open gap without external services.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
