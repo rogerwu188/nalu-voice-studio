@@ -1,6 +1,7 @@
 import hashlib
 import json
 import math
+import sqlite3
 import struct
 import subprocess
 import threading
@@ -2673,6 +2674,82 @@ def test_completed_media_qa_creates_offline_release_package_without_publishing(
         assert replacement.status_code == 409
         assert "different immutable identity" in replacement.text
 
+        reconciliation_db = tmp_path / "test.sqlite3"
+        original_record_body = {
+            key: value
+            for key, value in publication_record.items()
+            if key != "record_sha256"
+        }
+
+        def rewrite_reconciliation_record(record_body: dict) -> None:
+            record_json = json.dumps(record_body, ensure_ascii=False, sort_keys=True)
+            record_sha256 = hashlib.sha256(record_json.encode()).hexdigest()
+            with sqlite3.connect(reconciliation_db) as connection:
+                connection.execute(
+                    """UPDATE publication_reconciliations
+                       SET record_json = ?, record_sha256 = ?
+                       WHERE run_id = ? AND platform = ?""",
+                    (record_json, record_sha256, run["id"], "youtube"),
+                )
+
+        cross_project_record = deepcopy(original_record_body)
+        cross_project_record["project_id"] = "project_from_another_reconciliation"
+        rewrite_reconciliation_record(cross_project_record)
+        cross_project_reconciliation = verified_api.get(
+            f"/v1/production-runs/{run['id']}/publication-reconciliation/youtube"
+        )
+        assert cross_project_reconciliation.status_code == 409
+        assert "entity binding mismatch" in cross_project_reconciliation.text
+        rewrite_reconciliation_record(original_record_body)
+
+        with sqlite3.connect(reconciliation_db) as connection:
+            connection.execute(
+                """UPDATE publication_reconciliations
+                   SET remote_publication_id = ?
+                   WHERE run_id = ? AND platform = ?""",
+                ("yt_row_relinked", run["id"], "youtube"),
+            )
+        relinked_remote_identity = verified_api.get(
+            f"/v1/production-runs/{run['id']}/publication-reconciliation/youtube"
+        )
+        assert relinked_remote_identity.status_code == 409
+        assert "entity binding mismatch" in relinked_remote_identity.text
+        with sqlite3.connect(reconciliation_db) as connection:
+            connection.execute(
+                """UPDATE publication_reconciliations
+                   SET remote_publication_id = ?
+                   WHERE run_id = ? AND platform = ?""",
+                (publication_record["remote_publication_id"], run["id"], "youtube"),
+            )
+
+        relinked_release_record = deepcopy(original_record_body)
+        relinked_release_record["release_manifest_sha256"] = "f" * 64
+        rewrite_reconciliation_record(relinked_release_record)
+        relinked_release = verified_api.get(
+            f"/v1/production-runs/{run['id']}/publication-reconciliation/youtube"
+        )
+        assert relinked_release.status_code == 409
+        assert "release binding mismatch" in relinked_release.text
+        blocked_learning = verified_api.post(
+            f"/v1/production-runs/{run['id']}/publication-metrics",
+            headers={"Idempotency-Key": "publication-metrics-tampered"},
+            json={
+                "publication_record_sha256": hashlib.sha256(
+                    json.dumps(
+                        relinked_release_record,
+                        ensure_ascii=False,
+                        sort_keys=True,
+                    ).encode()
+                ).hexdigest(),
+                "window_start": "2026-09-01T00:00:00+00:00",
+                "window_end": "2026-09-08T00:00:00+00:00",
+                "confirmation_text": "我确认只读同步这次发行指标",
+            },
+        )
+        assert blocked_learning.status_code == 409
+        assert verifier.metrics_calls == 0
+        rewrite_reconciliation_record(original_record_body)
+
         metrics_request = {
             "publication_record_sha256": publication_record["record_sha256"],
             "window_start": "2026-09-01T00:00:00+00:00",
@@ -2757,6 +2834,13 @@ def test_completed_media_qa_creates_offline_release_package_without_publishing(
             assert restored_api.get(
                 f"/v1/production-runs/{run['id']}/publication-reconciliation/youtube"
             ).json() == publication_record
+            restored_learning = restored_api.post(
+                f"/v1/production-runs/{run['id']}/publication-metrics",
+                headers={"Idempotency-Key": "restored-publication-metrics"},
+                json=metrics_request,
+            )
+            assert restored_learning.status_code == 409
+            assert "outside the managed data root" in restored_learning.text
             assert restored_api.get(
                 f"/v1/publication-metrics/{result['metrics']['id']}"
             ).json() == result["metrics"]

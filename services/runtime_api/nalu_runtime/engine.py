@@ -2071,6 +2071,38 @@ class ProductionService:
             channel_reference=dry_run.approval.channel_reference,
         )
 
+    def publication_reconciliation(
+        self,
+        run_id: str,
+        platform: str,
+        *,
+        allow_imported_history_without_local_release: bool = False,
+    ) -> PublicationReconciliationRecord:
+        try:
+            package = self.stored_release_package(run_id)
+            dry_run = self.stored_publication_dry_run(run_id, platform)
+        except (ConflictError, NotFoundError):
+            run = self.repository.get_run(run_id)
+            imported_placeholder = (
+                self.repository.db.path.parent
+                / "restored-publication-sources"
+                / run.id
+                / "production-package.json"
+            )
+            if not (
+                allow_imported_history_without_local_release
+                and Path(run.package_path) == imported_placeholder
+            ):
+                raise
+            return self.repository.get_publication_reconciliation(run_id, platform)
+        return self.repository.get_publication_reconciliation(
+            run_id,
+            platform,
+            expected_release_manifest_sha256=package.manifest_sha256,
+            expected_publication_dry_run_sha256=dry_run.plan_sha256,
+            expected_channel_reference=dry_run.approval.channel_reference,
+        )
+
     def sync_publication_metrics(
         self,
         run_id: str,
@@ -2078,8 +2110,23 @@ class ProductionService:
         idempotency_key: str | None,
         verifier: PublicationLearningVerifier,
     ) -> PublicationMetricsLearningResult:
+        publication = None
+        for platform in ("youtube", "bilibili"):
+            try:
+                candidate = self.publication_reconciliation(run_id, platform)
+            except NotFoundError:
+                continue
+            if candidate.record_sha256 == request.publication_record_sha256:
+                publication = candidate
+                break
+        if publication is None:
+            raise ConflictError("publication reconciliation digest does not match")
         return self.repository.sync_publication_metrics(
-            run_id, request, idempotency_key, verifier
+            run_id,
+            request,
+            idempotency_key,
+            verifier,
+            publication=publication,
         )
 
     def complete_run(

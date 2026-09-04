@@ -6931,9 +6931,15 @@ class Repository:
         }
 
     def get_publication_reconciliation(
-        self, run_id: str, platform: str
+        self,
+        run_id: str,
+        platform: str,
+        *,
+        expected_release_manifest_sha256: str | None = None,
+        expected_publication_dry_run_sha256: str | None = None,
+        expected_channel_reference: str | None = None,
     ) -> PublicationReconciliationRecord:
-        self.get_run(run_id)
+        run = self.get_run(run_id)
         with self.db.connect() as connection:
             row = connection.execute(
                 """SELECT * FROM publication_reconciliations
@@ -6949,7 +6955,44 @@ class Repository:
         ):
             raise ConflictError("stored publication reconciliation digest mismatch")
         stored["record_sha256"] = row["record_sha256"]
-        return PublicationReconciliationRecord.model_validate(stored)
+        record = PublicationReconciliationRecord.model_validate(stored)
+        row_binding = (
+            record.run_id,
+            record.project_id,
+            record.episode_id,
+            record.platform,
+            record.remote_publication_id,
+            record.request_sha256,
+            record.idempotency_key_sha256,
+        )
+        expected_row_binding = (
+            run.id,
+            run.project_id,
+            run.episode_id,
+            row["platform"],
+            row["remote_publication_id"],
+            row["request_sha256"],
+            row["idempotency_key_sha256"],
+        )
+        if row["run_id"] != run.id or row["platform"] != platform:
+            raise ConflictError("stored publication reconciliation row binding mismatch")
+        if row_binding != expected_row_binding:
+            raise ConflictError("stored publication reconciliation entity binding mismatch")
+        trusted_release_binding = (
+            expected_release_manifest_sha256,
+            expected_publication_dry_run_sha256,
+            expected_channel_reference,
+        )
+        if any(value is not None for value in trusted_release_binding):
+            if any(value is None for value in trusted_release_binding):
+                raise ConflictError("publication reconciliation trusted binding is incomplete")
+            if (
+                record.release_manifest_sha256,
+                record.publication_dry_run_sha256,
+                record.channel_reference,
+            ) != trusted_release_binding:
+                raise ConflictError("stored publication reconciliation release binding mismatch")
+        return record
 
     def reconcile_publication(
         self,
@@ -6997,9 +7040,21 @@ class Repository:
         if prior_key is not None:
             if prior_key["request_sha256"] != request_sha256:
                 raise ConflictError("publication idempotency key was already used differently")
-            return self.get_publication_reconciliation(prior_key["run_id"], prior_key["platform"])
+            return self.get_publication_reconciliation(
+                prior_key["run_id"],
+                prior_key["platform"],
+                expected_release_manifest_sha256=local_release_manifest_sha256,
+                expected_publication_dry_run_sha256=publication_dry_run_sha256,
+                expected_channel_reference=channel_reference,
+            )
         try:
-            existing = self.get_publication_reconciliation(run_id, request.platform)
+            existing = self.get_publication_reconciliation(
+                run_id,
+                request.platform,
+                expected_release_manifest_sha256=local_release_manifest_sha256,
+                expected_publication_dry_run_sha256=publication_dry_run_sha256,
+                expected_channel_reference=channel_reference,
+            )
         except NotFoundError:
             existing = None
         if existing is not None:
@@ -7139,18 +7194,16 @@ class Repository:
         request: PublicationMetricsSyncCreate,
         idempotency_key: str | None,
         verifier: PublicationLearningVerifier,
+        *,
+        publication: PublicationReconciliationRecord,
     ) -> PublicationMetricsLearningResult:
         run = self.get_run(run_id)
-        publication = None
-        for platform in ("youtube", "bilibili"):
-            try:
-                candidate = self.get_publication_reconciliation(run_id, platform)
-            except NotFoundError:
-                continue
-            if candidate.record_sha256 == request.publication_record_sha256:
-                publication = candidate
-                break
-        if publication is None:
+        if (
+            publication.run_id != run.id
+            or publication.project_id != run.project_id
+            or publication.episode_id != run.episode_id
+            or publication.record_sha256 != request.publication_record_sha256
+        ):
             raise ConflictError("publication reconciliation digest does not match")
         if not self._metrics_confirmation(request.confirmation_text):
             raise ConflictError("publication metrics sync requires read-only confirmation")

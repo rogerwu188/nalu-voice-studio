@@ -1212,7 +1212,11 @@ def create_app(
     def get_publication_reconciliation(
         run_id: str, platform: str
     ) -> PublicationReconciliationRecord:
-        return repository.get_publication_reconciliation(run_id, platform)
+        return production.publication_reconciliation(
+            run_id,
+            platform,
+            allow_imported_history_without_local_release=True,
+        )
 
     @app.post(
         "/v1/production-runs/{run_id}/publication-metrics",
