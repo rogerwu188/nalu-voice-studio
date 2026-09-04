@@ -4808,6 +4808,68 @@ def test_qingshan_workspace_atomic_promotion_recovers_both_crash_windows(
     assert json.loads(report.read_text(encoding="utf-8"))["status"] == "PASS"
 
 
+def test_qingshan_preflight_report_atomic_promotion_recovers_both_crash_windows(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    api = client(tmp_path)
+    _, _, episode = create_approved_episode(api)
+    run = api.post(
+        f"/v1/episodes/{episode['id']}/production-runs",
+        json={"dry_run": True},
+    ).json()
+    package_path = Path(run["package_path"])
+    workspace = package_path.with_name("qingshan-workspace")
+    report_path = package_path.with_name("qingshan-preflight-report.json")
+    staging_path = package_path.with_name(".qingshan-preflight-report.json.pending")
+    package_sha256 = json.loads(package_path.read_text(encoding="utf-8"))["package_sha256"]
+    original_report = report_path.read_bytes()
+
+    class SimulatedProcessExit(BaseException):
+        pass
+
+    adapter = api.app.state.production.adapter
+
+    def crash_after_report_sync(_staging: Path, _report: Path) -> None:
+        raise SimulatedProcessExit("simulated exit after preflight report sync")
+
+    monkeypatch.setattr(adapter, "_after_preflight_report_sync", crash_after_report_sync)
+    with pytest.raises(SimulatedProcessExit, match="after preflight report sync"):
+        adapter.preflight(package_path, workspace)
+
+    assert report_path.read_bytes() == original_report
+    staged_report = json.loads(staging_path.read_text(encoding="utf-8"))
+    assert staged_report["status"] == "PASS"
+    assert staged_report["package_sha256"] == package_sha256
+
+    promoted_api = client(tmp_path)
+    promoted_adapter = promoted_api.app.state.production.adapter
+
+    def crash_after_report_promotion(_report: Path) -> None:
+        raise SimulatedProcessExit("simulated exit after preflight report promotion")
+
+    monkeypatch.setattr(
+        promoted_adapter,
+        "_after_preflight_report_promotion",
+        crash_after_report_promotion,
+    )
+    with pytest.raises(SimulatedProcessExit, match="after preflight report promotion"):
+        promoted_adapter.preflight(package_path, workspace)
+
+    assert not staging_path.exists()
+    promoted_report = json.loads(report_path.read_text(encoding="utf-8"))
+    assert promoted_report["status"] == "PASS"
+    assert promoted_report["package_sha256"] == package_sha256
+
+    recovered_api = client(tmp_path)
+    recovered = recovered_api.app.state.production.adapter.preflight(package_path, workspace)
+
+    assert recovered == report_path
+    assert not staging_path.exists()
+    recovered_report = json.loads(report_path.read_text(encoding="utf-8"))
+    assert recovered_report["status"] == "PASS"
+    assert recovered_report["package_sha256"] == package_sha256
+
+
 def test_production_run_idempotency_and_paid_key_requirement(tmp_path: Path) -> None:
     api = client(tmp_path)
     _, _, episode = create_approved_episode(api)

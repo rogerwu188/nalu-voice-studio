@@ -169,6 +169,50 @@ class QingshanAdapter:
         """Crash-test seam after the new complete workspace becomes durable."""
 
     @staticmethod
+    def _after_preflight_report_sync(_staging_path: Path, _report_path: Path) -> None:
+        """Crash-test seam after the replacement report is durable but still private."""
+
+    @staticmethod
+    def _after_preflight_report_promotion(_report_path: Path) -> None:
+        """Crash-test seam after the replacement report becomes durable and public."""
+
+    def _write_preflight_report(self, report_path: Path, report: dict) -> None:
+        staging_path = report_path.with_name(f".{report_path.name}.pending")
+        report_path.parent.mkdir(parents=True, exist_ok=True)
+        if staging_path.exists() or staging_path.is_symlink():
+            if staging_path.is_symlink() or not staging_path.is_file():
+                raise QingshanAdapterError("Qingshan preflight staging path is unsafe")
+            staging_path.unlink()
+            self._sync_directory(report_path.parent)
+        if (report_path.exists() or report_path.is_symlink()) and (
+            report_path.is_symlink() or not report_path.is_file()
+        ):
+            raise QingshanAdapterError("Qingshan preflight report path is unsafe")
+
+        encoded = (json.dumps(report, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_CLOEXEC", 0)
+        if hasattr(os, "O_NOFOLLOW"):
+            flags |= os.O_NOFOLLOW
+        descriptor = os.open(staging_path, flags, 0o600)
+        try:
+            if not stat.S_ISREG(os.fstat(descriptor).st_mode):
+                raise QingshanAdapterError("Qingshan preflight staging file is unsafe")
+            written = 0
+            while written < len(encoded):
+                count = os.write(descriptor, encoded[written:])
+                if count <= 0:
+                    raise QingshanAdapterError("Qingshan preflight staging write was incomplete")
+                written += count
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
+
+        self._after_preflight_report_sync(staging_path, report_path)
+        os.replace(staging_path, report_path)
+        self._sync_directory(report_path.parent)
+        self._after_preflight_report_promotion(report_path)
+
+    @staticmethod
     def _normalized_subject(value: object) -> str:
         normalized = unicodedata.normalize("NFKC", str(value or "")).casefold().strip()
         return "".join(normalized.split())
@@ -808,9 +852,7 @@ class QingshanAdapter:
             "paid_execution_enabled": False,
         }
         report_path = package_path.with_name("qingshan-preflight-report.json")
-        report_path.write_text(
-            json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-        )
+        self._write_preflight_report(report_path, report)
         if failures:
             raise QingshanAdapterError("; ".join(failures))
         return report_path
