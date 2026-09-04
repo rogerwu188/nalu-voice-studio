@@ -144,6 +144,7 @@ final class RuntimeSupervisor {
     private(set) var isReady = false
     private var process: Process?
     private var terminationSignal: RuntimeTerminationSignal?
+    var ownsReadyRuntime: Bool { isReady && process?.isRunning == true }
 
     private init() {
         terminationSignal = RuntimeTerminationSignal { [weak self] in

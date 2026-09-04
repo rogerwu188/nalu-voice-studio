@@ -29,6 +29,28 @@ private final class PublicationLearningURLProtocol: URLProtocol, @unchecked Send
 }
 
 struct PublicationLearningPresentationTests {
+    @Test func nativeClientSendsNoRequestWithoutRuntimeOwnership() async {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [PublicationLearningURLProtocol.self]
+        let client = RuntimeClient(
+            baseURL: URL(string: "http://127.0.0.1:8765")!,
+            session: URLSession(configuration: configuration),
+            accessCheck: { false }
+        )
+        PublicationLearningURLProtocol.requestedPaths = []
+
+        do {
+            _ = try await client.listProjects()
+            Issue.record("An unowned Runtime must not receive even a read request")
+        } catch {
+            guard case RuntimeError.unmanagedRuntimeAccessDenied = error else {
+                return Issue.record("Unexpected denial error: \(error)")
+            }
+        }
+
+        #expect(PublicationLearningURLProtocol.requestedPaths.isEmpty)
+    }
+
     @Test func decodesVerifiedMetricsAndVersionedStrategy() throws {
         let metrics = try JSONDecoder().decode(
             PublicationMetricsSnapshot.self,
@@ -117,7 +139,8 @@ struct PublicationLearningPresentationTests {
         configuration.protocolClasses = [PublicationLearningURLProtocol.self]
         let client = RuntimeClient(
             baseURL: URL(string: "http://127.0.0.1:8765")!,
-            session: URLSession(configuration: configuration)
+            session: URLSession(configuration: configuration),
+            accessCheck: { true }
         )
         let strategyList = "[\(strategyJSON)]"
         PublicationLearningURLProtocol.responses = [

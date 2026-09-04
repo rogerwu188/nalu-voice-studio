@@ -80,7 +80,9 @@ struct ContentView: View {
             do {
                 try await RuntimeSupervisor.shared.start()
             } catch {
+                model.runtimeStatus = "本窗口未连接本地制片厂"
                 model.errorMessage = error.localizedDescription
+                return
             }
             await model.load()
             do {

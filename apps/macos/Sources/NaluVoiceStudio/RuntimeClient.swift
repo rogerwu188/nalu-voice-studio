@@ -4,14 +4,19 @@ import Foundation
 actor RuntimeClient {
     private let baseURL: URL
     private let session: URLSession
+    private let accessCheck: @Sendable () async -> Bool
     private let decoder = JSONDecoder()
     private let encoder = JSONEncoder()
 
     init(
         baseURL: URL = URL(string: "http://127.0.0.1:8765")!,
-        session: URLSession? = nil
+        session: URLSession? = nil,
+        accessCheck: @escaping @Sendable () async -> Bool = {
+            await RuntimeSupervisor.shared.ownsReadyRuntime
+        }
     ) {
         self.baseURL = baseURL
+        self.accessCheck = accessCheck
         if let session {
             self.session = session
             return
@@ -22,7 +27,9 @@ actor RuntimeClient {
     }
 
     func health() async throws -> RuntimeHealth {
-        let (data, response) = try await session.data(from: baseURL.appending(path: "health"))
+        let (data, response) = try await authorizedData(
+            from: baseURL.appending(path: "health")
+        )
         try validate(response, data: data)
         return try decoder.decode(RuntimeHealth.self, from: data)
     }
@@ -38,7 +45,7 @@ actor RuntimeClient {
         if includeArchived {
             components.queryItems = [URLQueryItem(name: "include_archived", value: "true")]
         }
-        let (data, response) = try await session.data(from: components.url!)
+        let (data, response) = try await authorizedData(from: components.url!)
         try validate(response, data: data)
         return try decoder.decode([NaluProject].self, from: data)
     }
@@ -54,7 +61,7 @@ actor RuntimeClient {
     }
 
     func exportProject(id: String) async throws -> Data {
-        let (data, response) = try await session.data(
+        let (data, response) = try await authorizedData(
             from: baseURL.appending(path: "v1/projects/\(id)/export")
         )
         try validate(response, data: data)
@@ -66,7 +73,7 @@ actor RuntimeClient {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = data
-        let (responseData, response) = try await session.data(for: request)
+        let (responseData, response) = try await authorizedData(for: request)
         try validate(response, data: responseData)
         return try decoder.decode(NaluProject.self, from: responseData)
     }
@@ -112,7 +119,7 @@ actor RuntimeClient {
         request.timeoutInterval = 120
         request.setValue(contentType, forHTTPHeaderField: "Content-Type")
         request.httpBody = data
-        let (responseData, response) = try await session.data(for: request)
+        let (responseData, response) = try await authorizedData(for: request)
         try validate(response, data: responseData)
         return try decoder.decode(NaluAsset.self, from: responseData)
     }
@@ -127,7 +134,7 @@ actor RuntimeClient {
     }
 
     func privacyExport(projectID: String) async throws -> Data {
-        let (data, response) = try await session.data(
+        let (data, response) = try await authorizedData(
             from: baseURL.appending(path: "v1/projects/\(projectID)/privacy-export")
         )
         try validate(response, data: data)
@@ -141,7 +148,7 @@ actor RuntimeClient {
     func deleteAsset(assetID: String) async throws {
         var request = URLRequest(url: baseURL.appending(path: "v1/assets/\(assetID)"))
         request.httpMethod = "DELETE"
-        let (data, response) = try await session.data(for: request)
+        let (data, response) = try await authorizedData(for: request)
         try validate(response, data: data)
     }
 
@@ -428,6 +435,7 @@ actor RuntimeClient {
         let sourceURL = baseURL.appending(path: "v1/production-runs/\(runID)/sealed-master")
         var request = URLRequest(url: sourceURL)
         request.timeoutInterval = 600
+        try await requireOwnedRuntime()
         let (temporaryDownload, response) = try await session.download(for: request)
         guard let http = response as? HTTPURLResponse,
               (200..<300).contains(http.statusCode),
@@ -465,7 +473,7 @@ actor RuntimeClient {
     }
 
     private func get<Response: Decodable>(_ path: String) async throws -> Response {
-        let (data, response) = try await session.data(from: baseURL.appending(path: path))
+        let (data, response) = try await authorizedData(from: baseURL.appending(path: path))
         try validate(response, data: data)
         return try decoder.decode(Response.self, from: data)
     }
@@ -483,7 +491,7 @@ actor RuntimeClient {
         request.httpMethod = method
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try encoder.encode(body)
-        let (data, response) = try await session.data(for: request)
+        let (data, response) = try await authorizedData(for: request)
         try validate(response, data: data)
         return try decoder.decode(Response.self, from: data)
     }
@@ -494,14 +502,33 @@ actor RuntimeClient {
             throw RuntimeError.requestFailed(message)
         }
     }
+
+    private func authorizedData(from url: URL) async throws -> (Data, URLResponse) {
+        try await requireOwnedRuntime()
+        return try await session.data(from: url)
+    }
+
+    private func authorizedData(for request: URLRequest) async throws -> (Data, URLResponse) {
+        try await requireOwnedRuntime()
+        return try await session.data(for: request)
+    }
+
+    private func requireOwnedRuntime() async throws {
+        guard await accessCheck() else {
+            throw RuntimeError.unmanagedRuntimeAccessDenied
+        }
+    }
 }
 
 enum RuntimeError: LocalizedError {
     case requestFailed(String)
+    case unmanagedRuntimeAccessDenied
 
     var errorDescription: String? {
         switch self {
         case .requestFailed(let message): message
+        case .unmanagedRuntimeAccessDenied:
+            "此窗口没有启动并持有自己的本地制片厂，因此不会读取或修改另一窗口的项目。"
         }
     }
 }
