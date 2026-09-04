@@ -44,7 +44,8 @@ struct PublicationLearningPresentationTests {
             Issue.record("An unowned Runtime must not receive even a read request")
         } catch {
             guard case RuntimeError.unmanagedRuntimeAccessDenied = error else {
-                return Issue.record("Unexpected denial error: \(error)")
+                Issue.record("Unexpected denial error: \(error)")
+                return
             }
         }
 
