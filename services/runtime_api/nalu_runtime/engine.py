@@ -21,7 +21,6 @@ from .models import (
     DecodedMediaQAReport,
     EpisodeProductionProgress,
     EpisodeStatus,
-    EpisodeTransitionRequest,
     FinalQAEvidence,
     LocalVisualAnalysisResult,
     MediaStructureQAReport,
@@ -2228,26 +2227,13 @@ class ProductionService:
             created_at=now,
             updated_at=now,
         )
-        self.repository.save_run(run)
-        self.repository.bind_run_assets(run.id, assets)
-        self.repository.append_run_event(
-            run.id,
-            "run_created",
-            to_status=run.status,
-            message="Immutable production package created and Qingshan preflight passed.",
-            payload={"package_path": run.package_path, "dry_run": run.dry_run},
+        return self.repository.commit_preflight_run(
+            run,
+            assets,
+            approved_script_revision=episode.approved_script_revision,
+            operation_scope=operation_scope if idempotency_key else None,
+            idempotency_key=idempotency_key,
         )
-        self.repository.transition_episode(
-            episode.id,
-            EpisodeTransitionRequest(
-                target_status=EpisodeStatus.PREPRODUCTION,
-                requested_by="production-service",
-                reason=f"production run {run.id} passed preflight",
-            ),
-        )
-        if idempotency_key:
-            self.repository.finish_operation(operation_scope, idempotency_key, "completed")
-        return run
 
     def cancel_run(self, run_id: str, request: RunActionRequest) -> ProductionRun:
         run = self.repository.get_run(run_id)

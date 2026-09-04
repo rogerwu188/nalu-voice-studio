@@ -4794,6 +4794,93 @@ def test_production_run_idempotency_and_paid_key_requirement(tmp_path: Path) -> 
     )
 
 
+def test_preflight_run_database_mutations_roll_back_together(
+    tmp_path: Path,
+) -> None:
+    api = client(tmp_path)
+    _, _, episode = create_approved_episode(api)
+    repository = api.app.state.repository
+    with repository.db.connect() as connection:
+        baseline_episode_events = connection.execute(
+            "SELECT COUNT(*) FROM episode_events WHERE episode_id = ?",
+            (episode["id"],),
+        ).fetchone()[0]
+        connection.execute(
+            """CREATE TRIGGER fail_preproduction_event BEFORE INSERT ON episode_events
+               WHEN NEW.to_status = 'preproduction'
+               BEGIN SELECT RAISE(ABORT, 'preproduction event failpoint'); END"""
+        )
+
+    with pytest.raises(sqlite3.IntegrityError, match="preproduction event failpoint"):
+        api.post(
+            f"/v1/episodes/{episode['id']}/production-runs",
+            json={"dry_run": True},
+            headers={"Idempotency-Key": "atomic-preflight-failpoint"},
+        )
+
+    assert api.get(f"/v1/episodes/{episode['id']}").json()["status"] == "script_approved"
+    with repository.db.connect() as connection:
+        assert connection.execute("SELECT COUNT(*) FROM production_runs").fetchone()[0] == 0
+        assert connection.execute("SELECT COUNT(*) FROM production_run_assets").fetchone()[0] == 0
+        assert connection.execute("SELECT COUNT(*) FROM run_events").fetchone()[0] == 0
+        assert (
+            connection.execute(
+                "SELECT COUNT(*) FROM episode_events WHERE episode_id = ?",
+                (episode["id"],),
+            ).fetchone()[0]
+            == baseline_episode_events
+        )
+        operation = connection.execute(
+            """SELECT status FROM idempotent_operations
+               WHERE scope = ? AND idempotency_key = ?""",
+            (f"production-run:{episode['id']}", "atomic-preflight-failpoint"),
+        ).fetchone()
+        assert operation["status"] == "pending"
+
+
+def test_preflight_run_rechecks_biometric_consent_before_atomic_commit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    api = client(tmp_path)
+    project, _, episode = create_approved_episode(api)
+    asset = api.post(
+        f"/v1/projects/{project['id']}/asset-imports",
+        params={
+            "filename": "portrait.jpg",
+            "kind": "character_image",
+            "name": "本人照片",
+            "consent_granted": True,
+            "consent_granted_by": "本人",
+            "consent_statement": "同意用于这个项目",
+        },
+        content=b"portrait bytes",
+        headers={"Content-Type": "image/jpeg"},
+    ).json()
+    repository = api.app.state.repository
+    original_commit = repository.commit_preflight_run
+
+    def revoke_then_commit(run: object, assets: list[object], **kwargs: object):
+        repository.revoke_asset_consent(
+            asset["id"],
+            AssetConsentRevocationCreate(requested_by="本人", reason="提交前撤销授权"),
+        )
+        return original_commit(run, assets, **kwargs)
+
+    monkeypatch.setattr(repository, "commit_preflight_run", revoke_then_commit)
+    rejected = api.post(
+        f"/v1/episodes/{episode['id']}/production-runs",
+        json={"dry_run": True},
+    )
+
+    assert rejected.status_code == 409
+    assert "biometric consent changed before commit" in rejected.text
+    assert api.get(f"/v1/episodes/{episode['id']}").json()["status"] == "script_approved"
+    with repository.db.connect() as connection:
+        assert connection.execute("SELECT COUNT(*) FROM production_runs").fetchone()[0] == 0
+        assert connection.execute("SELECT COUNT(*) FROM production_run_assets").fetchone()[0] == 0
+        assert connection.execute("SELECT COUNT(*) FROM run_events").fetchone()[0] == 0
+
+
 def test_prohibited_model_is_rejected(tmp_path: Path) -> None:
     api = client(tmp_path)
     _, _, episode = create_approved_episode(api)

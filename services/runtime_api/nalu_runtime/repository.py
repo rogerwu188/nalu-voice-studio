@@ -6499,6 +6499,141 @@ class Repository:
                 ),
             )
 
+    def commit_preflight_run(
+        self,
+        run: ProductionRun,
+        assets: list[Asset],
+        *,
+        approved_script_revision: int,
+        operation_scope: str | None = None,
+        idempotency_key: str | None = None,
+    ) -> ProductionRun:
+        """Commit a successful preflight and every related database mutation atomically."""
+        if (operation_scope is None) != (idempotency_key is None):
+            raise ValueError("operation scope and idempotency key must be provided together")
+
+        run_event_id, now = new_id("evt"), utc_now()
+        with self.db.connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            episode_row = connection.execute(
+                """SELECT e.status, e.approved_script_revision, e.season_id,
+                          s.project_id, p.audience_mode
+                   FROM episodes e
+                   JOIN seasons s ON s.id = e.season_id
+                   JOIN projects p ON p.id = s.project_id
+                   WHERE e.id = ?""",
+                (run.episode_id,),
+            ).fetchone()
+            if episode_row is None:
+                raise NotFoundError("episode not found")
+            if (
+                episode_row["season_id"] != run.season_id
+                or episode_row["project_id"] != run.project_id
+            ):
+                raise ConflictError("production run hierarchy changed before commit")
+            if (
+                EpisodeStatus(episode_row["status"]) != EpisodeStatus.SCRIPT_APPROVED
+                or episode_row["approved_script_revision"] != approved_script_revision
+            ):
+                raise ConflictError("approved script changed before production commit")
+
+            biometric_kinds = {"character_image", "voice_reference"}
+            for asset in assets:
+                asset_row = connection.execute(
+                    """SELECT project_id, kind, metadata_json, consent_granted,
+                              guardian_approved
+                       FROM assets WHERE id = ?""",
+                    (asset.id,),
+                ).fetchone()
+                if asset_row is None:
+                    raise ConflictError(f"production asset changed before commit: {asset.id}")
+                if asset_row["project_id"] != run.project_id:
+                    raise ConflictError(f"production asset belongs to another project: {asset.id}")
+                stored_sha256 = str(decode(asset_row["metadata_json"]).get("sha256", ""))
+                expected_sha256 = str(asset.metadata.get("sha256", ""))
+                if stored_sha256 != expected_sha256:
+                    raise ConflictError(
+                        f"production asset digest changed before commit: {asset.id}"
+                    )
+                if asset_row["kind"] in biometric_kinds:
+                    if not bool(asset_row["consent_granted"]):
+                        raise ConflictError(f"biometric consent changed before commit: {asset.id}")
+                    if episode_row["audience_mode"] == "child" and not bool(
+                        asset_row["guardian_approved"]
+                    ):
+                        raise ConflictError(f"guardian approval changed before commit: {asset.id}")
+
+            if operation_scope is not None and idempotency_key is not None:
+                operation = connection.execute(
+                    """SELECT resource_id, status FROM idempotent_operations
+                       WHERE scope = ? AND idempotency_key = ?""",
+                    (operation_scope, idempotency_key),
+                ).fetchone()
+                if operation is None:
+                    raise ConflictError("idempotent production claim is missing")
+                if operation["resource_id"] != run.id or operation["status"] != "pending":
+                    raise ConflictError("idempotent production claim changed before commit")
+
+            connection.execute(
+                """INSERT INTO production_runs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    run.id,
+                    run.project_id,
+                    run.season_id,
+                    run.episode_id,
+                    run.status,
+                    int(run.dry_run),
+                    run.requested_model,
+                    run.estimated_budget_credits,
+                    run.package_path,
+                    run.error,
+                    run.created_at,
+                    run.updated_at,
+                ),
+            )
+            for asset in assets:
+                connection.execute(
+                    """INSERT INTO production_run_assets VALUES (?, ?, ?)""",
+                    (run.id, asset.id, str(asset.metadata.get("sha256", ""))),
+                )
+            connection.execute(
+                """INSERT INTO run_events VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    run_event_id,
+                    run.id,
+                    1,
+                    "run_created",
+                    None,
+                    run.status,
+                    "Immutable production package created and Qingshan preflight passed.",
+                    encode({"package_path": run.package_path, "dry_run": run.dry_run}),
+                    now,
+                ),
+            )
+            connection.execute(
+                "UPDATE episodes SET status = ?, updated_at = ? WHERE id = ?",
+                (EpisodeStatus.PREPRODUCTION, now, run.episode_id),
+            )
+            self._record_episode_transition(
+                connection,
+                run.episode_id,
+                EpisodeStatus.SCRIPT_APPROVED,
+                EpisodeStatus.PREPRODUCTION,
+                "production-service",
+                f"production run {run.id} passed preflight",
+            )
+            if operation_scope is not None and idempotency_key is not None:
+                updated = connection.execute(
+                    """UPDATE idempotent_operations
+                       SET status = 'completed', error = NULL, updated_at = ?
+                       WHERE scope = ? AND idempotency_key = ?
+                         AND resource_id = ? AND status = 'pending'""",
+                    (now, operation_scope, idempotency_key, run.id),
+                )
+                if updated.rowcount != 1:
+                    raise ConflictError("idempotent production claim changed before completion")
+        return self.get_run(run.id)
+
     def update_run_status(
         self, run_id: str, status: RunStatus, error: str | None = None
     ) -> ProductionRun:
