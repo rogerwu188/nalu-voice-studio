@@ -11,26 +11,26 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "732ea8f6a1487eca1f8b2f58c55018e30474806e",
-  "last_advanced_at": "2026-09-04T21:53:00Z",
+  "observed_head": "4fdf8a6b17d97f08bd4b198e4e9d6172e314b707",
+  "last_advanced_at": "2026-09-04T22:08:00Z",
   "last_closed_checkpoint": {
-    "id": "director-strategy-target-revision-integrity",
-    "sop": "SOP-10",
-    "product_commit": "ac6faa427b16960bdf91b917ed7ecd351b6c2804",
-    "evidence_commit": "732ea8f6a1487eca1f8b2f58c55018e30474806e",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33922756503",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33922756503/artifacts/9955797310",
+    "id": "qingshan-v2026-09-04-6-candidate-audit",
+    "sop": "SOP-07",
+    "product_commit": "c391598a673716745d8cd92875b43815b965dd2b",
+    "evidence_commit": "4fdf8a6b17d97f08bd4b198e4e9d6172e314b707",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33923615631",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33923615631/artifacts/9956129482",
     "result": "PASS"
   },
   "current_checkpoint": {
     "sop": "SOP-07",
     "status": "IN_PROGRESS",
-    "summary": "SOP-10 deterministic strategy target and revision integrity is closed, while authorized publication and human acceptance remain blocked. Qingshan released v2026.09.04.6 after Nalu's latest reviewed v2026.09.03.8 candidate, so the newer upstream must be independently audited before any production pin can move."
+    "summary": "Qingshan v2026.09.04.6 is reproducibly audited and remains quarantined on its public version mismatch. Its new provider-scope isolation semantics are useful independently of the source release and should be adapted into Nalu's stable paid boundary without moving the active pin."
   },
   "next_action": {
     "sop": "SOP-07",
-    "id": "qingshan-v2026-09-04-6-candidate-audit",
-    "summary": "Fetch Qingshan v2026.09.04.6 into an isolated review checkout, regenerate its registry/public-interface/registered-test contract report, and promote the Nalu pin only if every productization gate passes unchanged.",
+    "id": "provider-scope-isolation-productization",
+    "summary": "Add a Nalu-owned versioned per-shot provider-scope contract to both model compilers and the durable paid boundary, enforcing exclusive visible entities, reference ownership, zero unbound population and model-aware absent-entity prompt scanning before any provider I/O.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
