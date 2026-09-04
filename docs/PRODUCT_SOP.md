@@ -1773,6 +1773,36 @@ Current evidence:
   This is automated Accessibility API observation, not a human VoiceOver or audible
   readback acceptance, and no provider or publication action occurred; SOP-10 therefore
   remains `IN_PROGRESS`.
+- Commit `7fad3c5a2c074bee6e40ef8fedfd41a7679e7260` replaces log-trust for the
+  packaged publication-learning fixture with a reusable fail-closed verifier. It rejects
+  duplicate or unexpected JSON fields, a changed canonical report digest, any failed
+  safety flag, non-loopback scope, production-data mutation, unstable record identities,
+  a substituted report or release ZIP, a malformed checksum manifest and an artifact
+  archive whose bytes do not match GitHub's digest. The Universal CI job now verifies
+  the report and release ZIP before upload and includes its canonical verification
+  receipt. Four report-tampering cases plus artifact-digest, report-substitution and
+  release-substitution negatives are permanent tests. GitHub CI run `33847084151`
+  passed 211 Runtime tests, lint, contract/audit checks, real HTTP and offline E2E
+  rehearsals, both architecture builds and the Universal build; packaged smoke,
+  staged-update, rollback and the new verifier all passed.
+- The exact Universal artifact `9927090722` has GitHub digest
+  `sha256:eb732017ee31bd3d936dfc05ad581992d23458459ec59e8ec999d515d032dcea`.
+  A repository-external download independently reproduced that digest, bound the sibling
+  report and application ZIP byte-for-byte to the archive, and validated the archive's
+  checksum manifest. The inner ZIP SHA-256 is
+  `9f13d2b3c7135335def50a7769d4928591762e195d2b31677e8e4cd864afa91e`;
+  the packaged report file SHA-256 is
+  `eb01570eaf9ae90695f0cbb5ed6ea64d7d27df3d439837c42d2aa46ee9c33766`
+  and its internal canonical digest is
+  `74ac566531ce3879c441a62ecff0bd455b780343db1e6fdb574e3faa79db4d01`.
+  The independently generated bound receipt file has SHA-256
+  `bc5941ad497c8bfa06566ce51398f3002c545888791a9757c9d94bd7a615ca98`
+  and canonical receipt digest
+  `a6164452bba38dc722b9fc004a51e611bd53bc829d1401eea717cc8e81724418`.
+  It explicitly records zero publication, paid calls and production-data mutation. This
+  closes the packaged evidence-provenance checkpoint only: real platform authorization,
+  publication/metrics reconciliation, human VoiceOver/readback acceptance, Developer ID
+  signing and notarization remain absent, so SOP-10 remains `IN_PROGRESS`.
 
 ## SOP-11 · macOS packaging, updates and operations — IN_PROGRESS
 
