@@ -11,26 +11,26 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "3e079d53da7a248511f3f4a7c5b6c4f4ce57afb0",
-  "last_advanced_at": "2026-09-04T01:28:10Z",
+  "observed_head": "73977a56d3778c85937f0945c0fb6eafeb0962e8",
+  "last_advanced_at": "2026-09-04T01:45:00Z",
   "last_closed_checkpoint": {
-    "id": "qingshan-v2026.09.03.8-prompt-rune-productization",
-    "sop": "SOP-07",
-    "product_commit": "8597ad02ee4f091c98a97fd4479a66d630481989",
-    "evidence_commit": "3e079d53da7a248511f3f4a7c5b6c4f4ce57afb0",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33824616662",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33824616662/artifacts/9919607848",
+    "id": "realtime-current-contract-and-client-secret-validation",
+    "sop": "SOP-02",
+    "product_commit": "b88d06e66198e19c24d0c00beb7261f0b68323fe",
+    "evidence_commit": "73977a56d3778c85937f0945c0fb6eafeb0962e8",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33826230388",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33826230388/artifacts/9920162212",
     "result": "PASS"
   },
   "current_checkpoint": {
     "sop": "SOP-02",
     "status": "IN_PROGRESS",
-    "summary": "Qingshan v2026.09.03.8 remains quarantined because its public package/CLI version is 0.3.0 while the portable manifest is 0.3.1. Its independently verified 10,000-rune rendered-provider-prompt constraint is now enforced by Nalu's own paid boundary before transport, with exact-boundary and rejection tests and green CI. This closes only that safe productization checkpoint; SOP-07 and the project remain incomplete. The next highest-priority safe work is a current official-contract audit of the native OpenAI Realtime WebRTC integration."
+    "summary": "The current official Realtime WebRTC client-secret, calls, data-channel, model, VAD and tool-result contracts were re-audited without credentials. The broker now rejects malformed, stale, wrong-session, wrong-model, padded and oversized secret responses; Runtime, both native architectures, Universal packaging, staged update and rollback passed CI. This closes only the static contract and broker-validation checkpoint. SOP-02 remains incomplete without authorized live Realtime and human accessibility acceptance."
   },
   "next_action": {
     "sop": "SOP-02",
-    "id": "audit-current-openai-realtime-webrtc-contract",
-    "summary": "Compare the native Realtime implementation against current official OpenAI WebRTC client-secret, session, model and event contracts. Correct stale assumptions and add fail-closed configuration tests without using credentials or making paid calls; then run native tests, package CI and record evidence.",
+    "id": "harden-realtime-data-channel-event-boundary",
+    "summary": "Fail closed on malformed, oversized and unexpected Realtime data-channel and WebKit bridge events; bound transcript and provider error payloads before they reach native conversation state, add deterministic Swift and embedded-page contract tests, then run packaging CI and record evidence without credentials or paid calls.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
