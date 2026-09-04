@@ -458,7 +458,7 @@ final class RealtimeVoiceConfigurationTests: XCTestCase {
         let page = RealtimeVoiceCoordinator.webRTCPage
 
         XCTAssertTrue(page.contains("typeof value.transcript !== \"string\""))
-        XCTAssertTrue(page.contains("const output = value.response && value.response.output"))
+        XCTAssertTrue(page.contains("const output = value.response.output"))
         XCTAssertTrue(page.contains("if (!Array.isArray(output))"))
         XCTAssertTrue(page.contains("const calls = output.filter"))
         XCTAssertTrue(page.contains("if (calls.length > 1"))
