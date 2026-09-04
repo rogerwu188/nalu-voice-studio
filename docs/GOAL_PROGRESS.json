@@ -11,26 +11,26 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "bf95ec4668842fed7b9963055ffb4c67d20605cd",
-  "last_advanced_at": "2026-09-04T11:38:52Z",
+  "observed_head": "109f63f7df800a3025d905f1580976fee860b621",
+  "last_advanced_at": "2026-09-04T11:55:39Z",
   "last_closed_checkpoint": {
-    "id": "atomic-production-run-creation-commit",
+    "id": "recover-pending-production-preflight",
     "sop": "SOP-08",
-    "product_commit": "55791658a8d20dce0b72c2deca55000daa47a4b9",
-    "evidence_commit": "bf95ec4668842fed7b9963055ffb4c67d20605cd",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33868270489",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33868270489/artifacts/9935035998",
+    "product_commit": "a073744f119663c10e4816e0d54830a9d82c1faa",
+    "evidence_commit": "109f63f7df800a3025d905f1580976fee860b621",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33869392909",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33869392909/artifacts/9935498519",
     "result": "PASS"
   },
   "current_checkpoint": {
     "sop": "SOP-08",
     "status": "IN_PROGRESS",
-    "summary": "Production-run creation now commits all related database state atomically and passed all CI jobs. Revalidation found a crash after the persistent idempotency claim but before database commit can leave a pending operation and package directory that retries cannot recover."
+    "summary": "An explicitly idempotent production start now recovers the same immutable run and package after a process crash, rejects concurrent lock stealing, quarantines tampered evidence and passed all CI jobs. Revalidation found that dry-run still allows the client idempotency key to be omitted, so the same crash can leave an unclaimable orphan directory and a retry can allocate another run."
   },
   "next_action": {
     "sop": "SOP-08",
-    "id": "recover-pending-production-preflight",
-    "summary": "Recover or safely quarantine a same-request pending production claim after restart, bind recovery to the immutable package digest and preflight evidence, and prevent both duplicate package creation and indefinite retry lockout.",
+    "id": "server-idempotency-for-keyless-dry-run",
+    "summary": "Assign every keyless dry-run start a stable internal idempotency identity, recover the exact pending run after restart and prove normal retries replay one committed run without changing the paid-call fail-closed rule.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
