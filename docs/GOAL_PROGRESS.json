@@ -11,26 +11,26 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "44e0e14087db23c2a74b21fd6b55c49965ee8d40",
-  "last_advanced_at": "2026-09-04T07:30:02Z",
+  "observed_head": "fff77846ee3c1a444bef58fea88c565b8825b097",
+  "last_advanced_at": "2026-09-04T07:41:25Z",
   "last_closed_checkpoint": {
-    "id": "bind-current-update-rollback-evidence",
-    "sop": "SOP-11",
-    "product_commit": "b36d06dcbd3d00322623b09edd9e9da3e1bf73b2",
-    "evidence_commit": "44e0e14087db23c2a74b21fd6b55c49965ee8d40",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33848292912",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33848292912/artifacts/9927490319",
+    "id": "bind-current-offline-e2e-rehearsal-evidence",
+    "sop": "SOP-12",
+    "product_commit": "947bba252fa0e9b06253176a7f972ac29e267994",
+    "evidence_commit": "fff77846ee3c1a444bef58fea88c565b8825b097",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33849341891",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33849341891/artifacts/9927797876",
     "result": "PASS"
   },
   "current_checkpoint": {
-    "sop": "SOP-12",
+    "sop": "SOP-13",
     "status": "IN_PROGRESS",
-    "summary": "The current Universal artifact's staged-update and populated rollback reports, release ZIP, checksum manifest, GitHub artifact digest and exact source commit are now independently bound by a reusable fail-closed verifier. CI and a fresh download passed while build, preservation, scope, digest and artifact substitutions fail closed. This remains an ephemeral offline rehearsal; SOP-11 still requires an authorized production update origin, Developer ID/notarization and clean-Mac old-version upgrade acceptance. Safe work advances to the current release candidate's seven-scenario offline E2E evidence in SOP-12."
+    "summary": "The current Runtime QA artifact's seven-scenario offline E2E report is now independently bound to its GitHub artifact digest and exact source commit, including all 21 selected tests and ten source blobs. False completion, false scenario acceptance, digest tampering and artifact substitution fail closed. This is still STRUCTURE_REHEARSED rather than signed/notarized, authorized and human release acceptance, so SOP-12 remains IN_PROGRESS. Safe work advances to current packaged controlled-evolution boundaries in SOP-13."
   },
   "next_action": {
-    "sop": "SOP-12",
-    "id": "bind-current-offline-e2e-rehearsal-evidence",
-    "summary": "Independently validate the current Runtime QA artifact's seven-scenario offline E2E rehearsal, canonical digest, network isolation and truthful non-completion claims; add a reusable fail-closed verifier and artifact/tampering negatives if it still relies on generator or CI-log trust.",
+    "sop": "SOP-13",
+    "id": "revalidate-current-controlled-evolution-boundaries",
+    "summary": "Inspect the current Universal candidate's packaged feedback-export and development-handoff policies plus governed feedback state-machine evidence; add current-candidate artifact-bound verification and negative tests where disabled/target-free/no-auto-code/no-release claims still rely on static logs or historical artifacts.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
