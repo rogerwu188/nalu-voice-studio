@@ -11,26 +11,26 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "c35b00c8fd18c60909274050ee2be22780342e87",
-  "last_advanced_at": "2026-09-04T15:00:45Z",
+  "observed_head": "1f4ecab6f7011554d1c99ed830455671933079fd",
+  "last_advanced_at": "2026-09-04T15:11:19Z",
   "last_closed_checkpoint": {
-    "id": "release-artifact-symlink-recovery-hardening",
+    "id": "release-artifact-cross-entity-binding",
     "sop": "SOP-10",
-    "product_commit": "d6a4fb27ad719b378961b740aa348831e8d6cffb",
-    "evidence_commit": "c35b00c8fd18c60909274050ee2be22780342e87",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33886038527",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33886038527/artifacts/9942199014",
+    "product_commit": "a003451089cec816d60823eaece7d124368aeaf2",
+    "evidence_commit": "1f4ecab6f7011554d1c99ed830455671933079fd",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33887300646",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33887300646/artifacts/9942618267",
     "result": "PASS"
   },
   "current_checkpoint": {
     "sop": "SOP-10",
     "status": "IN_PROGRESS",
-    "summary": "SOP-10 release-package recovery now rejects links and non-regular paths before reading or event recovery. Revalidation found that stored release packages and publication dry-runs validate run/package digests but do not explicitly bind their project_id and episode_id fields back to the current run, so locally rewritten cross-entity metadata with recomputed self-digests needs a fail-closed check."
+    "summary": "SOP-10 stored release artifacts now bind run, project and episode identities. Revalidation found a deeper self-consistency gap: a locally rewritten package can change its sealed artifact list or QA digest fields and recompute its manifest, while a dry-run can change its duplicate guard, adapter version or compiled plan and recompute its plan digest unless all derived values are independently regenerated from current trusted evidence."
   },
   "next_action": {
     "sop": "SOP-10",
-    "id": "release-artifact-cross-entity-binding",
-    "summary": "Bind stored release packages and publication dry-runs to the exact production run, project and episode after recomputing their canonical digests; reject locally rewritten cross-project or cross-episode metadata before replay/event recovery and preserve exact valid restart behavior.",
+    "id": "release-artifact-derived-content-revalidation",
+    "summary": "Independently revalidate every stored release package against the current output seal and five release-blocking QA digests, and every publication dry-run against a freshly compiled adapter plan, adapter version, approval platform and recomputed duplicate guard; reject recomputed self-consistent tampering before replay or reconciliation.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
