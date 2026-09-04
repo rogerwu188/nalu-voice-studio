@@ -8,7 +8,15 @@ from pathlib import Path
 
 from .asset_service import AssetService
 from .models import ProjectDeletionRequest, ProjectDeletionResult
-from .repository import ConflictError, NotFoundError, Repository, encode, new_id, utc_now
+from .repository import (
+    ConflictError,
+    NotFoundError,
+    Repository,
+    decode,
+    encode,
+    new_id,
+    utc_now,
+)
 from .secure_files import secure_directory, secure_file
 
 
@@ -23,22 +31,27 @@ class ProjectPrivacyService:
     def create_privacy_export(self, project_id: str) -> Path:
         backup = self.repository.export_project(project_id).model_dump(mode="json")
         media_manifest: list[dict[str, object]] = []
-        media_files: list[tuple[Path, str]] = []
+        media_files: list[tuple[bytes, str]] = []
         for asset in backup["payload"]["assets"]:
             source = self.asset_service.managed_path(project_id, asset["local_uri"])
             if not source.is_file():
                 raise ConflictError("privacy export found a missing managed asset file")
             archive_path = f"media/{asset['id']}/{source.name}"
-            digest = hashlib.sha256(source.read_bytes()).hexdigest()
+            content = source.read_bytes()
+            digest = hashlib.sha256(content).hexdigest()
+            metadata = decode(asset["metadata_json"])
+            expected_digest = str(metadata.get("sha256", ""))
+            if expected_digest and digest != expected_digest:
+                raise ConflictError("privacy export found modified managed asset bytes")
             media_manifest.append(
                 {
                     "asset_id": asset["id"],
                     "archive_path": archive_path,
                     "sha256": digest,
-                    "byte_size": source.stat().st_size,
+                    "byte_size": len(content),
                 }
             )
-            media_files.append((source, archive_path))
+            media_files.append((content, archive_path))
             asset["local_uri"] = f"nalu-bundle://{archive_path}"
         canonical = encode(backup["payload"])
         backup["payload_sha256"] = hashlib.sha256(canonical.encode()).hexdigest()
@@ -65,8 +78,8 @@ class ProjectPrivacyService:
                 "privacy-manifest.json",
                 json.dumps(manifest, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
             )
-            for source, archive_path in media_files:
-                archive.write(source, archive_path)
+            for content, archive_path in media_files:
+                archive.writestr(archive_path, content)
         secure_file(destination)
         return destination
 

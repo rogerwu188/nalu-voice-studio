@@ -3591,6 +3591,42 @@ def test_project_deletion_rejects_snapshot_created_after_preview(
     assert (late_run_root / "production-package.json").is_file()
 
 
+def test_privacy_export_rejects_modified_managed_asset_bytes(tmp_path: Path) -> None:
+    api = client(tmp_path)
+    project, _, _ = create_approved_episode(api)
+    imported = api.post(
+        f"/v1/projects/{project['id']}/asset-imports",
+        params={"filename": "memo.txt", "kind": "source_document", "name": "原始手稿"},
+        content=b"original family memory",
+        headers={"Content-Type": "text/plain"},
+    ).json()
+    stored_path = Path(unquote(urlparse(imported["local_uri"]).path))
+    stored_path.write_bytes(b"modified outside Nalu")
+
+    rejected = api.get(f"/v1/projects/{project['id']}/privacy-export")
+
+    assert rejected.status_code == 409
+    assert "modified managed asset bytes" in rejected.text
+    export_root = tmp_path / "data" / "privacy-exports"
+    assert not export_root.exists() or list(export_root.iterdir()) == []
+
+    stored_path.write_bytes(b"original family memory")
+    exported = api.get(f"/v1/projects/{project['id']}/privacy-export")
+    assert exported.status_code == 200
+    with zipfile.ZipFile(io.BytesIO(exported.content)) as archive:
+        archived_bytes = archive.read(f"media/{imported['id']}/memo.txt")
+        manifest = json.loads(archive.read("privacy-manifest.json"))
+    assert archived_bytes == b"original family memory"
+    assert manifest["media"] == [
+        {
+            "asset_id": imported["id"],
+            "archive_path": f"media/{imported['id']}/memo.txt",
+            "byte_size": len(archived_bytes),
+            "sha256": hashlib.sha256(archived_bytes).hexdigest(),
+        }
+    ]
+
+
 def test_production_requires_approved_script(tmp_path: Path) -> None:
     api = client(tmp_path)
     project = api.post("/v1/projects", json={"title": "测试项目"}).json()
