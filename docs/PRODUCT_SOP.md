@@ -1938,6 +1938,23 @@ Current evidence:
   `sha256:4f380db4a6c420ed5b6b79a9359f5f93ee5b19a1fad33b6907e1b18fca6ebf92`.
   This closes the deterministic SOP-09 QA-report filesystem durability checkpoint, not
   missing-event recovery, real-master Apple Speech or original-resolution human QA.
+- Product commit `4a50ad21aadd670a2517db3438d7579dc759633f`, GitHub CI run
+  `33882498857`: SOP-09 report events are now idempotently bound to the exact durable
+  report or repair-plan digest. After a process exit between report publication and event
+  commit, replay reads and verifies the existing bytes and restores the missing event;
+  another replay returns the same event rather than duplicating it. The transactional
+  event primitive permits a genuinely changed mutable report to create a later event but
+  rejects any call whose dedupe digest differs from its payload. A real container-QA
+  crash/restart fixture proved the report bytes and SHA-256 remained unchanged and exactly
+  one event survived. All 277 Runtime tests and the Runtime, Apple Silicon, Intel and
+  Universal jobs passed, including bundled-Runtime smoke, project isolation, staged
+  update, populated rollback and controlled-evolution checks. Runtime QA artifact
+  `9940544752` has digest
+  `sha256:aebe45b3790a539b18e84ad51b0c6c4172586788a9749849f7c38fd88c63b8cc`;
+  Universal artifact `9940783454` has digest
+  `sha256:8c648be61ef2cb0d105461c1d228944cf52c0fa0151cb80f76beef34cb0b92dc`.
+  This closes the deterministic SOP-09 report/event crash boundary, not downstream repair-
+  plan recovery, real-master Apple Speech or original-resolution human QA.
 
 ## SOP-10 · Controlled release and learning loop — IN_PROGRESS
 
