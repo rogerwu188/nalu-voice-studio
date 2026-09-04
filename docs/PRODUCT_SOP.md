@@ -2380,6 +2380,24 @@ Current evidence:
   No provider lookup outside deterministic fixtures, paid call, production or publication
   write occurred. This closes the local learning transaction authority checkpoint only,
   not authorized platform observation, human acceptance, signing, notarization or SOP-10.
+- Product commit `dd23494d56ad488d22dbc7f46882fabf1e7f0434`, GitHub CI run
+  `33893233651`: publication reconciliation now acquires the SQLite write lock after
+  independent identity lookup and re-reads the completed run, project/season/episode
+  hierarchy, release-ready episode state and absence of any competing run/platform,
+  idempotency-key or remote-publication identity before inserting the immutable record
+  and lifecycle event. A deterministic verifier race changed the episode to blocked while
+  lookup was in flight; the final transaction rejected stale authority with zero
+  reconciliation rows and no `publication_reconciled` event, after which restoring the
+  release-ready state allowed a normal request. All 278 Runtime tests and the Runtime,
+  Apple Silicon, Intel and Universal jobs passed, including bundled-Runtime smoke,
+  project isolation, staged update, populated rollback and controlled-evolution checks.
+  Runtime QA artifact `9944782929` has digest
+  `sha256:46a7d246769a426ad9586f2f731cd3b320d314157685960b00e85797eb427e93`;
+  Universal artifact `9945019952` has digest
+  `sha256:f0c3f3036aafea21dbd702044c2fdeaafae6253463c9817acaec3a727d67682d`.
+  Only deterministic local verifier evidence was used; no paid call or publication write
+  occurred. This closes local reconciliation transaction authority only, not authorized
+  platform reconciliation, human acceptance, signing, notarization or SOP-10.
 
 ## SOP-11 · macOS packaging, updates and operations — IN_PROGRESS
 
