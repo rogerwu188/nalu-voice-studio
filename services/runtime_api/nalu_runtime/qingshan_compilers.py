@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import re
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any
@@ -31,6 +32,13 @@ CAMERA_ENRICHMENT_FIELDS = (
     "atmosphere_intent",
     "effect_intent",
 )
+PROVIDER_SCOPE_SCHEMA = "nalu.qingshan-provider-scope/v1"
+NEGATIVE_PROMPT_HEADERS = (
+    "negative_constraints:",
+    "negative_prompt:",
+    "【负面",
+    "【限制",
+)
 
 
 def _canonical_sha256(value: dict[str, Any]) -> str:
@@ -53,7 +61,7 @@ class QingshanModelCompiler(ABC):
     """Compile an immutable Nalu package into one provider-specific planning contract."""
 
     adapter_id: str
-    adapter_version = "1.5.0"
+    adapter_version = "1.6.0"
     profile_id: str
     model: str
     native_resolution: str
@@ -113,6 +121,14 @@ class QingshanModelCompiler(ABC):
                 "MOMENTUM",
             ],
             "intentional_hold_requires_writer_reason": True,
+            "provider_scope_projection_required": True,
+            "provider_scope_schema": PROVIDER_SCOPE_SCHEMA,
+            "episode_global_contract_provider_access_forbidden": True,
+            "exclusive_visible_living_entity_set_required": True,
+            "zero_background_population_required": True,
+            "zero_unbound_living_entity_required": True,
+            "exclusive_reference_identity_owner_required": True,
+            "absent_episode_entity_prompt_scan_required": True,
         }
 
     def compile(self, package: dict[str, Any], workspace: Path) -> Path:
@@ -482,7 +498,140 @@ class ModelCompilerRegistry:
                         failures.append("intentional hold cannot contain a changed endpoint")
                     if not str(state_delta.get("writer_authored_hold_reason") or "").strip():
                         failures.append("intentional hold requires a writer-authored reason")
+        failures.extend(self._validate_provider_scope(compiler, request, prompt))
         return failures
+
+    @staticmethod
+    def _validate_provider_scope(
+        compiler: QingshanModelCompiler,
+        request: dict[str, Any],
+        prompt: object,
+    ) -> list[str]:
+        projection = request.get("provider_scope_projection")
+        if not isinstance(projection, dict):
+            return ["paid request requires a provider-scope projection"]
+        failures: list[str] = []
+        if projection.get("schema_version") != PROVIDER_SCOPE_SCHEMA:
+            failures.append("provider-scope schema is missing or changed")
+        if projection.get("status") != "LOCKED":
+            failures.append("provider-scope projection is not locked")
+        if projection.get("provider_reads_episode_global_contract_directly") is not False:
+            failures.append("provider scope must forbid episode-global contract access")
+
+        visible = projection.get("visible_character_ids")
+        if not isinstance(visible, list) or any(
+            not isinstance(value, str) or not value.strip() for value in visible
+        ):
+            failures.append("provider scope requires explicit visible-character IDs")
+            visible_ids: list[str] = []
+        else:
+            visible_ids = visible
+            if len(visible_ids) != len(set(visible_ids)):
+                failures.append("provider-scope visible-character IDs must be unique")
+        counts = projection.get("visible_entity_instance_counts")
+        if (
+            not isinstance(counts, dict)
+            or set(counts) != set(visible_ids)
+            or any(counts.get(entity_id) != 1 for entity_id in visible_ids)
+        ):
+            failures.append("provider scope requires exactly one instance per visible character")
+        if projection.get("exclusive_visible_living_entity_set") is not True:
+            failures.append("provider scope must make the visible living-entity set exclusive")
+        if projection.get("visible_living_entity_instance_total") != len(visible_ids):
+            failures.append("provider-scope visible living-entity total is invalid")
+        if projection.get("background_population_count") != 0:
+            failures.append("provider scope requires zero background population")
+        if projection.get("unbound_visible_living_entity_count") != 0:
+            failures.append("provider scope requires zero unbound living entities")
+
+        scope_props = projection.get("visible_prop_ids")
+        if scope_props != request.get("visible_prop_ids"):
+            failures.append("provider-scope visible props do not match the paid request")
+        bindings = projection.get("reference_identity_bindings")
+        if not isinstance(bindings, list):
+            failures.append("provider scope requires explicit reference identity bindings")
+            bindings = []
+        indices: list[object] = []
+        bound_entities: list[str] = []
+        for binding in bindings:
+            if not isinstance(binding, dict):
+                failures.append("provider-scope reference identity binding is invalid")
+                continue
+            index = binding.get("reference_index")
+            entity_id = str(binding.get("entity_id") or "")
+            label = str(binding.get("provider_entity_label") or "").strip()
+            indices.append(index)
+            bound_entities.append(entity_id)
+            if not isinstance(index, int) or isinstance(index, bool) or index < 1:
+                failures.append("provider-scope reference index is invalid")
+            if entity_id not in visible_ids:
+                failures.append("provider-scope reference owner is not a visible character")
+            if not label:
+                failures.append("provider-scope reference owner label is missing")
+            if binding.get("exclusive_identity_owner") is not True:
+                failures.append("provider-scope reference owner is not exclusive")
+        if len(indices) != len(set(indices)) or len(bound_entities) != len(set(bound_entities)):
+            failures.append("provider-scope reference bindings must be one-to-one")
+
+        absent = projection.get("absent_episode_entities")
+        if not isinstance(absent, list):
+            failures.append("provider scope requires an absent-entity catalog")
+            absent = []
+        absent_ids: list[str] = []
+        prompt_text = prompt if isinstance(prompt, str) else ""
+        searchable = prompt_text.casefold()
+        if not isinstance(compiler, MiniMaxH3Compiler):
+            positions = [
+                searchable.find(header)
+                for header in NEGATIVE_PROMPT_HEADERS
+                if searchable.find(header) >= 0
+            ]
+            if positions:
+                searchable = searchable[: min(positions)]
+        for row in absent:
+            if not isinstance(row, dict):
+                failures.append("provider-scope absent-entity entry is invalid")
+                continue
+            entity_id = str(row.get("entity_id") or "")
+            absent_ids.append(entity_id)
+            if not entity_id or entity_id in visible_ids:
+                failures.append("provider-scope absent entity identity is invalid")
+            terms = row.get("forbidden_provider_terms")
+            if not isinstance(terms, list):
+                failures.append("provider-scope absent entity terms are invalid")
+                continue
+            for term in terms:
+                token = str(term).strip().casefold()
+                if len(token) < 2:
+                    continue
+                if re.search(
+                    r"(?<![A-Za-z0-9_-])" + re.escape(token) + r"(?![A-Za-z0-9_-])",
+                    searchable,
+                ):
+                    failures.append(
+                        f"absent episode entity appears in provider prompt: {entity_id}"
+                    )
+        if len(absent_ids) != len(set(absent_ids)):
+            failures.append("provider-scope absent entity identities must be unique")
+
+        if isinstance(compiler, MiniMaxH3Compiler):
+            lowered = prompt_text.casefold()
+            for binding in bindings:
+                if not isinstance(binding, dict):
+                    continue
+                marker = f"@image{binding.get('reference_index')}:"
+                label = str(binding.get("provider_entity_label") or "").strip().casefold()
+                if marker not in lowered or not label or label not in lowered:
+                    failures.append("H3 provider prompt is missing an explicit reference mapping")
+                elif f"exactly one visible instance of {label}" not in lowered:
+                    failures.append("H3 provider prompt is missing visible-instance cardinality")
+            population_clause = (
+                f"render exactly {len(visible_ids)} living entity instances in total; "
+                "background population count=0; unbound living entity count=0"
+            ).casefold()
+            if population_clause not in lowered:
+                failures.append("H3 provider prompt is missing exclusive population scope")
+        return list(dict.fromkeys(failures))
 
     def validate_upstream_registry(self, registry_path: Path) -> list[str]:
         """Prove Nalu's compiler contracts still match the pinned Qingshan registry."""

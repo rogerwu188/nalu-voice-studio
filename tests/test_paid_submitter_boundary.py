@@ -1,11 +1,13 @@
 import hashlib
 import json
+from copy import deepcopy
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 from nalu_runtime.app import create_app
 from nalu_runtime.models import ProductionRun, RemoteTaskState, RunStatus
+from nalu_runtime.qingshan_compilers import ModelCompilerRegistry
 from nalu_runtime.remote_submitter import (
     AmbiguousPaidProviderResponse,
     PaidProviderAcceptance,
@@ -18,6 +20,12 @@ def canonical_sha256(value: dict) -> str:
         value, ensure_ascii=False, sort_keys=True, separators=(",", ":")
     )
     return hashlib.sha256(encoded.encode()).hexdigest()
+
+
+H3_ZERO_POPULATION_SCOPE = (
+    "\npopulation_scope: render exactly 0 living entity instances in total; "
+    "background population count=0; unbound living entity count=0"
+)
 
 
 def paid_request(prompt: str, **overrides: object) -> dict:
@@ -36,7 +44,7 @@ def paid_request(prompt: str, **overrides: object) -> dict:
     }
     protected = {key: value for key, value in camera_plan.items() if key != "lens_mm"}
     request = {
-        "prompt": prompt,
+        "prompt": prompt + H3_ZERO_POPULATION_SCOPE,
         "adapter_id": "nalu.qingshan.minimax-h3",
         "profile_id": "MINIMAX_H3_GIGGLE",
         "model": "MiniMax-H3",
@@ -62,6 +70,20 @@ def paid_request(prompt: str, **overrides: object) -> dict:
         },
         "visible_prop_ids": [],
         "prop_state_contracts": [],
+        "provider_scope_projection": {
+            "schema_version": "nalu.qingshan-provider-scope/v1",
+            "status": "LOCKED",
+            "visible_character_ids": [],
+            "visible_entity_instance_counts": {},
+            "exclusive_visible_living_entity_set": True,
+            "visible_living_entity_instance_total": 0,
+            "background_population_count": 0,
+            "unbound_visible_living_entity_count": 0,
+            "visible_prop_ids": [],
+            "reference_identity_bindings": [],
+            "absent_episode_entities": [],
+            "provider_reads_episode_global_contract_directly": False,
+        },
         "episode_scene_role": "OTHER_SCENE",
         "shot_state_delta_contract": {
             "mode": "CHANGE",
@@ -71,6 +93,13 @@ def paid_request(prompt: str, **overrides: object) -> dict:
         },
     }
     request.update(overrides)
+    if "provider_scope_projection" not in overrides and isinstance(
+        request.get("visible_prop_ids"), list
+    ):
+        request["provider_scope_projection"] = {
+            **request["provider_scope_projection"],
+            "visible_prop_ids": list(request["visible_prop_ids"]),
+        }
     return request
 
 
@@ -320,6 +349,7 @@ def test_paid_boundary_revalidates_package_approval_and_transport_guarantees(
         ),
         ({"visible_prop_ids": None}, "explicit visible-prop list"),
         ({"visible_prop_ids": ["case"], "prop_state_contracts": []}, "visible-prop order"),
+        ({"provider_scope_projection": None}, "provider-scope projection"),
         ({"episode_scene_role": None}, "explicit episode scene role"),
         (
             {
@@ -431,7 +461,7 @@ def test_paid_boundary_accepts_exact_10000_rune_provider_prompt(tmp_path: Path) 
     api = TestClient(create_app(tmp_path / "test.sqlite3", tmp_path / "data"))
     run = paid_run(api, tmp_path, run_id="run_paid_prompt_rune_boundary")
     transport = IdempotentFakeTransport()
-    request = paid_request("甲" * 10_000)
+    request = paid_request("甲" * (10_000 - len(H3_ZERO_POPULATION_SCOPE)))
 
     accepted = api.app.state.remote_task_submitter.submit_paid_task(
         run.id,
@@ -627,6 +657,104 @@ def test_writer_can_authorize_an_intentional_static_hold(tmp_path: Path) -> None
     )
 
     assert accepted.state == RemoteTaskState.SUBMITTED
+
+
+def test_provider_scope_is_model_aware_and_blocks_absent_entities() -> None:
+    registry = ModelCompilerRegistry()
+    scope = {
+        "schema_version": "nalu.qingshan-provider-scope/v1",
+        "status": "LOCKED",
+        "visible_character_ids": [],
+        "visible_entity_instance_counts": {},
+        "exclusive_visible_living_entity_set": True,
+        "visible_living_entity_instance_total": 0,
+        "background_population_count": 0,
+        "unbound_visible_living_entity_count": 0,
+        "visible_prop_ids": [],
+        "reference_identity_bindings": [],
+        "absent_episode_entities": [
+            {
+                "entity_id": "CHAR-CROW",
+                "forbidden_provider_terms": ["black crow"],
+            }
+        ],
+        "provider_reads_episode_global_contract_directly": False,
+    }
+    h3 = paid_request(
+        "Only the empty room is visible.\nnegative_constraints: no black crow",
+        provider_scope_projection=scope,
+    )
+    assert "absent episode entity appears in provider prompt: CHAR-CROW" in (
+        registry.validate_paid_boundary_request("MiniMax-H3", h3)
+    )
+
+    seedance = {
+        **h3,
+        "adapter_id": "nalu.qingshan.seedance2-pro",
+        "profile_id": "SEEDANCE_2_STANDARD_GIGGLE",
+        "model": "seedance-2.0-pro",
+        "provider_model_id": "seedance-2.0-pro",
+        "native_resolution_contract": "720p",
+        "delivery_resolution_contract": "720p",
+    }
+    assert registry.validate_paid_boundary_request("seedance-2.0-pro", seedance) == []
+
+
+def test_provider_scope_enforces_exclusive_identity_and_population() -> None:
+    registry = ModelCompilerRegistry()
+    scope = {
+        "schema_version": "nalu.qingshan-provider-scope/v1",
+        "status": "LOCKED",
+        "visible_character_ids": ["CHAR-LIN"],
+        "visible_entity_instance_counts": {"CHAR-LIN": 1},
+        "exclusive_visible_living_entity_set": True,
+        "visible_living_entity_instance_total": 1,
+        "background_population_count": 0,
+        "unbound_visible_living_entity_count": 0,
+        "visible_prop_ids": [],
+        "reference_identity_bindings": [
+            {
+                "reference_index": 1,
+                "entity_id": "CHAR-LIN",
+                "provider_entity_label": "Grandpa Lin",
+                "exclusive_identity_owner": True,
+            }
+        ],
+        "absent_episode_entities": [],
+        "provider_reads_episode_global_contract_directly": False,
+    }
+    request = paid_request("placeholder", provider_scope_projection=scope)
+    request["prompt"] = (
+        "@Image1: exclusive identity of Grandpa Lin; exactly one visible instance of "
+        "Grandpa Lin.\npopulation_scope: render exactly 1 living entity instances in "
+        "total; background population count=0; unbound living entity count=0"
+    )
+    assert registry.validate_paid_boundary_request("MiniMax-H3", request) == []
+
+    mutations = (
+        ("background_population_count", 1, "zero background population"),
+        ("unbound_visible_living_entity_count", 1, "zero unbound living entities"),
+        (
+            "provider_reads_episode_global_contract_directly",
+            True,
+            "episode-global contract access",
+        ),
+    )
+    for field, value, message in mutations:
+        changed = deepcopy(request)
+        changed["provider_scope_projection"][field] = value
+        assert any(
+            message in failure
+            for failure in registry.validate_paid_boundary_request("MiniMax-H3", changed)
+        )
+
+    changed_reference = deepcopy(request)
+    changed_reference["provider_scope_projection"]["reference_identity_bindings"][0][
+        "entity_id"
+    ] = "CHAR-ABSENT"
+    assert "provider-scope reference owner is not a visible character" in (
+        registry.validate_paid_boundary_request("MiniMax-H3", changed_reference)
+    )
 
 
 def test_only_submitter_source_invokes_paid_transport() -> None:

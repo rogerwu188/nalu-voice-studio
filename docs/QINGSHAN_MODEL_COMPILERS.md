@@ -55,6 +55,18 @@ prompt do not silently turn an explicitly noncombat scene into combat. Missing,
 conflicting, out-of-range, non-finite or resolution-drifted values fail before the
 transport is called.
 
+The version `1.6.0` compiler contract also requires a Nalu-owned
+`nalu.qingshan-provider-scope/v1` projection for every paid shot. The projection lists
+only the shot's visible character and prop IDs, requires exactly one visible instance
+per character, binds each reference index to one exclusive visible identity, and fixes
+background and unbound living-entity counts at zero. Episode characters absent from the
+shot are represented only as local forbidden-term checks; the episode-global story graph
+is explicitly unavailable to the provider. MiniMax H3 scans the complete rendered prompt,
+including negative clauses, and requires explicit `@ImageN` identity/cardinality plus an
+exclusive population clause. Seedance preserves its separate negative-prompt semantics
+and scans only positive provider content. Any missing, duplicated or contradictory scope
+fails before the durable submitter can call a transport.
+
 Each materialized workspace also contains the result of Qingshan's own gate-registry
 integrity checker. A known upstream release defect may be quarantined only by exact
 upstream commit, registry SHA-256 and failure list. A quarantine can keep local compilation

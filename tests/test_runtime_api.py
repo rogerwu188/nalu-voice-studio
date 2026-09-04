@@ -4795,6 +4795,14 @@ def test_qingshan_models_use_distinct_versioned_compilers(tmp_path: Path) -> Non
             "MOMENTUM",
         ],
         "intentional_hold_requires_writer_reason": True,
+        "provider_scope_projection_required": True,
+        "provider_scope_schema": "nalu.qingshan-provider-scope/v1",
+        "episode_global_contract_provider_access_forbidden": True,
+        "exclusive_visible_living_entity_set_required": True,
+        "zero_background_population_required": True,
+        "zero_unbound_living_entity_required": True,
+        "exclusive_reference_identity_owner_required": True,
+        "absent_episode_entity_prompt_scan_required": True,
     }
     assert h3["adapter_id"] == "nalu.qingshan.minimax-h3"
     assert h3["profile_id"] == "MINIMAX_H3_GIGGLE"
