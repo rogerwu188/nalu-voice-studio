@@ -818,6 +818,89 @@ def test_sealed_outputs_survive_library_edits_and_detect_file_tampering(
     assert damaged["failures"] == ["rendered output digest mismatch: E01_MASTER.mp4"]
 
 
+def test_rendered_output_seal_recovers_exactly_one_event_after_file_commit_crash(
+    tmp_path: Path,
+) -> None:
+    api = client(tmp_path)
+    _project, episode, _entity = approved_episode_with_library(api)
+    run = api.post(
+        f"/v1/episodes/{episode['id']}/production-runs",
+        json={"dry_run": True},
+    ).json()
+    api.app.state.repository.update_run_status(run["id"], RunStatus.QA_REVIEW)
+    run_directory = Path(run["package_path"]).parent
+    exports = run_directory / "qingshan-workspace" / "exports"
+    master_bytes = b"durable-master-before-event-crash"
+    (exports / "E01_MASTER.mp4").write_bytes(master_bytes)
+    (exports / "E01_zh-CN.vtt").write_text(
+        "WEBVTT\n\n00:00.000 --> 00:01.000\n回家\n", encoding="utf-8"
+    )
+    request = seal_payload()
+
+    repository = api.app.state.repository
+    with (
+        patch.object(
+            repository,
+            "append_run_event",
+            side_effect=RuntimeError("simulated exit before seal event commit"),
+        ),
+        pytest.raises(RuntimeError, match="simulated exit"),
+    ):
+        api.post(
+            f"/v1/production-runs/{run['id']}/rendered-output-seal",
+            json=request,
+        )
+
+    seal_path = run_directory / "rendered-output-seal.json"
+    durable_bytes = seal_path.read_bytes()
+    durable_sha256 = hashlib.sha256(durable_bytes).hexdigest()
+    assert not any(
+        event.event_type == "rendered_outputs_sealed"
+        for event in repository.list_run_events(run["id"])
+    )
+
+    restarted = client(tmp_path)
+    (exports / "E01_MASTER.mp4").write_bytes(b"changed-after-seal")
+    rejected = restarted.post(
+        f"/v1/production-runs/{run['id']}/rendered-output-seal",
+        json=request,
+    )
+    assert rejected.status_code == 409
+    assert "already sealed" in rejected.text
+    assert not any(
+        event["event_type"] == "rendered_outputs_sealed"
+        for event in restarted.get(f"/v1/production-runs/{run['id']}/events").json()
+    )
+    (exports / "E01_MASTER.mp4").write_bytes(master_bytes)
+
+    recovered = restarted.post(
+        f"/v1/production-runs/{run['id']}/rendered-output-seal",
+        json=request,
+    )
+    assert recovered.status_code == 201, recovered.text
+    assert seal_path.read_bytes() == durable_bytes
+    assert hashlib.sha256(seal_path.read_bytes()).hexdigest() == durable_sha256
+    events = restarted.get(f"/v1/production-runs/{run['id']}/events").json()
+    seal_events = [event for event in events if event["event_type"] == "rendered_outputs_sealed"]
+    assert len(seal_events) == 1
+    assert seal_events[0]["payload"]["manifest_sha256"] == recovered.json()["manifest_sha256"]
+    assert seal_events[0]["payload"]["recovered_after_restart"] is True
+
+    duplicate = restarted.post(
+        f"/v1/production-runs/{run['id']}/rendered-output-seal",
+        json=request,
+    )
+    assert duplicate.status_code == 409
+    assert "already sealed" in duplicate.text
+    assert len(
+        [
+            event
+            for event in restarted.get(f"/v1/production-runs/{run['id']}/events").json()
+            if event["event_type"] == "rendered_outputs_sealed"
+        ]
+    ) == 1
+
+
 def test_verified_seal_and_human_qa_complete_atomically_and_retry_safely(
     tmp_path: Path,
 ) -> None:

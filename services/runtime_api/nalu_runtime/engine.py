@@ -636,7 +636,35 @@ class ProductionService:
         try:
             publish_exclusive_text(seal_path, seal.model_dump_json(indent=2) + "\n")
         except FileExistsError as exc:
-            raise ConflictError("rendered outputs are already sealed for this run") from exc
+            try:
+                existing = RenderedOutputSeal.model_validate_json(
+                    seal_path.read_text(encoding="utf-8")
+                )
+                existing_body = existing.model_dump(mode="json", exclude={"manifest_sha256"})
+                exact_recovery = (
+                    self._canonical_sha256(existing_body) == existing.manifest_sha256
+                    and existing.run_id == run.id
+                    and existing.project_id == run.project_id
+                    and existing.episode_id == run.episode_id
+                    and existing.production_package_sha256 == package_hash
+                    and existing.resolved_library_sha256
+                    == self._canonical_sha256(package.get("resolved_library", []))
+                    and existing.workspace_manifest_sha256
+                    == self._sha256_file(workspace_manifest)
+                    and existing.artifacts == artifacts
+                    and existing.sealed_by == request.sealed_by
+                )
+            except (OSError, ValueError):
+                exact_recovery = False
+            if not exact_recovery:
+                raise ConflictError("rendered outputs are already sealed for this run") from exc
+            self.repository.recover_rendered_output_seal_event(
+                run.id,
+                manifest_path=str(seal_path),
+                manifest_sha256=existing.manifest_sha256,
+                artifact_count=len(existing.artifacts),
+            )
+            return existing
         for artifact in artifacts:
             secure_file(exports_root / artifact.relative_path)
         self.repository.append_run_event(

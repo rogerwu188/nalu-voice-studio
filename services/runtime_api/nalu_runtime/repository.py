@@ -7781,6 +7781,58 @@ class Repository:
             )
         return self.get_run_event(event_id)
 
+    def recover_rendered_output_seal_event(
+        self,
+        run_id: str,
+        *,
+        manifest_path: str,
+        manifest_sha256: str,
+        artifact_count: int,
+    ) -> RunEvent:
+        """Record the missing audit event for an already durable, verified output seal."""
+        event_id, now = new_id("evt"), utc_now()
+        with self.db.connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            run = connection.execute(
+                "SELECT status FROM production_runs WHERE id = ?", (run_id,)
+            ).fetchone()
+            if run is None:
+                raise NotFoundError("production run not found")
+            prior = connection.execute(
+                """SELECT id FROM run_events
+                   WHERE run_id = ? AND event_type = 'rendered_outputs_sealed'
+                   ORDER BY sequence DESC LIMIT 1""",
+                (run_id,),
+            ).fetchone()
+            if prior is not None:
+                raise ConflictError("rendered outputs are already sealed for this run")
+            row = connection.execute(
+                "SELECT COALESCE(MAX(sequence), 0) + 1 AS sequence FROM run_events WHERE run_id = ?",
+                (run_id,),
+            ).fetchone()
+            connection.execute(
+                "INSERT INTO run_events VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    event_id,
+                    run_id,
+                    int(row["sequence"]),
+                    "rendered_outputs_sealed",
+                    run["status"],
+                    run["status"],
+                    "Rendered outputs were sealed for release-blocking QA.",
+                    encode(
+                        {
+                            "manifest_path": manifest_path,
+                            "manifest_sha256": manifest_sha256,
+                            "artifact_count": artifact_count,
+                            "recovered_after_restart": True,
+                        }
+                    ),
+                    now,
+                ),
+            )
+        return self.get_run_event(event_id)
+
     def get_run_event(self, event_id: str) -> RunEvent:
         with self.db.connect() as connection:
             row = connection.execute(
