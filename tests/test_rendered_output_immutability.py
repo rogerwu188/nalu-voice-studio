@@ -1518,7 +1518,7 @@ def test_visual_continuity_redecodes_frames_and_creates_domain_repair(
     }
 
 
-def test_runtime_materializes_postproduction_and_recovers_after_promotion_and_state_crashes(
+def test_runtime_materializes_postproduction_and_recovers_after_state_commit_crash(
     tmp_path: Path,
 ) -> None:
     api = client(tmp_path)
