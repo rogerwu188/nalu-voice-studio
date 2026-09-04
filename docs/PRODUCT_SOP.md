@@ -2433,6 +2433,24 @@ Current evidence:
   No provider lookup, paid call, production or publication write occurred. This closes
   publication-metrics request rederivation only, not authorized platform observation,
   human acceptance, signing, notarization or SOP-10.
+- Product commit `5fa7c7c9188b61582ae5e554ab7f32697f56c00d`, GitHub CI run
+  `33921816830`: every director-strategy read now regenerates its observations and
+  directives from the independently validated publication metrics and compares the
+  immutable constraints and safety-state facts against their deterministic values.
+  Strategies must also share their creation instant with the source snapshot. Negative
+  fixtures independently replaced the observations, directives and constraints and
+  recomputed each outer strategy digest; all three variants failed closed. The isolated
+  native fixture now contains the exact derived advice and constraints exercised by the
+  packaged application. All 278 Runtime tests and the Runtime, Apple Silicon, Intel and
+  Universal jobs passed, including bundled-Runtime smoke, native publication-learning
+  evidence, staged update, populated rollback and controlled-evolution checks. Runtime QA
+  artifact `9955382577` has digest
+  `sha256:dd314ace711fbccee2be4c529d9cad49a37ab1ff4a3f81745cfc116b4dae6b48`;
+  Universal artifact `9955569115` has digest
+  `sha256:3271c3e045c448063e69d7f1d5d0bf196d5277eddea8536cabb5e7765e105b94`.
+  No provider lookup, paid call, production or publication write occurred. This closes
+  deterministic director-strategy content rederivation only, not authorized platform
+  observation, human acceptance, signing, notarization or SOP-10.
 
 ## SOP-11 · macOS packaging, updates and operations — IN_PROGRESS
 
