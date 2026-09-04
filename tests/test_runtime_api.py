@@ -23,8 +23,10 @@ from nalu_runtime.feedback_export import (
     IssueTrackerLookup,
     IssueTrackerReceipt,
 )
+from nalu_runtime.models import ScriptRevisionCreate
 from nalu_runtime.qingshan_adapter import QingshanAdapterError
 from nalu_runtime.release_evidence import ReleaseEvidenceVerification
+from nalu_runtime.repository import ConflictError
 
 
 def client(tmp_path: Path) -> TestClient:
@@ -2109,6 +2111,110 @@ def test_script_history_stale_approval_and_revocation(tmp_path: Path) -> None:
         f"/v1/episodes/{episode['id']}/production-runs",
         json={"dry_run": True},
         headers={"Idempotency-Key": "revoked-script"},
+    )
+    assert blocked.status_code == 409
+
+
+def test_script_creation_rechecks_authority_after_stale_preflight(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    api = client(tmp_path)
+    plan = api.post(
+        "/v1/project-plans",
+        json={"project": {"title": "并发批准边界", "planned_episode_count": 1}},
+    ).json()
+    episode_id = plan["episodes"][0]["id"]
+    first = api.post(
+        f"/v1/episodes/{episode_id}/scripts",
+        json={"content": "已审阅版本", "summary_for_voice_review": "已审阅摘要"},
+    ).json()
+    repository = api.app.state.repository
+    stale_review_state = repository.get_episode(episode_id)
+    approved = api.post(
+        f"/v1/episodes/{episode_id}/scripts/{first['revision']}/approve",
+        json={"approved_by": "user", "spoken_confirmation": "确认已审阅版本"},
+    )
+    assert approved.status_code == 200
+    run = api.post(
+        f"/v1/episodes/{episode_id}/production-runs",
+        json={"dry_run": True},
+        headers={"Idempotency-Key": "script-authority-stale-preflight"},
+    )
+    assert run.status_code == 201
+    assert api.get(f"/v1/episodes/{episode_id}").json()["status"] == "preproduction"
+
+    original_get_episode = repository.get_episode
+    preflight_calls = 0
+
+    def stale_preflight_once(requested_episode_id: str):
+        nonlocal preflight_calls
+        preflight_calls += 1
+        if preflight_calls == 1:
+            return stale_review_state
+        return original_get_episode(requested_episode_id)
+
+    monkeypatch.setattr(repository, "get_episode", stale_preflight_once)
+    with pytest.raises(ConflictError, match="preproduction"):
+        repository.create_script(
+            episode_id,
+            ScriptRevisionCreate(
+                content="并发到达但不允许写入的新版本",
+                summary_for_voice_review="不应保存",
+            ),
+        )
+
+    monkeypatch.setattr(repository, "get_episode", original_get_episode)
+    stored = api.get(f"/v1/episodes/{episode_id}").json()
+    assert stored["status"] == "preproduction"
+    assert stored["approved_script_revision"] == first["revision"]
+    assert [row["revision"] for row in api.get(f"/v1/episodes/{episode_id}/scripts").json()] == [
+        first["revision"]
+    ]
+
+
+def test_correction_after_approval_invalidates_current_script_authority(tmp_path: Path) -> None:
+    api = client(tmp_path)
+    plan = api.post(
+        "/v1/project-plans",
+        json={"project": {"title": "批准后修订", "planned_episode_count": 1}},
+    ).json()
+    episode_id = plan["episodes"][0]["id"]
+    first = api.post(
+        f"/v1/episodes/{episode_id}/scripts",
+        json={"content": "第一版", "summary_for_voice_review": "第一版摘要"},
+    ).json()
+    assert (
+        api.post(
+            f"/v1/episodes/{episode_id}/scripts/{first['revision']}/approve",
+            json={"approved_by": "user", "spoken_confirmation": "确认第一版"},
+        ).status_code
+        == 200
+    )
+
+    second = api.post(
+        f"/v1/episodes/{episode_id}/scripts",
+        json={
+            "content": "根据用户意见修正的第二版",
+            "summary_for_voice_review": "第二版摘要",
+            "source_transcript": "人物年龄需要改正",
+        },
+    )
+    assert second.status_code == 201
+    stored = api.get(f"/v1/episodes/{episode_id}").json()
+    assert stored["status"] == "script_review"
+    assert stored["approved_script_revision"] is None
+    assert [row["revision"] for row in api.get(f"/v1/episodes/{episode_id}/scripts").json()] == [
+        1,
+        2,
+    ]
+    records = api.get(f"/v1/episodes/{episode_id}/script-approvals").json()
+    assert [(row["script_revision"], row["action_type"]) for row in records] == [
+        (1, "script_approved")
+    ]
+    blocked = api.post(
+        f"/v1/episodes/{episode_id}/production-runs",
+        json={"dry_run": True},
+        headers={"Idempotency-Key": "corrected-script-without-fresh-approval"},
     )
     assert blocked.status_code == 409
 

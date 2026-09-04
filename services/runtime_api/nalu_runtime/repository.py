@@ -5009,6 +5009,19 @@ class Repository:
         now = utc_now()
         with self.db.connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
+            current = connection.execute(
+                "SELECT status FROM episodes WHERE id = ?", (episode_id,)
+            ).fetchone()
+            if current is None:
+                raise NotFoundError("episode not found")
+            current_status = EpisodeStatus(current["status"])
+            if (
+                EpisodeStatus.SCRIPT_REVIEW not in EPISODE_TRANSITIONS[current_status]
+                and current_status != EpisodeStatus.SCRIPT_REVIEW
+            ):
+                raise ConflictError(
+                    f"cannot create a script revision while episode is {current_status}"
+                )
             row = connection.execute(
                 "SELECT COALESCE(MAX(revision), 0) + 1 AS revision FROM script_revisions WHERE episode_id = ?",
                 (episode_id,),
@@ -5028,14 +5041,15 @@ class Repository:
                 ),
             )
             connection.execute(
-                "UPDATE episodes SET status = ?, updated_at = ? WHERE id = ?",
+                """UPDATE episodes SET status = ?, approved_script_revision = NULL,
+                   updated_at = ? WHERE id = ?""",
                 (EpisodeStatus.SCRIPT_REVIEW, now, episode.id),
             )
-            if episode.status != EpisodeStatus.SCRIPT_REVIEW:
+            if current_status != EpisodeStatus.SCRIPT_REVIEW:
                 self._record_episode_transition(
                     connection,
                     episode_id,
-                    episode.status,
+                    current_status,
                     EpisodeStatus.SCRIPT_REVIEW,
                     "script-service",
                     f"script revision {revision} created",
