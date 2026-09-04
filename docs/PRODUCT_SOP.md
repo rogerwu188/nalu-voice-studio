@@ -1388,6 +1388,27 @@ Current evidence:
   No credential, provider request or paid call was used. This closes `.6` discovery,
   quarantine and reproducible candidate QA only, not promotion, real-provider QA or
   SOP-07.
+- Product commit `4e16816993f122e4962562e2caebba230c6c1ba8`, GitHub CI run
+  `33924635219`: Nalu compiler contract `1.6.0` now requires its own versioned per-shot
+  provider-scope projection at the durable paid boundary. The validator requires an
+  exclusive visible-character set with exactly one instance per character, zero
+  background and unbound living entities, a visible-prop list matching the request,
+  one-to-one exclusive reference-image ownership, an absent-episode-entity catalog and
+  an explicit prohibition on provider access to the episode-global contract. MiniMax H3
+  scans the entire rendered prompt, including negative clauses, and requires explicit
+  reference/cardinality and total-population text; Seedance preserves its separate
+  negative-prompt semantics and scans positive provider content. Missing scope, relinked
+  references, nonzero hidden population and model-specific absent-entity leakage all
+  fail before the sole provider transport call. All 281 Runtime tests and the Runtime,
+  Apple Silicon, Intel and Universal jobs passed, including the isolated `.6` upstream
+  audit, bundled-Runtime smoke, staged update, populated rollback and controlled-
+  evolution checks. Runtime QA artifact `9956391445` has digest
+  `sha256:5b8213a0e7bc9eac93d7e1ff92fe36cad48b0250071e35fb8fe2a83a9dd9efbe`;
+  Universal artifact `9956558619` has digest
+  `sha256:926545abec5ebf1b46dd57d67bd5bce724606bfda31cb3602e777011f010d81e`.
+  No provider transport, credential or paid call was used. This closes the local
+  provider-visible scope-validation checkpoint only, not package-derived scope authority,
+  real-provider QA, corrected upstream promotion or SOP-07.
 - Still required before `PASS`: a corrected pinned Qingshan release whose registry
   integrity and complete registered tests pass, plus authorized real-provider sandbox
   task/result/receipt evidence. Offline authority and transport doubles are not a paid
