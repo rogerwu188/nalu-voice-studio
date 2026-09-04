@@ -62,7 +62,7 @@ def test_candidate_audit_is_quarantined_and_fail_closed() -> None:
     assert audit["registered_test_execution_performed"] is True
     assert audit["registered_test_status"] == "PASS"
     assert audit["registered_test_module_count"] == 33
-    assert audit["registered_portable_test_count"] == 208
+    assert audit["registered_portable_test_count"] == 209
     assert audit["registered_portable_skipped_count"] == 1
     assert audit["registered_writer_test_count"] == 6
     assert audit["registered_test_failures"] == []

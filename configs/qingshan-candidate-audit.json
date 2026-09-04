@@ -1,9 +1,9 @@
 {
   "schema_version": "nalu.qingshan-candidate-audit/v1",
   "repository": "rogerwu188/qingshan-short-drama-production-line",
-  "candidate_release": "v2026.09.03.7",
-  "candidate_commit": "a6264982b0548d3807de16e7d9979d79c4ba48b3",
-  "candidate_tree_sha256": "bd958b67953c03ccbdaf06b0c78a56172cf2c8d4898c771a8d69dc30b633bc13",
+  "candidate_release": "v2026.09.03.8",
+  "candidate_commit": "207ee38b18a635b200e0dbdba0815cafbd73ee28",
+  "candidate_tree_sha256": "dc432d79633511e4ddae6f7b6adc2560b91efc140fba8ae199f86494645d5250",
   "gate_registry_path": "configs/GATE_REGISTRY_v3_20260716.json",
   "gate_registry_sha256": "0b7d478904638f0d9e22452971b7aa8d95b9e7445355b53e364ff187fd0613a4",
   "public_interface_status": "FAIL",
@@ -52,12 +52,12 @@
   "registered_test_execution_performed": true,
   "registered_test_status": "PASS",
   "registered_test_module_count": 33,
-  "registered_portable_test_count": 208,
+  "registered_portable_test_count": 209,
   "registered_portable_skipped_count": 1,
   "registered_writer_test_count": 6,
   "registered_test_failures": [],
   "promotion_status": "QUARANTINED",
   "paid_execution_allowed": false,
   "replaces_active_pin": false,
-  "audited_at": "2026-09-03T23:13:48Z"
+  "audited_at": "2026-09-04T00:42:19Z"
 }
