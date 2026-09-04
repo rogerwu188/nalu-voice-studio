@@ -2113,6 +2113,59 @@ def test_script_history_stale_approval_and_revocation(tmp_path: Path) -> None:
     assert blocked.status_code == 409
 
 
+def test_child_script_approval_requires_guardian_and_records_only_authorized_attempt(
+    tmp_path: Path,
+) -> None:
+    api = client(tmp_path)
+    plan = api.post(
+        "/v1/project-plans",
+        json={
+            "project": {
+                "title": "小朋友的动画故事",
+                "audience_mode": "child",
+                "planned_episode_count": 1,
+                "creative_format": "animation_series",
+                "production_pipeline": "unassigned",
+            }
+        },
+    ).json()
+    episode = plan["episodes"][0]
+    script = api.post(
+        f"/v1/episodes/{episode['id']}/scripts",
+        json={
+            "content": "第一版儿童动画剧本",
+            "summary_for_voice_review": "小主人公帮助迷路的小鸟回家。",
+            "source_transcript": "我想讲一个帮助小鸟的故事。",
+        },
+    ).json()
+    endpoint = f"/v1/episodes/{episode['id']}/scripts/{script['revision']}/approve"
+
+    blocked = api.post(
+        endpoint,
+        json={"approved_by": "child-user", "spoken_confirmation": "我确认这个剧本"},
+    )
+    assert blocked.status_code == 409
+    assert api.get(f"/v1/episodes/{episode['id']}/script-approvals").json() == []
+    unchanged = api.get(f"/v1/episodes/{episode['id']}").json()
+    assert unchanged["status"] == "script_review"
+    assert unchanged["approved_script_revision"] is None
+
+    approved = api.post(
+        endpoint,
+        json={
+            "approved_by": "guardian",
+            "spoken_confirmation": "监护人确认这个剧本",
+            "guardian_approval": True,
+        },
+    )
+    assert approved.status_code == 200
+    assert approved.json()["approved_at"] is not None
+    records = api.get(f"/v1/episodes/{episode['id']}/script-approvals").json()
+    assert len(records) == 1
+    assert records[0]["guardian_approval"] is True
+    assert records[0]["action_type"] == "script_approved"
+
+
 def test_script_authoring_provenance_is_versioned_hash_bound_and_fail_closed(
     tmp_path: Path,
 ) -> None:

@@ -32,6 +32,7 @@ SCENARIOS = [
         "tests": [
             "tests/test_continuity_extraction.py::test_user_edits_require_explanation_and_child_confirmation_requires_guardian",
             "tests/test_runtime_api.py::test_feedback_is_local_redacted_and_child_sharing_fails_closed",
+            "tests/test_runtime_api.py::test_child_script_approval_requires_guardian_and_records_only_authorized_attempt",
         ],
         "remaining_real_evidence": [
             "guardian-supervised clean-install voice session",
