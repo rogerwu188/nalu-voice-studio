@@ -436,6 +436,21 @@ Current evidence:
   `sha256:6f2ae32c3b9dc03aa139fbba343287be377dbd748d38dff7fc76cbb656ac4cb6`.
   This closes the machine-verifiable authoring-provenance checkpoint, not SOP-04;
   the human acceptance criteria below remain outstanding.
+- Commit `9833034a83e4eb57bdbe7e5d70afb792fb909f2c`, GitHub CI run
+  `33841511551`, Runtime QA artifact `9925110578` (artifact digest
+  `sha256:7329c2e1c7a741ace522188aa138dacde41176979e9f270fc5b6d74e998e63a7`)
+  and Universal artifact `9925171593` (artifact digest
+  `sha256:b6bdf007e67c25a2e706f9c9119d063d2526e05a0165e5b36f56035c95b96ad2`):
+  the child-script approval boundary now has a direct negative fixture proving that an
+  unaccompanied approval returns conflict, creates no approval audit row and leaves the
+  episode in script review; only a subsequent guardian-authorized confirmation creates
+  the single approval record. The 20-test offline structure rehearsal binds this case
+  alongside correction/history, stale/revoked approval, production blocking and sealed
+  provenance/export restoration, with evidence digest
+  `be6186ba12bdea6d29baad4df68b603671bfb77b770dc26ecde667ba6a3925d8`.
+  CI passed 194 Runtime tests, both native Swift suites and architecture builds,
+  Universal merge, bundle smoke, staged update and rollback. This closes the missing
+  deterministic guardian-negative checkpoint, not human spoken-summary acceptance.
 - Still required before `PASS`: human spoken-summary fidelity QA and clean-account
   voice correction/approval evidence; implementation and synthesized playback alone
   do not satisfy the human acceptance criterion.
