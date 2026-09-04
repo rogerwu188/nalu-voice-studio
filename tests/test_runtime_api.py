@@ -23,7 +23,7 @@ from nalu_runtime.feedback_export import (
     IssueTrackerLookup,
     IssueTrackerReceipt,
 )
-from nalu_runtime.models import ScriptRevisionCreate
+from nalu_runtime.models import AssetDependencyReport, ScriptRevisionCreate
 from nalu_runtime.qingshan_adapter import QingshanAdapterError
 from nalu_runtime.release_evidence import ReleaseEvidenceVerification
 from nalu_runtime.repository import ConflictError
@@ -3389,6 +3389,54 @@ def test_asset_dependency_blocks_deletion_after_snapshot(tmp_path: Path) -> None
     assert report["can_delete"] is False
     assert len(report["production_run_ids"]) == 1
     assert api.delete(f"/v1/assets/{imported['id']}").status_code == 409
+
+
+def test_asset_deletion_rechecks_dependencies_after_stale_preflight(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    api = client(tmp_path)
+    project, _, episode = create_approved_episode(api)
+    imported = api.post(
+        f"/v1/projects/{project['id']}/asset-imports",
+        params={
+            "filename": "locked-room.jpg",
+            "kind": "scene_reference",
+            "name": "已进入快照的老屋",
+        },
+        content=b"immutable-scene-image",
+        headers={"Content-Type": "image/jpeg"},
+    ).json()
+    stored_path = Path(unquote(urlparse(imported["local_uri"]).path))
+    run = api.post(
+        f"/v1/episodes/{episode['id']}/production-runs",
+        json={"dry_run": True},
+        headers={"Idempotency-Key": "stale-asset-deletion-preflight"},
+    ).json()
+    repository = api.app.state.repository
+    monkeypatch.setattr(
+        repository,
+        "asset_dependency_report",
+        lambda asset_id: AssetDependencyReport(
+            asset_id=asset_id,
+            can_delete=True,
+            production_run_ids=[],
+            explanation="stale preflight reported no dependencies",
+        ),
+    )
+
+    rejected = api.delete(f"/v1/assets/{imported['id']}")
+
+    assert rejected.status_code == 409
+    assert "immutable production snapshots" in rejected.text
+    assert stored_path.read_bytes() == b"immutable-scene-image"
+    with repository.db.connect() as connection:
+        assert connection.execute(
+            "SELECT id FROM assets WHERE id = ?", (imported["id"],)
+        ).fetchone()
+        assert connection.execute(
+            "SELECT run_id FROM production_run_assets WHERE asset_id = ?",
+            (imported["id"],),
+        ).fetchone()["run_id"] == run["id"]
 
 
 def test_complete_privacy_export_and_confirmed_project_deletion(tmp_path: Path) -> None:

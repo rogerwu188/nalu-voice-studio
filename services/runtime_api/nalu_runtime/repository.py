@@ -5740,10 +5740,19 @@ class Repository:
         )
 
     def delete_asset_record(self, asset_id: str) -> None:
-        report = self.asset_dependency_report(asset_id)
-        if not report.can_delete:
-            raise ConflictError(report.explanation)
         with self.db.connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            asset = connection.execute(
+                "SELECT id FROM assets WHERE id = ?", (asset_id,)
+            ).fetchone()
+            if asset is None:
+                raise NotFoundError("asset not found")
+            dependency = connection.execute(
+                "SELECT run_id FROM production_run_assets WHERE asset_id = ? LIMIT 1",
+                (asset_id,),
+            ).fetchone()
+            if dependency is not None:
+                raise ConflictError("asset is referenced by immutable production snapshots")
             connection.execute("DELETE FROM assets WHERE id = ?", (asset_id,))
 
     @staticmethod
