@@ -2307,6 +2307,24 @@ Current evidence:
   `sha256:fd017b67088694b74fb3667096b8c4dd83137fc755348b5477cbc0322ec1a357`.
   This closes cross-entity release-artifact replay only, not derived-content revalidation,
   authorized publication, human acceptance, signing, notarization or SOP-10.
+- Product commit `1fbee021dd3849e66649d4783f28017b6ae51a68`, GitHub CI run
+  `33888340689`: stored release packages now independently regenerate their expected
+  artifact inventory from the current output seal, reload all five release-blocking QA
+  reports and require their current PASS digests, while stored publication dry-runs
+  independently recompute the approval/platform binding, creation time, duplicate guard,
+  adapter version and compiled adapter plan. Regression fixtures rewrote each artifact
+  into a different but internally self-consistent JSON document and recomputed its outer
+  digest; altered sealed artifacts, QA bindings, duplicate guards, adapter versions and
+  upload-capable compiled plans were all rejected before replay or reconciliation. All
+  278 Runtime tests and the Runtime, Apple Silicon, Intel and Universal jobs passed,
+  including bundled-Runtime smoke, project isolation, staged update, populated rollback
+  and controlled-evolution checks. Runtime QA artifact `9942921540` has digest
+  `sha256:dbb10757485c0b225eb487282dcdc13ff683eebf1f695857d7e46e5097d4c8ec`;
+  Universal artifact `9943088344` has digest
+  `sha256:379e8ec53c061a8eb1909662ea562f9a24824de56be5c31502b226b1de0cb91a`.
+  No provider, paid or publication network operation occurred. This closes derived-content
+  revalidation for local release artifacts only, not authorized test-channel publication,
+  remote reconciliation, human acceptance, signing, notarization or SOP-10.
 
 ## SOP-11 · macOS packaging, updates and operations — IN_PROGRESS
 
