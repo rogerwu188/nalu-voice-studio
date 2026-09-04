@@ -11,26 +11,26 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "0c4a3dff3869ddd56c5dc23cee8fbfa47dbaf7ef",
-  "last_advanced_at": "2026-09-04T06:55:29Z",
+  "observed_head": "6f14ee495454789591157553611c54d98e099128",
+  "last_advanced_at": "2026-09-04T07:16:08Z",
   "last_closed_checkpoint": {
-    "id": "revalidate-current-universal-postproduction-gates",
-    "sop": "SOP-09",
-    "product_commit": "25e66fb97158c199bd5fc4688a4c813d5377ed83",
-    "evidence_commit": "0c4a3dff3869ddd56c5dc23cee8fbfa47dbaf7ef",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33845612268",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33845612268/artifacts/9926536313",
+    "id": "bind-current-publication-learning-fixture-evidence",
+    "sop": "SOP-10",
+    "product_commit": "7fad3c5a2c074bee6e40ef8fedfd41a7679e7260",
+    "evidence_commit": "6f14ee495454789591157553611c54d98e099128",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33847084151",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33847084151/artifacts/9927090722",
     "result": "PASS"
   },
   "current_checkpoint": {
-    "sop": "SOP-10",
+    "sop": "SOP-11",
     "status": "IN_PROGRESS",
-    "summary": "The current Universal candidate is now independently bound to its downloaded ZIP, passed packaged postproduction and visual-input harnesses, survived Runtime restart with all artifacts rehashed and no duplicate event, and rejected both tampered source evidence and missing held-prop authority. Synthetic perceptual output remained FAIL and no human acceptance is claimed; SOP-09 still requires real on-device Speech, real consented media and original-resolution human review. Safe work advances to current-candidate offline release and learning evidence in SOP-10."
+    "summary": "The current Universal artifact's publication-learning report, application ZIP, checksum manifest, GitHub artifact digest and exact source commit are now independently bound by a reusable fail-closed verifier. CI and a fresh repository-external download passed while report, release and artifact substitutions fail closed. No publication, paid call or production-data mutation occurred, and SOP-10 still requires authorized real-platform reconciliation plus human and signed/notarized evidence. Safe work advances to the current candidate's update and rollback evidence in SOP-11."
   },
   "next_action": {
-    "sop": "SOP-10",
-    "id": "bind-current-publication-learning-fixture-evidence",
-    "summary": "Independently validate the current Universal artifact's packaged publication-learning report, canonical digest and no-write/no-publication claims; add a reusable fail-closed verifier and negative fixtures if the report currently relies only on CI log presence.",
+    "sop": "SOP-11",
+    "id": "bind-current-update-rollback-evidence",
+    "summary": "Independently validate the current Universal artifact's staged-update and populated rollback reports, their canonical digests and protected-data claims; add a reusable fail-closed verifier and substitution/tampering fixtures if these reports are not yet cryptographically bound to the downloaded artifact and exact source commit.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
