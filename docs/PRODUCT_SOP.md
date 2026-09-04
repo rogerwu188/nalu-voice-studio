@@ -405,6 +405,30 @@ Current evidence:
   `00d6d4cffa578498d4fdef3b30e69175bf60bc6ac0e28926dabc9d6f1e147012`.
   This revalidates deterministic restart/export/import on the current unsigned candidate;
   it does not replace clean-account native-window or accessibility acceptance.
+- Commit `c79246bdd31ead6e7068590bee6b967a51fe6fb3`, GitHub CI run
+  `33853153296`, Runtime QA artifact `9929181849` and Universal artifact
+  `9929332807` (artifact digest
+  `sha256:20d4178e9c536b3c10ac480ab327783a4922a227ee42a8f842d8fe85fcc884ac`):
+  a dedicated loopback-only planning-isolation rehearsal now starts three project plans
+  concurrently, creates ten ordered episodes in each, proves every project/season/episode
+  identifier set is disjoint, and verifies that editing one project leaves the other two
+  byte-semantically unchanged. It then approves and locks one episode, rejects a later
+  overwrite, exports all three projects, restores them into a clean SQLite database and
+  confirms identical planning state. A structurally cross-linked season remains rejected
+  even after its outer export digest is recomputed. The same rehearsal passed once against
+  source and again against the Runtime embedded in the merged Universal app. The downloaded
+  report is bound to the exact source commit, schema `26`, snapshot digest
+  `c9c5f9c6dcb77e4fcdee02201ea3d8a0b29785fa29b369b084e5d0dff89bee3f`
+  and report digest
+  `4864982bbeb7173ce44725762237518b6a1a6418a8ae08cbf8c58d9b8e74bfb9`;
+  its file digest is
+  `20941e6a10d0aa03dec05fe569f6157199b76e3d00f726baf267e3cb28412737`,
+  and the packaged zip matches its declared checksum
+  `1e6df83093c7d10760a2bd9252f99b3c532c7911ff9d3627e3ed61df554ad547`.
+  CI passed 234 Runtime tests, both native suites and architecture builds, Universal merge,
+  bundle smoke, staged update and rollback. No user database, provider, paid call or external
+  write was used. This closes deterministic current-candidate planning isolation, not the
+  outstanding clean-account human voice/accessibility acceptance.
 - Still required before `PASS`: clean-account voice-only, accessibility and restart/import
   QA evidence on the same release candidate. Implementation alone is not acceptance.
 
