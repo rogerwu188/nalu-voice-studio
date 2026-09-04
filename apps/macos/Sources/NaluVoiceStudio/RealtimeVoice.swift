@@ -691,6 +691,7 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
     <!doctype html><html><body><script>
     window.naluRealtime = (() => {
       let pc = null, dc = null, stream = null, audio = null, disconnectTimer = null;
+      let promptTimer = null, promptGeneration = 0;
       let responseActive = false;
       let stopping = false, failurePosted = false;
       const post = (kind, value) => window.webkit.messageHandlers.naluRealtime.postMessage({kind, value});
@@ -803,6 +804,9 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
         if (intentional) stopping = true;
         if (disconnectTimer) clearTimeout(disconnectTimer);
         disconnectTimer = null;
+        promptGeneration += 1;
+        if (promptTimer) clearTimeout(promptTimer);
+        promptTimer = null;
         if (dc) dc.close();
         if (pc) pc.close();
         if (stream) stream.getTracks().forEach(track => track.stop());
@@ -831,8 +835,13 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
           post("error", "当前问题格式不正确，请重新连接");
           return;
         }
+        const generation = ++promptGeneration;
+        const wasWaitingForCancellation = promptTimer !== null;
+        if (promptTimer) clearTimeout(promptTimer);
+        promptTimer = null;
         const createPromptResponse = () => {
-          if (!dc || dc.readyState !== "open") return;
+          promptTimer = null;
+          if (generation !== promptGeneration || !dc || dc.readyState !== "open") return;
           post("status", "thinking");
           dc.send(JSON.stringify({
             type: "conversation.item.create",
@@ -853,10 +862,10 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
             }
           }));
         };
-        if (responseActive) {
-          dc.send(JSON.stringify({type: "response.cancel"}));
+        if (responseActive || wasWaitingForCancellation) {
+          if (responseActive) dc.send(JSON.stringify({type: "response.cancel"}));
           responseActive = false;
-          setTimeout(createPromptResponse, 100);
+          promptTimer = setTimeout(createPromptResponse, 100);
         } else {
           createPromptResponse();
         }

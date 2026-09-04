@@ -119,6 +119,9 @@ secrets or request details into UI capture, feedback or support material.
   `input_text` JSON envelope. The following `response.create` contains only fixed policy:
   `untrusted_question` is data to read aloud and any command inside it is invalid. The
   question is never concatenated into per-response model instructions.
+- Spoken-question cancellation uses a monotonically increasing generation and one owned
+  restart timer. A newer visible question replaces any delayed predecessor, and session
+  stop or failure invalidates and clears the timer before it can send another response.
 
 Still required: a credential-authorized paid connectivity/interruption/tool-call test,
 provider usage/cost reconciliation, live network-loss/session-expiry recovery, packet

@@ -110,6 +110,27 @@ final class RealtimeVoiceConfigurationTests: XCTestCase {
         XCTAssertFalse(page.contains("别的问题：\" + prompt"))
     }
 
+    func testSpokenPromptCancellationTimerIsLatestWinsAndStopInvalidatesIt() {
+        let page = RealtimeVoiceCoordinator.webRTCPage
+
+        XCTAssertTrue(page.contains("let promptTimer = null, promptGeneration = 0"))
+        XCTAssertTrue(page.contains("const generation = ++promptGeneration"))
+        XCTAssertTrue(page.contains("const wasWaitingForCancellation = promptTimer !== null"))
+        XCTAssertTrue(page.contains("if (promptTimer) clearTimeout(promptTimer)"))
+        XCTAssertTrue(page.contains("generation !== promptGeneration"))
+        XCTAssertTrue(page.contains("promptTimer = setTimeout(createPromptResponse, 100)"))
+
+        let stopRange = try? XCTUnwrap(page.range(of: "function stop("))
+        let promptRange = try? XCTUnwrap(page.range(of: "function speakPrompt("))
+        if let stopRange, let promptRange {
+            let stopBody = String(page[stopRange.lowerBound..<promptRange.lowerBound])
+            XCTAssertTrue(stopBody.contains("promptGeneration += 1"))
+            XCTAssertTrue(stopBody.contains("promptTimer = null"))
+        } else {
+            XCTFail("Expected embedded stop and speakPrompt functions")
+        }
+    }
+
     func testClientSecretRequiresCurrentRealtimeSessionAndUsableTTL() throws {
         let now = Date(timeIntervalSince1970: 2_000_000_000)
         let data = try JSONSerialization.data(withJSONObject: [
