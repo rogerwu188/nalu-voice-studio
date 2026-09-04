@@ -11,26 +11,26 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "380d7f5823275d6d1b7e5ccb90e7851a4afd0461",
-  "last_advanced_at": "2026-09-04T13:08:04Z",
+  "observed_head": "0dd06dbcc4de74eb4a4570e3cf271250c4c6126d",
+  "last_advanced_at": "2026-09-04T13:22:10Z",
   "last_closed_checkpoint": {
-    "id": "atomic-qingshan-preflight-report-promotion",
-    "sop": "SOP-07",
-    "product_commit": "29d342a8abb911f464774dcf6f100d21865ffd88",
-    "evidence_commit": "380d7f5823275d6d1b7e5ccb90e7851a4afd0461",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33875530606",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33875530606/artifacts/9937962005",
+    "id": "crash-consistent-managed-asset-import",
+    "sop": "SOP-05",
+    "product_commit": "2812eed304733cebbbe8c22af282b1ac24882d87",
+    "evidence_commit": "0dd06dbcc4de74eb4a4570e3cf271250c4c6126d",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33876769475",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33876769475/artifacts/9938468938",
     "result": "PASS"
   },
   "current_checkpoint": {
     "sop": "SOP-05",
     "status": "IN_PROGRESS",
-    "summary": "Qingshan preflight reports now use synced atomic replacement and recover both private and public crash windows as one valid package-bound record. Revalidation found that managed family-media import still writes its final asset directory before the SQLite asset transaction, so a process exit can leave an unregistered photo, recording or document with no recoverable ownership state."
+    "summary": "Managed family-media import now reconciles both sides of the file/SQLite commit boundary and leaves either no import or one digest-verified registered asset after restart. Revalidation found that single-asset deletion still removes the SQLite record before deleting managed bytes, so a process exit can permanently orphan a user's photo, recording or document outside all privacy controls."
   },
   "next_action": {
     "sop": "SOP-05",
-    "id": "crash-consistent-managed-asset-import",
-    "summary": "Stage and durably promote a managed asset with an import-recovery marker, reconcile the marker against SQLite on Runtime restart, and prove process exits before and after the database commit leave either no asset or exactly one registered digest-verified asset without orphaned family media.",
+    "id": "crash-consistent-managed-asset-deletion",
+    "summary": "Atomically move a deletable managed asset into a private deletion stage before the SQLite transaction, reconcile that stage on Runtime restart, and prove process exits before and after database deletion restore the registered asset or securely remove its bytes without privacy orphans.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
