@@ -11,26 +11,26 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "2e40732f5b9bc80bc59d16aec7e706d264405431",
-  "last_advanced_at": "2026-09-04T13:32:44Z",
+  "observed_head": "cce3679d0280ce2d7544024fb2a08c99d7d1c431",
+  "last_advanced_at": "2026-09-04T13:43:28Z",
   "last_closed_checkpoint": {
-    "id": "crash-consistent-managed-asset-deletion",
-    "sop": "SOP-05",
-    "product_commit": "d6232d5c16a944b7be72da3a0a11fc560df09be7",
-    "evidence_commit": "2e40732f5b9bc80bc59d16aec7e706d264405431",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33877915504",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33877915504/artifacts/9938849546",
+    "id": "durable-postproduction-evidence-publication",
+    "sop": "SOP-09",
+    "product_commit": "3d7c9b060c59cd15a0e2f00872e20f796ab17577",
+    "evidence_commit": "cce3679d0280ce2d7544024fb2a08c99d7d1c431",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33878943656",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33878943656/artifacts/9939249573",
     "result": "PASS"
   },
   "current_checkpoint": {
     "sop": "SOP-09",
     "status": "IN_PROGRESS",
-    "summary": "Managed family-media deletion now reconciles both sides of the file/SQLite boundary and leaves either one restored registered asset or no record and no bytes after restart. Revalidation found that rendered-output seals and local visual-analysis evidence use exclusive file publication without syncing the file and parent directory; a crash can therefore acknowledge or database-bind evidence that is not durably present after restart."
+    "summary": "Rendered-output seals and local visual-analysis evidence are now exclusively published with file and directory sync before any SQLite binding. Revalidation found a remaining seal-specific crash window: a process exit after durable seal publication but before its run event leaves valid immutable evidence on disk, but retry is rejected as a duplicate and the missing audit event is never recovered."
   },
   "next_action": {
     "sop": "SOP-09",
-    "id": "durable-postproduction-evidence-publication",
-    "summary": "Introduce one exclusive, file-and-directory-synced publication primitive for rendered-output seals and local visual-analysis evidence, preserve concurrent-create fail-closed behavior, and prove acknowledged evidence survives process restart with its exact digest before any SQLite event or analysis binding is accepted.",
+    "id": "crash-consistent-rendered-output-seal-event",
+    "summary": "Make the rendered-output seal event idempotently recoverable only when the durable on-disk seal exactly matches the current run, package, artifact bytes and original request; preserve normal duplicate rejection, and prove a process exit between file publication and SQLite event commit recovers exactly one audit event after restart.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
