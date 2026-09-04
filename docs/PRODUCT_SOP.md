@@ -277,6 +277,20 @@ Current evidence:
   tests, arm64 and Intel builds, Universal merge, bundle smoke, staged update and rollback.
   This closes deterministic stale-question scheduling without claiming live interruption
   timing or audible human acceptance.
+- Commits `da7ffb6c1ed7d32b8c33d05eb5cd89f024466db5` and
+  `79b2a4994d6d663f26b3fca42f907008727851ee`, GitHub CI run `33838836778`,
+  Universal artifact `9924354675` (artifact digest
+  `sha256:da29ebc4658fcfadab01e3c8aed65dd0a67f1456dca20419b4443f4565a64a09`):
+  Realtime response events now reject malformed transcript fields and non-array output
+  before accessing them, accept at most one exactly named interview tool call per
+  response, and bound tool-call identifiers and arguments. Native admission validates
+  every call before retaining it, deduplicates replayed call identifiers and fails closed
+  after 64 accepted calls per session; restart resets the bounded ledger. Regression
+  tests cover malformed output, transcript and function-call shapes, duplicates, the
+  session limit, reset and the compiled embedded-page contract. CI passed 193 Runtime
+  tests, both native Swift suites and architecture builds, Universal merge, bundle smoke,
+  staged update and rollback. This closes deterministic inbound-event validation and
+  memory bounding without claiming an authorized paid function-call session.
 - Still required before `PASS`: authorized paid Realtime connectivity, interruption,
   real function-call, network-loss, session-expiry and provider usage/cost QA;
   VoiceOver/Accessibility Inspector audit; and a clean-account voice-only QA session
