@@ -6511,6 +6511,53 @@ class Repository:
             )
         return self.get_run(run_id)
 
+    def transition_run_status_with_event(
+        self,
+        run_id: str,
+        *,
+        expected_status: RunStatus,
+        target_status: RunStatus,
+        event_type: str,
+        requested_by: str,
+        reason: str,
+        error: str | None = None,
+    ) -> ProductionRun:
+        """Atomically update one run state and append its ordered audit event."""
+        event_id, now = new_id("evt"), utc_now()
+        with self.db.connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            current_row = connection.execute(
+                "SELECT status FROM production_runs WHERE id = ?", (run_id,)
+            ).fetchone()
+            if current_row is None:
+                raise NotFoundError("production run not found")
+            current = RunStatus(current_row["status"])
+            if current != expected_status:
+                raise ConflictError("production run state changed; reload and retry")
+            connection.execute(
+                "UPDATE production_runs SET status = ?, error = ?, updated_at = ? WHERE id = ?",
+                (target_status, error, now, run_id),
+            )
+            row = connection.execute(
+                "SELECT COALESCE(MAX(sequence), 0) + 1 AS sequence FROM run_events WHERE run_id = ?",
+                (run_id,),
+            ).fetchone()
+            connection.execute(
+                """INSERT INTO run_events VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    event_id,
+                    run_id,
+                    int(row["sequence"]),
+                    event_type,
+                    current,
+                    target_status,
+                    reason,
+                    encode({"requested_by": requested_by}),
+                    now,
+                ),
+            )
+        return self.get_run(run_id)
+
     def mark_postproduction_materialized(
         self,
         run_id: str,

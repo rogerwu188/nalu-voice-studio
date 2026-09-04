@@ -2253,16 +2253,14 @@ class ProductionService:
         run = self.repository.get_run(run_id)
         if run.status in {RunStatus.COMPLETED, RunStatus.CANCELLED}:
             raise ConflictError(f"run in {run.status} cannot be cancelled")
-        updated = self.repository.update_run_status(run_id, RunStatus.CANCELLED)
-        self.repository.append_run_event(
+        return self.repository.transition_run_status_with_event(
             run_id,
-            "run_cancelled",
-            from_status=run.status,
-            to_status=RunStatus.CANCELLED,
-            message=request.reason,
-            payload={"requested_by": request.requested_by},
+            expected_status=run.status,
+            target_status=RunStatus.CANCELLED,
+            event_type="run_cancelled",
+            requested_by=request.requested_by,
+            reason=request.reason,
         )
-        return updated
 
     def resume_run(self, run_id: str, request: RunResumeRequest) -> ProductionRun:
         run = self.repository.get_run(run_id)
@@ -2276,16 +2274,15 @@ class ProductionService:
         if not workspace.is_dir():
             workspace = self.adapter.materialize_workspace(package_path)
         self.adapter.preflight(package_path, workspace)
-        updated = self.repository.update_run_status(run_id, target, error=None)
-        self.repository.append_run_event(
+        return self.repository.transition_run_status_with_event(
             run_id,
-            "run_resumed",
-            from_status=run.status,
-            to_status=target,
-            message=request.reason,
-            payload={"requested_by": request.requested_by},
+            expected_status=run.status,
+            target_status=target,
+            event_type="run_resumed",
+            requested_by=request.requested_by,
+            reason=request.reason,
+            error=None,
         )
-        return updated
 
     def events(self, run_id: str) -> list[RunEvent]:
         return self.repository.list_run_events(run_id)

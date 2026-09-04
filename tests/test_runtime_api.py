@@ -31,6 +31,8 @@ from nalu_runtime.models import (
     EpisodeTransitionRequest,
     MemoryCardUpdate,
     ProductionRun,
+    RunActionRequest,
+    RunResumeRequest,
     RunStatus,
     ScriptRevisionCreate,
 )
@@ -4829,6 +4831,86 @@ def test_run_events_cancel_and_resume(tmp_path: Path) -> None:
 
     events = api.get(f"/v1/production-runs/{run['id']}/events").json()
     assert [event["sequence"] for event in events] == [1, 2, 3]
+
+
+def test_cancel_status_and_event_roll_back_together_on_event_failure(tmp_path: Path) -> None:
+    api = client(tmp_path)
+    _, _, episode = create_approved_episode(api)
+    run = api.post(
+        f"/v1/episodes/{episode['id']}/production-runs", json={"dry_run": True}
+    ).json()
+    repository = api.app.state.repository
+    with repository.db.connect() as connection:
+        connection.execute(
+            """CREATE TRIGGER fail_cancel_event BEFORE INSERT ON run_events
+               WHEN NEW.event_type = 'run_cancelled'
+               BEGIN SELECT RAISE(ABORT, 'cancel event failpoint'); END"""
+        )
+
+    with pytest.raises(sqlite3.IntegrityError, match="cancel event failpoint"):
+        api.app.state.production.cancel_run(
+            run["id"],
+            RunActionRequest(requested_by="test", reason="触发事务回滚"),
+        )
+
+    assert api.get(f"/v1/production-runs/{run['id']}").json()["status"] == "preflight"
+    events = api.get(f"/v1/production-runs/{run['id']}/events").json()
+    assert [event["event_type"] for event in events] == ["run_created"]
+
+
+def test_resume_status_and_event_roll_back_together_on_event_failure(tmp_path: Path) -> None:
+    api = client(tmp_path)
+    _, _, episode = create_approved_episode(api)
+    run = api.post(
+        f"/v1/episodes/{episode['id']}/production-runs", json={"dry_run": True}
+    ).json()
+    assert (
+        api.post(
+            f"/v1/production-runs/{run['id']}/cancel",
+            json={"requested_by": "test", "reason": "先取消"},
+        ).status_code
+        == 200
+    )
+    repository = api.app.state.repository
+    with repository.db.connect() as connection:
+        connection.execute(
+            """CREATE TRIGGER fail_resume_event BEFORE INSERT ON run_events
+               WHEN NEW.event_type = 'run_resumed'
+               BEGIN SELECT RAISE(ABORT, 'resume event failpoint'); END"""
+        )
+
+    with pytest.raises(sqlite3.IntegrityError, match="resume event failpoint"):
+        api.app.state.production.resume_run(
+            run["id"],
+            RunResumeRequest(requested_by="test", reason="触发事务回滚"),
+        )
+
+    assert api.get(f"/v1/production-runs/{run['id']}").json()["status"] == "cancelled"
+    events = api.get(f"/v1/production-runs/{run['id']}/events").json()
+    assert [event["event_type"] for event in events] == ["run_created", "run_cancelled"]
+
+
+def test_concurrent_cancel_writes_one_status_event_pair(tmp_path: Path) -> None:
+    api = client(tmp_path)
+    _, _, episode = create_approved_episode(api)
+    run = api.post(
+        f"/v1/episodes/{episode['id']}/production-runs", json={"dry_run": True}
+    ).json()
+
+    def cancel(_index: int):
+        return api.post(
+            f"/v1/production-runs/{run['id']}/cancel",
+            json={"requested_by": "test", "reason": "并发取消"},
+        )
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        responses = list(pool.map(cancel, range(2)))
+
+    assert sorted(response.status_code for response in responses) == [200, 409]
+    assert api.get(f"/v1/production-runs/{run['id']}").json()["status"] == "cancelled"
+    events = api.get(f"/v1/production-runs/{run['id']}/events").json()
+    assert [event["event_type"] for event in events] == ["run_created", "run_cancelled"]
+    assert [event["sequence"] for event in events] == [1, 2]
 
 
 def test_run_events_are_ordered_under_concurrent_writes(tmp_path: Path) -> None:
