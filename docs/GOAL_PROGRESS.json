@@ -11,26 +11,26 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "055701b87a0054c78453670a39d3890e0c46e067",
-  "last_advanced_at": "2026-09-04T11:11:23Z",
+  "observed_head": "70eca788eccee3e4061ee3eb21876ecbc47eaa36",
+  "last_advanced_at": "2026-09-04T11:25:32Z",
   "last_closed_checkpoint": {
-    "id": "harden-run-event-stale-deletion",
+    "id": "atomic-run-status-event-transitions",
     "sop": "SOP-08",
-    "product_commit": "a45c63a75572d215ba2331bf91cc680c0b66d233",
-    "evidence_commit": "055701b87a0054c78453670a39d3890e0c46e067",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33866004764",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33866004764/artifacts/9934183476",
+    "product_commit": "1331d3cf4a1d4da72ce9f6a0ef7d107b55730f00",
+    "evidence_commit": "70eca788eccee3e4061ee3eb21876ecbc47eaa36",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33866987329",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33866987329/artifacts/9934578076",
     "result": "PASS"
   },
   "current_checkpoint": {
     "sop": "SOP-08",
     "status": "IN_PROGRESS",
-    "summary": "Ordered production-run event insertion now rechecks the run under its SQLite write lock and preserves contiguous concurrent sequences; all CI jobs passed. Revalidation found cancellation and resume still split status and event across two commits."
+    "summary": "Cancellation and resume now commit run state and ordered audit events atomically and passed all CI jobs. Revalidation found production-run creation still splits the run, asset bindings, run event, episode transition, and idempotency completion across separate SQLite transactions."
   },
   "next_action": {
     "sop": "SOP-08",
-    "id": "atomic-run-status-event-transitions",
-    "summary": "Commit cancellation or resume status and its ordered run event in one SQLite transaction, reject concurrent stale state, and prove an event-insert failpoint rolls the status change back.",
+    "id": "atomic-production-run-creation-commit",
+    "summary": "Atomically commit the production-run row, immutable asset bindings, run-created event, episode PREPRODUCTION transition and event, and idempotency completion; use failpoint tests to prove the entire database mutation rolls back together.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
