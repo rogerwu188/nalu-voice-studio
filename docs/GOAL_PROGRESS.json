@@ -11,26 +11,26 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "91a0e2f0792740cd93ac5c8d6f45817cab6f7c5b",
-  "last_advanced_at": "2026-09-04T12:08:25Z",
+  "observed_head": "4e60f4adcb21482d0d51d0ae528d561bbd2928a7",
+  "last_advanced_at": "2026-09-04T13:09:00Z",
   "last_closed_checkpoint": {
-    "id": "server-idempotency-for-keyless-dry-run",
+    "id": "atomic-production-package-promotion",
     "sop": "SOP-08",
-    "product_commit": "b861af0b9217c91bc7ceed1b7f4d7aa3119da168",
-    "evidence_commit": "91a0e2f0792740cd93ac5c8d6f45817cab6f7c5b",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33870562505",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33870562505/artifacts/9935937900",
+    "product_commit": "d4a93fc64ac602458cd656e5c7dcaea5613f26cb",
+    "evidence_commit": "4e60f4adcb21482d0d51d0ae528d561bbd2928a7",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33871628686",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33871628686/artifacts/9936502837",
     "result": "PASS"
   },
   "current_checkpoint": {
-    "sop": "SOP-08",
+    "sop": "SOP-09",
     "status": "IN_PROGRESS",
-    "summary": "Explicitly keyed and keyless dry-run starts now recover the same immutable run and package after a process crash, reject concurrent lock stealing, quarantine changed final evidence and pass all CI jobs. Revalidation found that the initial production-package file is still written directly rather than promoted atomically, so interruption during the write can leave a pending claim with an incomplete package that cannot be resumed."
+    "summary": "The production package now survives interruption through synced staging and atomic promotion, and all deterministic SOP-08 preflight boundaries are closed. SOP-08 still needs authorized provider and signed-app QA. Revalidation of SOP-09 found that postproduction outputs are atomically renamed but neither the completed staging tree nor its parent directory is explicitly synced, leaving an unproven power-loss durability boundary."
   },
   "next_action": {
-    "sop": "SOP-08",
-    "id": "atomic-production-package-promotion",
-    "summary": "Write, sync and atomically promote the immutable production package, recover an exact completed staging file after restart, quarantine changed evidence, and prove interruption cannot expose a partial final package or duplicate a run.",
+    "sop": "SOP-09",
+    "id": "durable-postproduction-tree-promotion",
+    "summary": "Flush and sync every completed postproduction artifact and directory before atomic tree promotion, sync the containing directory after promotion, and add interruption/replay fixtures proving only a complete verified result can become visible.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
