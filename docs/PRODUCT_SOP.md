@@ -1904,6 +1904,24 @@ Current evidence:
   This closes the deterministic postproduction-evidence filesystem durability checkpoint,
   not the remaining seal-event crash recovery, real-master Apple Speech or original-
   resolution human audiovisual QA.
+- Product commit `ccbca3b3ab0af19d9d892fc95d8f77fa33462111`, GitHub CI run
+  `33880047560`: the rendered-output sealing transaction now recovers the exact file/SQLite
+  boundary. If the process exits after the durable seal is published but before its audit
+  event commits, a retry after Runtime restart revalidates the seal's own digest, run,
+  project, episode, immutable production package, resolved library, Qingshan workspace,
+  operator and every current artifact byte before atomically recording the missing event.
+  A changed master was rejected without creating an event; restoring the original bytes
+  recovered the existing seal byte-for-byte and produced exactly one event, while a normal
+  duplicate remained a conflict. All 274 Runtime tests and the Runtime, Apple Silicon,
+  Intel and Universal jobs passed, including bundled-Runtime smoke, project isolation,
+  staged update, populated rollback and controlled-evolution checks. Runtime QA artifact
+  `9939547829` has digest
+  `sha256:2b3927676b7641dc3c7a107db5c3dede281119d14514ef4a6be611fc0b956f4e`;
+  Universal artifact `9939815153` has digest
+  `sha256:8334731eeab1ca8522fa524d12179dd3df689ac35faa2b895d9d191326a4bef4`.
+  This closes the deterministic rendered-output seal/event crash boundary, not the
+  remaining mutable-report durability, real-master Apple Speech or original-resolution
+  human audiovisual QA.
 
 ## SOP-10 · Controlled release and learning loop — IN_PROGRESS
 
