@@ -1796,6 +1796,22 @@ Current evidence:
   `ae1f65d0a0f6fd0a573f43b3f8e7fa46f8b7eea0660bc130a6856e52e7974d91`.
   Synthetic perceptual analysis remained `FAIL` and is not claimed as visual or human
   acceptance. This closes only the current automated packaged-evidence checkpoint.
+- Product commit `6e1a98f8103fdc61c989b8c25b0507f5c41773a6` and contract-preserving
+  commit `79fdb4d912c9407c201de634a2d78111d9ea72df`, GitHub CI run
+  `33873288043`, Runtime QA artifact `9936868298` and Universal artifact
+  `9937001457` (artifact digest
+  `sha256:647d33e09a489b86a79179b74ee9d7d935b710b94d80eab4d7d8c35c3359bf7e`):
+  completed postproduction files and directories are now flushed and synced before the
+  staging tree is atomically promoted, and the containing directory is synced before the
+  result is exposed. A simulated process exit immediately after durable promotion leaves
+  exactly one complete result; a fresh Runtime verifies and reuses it, survives a second
+  failure before SQLite state commit, and finally records one materialization event
+  without re-encoding or duplicating output. The established SOP-12 scenario test node
+  remains stable. CI passed 267 Runtime tests, the independently verified offline
+  seven-scenario rehearsal, both native Swift suites and architecture builds, Universal
+  merge, bundled smoke, project isolation, staged-update, rollback and controlled-
+  evolution verification. This closes the deterministic postproduction tree durability
+  boundary, not real-master Apple Speech or original-resolution human audiovisual QA.
 
 ## SOP-10 · Controlled release and learning loop — IN_PROGRESS
 
