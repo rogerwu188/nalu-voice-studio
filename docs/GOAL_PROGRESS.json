@@ -11,26 +11,26 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "f85c535c2294f4e1afab076720a76583d3c0bb7a",
-  "last_advanced_at": "2026-09-04T09:40:12Z",
+  "observed_head": "d0286f83e08667a6382de3b8433abd23f4feef43",
+  "last_advanced_at": "2026-09-04T09:51:37Z",
   "last_closed_checkpoint": {
-    "id": "revalidate-current-memory-narrative-authority",
+    "id": "revalidate-current-memory-visual-consent",
     "sop": "SOP-05",
-    "product_commit": "3a1150e785e88b6f6b67bfb796759c0a365a66fe",
-    "evidence_commit": "f85c535c2294f4e1afab076720a76583d3c0bb7a",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33858842840",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33858842840/artifacts/9931493742",
+    "product_commit": "5163ac2853d869ad61b1038d5f7421a54cad518b",
+    "evidence_commit": "d0286f83e08667a6382de3b8433abd23f4feef43",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33859773956",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33859773956/artifacts/9931842217",
     "result": "PASS"
   },
   "current_checkpoint": {
     "sop": "SOP-05",
     "status": "IN_PROGRESS",
-    "summary": "Memory-card confirmation now serializes exact reviewed-revision validation and narrative-conflict evaluation under one SQLite write lock. The accepted commit passed 242 Runtime tests and both native architectures through Universal packaging. SOP-05 remains in progress while consent revocation and scope isolation are revalidated."
+    "summary": "Memory-card create/update now serialize project ownership, biometric consent and child guardian authorization with the card/revision write. The accepted commit passed 244 Runtime tests and both native architectures through Universal packaging. SOP-05 remains in progress while project, season and episode scope isolation is revalidated."
   },
   "next_action": {
     "sop": "SOP-05",
-    "id": "revalidate-current-asset-consent-isolation",
-    "summary": "Move memory-card visual-generation consent and guardian authorization checks into the same SQLite write transaction as create/update, then prove concurrent revocation cannot leave newly authorized visual-generation state; continue project/season/episode scope isolation without external services.",
+    "id": "revalidate-current-asset-scope-isolation",
+    "summary": "Exercise project, season and episode asset creation/listing against deletion and cross-project races under isolated SQLite; make scope validation transactional wherever a stale preflight could persist an invalid binding, with deterministic tests and no external services.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
