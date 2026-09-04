@@ -1365,6 +1365,29 @@ Current evidence:
   `sha256:5ac14be7076abeec8b5236f4c421d89dd77fd45f22b339274a9901f0f4d8d6f8`.
   This closes the deterministic preflight-report crash boundary only; it does not
   correct the quarantined upstream release or claim real-provider or paid-task QA.
+- Product commit `c391598a673716745d8cd92875b43815b965dd2b`, GitHub CI run
+  `33923615631`: discovery advanced the isolated reviewed candidate from
+  `v2026.09.03.8` to `v2026.09.04.6` at
+  `3ec9a34a7abad8ae00bfed8cea34706fef4b3fba`. Independent checkout audit reproduced
+  tracked-tree digest
+  `5f001db127c365f7aae1921f14e5d1addfc67cd225749c791cf2d87feea63423`,
+  registry digest `0b7d478904638f0d9e22452971b7aa8d95b9e7445355b53e364ff187fd0613a4`,
+  69 registered gates, 66 coded gates and 66 Runtime bindings. With credential-like
+  environment variables removed, all 33 registered portable modules ran 210 tests with
+  one declared skip and all six Writer-v2 tests passed. The candidate remains correctly
+  quarantined because its installable package and CLI still report `0.3.0` while the
+  portable manifest reports `0.3.1`; the active production pin remains unchanged and
+  paid execution remains disabled. The reviewed upstream delta adds per-unit provider
+  scope, exclusive reference ownership, absent-entity prompt scans and exact visible-
+  population evidence, classified for adaptation behind Nalu's stable boundary rather
+  than source promotion. All 278 Nalu Runtime tests and the Runtime, Apple Silicon, Intel
+  and Universal jobs passed. Runtime QA artifact `9956038150` has digest
+  `sha256:a41bebd04d97c0982f58b5ab7344f7bb12e945192a89d4b32ed18505ebab931f`;
+  Universal artifact `9956129482` has digest
+  `sha256:1b25c2a414363d313b7a537c155b7e8750ae24a1049b21e9c975f5294581b0b8`.
+  No credential, provider request or paid call was used. This closes `.6` discovery,
+  quarantine and reproducible candidate QA only, not promotion, real-provider QA or
+  SOP-07.
 - Still required before `PASS`: a corrected pinned Qingshan release whose registry
   integrity and complete registered tests pass, plus authorized real-provider sandbox
   task/result/receipt evidence. Offline authority and transport doubles are not a paid
