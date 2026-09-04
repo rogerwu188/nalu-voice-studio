@@ -407,6 +407,45 @@ def test_explicit_noncombat_remains_noncombat_despite_negative_prompt_words(
     assert transport.accepted[accepted.submission_fingerprint].receipt["request"] == request
 
 
+def test_paid_boundary_rejects_provider_prompt_over_10000_runes_before_transport(
+    tmp_path: Path,
+) -> None:
+    api = TestClient(create_app(tmp_path / "test.sqlite3", tmp_path / "data"))
+    run = paid_run(api, tmp_path, run_id="run_paid_prompt_rune_limit")
+    transport = IdempotentFakeTransport()
+
+    with pytest.raises(ConflictError, match="exceeds 10000 runes"):
+        api.app.state.remote_task_submitter.submit_paid_task(
+            run.id,
+            task_key="E01-U01",
+            provider="giggle",
+            model="MiniMax-H3",
+            request=paid_request("甲" * 10_001),
+            transport=transport,
+        )
+
+    assert transport.calls == 0
+
+
+def test_paid_boundary_accepts_exact_10000_rune_provider_prompt(tmp_path: Path) -> None:
+    api = TestClient(create_app(tmp_path / "test.sqlite3", tmp_path / "data"))
+    run = paid_run(api, tmp_path, run_id="run_paid_prompt_rune_boundary")
+    transport = IdempotentFakeTransport()
+    request = paid_request("甲" * 10_000)
+
+    accepted = api.app.state.remote_task_submitter.submit_paid_task(
+        run.id,
+        task_key="E01-U01",
+        provider="giggle",
+        model="MiniMax-H3",
+        request=request,
+        transport=transport,
+    )
+
+    assert accepted.state == RemoteTaskState.SUBMITTED
+    assert transport.calls == 1
+
+
 def test_same_scene_continuation_binds_previous_accepted_final_frame(
     tmp_path: Path,
 ) -> None:

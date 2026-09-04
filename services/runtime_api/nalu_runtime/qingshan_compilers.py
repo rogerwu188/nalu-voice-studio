@@ -53,12 +53,13 @@ class QingshanModelCompiler(ABC):
     """Compile an immutable Nalu package into one provider-specific planning contract."""
 
     adapter_id: str
-    adapter_version = "1.4.0"
+    adapter_version = "1.5.0"
     profile_id: str
     model: str
     native_resolution: str
     minimum_duration_seconds: int
     maximum_duration_seconds = 15
+    maximum_prompt_runes = 10_000
 
     @abstractmethod
     def provider_contract(self) -> dict[str, Any]:
@@ -75,6 +76,8 @@ class QingshanModelCompiler(ABC):
             "duration_seconds_required": True,
             "minimum_duration_seconds": self.minimum_duration_seconds,
             "maximum_duration_seconds": self.maximum_duration_seconds,
+            "exact_rendered_prompt_required": True,
+            "maximum_prompt_runes": self.maximum_prompt_runes,
             "explicit_combat_classification_required": True,
             "combat_choreography_contract_true_overrides": True,
             "explicit_noncombat_overrides_negative_prompt_cues": True,
@@ -276,6 +279,13 @@ class ModelCompilerRegistry:
             failures.append("paid request model identity is missing or changed")
         if request.get("provider_model_id") != compiler.model:
             failures.append("paid request provider model identity is missing or changed")
+        prompt = request.get("prompt")
+        if not isinstance(prompt, str) or not prompt.strip():
+            failures.append("paid request requires the exact rendered provider prompt")
+        elif len(prompt) > compiler.maximum_prompt_runes:
+            failures.append(
+                "paid request exact rendered provider prompt exceeds 10000 runes"
+            )
         duration = request.get("duration_seconds")
         if (
             isinstance(duration, bool)

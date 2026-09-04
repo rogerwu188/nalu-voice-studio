@@ -3518,6 +3518,8 @@ def test_qingshan_models_use_distinct_versioned_compilers(tmp_path: Path) -> Non
         "duration_seconds_required": True,
         "minimum_duration_seconds": 4,
         "maximum_duration_seconds": 15,
+        "exact_rendered_prompt_required": True,
+        "maximum_prompt_runes": 10000,
         "explicit_combat_classification_required": True,
         "combat_choreography_contract_true_overrides": True,
         "explicit_noncombat_overrides_negative_prompt_cues": True,
