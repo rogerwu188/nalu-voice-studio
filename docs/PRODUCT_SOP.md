@@ -619,6 +619,19 @@ Current evidence:
   builds, Universal merge, bundle smoke, project-isolation rehearsal, staged update and
   rollback. This closes the deterministic dependency/deletion race checkpoint, not
   human privacy, complete deletion, OCR or signed-install acceptance.
+- Commit `ba90f6bdc43c1aca310d6027be27b6880d3a8368`, GitHub CI run
+  `33857077039` and Universal artifact `9930849213` (artifact digest
+  `sha256:3a2455e7b5f1a20e876ae770538a88d4b29d0fb62144a50ff8c677c3d80ac014`):
+  destructive project deletion now binds the user's preview to exact asset and
+  production-run inventories and revalidates both under the final SQLite write lock.
+  If a production snapshot appears after preview, deletion fails closed, all staged
+  original asset/run directories are restored, the late snapshot remains registered,
+  and `verified_absent` is not emitted. Successful deletion now verifies the complete
+  project asset root, every bound run root and all project privacy archives rather than
+  only paths that happened to be staged. CI passed 239 Runtime tests, both native Swift
+  suites and architecture builds, Universal merge, bundle smoke, project-isolation
+  rehearsal, staged update and rollback. This closes the deterministic stale-inventory
+  deletion checkpoint, not human privacy/deletion, OCR or signed-install acceptance.
 - Still required before `PASS`: human privacy/deletion QA and clean-account OCR,
   correction and voice archive QA on the same signed release candidate. Automated
   Computer Use crashed while opening the new asset sheet, while Nalu stayed running,
