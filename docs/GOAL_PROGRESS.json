@@ -11,26 +11,26 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "87fcab6cf469b1ae4acde90fbdb35a381086dad4",
-  "last_advanced_at": "2026-09-04T02:17:00Z",
+  "observed_head": "2c73d65883335cb4878d41f46c896a2d831b5f9c",
+  "last_advanced_at": "2026-09-04T03:53:00Z",
   "last_closed_checkpoint": {
-    "id": "realtime-channel-lifecycle",
+    "id": "realtime-untrusted-interview-context",
     "sop": "SOP-02",
-    "product_commit": "7836e03abd857e52c567b17785c58cbea03415a7",
-    "evidence_commit": "87fcab6cf469b1ae4acde90fbdb35a381086dad4",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33828174957",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33828174957/artifacts/9920802527",
+    "product_commit": "f12f0023aae2fff94acb9724b6fe24e8c700819d",
+    "evidence_commit": "2c73d65883335cb4878d41f46c896a2d831b5f9c",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33834341437",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33834341437/artifacts/9922869026",
     "result": "PASS"
   },
   "current_checkpoint": {
     "sop": "SOP-02",
     "status": "IN_PROGRESS",
-    "summary": "Realtime peer and data-channel failure events now converge on one idempotent recovery path, intentional stop is quiet and stale callbacks cannot fail a replacement connection. Runtime, both native architectures, Universal packaging, staged update and rollback passed CI. SOP-02 remains incomplete without authorized paid connectivity, real network/session-expiry and human accessibility acceptance; those requirements are preserved as authorization gates while safe work continues elsewhere."
+    "summary": "Realtime interview context is now normalized, bounded, JSON-escaped and explicitly untrusted, preventing editable instruction-shaped project titles from redefining answer-first, tool or safety rules. Runtime, both native architectures, Universal packaging, staged update and rollback passed CI. SOP-02 remains incomplete without authorized paid connectivity, live model behavior, real network/session-expiry and human accessibility acceptance; those requirements remain authorization gates while safe work continues elsewhere."
   },
   "next_action": {
-    "sop": "SOP-07",
-    "id": "audit-latest-qingshan-upstream-release",
-    "summary": "Fetch and independently inspect the latest Qingshan release and immutable tag. Re-run the registered test contract, version/registry/portable-manifest integrity and Nalu compatibility checks. Promote only a coherent candidate; otherwise record the exact quarantine reason and productize any independently verified safe upstream constraints without provider calls.",
+    "sop": "SOP-02",
+    "id": "audit-realtime-secret-and-error-redaction",
+    "summary": "Audit every Realtime broker, WebKit and provider-error path for standard or ephemeral credential disclosure, unbounded provider text and accidental persistence. Add deterministic fail-closed redaction and regression tests for any safe local gap; do not start a credentialed or paid session.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
