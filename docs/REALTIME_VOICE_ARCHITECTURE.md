@@ -63,7 +63,11 @@ authorized live-session and packet-boundary QA.
 - `gpt-realtime-2.1`, `marin`, semantic VAD with low eagerness, automatic response
   creation and interruption are encoded in a unit-tested session configuration.
 - The WebRTC data channel maps listening, thinking, speaking, error and transcript
-  events into the same visible conversation UI.
+  events into the same visible conversation UI. The embedded page rejects non-text,
+  malformed, missing-type and oversized messages before mapping them. Its native bridge
+  accepts only exact `kind` / `value` status, transcript and error envelopes with bounded
+  values; the tool envelope has its own exact schema. This shared contract also ensures
+  completed user and assistant transcripts reach the visible conversation.
 - A single allowlisted `record_interview_answer` function can advance the local setup
   interview, save reversible season/episode/script revisions, and apply explicit
   pause/resume/repeat/back commands. A question, complaint or small talk is answered

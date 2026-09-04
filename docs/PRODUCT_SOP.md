@@ -184,6 +184,21 @@ Current evidence:
   bundle smoke, staged-update and rollback QA. No credential was used and no paid or
   live-audio session was started. This closes only the current-contract and broker-
   validation checkpoint; it is not live Realtime acceptance.
+- Product commits `f6d9e94`, `72bdbf1` and `e6bc0b2`, GitHub CI run
+  `33827397944`, Universal artifact `9920628770` (artifact digest
+  `sha256:341a564a03f021b950b852c66a946279ee644a28394077680ff9fa6b82109eef`):
+  the WebRTC-to-native bridge now uses one exact `kind` / `value` transcript contract.
+  This corrects the prior native lookup of a nonexistent `text` field, which could leave
+  successful Realtime user and assistant transcripts out of the visible conversation.
+  Both the embedded data channel and native bridge now reject malformed, unexpected and
+  oversized events; status values, transcripts, provider errors and tool-call envelopes
+  have separate exact allowlists and limits. The first verification run `33826932154`
+  exposed a whitespace-coupled embedded-page assertion; the second run `33827132652`
+  exposed an unrelated arm64 race between shared URLProtocol fixtures. Neither was
+  accepted. The assertion was made semantic and the shared-fixture suite serialized.
+  The final run passed 193 Runtime tests, both architecture Swift suites and builds,
+  Universal merge, bundle smoke, staged update and rollback. No credential, microphone,
+  provider or paid call was used, so live transcript/audio alignment remains unaccepted.
 - Still required before `PASS`: authorized paid Realtime connectivity, interruption,
   real function-call, network-loss, session-expiry and provider usage/cost QA;
   VoiceOver/Accessibility Inspector audit; and a clean-account voice-only QA session
