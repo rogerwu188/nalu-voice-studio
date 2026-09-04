@@ -24,6 +24,8 @@ from nalu_runtime.feedback_export import (
     IssueTrackerReceipt,
 )
 from nalu_runtime.models import (
+    ApprovalCreate,
+    ApprovalRevocationCreate,
     AssetConsentRevocationCreate,
     AssetDependencyReport,
     MemoryCardUpdate,
@@ -33,7 +35,7 @@ from nalu_runtime.models import (
 )
 from nalu_runtime.qingshan_adapter import QingshanAdapterError
 from nalu_runtime.release_evidence import ReleaseEvidenceVerification
-from nalu_runtime.repository import ConflictError
+from nalu_runtime.repository import ConflictError, NotFoundError
 
 
 def client(tmp_path: Path) -> TestClient:
@@ -2402,6 +2404,77 @@ def test_script_creation_rechecks_authority_after_stale_preflight(
     assert [row["revision"] for row in api.get(f"/v1/episodes/{episode_id}/scripts").json()] == [
         first["revision"]
     ]
+
+
+def test_script_approval_rechecks_parent_hierarchy_after_stale_preflight(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    api = client(tmp_path)
+    project = api.post("/v1/projects", json={"title": "删除中的剧本项目"}).json()
+    season = api.post(
+        f"/v1/projects/{project['id']}/seasons",
+        json={"title": "第一季", "season_number": 1},
+    ).json()
+    episode = api.post(
+        f"/v1/seasons/{season['id']}/episodes",
+        json={"title": "第一集", "episode_number": 1},
+    ).json()
+    script = api.post(
+        f"/v1/episodes/{episode['id']}/scripts",
+        json={"content": "等待批准", "summary_for_voice_review": "等待批准"},
+    ).json()
+    repository = api.app.state.repository
+    original_get_episode = repository.get_episode
+
+    def delete_after_preflight(episode_id: str):
+        stale_episode = original_get_episode(episode_id)
+        monkeypatch.setattr(repository, "get_episode", original_get_episode)
+        with repository.db.connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            connection.execute("DELETE FROM projects WHERE id = ?", (project["id"],))
+        return stale_episode
+
+    monkeypatch.setattr(repository, "get_episode", delete_after_preflight)
+    with pytest.raises(NotFoundError, match="episode not found"):
+        repository.approve_script(
+            episode["id"],
+            script["revision"],
+            ApprovalCreate(approved_by="user", spoken_confirmation="我确认"),
+        )
+
+    with repository.db.connect() as connection:
+        assert connection.execute("SELECT COUNT(*) FROM approval_records").fetchone()[0] == 0
+        assert connection.execute("SELECT COUNT(*) FROM episode_events").fetchone()[0] == 0
+
+
+def test_script_revocation_rechecks_parent_hierarchy_after_stale_preflight(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    api = client(tmp_path)
+    project, _, episode = create_approved_episode(api)
+    script = api.get(f"/v1/episodes/{episode['id']}/scripts").json()[0]
+    repository = api.app.state.repository
+    stale_episode = repository.get_episode(episode["id"])
+    original_get_episode = repository.get_episode
+
+    def delete_after_preflight(episode_id: str):
+        monkeypatch.setattr(repository, "get_episode", original_get_episode)
+        with repository.db.connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            connection.execute("DELETE FROM projects WHERE id = ?", (project["id"],))
+        return stale_episode
+
+    monkeypatch.setattr(repository, "get_episode", delete_after_preflight)
+    with pytest.raises(NotFoundError, match="episode not found"):
+        repository.revoke_script_approval(
+            episode["id"],
+            script["revision"],
+            ApprovalRevocationCreate(requested_by="user", reason="撤销批准"),
+        )
+
+    with repository.db.connect() as connection:
+        assert connection.execute("SELECT COUNT(*) FROM approval_records").fetchone()[0] == 0
+        assert connection.execute("SELECT COUNT(*) FROM episode_events").fetchone()[0] == 0
 
 
 def test_correction_after_approval_invalidates_current_script_authority(tmp_path: Path) -> None:

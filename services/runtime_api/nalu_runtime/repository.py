@@ -5549,22 +5549,27 @@ class Repository:
         episode = self.get_episode(episode_id)
         if episode.status != EpisodeStatus.SCRIPT_REVIEW:
             raise ConflictError("only a script in review may be approved")
-        season = self.get_season(episode.season_id)
         now = utc_now()
         approval_id = new_id("apr")
         with self.db.connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
             current = connection.execute(
-                "SELECT status FROM episodes WHERE id = ?", (episode_id,)
+                """SELECT e.status, s.project_id
+                   FROM episodes e
+                   JOIN seasons s ON s.id = e.season_id
+                   JOIN projects p ON p.id = s.project_id
+                   WHERE e.id = ?""",
+                (episode_id,),
             ).fetchone()
+            if current is None:
+                raise NotFoundError("episode not found")
             latest = connection.execute(
                 """SELECT MAX(revision) AS revision FROM script_revisions
                    WHERE episode_id = ?""",
                 (episode_id,),
             ).fetchone()
             if (
-                current is None
-                or EpisodeStatus(current["status"]) != EpisodeStatus.SCRIPT_REVIEW
+                EpisodeStatus(current["status"]) != EpisodeStatus.SCRIPT_REVIEW
                 or latest is None
                 or revision != latest["revision"]
             ):
@@ -5575,7 +5580,7 @@ class Repository:
             self._record_episode_transition(
                 connection,
                 episode_id,
-                episode.status,
+                EpisodeStatus(current["status"]),
                 EpisodeStatus.SCRIPT_APPROVED,
                 approval.approved_by,
                 f"approved script revision {revision}",
@@ -5593,7 +5598,7 @@ class Repository:
                 (
                     approval_id,
                     "script_approved",
-                    season.project_id,
+                    current["project_id"],
                     episode_id,
                     revision,
                     approval.approved_by,
@@ -5615,18 +5620,21 @@ class Repository:
             or script.approved_at is None
         ):
             raise ConflictError("only the currently approved script may be revoked")
-        season = self.get_season(episode.season_id)
         approval_id, now = new_id("apr"), utc_now()
         with self.db.connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
             current = connection.execute(
-                """SELECT status, approved_script_revision FROM episodes
-                   WHERE id = ?""",
+                """SELECT e.status, e.approved_script_revision, s.project_id
+                   FROM episodes e
+                   JOIN seasons s ON s.id = e.season_id
+                   JOIN projects p ON p.id = s.project_id
+                   WHERE e.id = ?""",
                 (episode_id,),
             ).fetchone()
+            if current is None:
+                raise NotFoundError("episode not found")
             if (
-                current is None
-                or EpisodeStatus(current["status"]) != EpisodeStatus.SCRIPT_APPROVED
+                EpisodeStatus(current["status"]) != EpisodeStatus.SCRIPT_APPROVED
                 or current["approved_script_revision"] != revision
             ):
                 raise ConflictError("script approval changed before revocation")
@@ -5653,7 +5661,7 @@ class Repository:
                 (
                     approval_id,
                     "script_revoked",
-                    season.project_id,
+                    current["project_id"],
                     episode_id,
                     revision,
                     request.requested_by,
