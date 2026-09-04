@@ -192,12 +192,14 @@ struct SeasonPlanUpdateDraft: Codable, Sendable {
 
 struct SeasonPlanApprovalDraft: Codable, Sendable {
     let approvedBy: String
+    let planRevision: Int
     let spokenConfirmation: String
     let reviewChannel: String
     let guardianApproval: Bool
 
     enum CodingKeys: String, CodingKey {
         case approvedBy = "approved_by"
+        case planRevision = "plan_revision"
         case spokenConfirmation = "spoken_confirmation"
         case reviewChannel = "review_channel"
         case guardianApproval = "guardian_approval"

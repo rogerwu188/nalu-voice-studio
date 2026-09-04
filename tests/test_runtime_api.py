@@ -2945,10 +2945,21 @@ def test_season_plan_revisions_approval_and_episode_immutability(tmp_path: Path)
             "source_transcript": "这一季从分离讲到团聚",
         },
     ).json()
+    unbound_approval = api.post(
+        f"/v1/seasons/{season_id}/plan-approvals",
+        json={
+            "approved_by": "legacy-client",
+            "spoken_confirmation": "确认",
+            "review_channel": "visual",
+        },
+    )
+    assert unbound_approval.status_code == 409
+    assert "must identify the reviewed revision" in unbound_approval.text
     approval = api.post(
         f"/v1/seasons/{season_id}/plan-approvals",
         json={
             "approved_by": "user",
+            "plan_revision": season["plan_revision"],
             "spoken_confirmation": "我看过也听过，同意这个分集计划",
             "review_channel": "voice_and_visual",
         },
@@ -2972,6 +2983,19 @@ def test_season_plan_revisions_approval_and_episode_immutability(tmp_path: Path)
     assert api.get(f"/v1/episodes/{first['id']}").json() == locked_before
     latest_season = api.get(f"/v1/projects/{plan['project']['id']}/seasons").json()[0]
     assert latest_season["plan_revision"] > latest_season["approved_plan_revision"]
+    stale_approval = api.post(
+        f"/v1/seasons/{season_id}/plan-approvals",
+        json={
+            "approved_by": "user",
+            "plan_revision": approval.json()["plan_revision"],
+            "spoken_confirmation": "我确认刚才看过的版本",
+            "review_channel": "voice",
+        },
+    )
+    assert stale_approval.status_code == 409
+    assert "changed after it was reviewed" in stale_approval.text
+    approvals = api.get(f"/v1/seasons/{season_id}/plan-approvals").json()
+    assert [item["plan_revision"] for item in approvals] == [approval.json()["plan_revision"]]
     revisions = api.get(f"/v1/seasons/{season_id}/plan-revisions").json()
     assert revisions[-1]["plan"]["episodes"][2]["title"] == "未来的团圆"
 

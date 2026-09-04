@@ -807,6 +807,7 @@ final class VoiceInterviewViewModel {
         do {
             _ = try await runtime.approveSeasonPlan(
                 seasonID: season.id,
+                planRevision: season.planRevision,
                 confirmation: confirmation,
                 reviewChannel: reviewChannel,
                 guardianApproval: guardianConfirmedForPlan

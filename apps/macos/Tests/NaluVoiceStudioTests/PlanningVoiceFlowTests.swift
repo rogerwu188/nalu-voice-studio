@@ -2,6 +2,23 @@ import XCTest
 @testable import NaluVoiceStudio
 
 final class PlanningVoiceFlowTests: XCTestCase {
+    func testSeasonApprovalDraftBindsDisplayedPlanRevision() throws {
+        let draft = SeasonPlanApprovalDraft(
+            approvedBy: "local-user",
+            planRevision: 7,
+            spokenConfirmation: "我确认第七版分集计划",
+            reviewChannel: "voice",
+            guardianApproval: false
+        )
+        let object = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: JSONEncoder().encode(draft)) as? [String: Any]
+        )
+
+        XCTAssertEqual(object["plan_revision"] as? Int, 7)
+        XCTAssertEqual(object["spoken_confirmation"] as? String, "我确认第七版分集计划")
+        XCTAssertNil(object["reviewed_plan_revision"])
+    }
+
     func testSeasonAndEpisodeDictationReturnSourceTranscript() {
         var flow = PlanningVoiceFlow()
         XCTAssertTrue(flow.begin(.seasonPlan).contains("这一季"))

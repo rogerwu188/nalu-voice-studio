@@ -7660,7 +7660,6 @@
       "SeasonPlanApproval": {
         "properties": {
           "approved_by": {
-            "minLength": 1,
             "title": "Approved By",
             "type": "string"
           },
@@ -7695,18 +7694,17 @@
             "type": "string"
           },
           "spoken_confirmation": {
-            "minLength": 1,
             "title": "Spoken Confirmation",
             "type": "string"
           }
         },
         "required": [
-          "approved_by",
-          "spoken_confirmation",
-          "review_channel",
           "id",
           "season_id",
           "plan_revision",
+          "approved_by",
+          "spoken_confirmation",
+          "review_channel",
           "created_at"
         ],
         "title": "SeasonPlanApproval",
@@ -7723,6 +7721,18 @@
             "default": false,
             "title": "Guardian Approval",
             "type": "boolean"
+          },
+          "plan_revision": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plan Revision"
           },
           "review_channel": {
             "enum": [

@@ -4882,18 +4882,30 @@ class Repository:
     def approve_season_plan(
         self, season_id: str, request: SeasonPlanApprovalCreate
     ) -> SeasonPlanApproval:
-        season = self.get_season(season_id)
-        if season.plan_revision == 0:
-            raise ConflictError("season plan has no revision to approve")
         approval_id, now = new_id("spa"), utc_now()
         with self.db.connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            season = connection.execute(
+                """SELECT COALESCE(MAX(r.revision), 0) AS plan_revision
+                   FROM seasons s LEFT JOIN season_plan_revisions r ON r.season_id = s.id
+                   WHERE s.id = ? GROUP BY s.id""",
+                (season_id,),
+            ).fetchone()
+            if season is None:
+                raise NotFoundError("season not found")
+            if season["plan_revision"] == 0:
+                raise ConflictError("season plan has no revision to approve")
+            if request.plan_revision is None:
+                raise ConflictError("season plan approval must identify the reviewed revision")
+            if season["plan_revision"] != request.plan_revision:
+                raise ConflictError("season plan changed after it was reviewed")
             connection.execute(
                 """INSERT INTO season_plan_approval_records
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     approval_id,
                     season_id,
-                    season.plan_revision,
+                    request.plan_revision,
                     request.approved_by,
                     request.spoken_confirmation,
                     request.review_channel,
@@ -4904,9 +4916,9 @@ class Repository:
         return SeasonPlanApproval(
             id=approval_id,
             season_id=season_id,
-            plan_revision=season.plan_revision,
+            plan_revision=request.plan_revision,
             created_at=now,
-            **request.model_dump(),
+            **request.model_dump(exclude={"plan_revision"}),
         )
 
     def list_season_plan_approvals(self, season_id: str) -> list[SeasonPlanApproval]:

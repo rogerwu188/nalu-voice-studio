@@ -247,15 +247,20 @@ class SeasonPlanRevision(BaseModel):
 
 class SeasonPlanApprovalCreate(BaseModel):
     approved_by: str = Field(min_length=1)
+    plan_revision: int | None = Field(default=None, ge=1)
     spoken_confirmation: str = Field(min_length=1)
     review_channel: Literal["voice", "visual", "voice_and_visual"]
     guardian_approval: bool = False
 
 
-class SeasonPlanApproval(SeasonPlanApprovalCreate):
+class SeasonPlanApproval(BaseModel):
     id: str
     season_id: str
     plan_revision: int
+    approved_by: str
+    spoken_confirmation: str
+    review_channel: Literal["voice", "visual", "voice_and_visual"]
+    guardian_approval: bool = False
     created_at: str
 
 

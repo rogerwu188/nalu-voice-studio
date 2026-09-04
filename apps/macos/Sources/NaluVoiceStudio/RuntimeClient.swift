@@ -270,13 +270,14 @@ actor RuntimeClient {
     }
 
     func approveSeasonPlan(
-        seasonID: String, confirmation: String, reviewChannel: String,
+        seasonID: String, planRevision: Int, confirmation: String, reviewChannel: String,
         guardianApproval: Bool
     ) async throws -> SeasonPlanApproval {
         try await post(
             "v1/seasons/\(seasonID)/plan-approvals",
             body: SeasonPlanApprovalDraft(
                 approvedBy: "local-user",
+                planRevision: planRevision,
                 spokenConfirmation: confirmation,
                 reviewChannel: reviewChannel,
                 guardianApproval: guardianApproval
