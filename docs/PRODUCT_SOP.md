@@ -2086,6 +2086,35 @@ Current evidence:
   `sha256:97999fc6d68109b9c8610afe434177c254bd8af66332f443eb0d1f0fadcadd4e`.
   The repository manifest still truthfully reports `NOT_READY`; no real receipt, signed
   installation, human review or publication is claimed, so SOP-12 remains `IN_PROGRESS`.
+- Commit `947bba252fa0e9b06253176a7f972ac29e267994` adds an independent
+  verifier for the seven-scenario offline rehearsal instead of trusting its generator or
+  CI log. It requires all seven ordered scenario identities, their explicit remaining
+  real evidence, `STRUCTURE_REHEARSED` rather than release acceptance, the exact unique
+  test count, all no-paid/no-publication/no-external-write/no-signing/no-human-acceptance
+  flags, non-loopback blocking and literal `project_complete: false`. It recomputes the
+  canonical report digest and every declared source-file SHA-256 directly from the exact
+  Git commit, then can bind the report bytes to the downloaded GitHub artifact digest.
+  False completion, false scenario acceptance, canonical tampering and report
+  substitution are permanent negative tests. GitHub CI run `33849341891` passed 224
+  Runtime tests, lint and contract audits, the 21 selected scenario tests and verifier,
+  real HTTP smoke, both architecture builds and Universal packaging with all packaged
+  evidence gates.
+- Runtime QA artifact `9927797876` has GitHub digest
+  `sha256:4d8f6ab99390c4ddfcf256e13dbcc928efb0608c6d5bf3e255c80872fb29dc7a`.
+  A fresh repository-external download reproduced that digest, matched all ten declared
+  source blobs against commit `947bba252fa0e9b06253176a7f972ac29e267994`, and
+  bound the exact report to the archive. Report file and canonical SHA-256 values are
+  `8b9571d89900bb574d0bea811ab915750894bca4bfbb6d5192d62c3e95c3cd98`
+  and `69ebff7a6b4c50faa7b7420abcc3c39f5eb5d9abf18181d875b283e450ffda31`.
+  The independently bound receipt file has SHA-256
+  `5706c74e432b21dcd3d162ca68d645cd7c92fb0e5f0004ffa7cf24eda3a97f12`
+  and canonical digest
+  `4b87f7e40cfda36182662c610f558900db987723e1178e68f43ebfc576202f35`.
+  Universal artifact `9927874653` from the same run has GitHub digest
+  `sha256:ad1d03a2988060d29ca8ae4ddaf2b0cdbcfe1ce3c511f2b2db695e39bc0e379f`.
+  This closes only offline structural evidence provenance. All seven scenarios still need
+  the separately listed signed/notarized, authorized provider/publication and human QA
+  evidence on one candidate, so SOP-12 remains `IN_PROGRESS`.
 
 ## SOP-13 · Controlled product evolution — IN_PROGRESS
 
