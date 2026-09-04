@@ -1359,6 +1359,17 @@ Current evidence:
   mismatch and transports without idempotency fail before I/O. All 77 Runtime tests,
   real HTTP smoke, OpenAPI gates, Swift tests, full macOS build, bundled-Runtime smoke,
   release verification and artifact upload passed. No provider network call occurred.
+- Commit `a45c63a75572d215ba2331bf91cc680c0b66d233`, GitHub CI run
+  `33866004764`, Runtime QA artifact `9934050559` and Universal artifact
+  `9934183476` (artifact digest
+  `sha256:f484cc152c50b8a93b7247d18b43bfdfd6e75998e3e3730dcd38a7b7ba3383c0`):
+  ordered run-event insertion now rechecks the production run under the same SQLite
+  write lock used to allocate and insert the next sequence. A run deleted after stale
+  preflight returns not-found rather than leaking a foreign-key error and leaves no
+  event; concurrent writers still retain unique contiguous sequences. CI passed 255
+  Runtime tests, both native Swift suites and architecture builds, Universal merge,
+  bundled smoke, packaged project-isolation, staged-update and rollback QA. This closes
+  the deterministic run-event deletion boundary, not authorized provider crash testing.
 - Still required before `PASS`: run authorized provider crash tests at every real
   network/charge/ledger boundary, reconcile real ambiguous charges against the provider
   and validate the stage explanations in a signed-app long-running production QA session.
