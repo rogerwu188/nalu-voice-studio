@@ -1395,6 +1395,21 @@ Current evidence:
   bundled smoke, packaged project-isolation, staged-update and rollback QA. This closes
   the deterministic database commit boundary; package-directory crash recovery and real
   provider crash QA remain open.
+- Commit `a073744f119663c10e4816e0d54830a9d82c1faa`, GitHub CI run
+  `33869392909`, Runtime QA artifact `9935439856` and Universal artifact
+  `9935498519` (artifact digest
+  `sha256:d50ecf03dad173eb157fd55996aa59b5ac8ae4fb7eadcba36362aa9181b19d47`):
+  production start now holds a per-episode advisory operation lock across filesystem
+  materialization, Qingshan preflight and the atomic database commit. After a simulated
+  process crash, a fresh Runtime instance recovers the same pending idempotent request,
+  reuses the exact run ID and immutable package digest, deterministically rematerializes
+  its workspace and commits once. A concurrent live request cannot steal the lock, while
+  a tampered recovery package is preserved and quarantined instead of overwritten. CI
+  passed 263 Runtime tests, both native Swift suites and architecture builds, Universal
+  merge, bundled smoke, packaged project-isolation, staged-update and rollback QA. This
+  closes the deterministic package/database crash boundary for explicitly idempotent
+  starts; provider crash QA and crash recovery for a dry-run without a client key remain
+  open.
 - Still required before `PASS`: run authorized provider crash tests at every real
   network/charge/ledger boundary, reconcile real ambiguous charges against the provider
   and validate the stage explanations in a signed-app long-running production QA session.
