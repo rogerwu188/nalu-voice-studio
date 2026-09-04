@@ -2416,6 +2416,23 @@ Current evidence:
   No paid call or publication write occurred. This closes new-record reconciliation
   request rederivation only, not authorized platform reconciliation, human acceptance,
   signing, notarization or SOP-10.
+- Product commit `017d53541f7d5aff0b982ea959d5fc7bb096caa3`, GitHub CI run
+  `33920648953`: publication metrics retrieval now independently regenerates the stored
+  request digest from the completed production run, validated publication-record digest,
+  requested observation window and idempotency-key hash before a snapshot can be replayed,
+  displayed or used to derive a director strategy. A negative fixture changed both the
+  SQLite request digest and its embedded JSON copy and recomputed the outer snapshot digest;
+  retrieval still rejected the stale derived request. The isolated native learning fixture
+  now emits the same independently derivable metrics request. All 278 Runtime tests and the
+  Runtime, Apple Silicon, Intel and Universal jobs passed, including bundled-Runtime smoke,
+  native publication-learning evidence, staged update, populated rollback and controlled-
+  evolution checks. Runtime QA artifact `9954950620` has digest
+  `sha256:d38da18c7b23906530bab653bc145530c0331f35db3d8f1d421919fd56a5c965`;
+  Universal artifact `9955133074` has digest
+  `sha256:2699f0197bf9bb55360e23bca6408dd2e64be9441f0a81b81bbfe1750fd4ba28`.
+  No provider lookup, paid call, production or publication write occurred. This closes
+  publication-metrics request rederivation only, not authorized platform observation,
+  human acceptance, signing, notarization or SOP-10.
 
 ## SOP-11 · macOS packaging, updates and operations — IN_PROGRESS
 
