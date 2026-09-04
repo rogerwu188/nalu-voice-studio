@@ -193,6 +193,10 @@ final class RealtimeVoiceConfigurationTests: XCTestCase {
 
     func testRealtimeBridgeAllowsOnlyBoundedExactEvents() {
         XCTAssertEqual(
+            RealtimeBridgeEvent.parse(["kind": "status", "value": "connecting"]),
+            RealtimeBridgeEvent(kind: .status, value: "connecting")
+        )
+        XCTAssertEqual(
             RealtimeBridgeEvent.parse(["kind": "status", "value": "listening"]),
             RealtimeBridgeEvent(kind: .status, value: "listening")
         )
@@ -290,5 +294,19 @@ final class RealtimeVoiceConfigurationTests: XCTestCase {
             RealtimeSessionLimit.elapsedLabel(seconds: 125, limitMinutes: 10),
             "02:05 / 10:00"
         )
+    }
+
+    func testConnectionAttemptGateRejectsStoppedAndSupersededResponses() {
+        var gate = RealtimeConnectionAttemptGate()
+        let first = gate.begin()
+        XCTAssertTrue(gate.accepts(first))
+
+        let retry = gate.begin()
+        XCTAssertFalse(gate.accepts(first))
+        XCTAssertTrue(gate.accepts(retry))
+
+        gate.invalidate()
+        XCTAssertFalse(gate.accepts(first))
+        XCTAssertFalse(gate.accepts(retry))
     }
 }

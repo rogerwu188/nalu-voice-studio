@@ -259,7 +259,7 @@ struct RealtimeBridgeEvent: Equatable {
     static let maximumTranscriptBytes = 65_536
     static let maximumErrorBytes = 2_048
     static let allowedStatuses = Set([
-        "connected", "listening", "thinking", "speaking", "reconnecting", "off",
+        "connecting", "connected", "listening", "thinking", "speaking", "reconnecting", "off",
     ])
 
     let kind: Kind
@@ -304,6 +304,23 @@ struct RealtimeInterviewToolCall: Equatable {
         let answer = rawAnswer.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !answer.isEmpty, answer.count <= 2_000 else { return nil }
         return RealtimeInterviewToolCall(callID: callID, answer: answer)
+    }
+}
+
+struct RealtimeConnectionAttemptGate {
+    private(set) var generation: UInt = 0
+
+    mutating func begin() -> UInt {
+        generation &+= 1
+        return generation
+    }
+
+    mutating func invalidate() {
+        generation &+= 1
+    }
+
+    func accepts(_ candidate: UInt) -> Bool {
+        candidate == generation
     }
 }
 
@@ -389,6 +406,7 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
     private var sessionClock: Task<Void, Never>?
     private var dataChannelReady = false
     private var pendingSpokenPrompt: String?
+    private var connectionAttempts = RealtimeConnectionAttemptGate()
 
     func attach(_ webView: WKWebView) {
         guard self.webView !== webView else { return }
@@ -416,11 +434,14 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
         dataChannelReady = false
         retryAllowed = false
         state = .connecting
+        let attempt = connectionAttempts.begin()
         do {
             let token = try await broker.createClientSecret(instructions: instructions)
+            guard connectionAttempts.accepts(attempt), state == .connecting else { return }
             pendingToken = token
             startWebRTCIfReady()
         } catch {
+            guard connectionAttempts.accepts(attempt), state == .connecting else { return }
             state = .unavailable(RealtimeVoiceError.publicDescription(for: error))
             retryAllowed = true
         }
@@ -456,6 +477,7 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
     }
 
     func stop() {
+        connectionAttempts.invalidate()
         webView?.evaluateJavaScript("window.naluRealtime.stop()")
         pendingToken = nil
         sessionStartedAt = nil
@@ -507,6 +529,7 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
         switch event.kind {
         case .status:
             switch event.value {
+            case "connecting": state = .connecting
             case "connected", "listening":
                 dataChannelReady = true
                 if sessionStartedAt == nil {
@@ -557,6 +580,7 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
     }
 
     private func failSession(reason: String, allowRetry: Bool) {
+        connectionAttempts.invalidate()
         webView?.evaluateJavaScript("window.naluRealtime.stop(false)")
         pendingToken = nil
         stopSessionClock()
