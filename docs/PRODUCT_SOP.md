@@ -731,6 +731,25 @@ Current evidence:
   smoke, project-isolation rehearsal, staged update and rollback. This closes the current
   deterministic three-level asset-scope checkpoint, not human privacy/deletion or signed-
   install acceptance.
+- Product commit `2812eed304733cebbbe8c22af282b1ac24882d87`, GitHub CI run
+  `33876769475`: managed photo, recording and document imports now write bytes and a
+  digest-bound recovery marker in a private directory, sync both files and the directory,
+  then durably promote the directory before the SQLite asset transaction. Runtime-start
+  reconciliation removes abandoned staging directories, deletes a promoted import with no
+  database owner, and preserves a committed import only after checking its project, URI,
+  byte count and SHA-256 against both SQLite metadata and the marker. Automated process-exit
+  QA covered the two database boundary windows: before commit, restart left zero rows and
+  zero managed files; after commit but before marker cleanup, restart retained exactly one
+  registered digest-verified asset and removed the recovery marker. All 270 Runtime tests
+  and the Runtime, Apple Silicon, Intel and Universal jobs passed, including child-biometric
+  denial, scope races, privacy export, bundled-Runtime smoke, project isolation, staged
+  update, populated rollback and controlled-evolution checks. Runtime QA artifact
+  `9938255148` has digest
+  `sha256:8d527f69decb61bf07b7eef3ee2862323fad12205e9dfb3c3a0f861086b56604`;
+  Universal artifact `9938468938` has digest
+  `sha256:130095d1bf4aa49efe066aa9c1712610c90e23d78745d63ffb99aadf92f06173`.
+  This closes the deterministic managed-import crash boundary, not human privacy/deletion,
+  clean-account OCR, voice archive or signed-install acceptance.
 - Still required before `PASS`: human privacy/deletion QA and clean-account OCR,
   correction and voice archive QA on the same signed release candidate. Automated
   Computer Use crashed while opening the new asset sheet, while Nalu stayed running,
