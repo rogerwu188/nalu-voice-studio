@@ -10,6 +10,7 @@ from pathlib import Path
 from threading import Event
 from urllib.parse import unquote, urlparse
 
+import nalu_runtime.engine as engine_module
 import pytest
 from fastapi.testclient import TestClient
 from nalu_runtime.app import create_app
@@ -4995,6 +4996,101 @@ def test_keyless_pending_preflight_recovers_after_runtime_restart(
             (f"production-run:{episode['id']}", pending["idempotency_key"]),
         ).fetchone()
     assert operation["status"] == "completed"
+
+
+def test_keyless_preflight_recovers_atomically_staged_package_after_restart(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    first_api = client(tmp_path)
+    _, _, episode = create_approved_episode(first_api)
+    path = f"/v1/episodes/{episode['id']}/production-runs"
+    real_replace = engine_module.os.replace
+
+    def crash_before_package_promotion(source: object, destination: object) -> None:
+        if Path(source).name == ".production-package.json.pending":
+            raise RuntimeError("simulated crash before package promotion")
+        real_replace(source, destination)
+
+    monkeypatch.setattr(engine_module.os, "replace", crash_before_package_promotion)
+    with pytest.raises(RuntimeError, match="simulated crash before package promotion"):
+        first_api.post(path, json={"dry_run": True})
+    monkeypatch.setattr(engine_module.os, "replace", real_replace)
+
+    with first_api.app.state.repository.db.connect() as connection:
+        pending = connection.execute(
+            """SELECT resource_id, status FROM idempotent_operations WHERE scope = ?""",
+            (f"production-run:{episode['id']}",),
+        ).fetchone()
+    assert pending["status"] == "pending"
+    run_directory = tmp_path / "data" / "runs" / pending["resource_id"]
+    staging_path = run_directory / ".production-package.json.pending"
+    package_path = run_directory / "production-package.json"
+    assert staging_path.is_file()
+    assert not package_path.exists()
+    staged_digest = json.loads(staging_path.read_text(encoding="utf-8"))["package_sha256"]
+
+    restarted = client(tmp_path)
+    recovered = restarted.post(path, json={"dry_run": True})
+
+    assert recovered.status_code == 201
+    assert recovered.json()["id"] == pending["resource_id"]
+    assert not staging_path.exists()
+    assert json.loads(package_path.read_text(encoding="utf-8"))["package_sha256"] == staged_digest
+    with restarted.app.state.repository.db.connect() as connection:
+        assert connection.execute("SELECT COUNT(*) FROM production_runs").fetchone()[0] == 1
+        assert connection.execute("SELECT COUNT(*) FROM run_events").fetchone()[0] == 1
+
+
+def test_keyless_preflight_quarantines_changed_staged_package_after_restart(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    first_api = client(tmp_path)
+    _, _, episode = create_approved_episode(first_api)
+    path = f"/v1/episodes/{episode['id']}/production-runs"
+    real_replace = engine_module.os.replace
+
+    def crash_before_package_promotion(source: object, destination: object) -> None:
+        if Path(source).name == ".production-package.json.pending":
+            raise RuntimeError("simulated crash before staged-package quarantine")
+        real_replace(source, destination)
+
+    monkeypatch.setattr(engine_module.os, "replace", crash_before_package_promotion)
+    with pytest.raises(RuntimeError, match="simulated crash before staged-package quarantine"):
+        first_api.post(path, json={"dry_run": True})
+    monkeypatch.setattr(engine_module.os, "replace", real_replace)
+
+    with first_api.app.state.repository.db.connect() as connection:
+        pending = connection.execute(
+            """SELECT idempotency_key, resource_id FROM idempotent_operations
+               WHERE scope = ?""",
+            (f"production-run:{episode['id']}",),
+        ).fetchone()
+    staging_path = (
+        tmp_path
+        / "data"
+        / "runs"
+        / pending["resource_id"]
+        / ".production-package.json.pending"
+    )
+    tampered = json.loads(staging_path.read_text(encoding="utf-8"))
+    tampered["approved_script"]["content"] = "被篡改的暂存生产包"
+    staging_path.write_text(json.dumps(tampered, ensure_ascii=False), encoding="utf-8")
+
+    restarted = client(tmp_path)
+    rejected = restarted.post(path, json={"dry_run": True})
+
+    assert rejected.status_code == 409
+    assert "staged production package failed recovery verification" in rejected.text
+    assert "被篡改" in staging_path.read_text(encoding="utf-8")
+    with restarted.app.state.repository.db.connect() as connection:
+        operation = connection.execute(
+            """SELECT status, error FROM idempotent_operations
+               WHERE scope = ? AND idempotency_key = ?""",
+            (f"production-run:{episode['id']}", pending["idempotency_key"]),
+        ).fetchone()
+        assert connection.execute("SELECT COUNT(*) FROM production_runs").fetchone()[0] == 0
+    assert operation["status"] == "failed"
+    assert "staged production package could not be recovered" in operation["error"]
 
 
 def test_pending_preflight_quarantines_changed_package_after_restart(

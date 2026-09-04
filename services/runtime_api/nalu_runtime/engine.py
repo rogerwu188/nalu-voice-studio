@@ -359,6 +359,39 @@ class ProductionService:
             character in "0123456789abcdef" for character in value
         )
 
+    @staticmethod
+    def _sync_directory(path: Path) -> None:
+        flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0)
+        if hasattr(os, "O_DIRECTORY"):
+            flags |= os.O_DIRECTORY
+        descriptor = os.open(path, flags)
+        try:
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
+
+    @classmethod
+    def _write_and_promote_package(
+        cls, staging_path: Path, package_path: Path, encoded_package: str
+    ) -> None:
+        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_CLOEXEC", 0)
+        if hasattr(os, "O_NOFOLLOW"):
+            flags |= os.O_NOFOLLOW
+        descriptor = os.open(staging_path, flags, 0o600)
+        try:
+            with os.fdopen(descriptor, "w", encoding="utf-8") as target:
+                descriptor = -1
+                target.write(encoded_package)
+                target.flush()
+                os.fsync(target.fileno())
+        finally:
+            if descriptor >= 0:
+                os.close(descriptor)
+        secure_file(staging_path)
+        os.replace(staging_path, package_path)
+        secure_file(package_path)
+        cls._sync_directory(package_path.parent)
+
     def _run_directory(self, run: ProductionRun) -> Path:
         run_directory = Path(run.package_path).resolve().parent
         runs_root = (self.data_root / "runs").resolve()
@@ -2247,6 +2280,8 @@ class ProductionService:
             run_dir.mkdir(parents=True, exist_ok=False)
         secure_directory(run_dir)
         package_path = run_dir / "production-package.json"
+        staging_path = run_dir / ".production-package.json.pending"
+        encoded_package = package.model_dump_json(indent=2) + "\n"
         if recovering_pending and package_path.exists():
             try:
                 if package_path.is_symlink() or not package_path.is_file():
@@ -2277,16 +2312,40 @@ class ProductionService:
                 )
                 raise ConflictError("pending production package failed recovery verification") from exc
         else:
-            if recovering_pending and any(run_dir.iterdir()):
-                self.repository.finish_operation(
-                    operation_scope,
-                    effective_idempotency_key,
-                    "failed",
-                    "pending production directory has content but no immutable package",
-                )
-                raise ConflictError("pending production package is missing")
-            package_path.write_text(package.model_dump_json(indent=2) + "\n", encoding="utf-8")
-            secure_file(package_path)
+            if recovering_pending and staging_path.exists():
+                try:
+                    if staging_path.is_symlink() or not staging_path.is_file():
+                        raise ValueError("staged package path is not a regular file")
+                    staged_package = ProductionPackage.model_validate_json(
+                        staging_path.read_text(encoding="utf-8")
+                    )
+                    if staged_package.model_dump(mode="json") != package.model_dump(mode="json"):
+                        raise ValueError("staged package content changed")
+                    if {path.name for path in run_dir.iterdir()} != {staging_path.name}:
+                        raise ValueError("staged package directory contains unexpected files")
+                    os.replace(staging_path, package_path)
+                    secure_file(package_path)
+                    self._sync_directory(run_dir)
+                except (OSError, ValueError) as exc:
+                    self.repository.finish_operation(
+                        operation_scope,
+                        effective_idempotency_key,
+                        "failed",
+                        f"staged production package could not be recovered: {exc}",
+                    )
+                    raise ConflictError(
+                        "staged production package failed recovery verification"
+                    ) from exc
+            else:
+                if recovering_pending and any(run_dir.iterdir()):
+                    self.repository.finish_operation(
+                        operation_scope,
+                        effective_idempotency_key,
+                        "failed",
+                        "pending production directory has content but no immutable package",
+                    )
+                    raise ConflictError("pending production package is missing")
+                self._write_and_promote_package(staging_path, package_path, encoded_package)
 
         try:
             workspace = self.adapter.materialize_workspace(package_path)
