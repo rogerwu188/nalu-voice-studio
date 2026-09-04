@@ -2451,6 +2451,22 @@ Current evidence:
   No provider lookup, paid call, production or publication write occurred. This closes
   deterministic director-strategy content rederivation only, not authorized platform
   observation, human acceptance, signing, notarization or SOP-10.
+- Product commit `ac6faa427b16960bdf91b917ed7ecd351b6c2804`, GitHub CI run
+  `33922756503`: director-strategy retrieval now reconstructs the intended next-episode
+  target from the validated source metrics episode and requires every project strategy
+  revision sequence to remain contiguous from revision one. Negative fixtures coordinated
+  changes across the SQLite row, stored JSON and recomputed outer digest to relink a
+  strategy to another episode in the same project and to advance its only revision from
+  one to two; both failed closed while the restored record replayed normally. All 278
+  Runtime tests and the Runtime, Apple Silicon, Intel and Universal jobs passed, including
+  bundled-Runtime smoke, native publication-learning evidence, staged update, populated
+  rollback and controlled-evolution checks. Runtime QA artifact `9955728054` has digest
+  `sha256:532628fbea897cda06c351c48c324d07edfd5726fd92de3f4653038856b144b4`;
+  Universal artifact `9955797310` has digest
+  `sha256:2cfe36616146b3f940236d1a9c96cbc0bc72d2c3b2d63c101e1f1abb8c7a559b`.
+  No provider lookup, paid call, production or publication write occurred. This closes
+  deterministic director-strategy target and revision integrity only, not authorized
+  platform observation, human acceptance, signing, notarization or SOP-10.
 
 ## SOP-11 · macOS packaging, updates and operations — IN_PROGRESS
 
