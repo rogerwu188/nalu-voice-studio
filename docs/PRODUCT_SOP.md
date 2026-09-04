@@ -1968,6 +1968,37 @@ Current evidence:
   These close the packaged ownership/descriptor/quit regression checkpoint only; the
   artifact remains ad-hoc signed and is not clean-install, Developer ID, hardened-runtime
   or notarization acceptance.
+- Commit `b36d06dcbd3d00322623b09edd9e9da3e1bf73b2` adds an independent
+  fail-closed verifier for both packaged staged-update and populated rollback reports.
+  It requires the exact schemas and fields, recomputes both canonical report digests,
+  enforces a one-build monotonic transition, rejects failed tamper/replay/rollback/data-
+  preservation claims, requires ten consecutively numbered approved episodes across the
+  same Runtime schema, and prevents either report or the release ZIP from being
+  substituted beneath a trusted artifact digest. The Universal job now executes this
+  verifier before upload and publishes its canonical receipt. Negative fixtures cover
+  non-monotonic builds, failed protected-data preservation, digest changes, truncated
+  episode state, signed-update overclaims and artifact report substitution. GitHub CI
+  run `33848292912` passed 219 Runtime tests, lint and contract audits, real HTTP and
+  offline E2E rehearsals, both architecture builds and the Universal build, including
+  packaged smoke, staged update, populated rollback and both provenance verifiers.
+- The exact Universal artifact `9927490319` has GitHub digest
+  `sha256:61cfcd6dac126135f3f593b1eed7c134f245e8454867932f5b70f78c6ecbcbc4`.
+  A fresh repository-external download reproduced that outer digest and bound both
+  reports plus the application ZIP to the archive byte-for-byte. The inner ZIP SHA-256
+  is `e73bd6d9e300ad80a2e86475b68a9a19ede27158eae1f27597fd7a5a17c27345`.
+  Staged-update report file/canonical SHA-256 values are respectively
+  `07526f8b9da1abde4a7df01c689def2805998153eb1ab433fb59f85943806c8a`
+  and `2c3eb566e2e079f9c8e90331e3bf50b67f398af1294d4af1ee5adf9451a9df4d`;
+  rollback report values are
+  `5aacb74a403a2ac926101b26b1977da09aae3b3503f69848ebb055dd779ccb19`
+  and `05f736c4b9f8753e53bf45021cc740164d16349c53f0948e5597ad80660720e1`.
+  The independent bound receipt file has SHA-256
+  `a4f411cfb31b9c8923efde8352ca703beab173d8ad6e5769e2a0be4fd198a437`
+  and canonical digest
+  `cf6e1c561a0fb6a2747b2a61c83342943958f04a64d84cc4fdbd7cfee04310b2`.
+  It truthfully limits scope to an ephemeral offline/loopback rehearsal: no production
+  update was downloaded or installed and no Developer ID, notarization or clean-Mac
+  old-version upgrade acceptance is claimed. SOP-11 remains `IN_PROGRESS`.
 - Still required before `PASS`: Developer ID signing, hardened runtime, notarized
   universal release evidence, an authorized real update origin and production public key,
   authorized production discovery/download QA, and clean-Mac old-version-to-new-version
