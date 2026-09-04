@@ -6660,6 +6660,17 @@
             "title": "External Write Performed",
             "type": "boolean"
           },
+          "guardian_approval": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Guardian Approval"
+          },
           "idempotency_key_sha256": {
             "pattern": "^[a-f0-9]{64}$",
             "title": "Idempotency Key Sha256",

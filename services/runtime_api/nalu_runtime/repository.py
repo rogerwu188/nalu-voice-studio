@@ -6978,6 +6978,23 @@ class Repository:
             raise ConflictError("stored publication reconciliation row binding mismatch")
         if row_binding != expected_row_binding:
             raise ConflictError("stored publication reconciliation entity binding mismatch")
+        if record.guardian_approval is not None:
+            expected_request_sha256 = hashlib.sha256(
+                encode(
+                    {
+                        "run_id": record.run_id,
+                        "platform": record.platform,
+                        "remote_publication_id": record.remote_publication_id,
+                        "release_manifest_sha256": record.release_manifest_sha256,
+                        "publication_dry_run_sha256": record.publication_dry_run_sha256,
+                        "channel_reference": record.channel_reference,
+                        "guardian_approval": record.guardian_approval,
+                        "idempotency_key_sha256": record.idempotency_key_sha256,
+                    }
+                ).encode()
+            ).hexdigest()
+            if record.request_sha256 != expected_request_sha256:
+                raise ConflictError("stored publication reconciliation request digest mismatch")
         trusted_release_binding = (
             expected_release_manifest_sha256,
             expected_publication_dry_run_sha256,
@@ -7103,6 +7120,7 @@ class Repository:
             "release_manifest_sha256": local_release_manifest_sha256,
             "publication_dry_run_sha256": publication_dry_run_sha256,
             "channel_reference": channel_reference,
+            "guardian_approval": request.guardian_approval,
             "published_at": verified.published_at,
             "verification_evidence_sha256": hashlib.sha256(evidence_json.encode()).hexdigest(),
             "read_only_verification_performed": True,

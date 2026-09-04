@@ -119,9 +119,18 @@ def build_fixture(raw_root: Path) -> dict[str, Any]:
         )
 
     publication_key_sha256 = hashlib.sha256(uuid4().hex.encode()).hexdigest()
-    publication_request_sha256 = hashlib.sha256(
-        b"native-publication-learning-fixture-publication-request"
-    ).hexdigest()
+    publication_request_sha256 = digest(
+        {
+            "run_id": run_id,
+            "platform": "bilibili",
+            "remote_publication_id": "local_qa_not_published",
+            "release_manifest_sha256": "3" * 64,
+            "publication_dry_run_sha256": "4" * 64,
+            "channel_reference": "local-qa-history-only",
+            "guardian_approval": False,
+            "idempotency_key_sha256": publication_key_sha256,
+        }
+    )
     publication_body = {
         "schema_version": "nalu.publication-reconciliation/v1",
         "run_id": run_id,
@@ -133,6 +142,7 @@ def build_fixture(raw_root: Path) -> dict[str, Any]:
         "release_manifest_sha256": "3" * 64,
         "publication_dry_run_sha256": "4" * 64,
         "channel_reference": "local-qa-history-only",
+        "guardian_approval": False,
         "published_at": "2026-08-01T00:00:00+00:00",
         "verification_evidence_sha256": "5" * 64,
         "read_only_verification_performed": True,

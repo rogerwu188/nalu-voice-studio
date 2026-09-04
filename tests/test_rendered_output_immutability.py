@@ -2741,6 +2741,16 @@ def test_completed_media_qa_creates_offline_release_package_without_publishing(
         assert "entity binding mismatch" in cross_project_reconciliation.text
         rewrite_reconciliation_record(original_record_body)
 
+        changed_guardian_record = deepcopy(original_record_body)
+        changed_guardian_record["guardian_approval"] = True
+        rewrite_reconciliation_record(changed_guardian_record)
+        changed_guardian_reconciliation = verified_api.get(
+            f"/v1/production-runs/{run['id']}/publication-reconciliation/youtube"
+        )
+        assert changed_guardian_reconciliation.status_code == 409
+        assert "request digest mismatch" in changed_guardian_reconciliation.text
+        rewrite_reconciliation_record(original_record_body)
+
         with sqlite3.connect(reconciliation_db) as connection:
             connection.execute(
                 """UPDATE publication_reconciliations
@@ -2768,7 +2778,7 @@ def test_completed_media_qa_creates_offline_release_package_without_publishing(
             f"/v1/production-runs/{run['id']}/publication-reconciliation/youtube"
         )
         assert relinked_release.status_code == 409
-        assert "release binding mismatch" in relinked_release.text
+        assert "request digest mismatch" in relinked_release.text
         blocked_learning = verified_api.post(
             f"/v1/production-runs/{run['id']}/publication-metrics",
             headers={"Idempotency-Key": "publication-metrics-tampered"},

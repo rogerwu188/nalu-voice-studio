@@ -2012,6 +2012,7 @@ class PublicationReconciliationRecord(BaseModel):
     release_manifest_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     publication_dry_run_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     channel_reference: str
+    guardian_approval: bool | None = None
     published_at: str
     verification_evidence_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     read_only_verification_performed: Literal[True] = True
