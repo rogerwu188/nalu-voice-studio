@@ -85,6 +85,10 @@ authorized live-session and packet-boundary QA.
   not exposed as Realtime operations; those actions remain behind product gates.
 - The status strip has an indeterminate running indicator, explicit listening/thinking/
   speaking/reconnecting states, elapsed time, and a manual reconnect action after failure.
+- Peer failure, a sustained disconnected state, provider errors and data-channel close or
+  error use one failure gate, so capture is stopped and only one retry notice is shown.
+  Intentional stop does not surface a false network error, and delayed callbacks from an
+  older channel cannot fail its replacement.
 - The user chooses a 5, 10 or 20 minute session ceiling. Nalu stops microphone capture and
   the peer connection at the ceiling; choosing a new session requires a fresh consent flow.
 - WebKit media capture is granted only while an explicitly consented session is

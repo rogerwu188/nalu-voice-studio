@@ -199,6 +199,17 @@ Current evidence:
   The final run passed 193 Runtime tests, both architecture Swift suites and builds,
   Universal merge, bundle smoke, staged update and rollback. No credential, microphone,
   provider or paid call was used, so live transcript/audio alignment remains unaccepted.
+- Commit `7836e03abd857e52c567b17785c58cbea03415a7`, GitHub CI run
+  `33828174957`, Universal artifact `9920802527` (artifact digest
+  `sha256:5fe936caef537e29e50a8e8d32b842063ba8898767a820d92e79726c50785913`):
+  peer failure, prolonged disconnect, provider error and data-channel close/error now
+  converge on one idempotent failure path. It tears down capture, permits an explicit
+  retry and suppresses duplicate notices; intentional stop remains quiet, and channel-
+  identity checks prevent delayed events from a prior connection from failing a new one.
+  Embedded JavaScript passed an independent syntax check. CI passed 193 Runtime tests,
+  both architecture Swift suites and builds, Universal merge, bundle smoke, staged
+  update and rollback. This proves deterministic packaged lifecycle behavior without a
+  credential; authorized live network-loss/session-expiry recovery remains outstanding.
 - Still required before `PASS`: authorized paid Realtime connectivity, interruption,
   real function-call, network-loss, session-expiry and provider usage/cost QA;
   VoiceOver/Accessibility Inspector audit; and a clean-account voice-only QA session
