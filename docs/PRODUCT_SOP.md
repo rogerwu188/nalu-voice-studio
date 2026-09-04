@@ -255,6 +255,17 @@ Current evidence:
   tests, both Swift suites and architecture builds, Universal merge, bundle smoke, staged
   update and rollback. This closes code-level origin/capture authorization; the real clean-
   account macOS permission journey and human confirmation remain outstanding.
+- Commit `b912d5591c3f2c47b542d292b4d2b7822204d63c`, GitHub CI run
+  `33837130557`, Universal artifact `9923764801` (artifact digest
+  `sha256:931cb704481c50daff4b624b8a48bbc34f5618bdd45c6b3d7c1ee085cf53367f`):
+  local follow-up questions are whitespace-normalized, limited to 1,000 characters and
+  sent as an `untrusted_question` JSON field in a separate conversation input item. The
+  subsequent response request contains only fixed policy and never concatenates question
+  text into model instructions; WebRTC independently rejects empty, non-string and
+  oversized values. Injection-shaped text and the embedded JavaScript syntax have
+  deterministic regression coverage. CI passed all Runtime and Swift tests, arm64 and
+  Intel builds, Universal merge, bundle smoke, staged update and rollback. This closes
+  the spoken-prompt data boundary without claiming authorized live model-behavior QA.
 - Still required before `PASS`: authorized paid Realtime connectivity, interruption,
   real function-call, network-loss, session-expiry and provider usage/cost QA;
   VoiceOver/Accessibility Inspector audit; and a clean-account voice-only QA session
