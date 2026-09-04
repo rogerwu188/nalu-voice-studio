@@ -10,6 +10,7 @@ from pathlib import Path
 from threading import Event
 from urllib.parse import unquote, urlparse
 
+import nalu_runtime.asset_service as asset_service_module
 import nalu_runtime.engine as engine_module
 import pytest
 from fastapi.testclient import TestClient
@@ -3627,6 +3628,91 @@ def test_child_biometric_import_requires_guardian_without_leaving_data(
     assert "guardian approval" in legacy_registration.text
     stored_assets = api.get(f"/v1/projects/{project['id']}/assets").json()
     assert [stored["id"] for stored in stored_assets] == [asset["id"]]
+
+
+def test_managed_asset_import_recovers_both_database_crash_windows(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    api = client(tmp_path)
+    project = api.post("/v1/projects", json={"title": "家庭档案"}).json()
+    endpoint = f"/v1/projects/{project['id']}/asset-imports"
+    request = {
+        "filename": "memory.txt",
+        "kind": "source_document",
+        "name": "手写回忆",
+    }
+    project_root = tmp_path / "data" / "assets" / project["id"]
+    original_after_promotion = asset_service_module.AssetService._after_asset_promotion
+    original_after_commit = asset_service_module.AssetService._after_asset_database_commit
+
+    class SimulatedProcessExit(BaseException):
+        pass
+
+    def crash_before_database_commit(_directory: Path) -> None:
+        raise SimulatedProcessExit("simulated exit before asset database commit")
+
+    monkeypatch.setattr(
+        asset_service_module.AssetService,
+        "_after_asset_promotion",
+        staticmethod(crash_before_database_commit),
+    )
+    with pytest.raises(SimulatedProcessExit, match="before asset database commit"):
+        api.post(
+            endpoint,
+            params=request,
+            content=b"first family memory",
+            headers={"Content-Type": "text/plain"},
+        )
+
+    promoted = [path for path in project_root.iterdir() if not path.name.startswith(".")]
+    assert len(promoted) == 1
+    assert (promoted[0] / asset_service_module.AssetService.IMPORT_MARKER).is_file()
+    assert (promoted[0] / "memory.txt").read_bytes() == b"first family memory"
+    with api.app.state.repository.db.connect() as connection:
+        assert connection.execute("SELECT COUNT(*) FROM assets").fetchone()[0] == 0
+
+    monkeypatch.setattr(
+        asset_service_module.AssetService,
+        "_after_asset_promotion",
+        staticmethod(original_after_promotion),
+    )
+    restarted = client(tmp_path)
+    assert restarted.get(f"/v1/projects/{project['id']}/assets").json() == []
+    assert list(project_root.iterdir()) == []
+
+    def crash_after_database_commit(_asset: object) -> None:
+        raise SimulatedProcessExit("simulated exit after asset database commit")
+
+    monkeypatch.setattr(
+        asset_service_module.AssetService,
+        "_after_asset_database_commit",
+        staticmethod(crash_after_database_commit),
+    )
+    with pytest.raises(SimulatedProcessExit, match="after asset database commit"):
+        restarted.post(
+            endpoint,
+            params=request,
+            content=b"committed family memory",
+            headers={"Content-Type": "text/plain"},
+        )
+
+    with restarted.app.state.repository.db.connect() as connection:
+        committed_id = connection.execute("SELECT id FROM assets").fetchone()["id"]
+    committed_directory = project_root / committed_id
+    assert (committed_directory / asset_service_module.AssetService.IMPORT_MARKER).is_file()
+    assert (committed_directory / "memory.txt").read_bytes() == b"committed family memory"
+
+    monkeypatch.setattr(
+        asset_service_module.AssetService,
+        "_after_asset_database_commit",
+        staticmethod(original_after_commit),
+    )
+    recovered = client(tmp_path)
+    assets = recovered.get(f"/v1/projects/{project['id']}/assets").json()
+
+    assert [asset["id"] for asset in assets] == [committed_id]
+    assert not (committed_directory / asset_service_module.AssetService.IMPORT_MARKER).exists()
+    assert (committed_directory / "memory.txt").read_bytes() == b"committed family memory"
 
 
 def test_project_scoped_asset_rechecks_scope_after_stale_preflight(
