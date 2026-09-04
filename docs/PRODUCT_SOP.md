@@ -2398,6 +2398,24 @@ Current evidence:
   Only deterministic local verifier evidence was used; no paid call or publication write
   occurred. This closes local reconciliation transaction authority only, not authorized
   platform reconciliation, human acceptance, signing, notarization or SOP-10.
+- Product commit `a709e1d2339f4153d24b53c559c1f774808fcab4`, GitHub CI run
+  `33894546583`: newly created publication reconciliations now persist the guardian-
+  approval fact and regenerate their request digest from the bound run, platform, remote
+  identity, release manifest, publication dry-run, channel and idempotency-key hash on
+  every read. Legacy records without this additive field remain readable. Negative
+  fixtures changed guardian approval and release linkage while recomputing the outer
+  record digest; both failed the independently regenerated request identity. The native
+  local-only learning fixture emits the same derivable request, and the additive optional
+  response field is recorded in the versioned OpenAPI contract. All 278 Runtime tests and
+  the Runtime, Apple Silicon, Intel and Universal jobs passed, including OpenAPI
+  compatibility, bundled-Runtime smoke, project isolation, staged update, populated
+  rollback and controlled-evolution checks. Runtime QA artifact `9945314318` has digest
+  `sha256:de7aef20890956167c9a3f6627e957a0abed0efbf8c1b6387f0575cec8d127f5`;
+  Universal artifact `9945489139` has digest
+  `sha256:1f38a45566d148ea8526f29a1dcd17a0f36995be14213899a3ba41d24a84911f`.
+  No paid call or publication write occurred. This closes new-record reconciliation
+  request rederivation only, not authorized platform reconciliation, human acceptance,
+  signing, notarization or SOP-10.
 
 ## SOP-11 · macOS packaging, updates and operations — IN_PROGRESS
 
