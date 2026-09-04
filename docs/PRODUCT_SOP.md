@@ -1423,6 +1423,21 @@ Current evidence:
   architecture builds, Universal merge, bundled smoke, packaged project-isolation,
   staged-update and rollback QA. This closes the remaining deterministic keyless
   preflight crash gap, not authorized provider crash testing.
+- Commit `d4a93fc64ac602458cd656e5c7dcaea5613f26cb`, GitHub CI run
+  `33871628686`, Runtime QA artifact `9936347951` and Universal artifact
+  `9936502837` (artifact digest
+  `sha256:cac0a9e3fde1e4a74ca0485a5d847940ba088e090a5fcd48723b4dd491780f98`):
+  the immutable production package is now created as a mode-`0600`, exclusive,
+  no-follow staging file, flushed and file-synced before atomic promotion; the final
+  directory entry is then directory-synced. A simulated crash after the complete
+  staging file was synced but before promotion is recovered by a fresh Runtime using
+  the same run ID and package digest, with exactly one run row and initial event.
+  Changed staged evidence is preserved and quarantined without creating a run or
+  overwriting either file. CI passed 267 Runtime tests, both native Swift suites and
+  architecture builds, Universal merge, bundled smoke, packaged project isolation,
+  staged-update, rollback and controlled-evolution verification. This closes the
+  deterministic production-package write/promotion boundary, not authorized provider
+  crash testing or signed-app human QA.
 - Still required before `PASS`: run authorized provider crash tests at every real
   network/charge/ledger boundary, reconcile real ambiguous charges against the provider
   and validate the stage explanations in a signed-app long-running production QA session.
