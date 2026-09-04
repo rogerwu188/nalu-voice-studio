@@ -210,6 +210,17 @@ Current evidence:
   both architecture Swift suites and builds, Universal merge, bundle smoke, staged
   update and rollback. This proves deterministic packaged lifecycle behavior without a
   credential; authorized live network-loss/session-expiry recovery remains outstanding.
+- Commit `f12f0023aae2fff94acb9724b6fe24e8c700819d`, GitHub CI run
+  `33834341437`, Universal artifact `9922869026` (artifact digest
+  `sha256:7f4405a37b41d89ae323b786c6eb789b1b75f7ab520a91ec442e6ece9346b6d9`):
+  Realtime interview instructions no longer interpolate editable project data directly
+  into the governing prompt. Project names and current questions are whitespace-
+  normalized, length-bounded and JSON-escaped inside a block explicitly declared
+  untrusted; instruction-shaped titles cannot redefine the answer-first, tool or safety
+  rules. Regression coverage includes quotes, newlines, a fake system/deletion command
+  and overlong text. CI passed 193 Runtime tests, both architecture Swift suites and
+  builds, Universal merge, bundle smoke, staged update and rollback. This closes the
+  untrusted-context checkpoint without claiming live model-behavior or paid-audio QA.
 - Still required before `PASS`: authorized paid Realtime connectivity, interruption,
   real function-call, network-loss, session-expiry and provider usage/cost QA;
   VoiceOver/Accessibility Inspector audit; and a clean-account voice-only QA session

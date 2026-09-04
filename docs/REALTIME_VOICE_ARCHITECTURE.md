@@ -96,7 +96,10 @@ authorized live-session and packet-boundary QA.
 - The original local push-to-talk control remains available and is disabled only while
   a live Realtime session is active.
 - The Realtime prompt requires Nalu to answer an interruption first, then return to the
-  unfinished interview prompt. It cannot claim that a protected local action occurred.
+  unfinished interview prompt. Editable project names and current prompts are normalized,
+  length-bounded and JSON-escaped inside an explicitly untrusted context block, so quote,
+  newline and instruction-shaped project text cannot redefine the interview or safety
+  rules. It cannot claim that a protected local action occurred.
 
 Still required: a credential-authorized paid connectivity/interruption/tool-call test,
 provider usage/cost reconciliation, live network-loss/session-expiry recovery, packet
