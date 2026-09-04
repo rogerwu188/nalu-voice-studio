@@ -1494,6 +1494,29 @@ Current evidence:
   passed. Universal artifact `9871483785` has GitHub digest
   `sha256:7f8d755e47ec5c82c933f1ecccb52c79ce3c260cd2093160d38979b5296995ea`.
   This closes the editorial-authority QA checkpoint, not SOP-09 or whole-product QA.
+- Product commit `25e66fb97158c199bd5fc4688a4c813d5377ed83`, GitHub CI run
+  `33845612268`: packaged postproduction QA no longer trusts a caller-supplied release
+  hash. Both release-bundle harnesses require the downloaded ZIP, recompute its SHA-256
+  before launching Runtime and reject malformed artifact/commit identities. Restart
+  replay is an explicit operation instead of an accidental duration side effect; soak
+  fixtures use bounded source media and prove their editorial windows cover the target
+  timeline without whole-provider-media passthrough. Eight direct integrity/layout tests
+  were added. CI passed 205 Runtime tests, the complete isolated Qingshan contract,
+  both architecture Swift suites and builds, bundle smoke, staged update, populated
+  rollback and Universal merge. Universal artifact `9926536313` has GitHub digest
+  `sha256:48e8cd1cf4957adf9af6d3bacbea46863099dfd40defe69d176247911f76e1e9`;
+  its independently downloaded inner ZIP SHA-256 is
+  `1c4716af74bacd16c3e763ae5e34e7331eef473937f5f6e54d08fe1346d0e8b2`.
+  The strengthened harness ran that exact artifact over loopback HTTP, materialized two
+  ordered shots and all five audio layers, sealed lineage, rejected a tampered source,
+  stopped, restarted, rehashed every result and preserved exactly one materialization
+  event; evidence report SHA-256 is
+  `e137a03233bb5174ebf6ccf3771be347ab12e45f9d26c008c44965449e974623`.
+  The same artifact separately proved confirmed character/prop inputs `READY`, missing
+  held-prop authority `BLOCKED` and provider upload disabled; evidence report SHA-256 is
+  `ae1f65d0a0f6fd0a573f43b3f8e7fa46f8b7eea0660bc130a6856e52e7974d91`.
+  Synthetic perceptual analysis remained `FAIL` and is not claimed as visual or human
+  acceptance. This closes only the current automated packaged-evidence checkpoint.
 
 ## SOP-10 · Controlled release and learning loop — IN_PROGRESS
 
