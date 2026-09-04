@@ -44,6 +44,7 @@ jobs:
       - run: pytest -q
       - run: python scripts/real-http-smoke.py
       - run: python scripts/qa-macos-upgrade-rollback.py --evidence /tmp/nalu-upgrade-rollback-source.json
+      - run: python scripts/qa-project-plan-isolation.py --source-commit "$GITHUB_SHA" --evidence /tmp/nalu-project-plan-isolation-source.json
       - run: python scripts/qa-offline-e2e-rehearsal.py --evidence /tmp/nalu-offline-e2e-rehearsal.json
       - name: Verify offline E2E rehearsal evidence
         run: |
@@ -57,6 +58,7 @@ jobs:
           name: Nalu-Voice-Studio-runtime-QA
           path: |
             /tmp/nalu-upgrade-rollback-source.json
+            /tmp/nalu-project-plan-isolation-source.json
             /tmp/nalu-offline-e2e-rehearsal.json
             /tmp/nalu-offline-e2e-verification.json
 
@@ -145,6 +147,7 @@ jobs:
       - run: scripts/merge-macos-universal.sh ".build/universal/arm64/app/Nalu Voice Studio.app" ".build/universal/x86_64/app/Nalu Voice Studio.app" "dist/Nalu Voice Studio.app"
       - run: NALU_REQUIRE_UNIVERSAL=true scripts/verify-macos-release.sh
       - run: NALU_PUBLICATION_FIXTURE_EVIDENCE=/tmp/nalu-publication-fixture-universal.json scripts/smoke-macos-bundle.sh
+      - run: python scripts/qa-project-plan-isolation.py --app "dist/Nalu Voice Studio.app" --source-commit "$GITHUB_SHA" --evidence dist/nalu-project-plan-isolation-universal.json
       - run: python scripts/qa-macos-staged-update.py --app "dist/Nalu Voice Studio.app" --evidence /tmp/nalu-staged-update-universal.json
       - run: python scripts/qa-macos-upgrade-rollback.py --app "dist/Nalu Voice Studio.app" --evidence /tmp/nalu-upgrade-rollback-universal.json
       - run: cp /tmp/nalu-upgrade-rollback-universal.json dist/nalu-upgrade-rollback-universal.json
@@ -186,6 +189,7 @@ jobs:
             dist/nalu-upgrade-rollback-universal.json
             dist/nalu-staged-update-universal.json
             dist/nalu-publication-fixture-universal.json
+            dist/nalu-project-plan-isolation-universal.json
             dist/nalu-publication-verification-universal.json
             dist/nalu-update-verification-universal.json
             dist/nalu-evolution-boundaries-universal.json
