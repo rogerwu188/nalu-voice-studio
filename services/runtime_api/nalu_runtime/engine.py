@@ -784,6 +784,19 @@ class ProductionService:
                     and existing.source_qa_sha256 == source_qa_sha256
                     and [task.code for task in existing.repair_tasks] == normalized_codes
                 ):
+                    self.repository.append_run_event_once(
+                        run.id,
+                        "postproduction_repair_required",
+                        dedupe_key="plan_sha256",
+                        dedupe_value=existing.plan_sha256,
+                        from_status=run.status,
+                        to_status=run.status,
+                        message="Release-blocking QA created specific repair tasks.",
+                        payload={
+                            "plan_sha256": existing.plan_sha256,
+                            "repair_codes": [task.code for task in existing.repair_tasks],
+                        },
+                    )
                     return existing
             except (OSError, ValueError):
                 pass
@@ -801,9 +814,11 @@ class ProductionService:
             plan_sha256=self._canonical_sha256(body),
         )
         replace_text_durably(plan_path, plan.model_dump_json(indent=2) + "\n")
-        self.repository.append_run_event(
+        self.repository.append_run_event_once(
             run.id,
             "postproduction_repair_required",
+            dedupe_key="plan_sha256",
+            dedupe_value=plan.plan_sha256,
             from_status=run.status,
             to_status=run.status,
             message="Release-blocking QA created specific repair tasks.",
@@ -889,13 +904,29 @@ class ProductionService:
                     and existing.status == report.status
                     and existing.failures == report.failures
                 ):
+                    self.repository.append_run_event_once(
+                        run.id,
+                        "media_structure_qa_completed",
+                        dedupe_key="report_sha256",
+                        dedupe_value=existing.report_sha256,
+                        from_status=run.status,
+                        to_status=run.status,
+                        message="MP4 container and caption timeline checks completed.",
+                        payload={
+                            "status": existing.status,
+                            "report_sha256": existing.report_sha256,
+                            "failure_count": len(existing.failures),
+                        },
+                    )
                     return existing
             except (OSError, ValueError):
                 pass
         replace_text_durably(report_path, report.model_dump_json(indent=2) + "\n")
-        self.repository.append_run_event(
+        self.repository.append_run_event_once(
             run.id,
             "media_structure_qa_completed",
+            dedupe_key="report_sha256",
+            dedupe_value=report.report_sha256,
             from_status=run.status,
             to_status=run.status,
             message="MP4 container and caption timeline checks completed.",
@@ -989,13 +1020,33 @@ class ProductionService:
                     and existing.status == report.status
                     and existing.failures == report.failures
                 ):
+                    self.repository.append_run_event_once(
+                        run.id,
+                        "decoded_media_qa_completed",
+                        dedupe_key="report_sha256",
+                        dedupe_value=existing.report_sha256,
+                        from_status=run.status,
+                        to_status=run.status,
+                        message=(
+                            "Decoded picture, audio/VAD and caption-speech alignment "
+                            "gates completed."
+                        ),
+                        payload={
+                            "status": existing.status,
+                            "report_sha256": existing.report_sha256,
+                            "failure_count": len(existing.failures),
+                            "semantic_asr_verified": False,
+                        },
+                    )
                     return existing
             except (OSError, ValueError):
                 pass
         replace_text_durably(report_path, report.model_dump_json(indent=2) + "\n")
-        self.repository.append_run_event(
+        self.repository.append_run_event_once(
             run.id,
             "decoded_media_qa_completed",
+            dedupe_key="report_sha256",
+            dedupe_value=report.report_sha256,
             from_status=run.status,
             to_status=run.status,
             message="Decoded picture, audio/VAD and caption-speech alignment gates completed.",
@@ -1113,6 +1164,23 @@ class ProductionService:
                     and existing.status == report.status
                     and existing.failures == report.failures
                 ):
+                    self.repository.append_run_event_once(
+                        run.id,
+                        "postproduction_lineage_qa_completed",
+                        dedupe_key="report_sha256",
+                        dedupe_value=existing.report_sha256,
+                        from_status=run.status,
+                        to_status=run.status,
+                        message=(
+                            "Selected shots, normalized segments, audio stems, published mix "
+                            "and subtitle lineage were checked against decoded files."
+                        ),
+                        payload={
+                            "status": existing.status,
+                            "report_sha256": existing.report_sha256,
+                            "failure_count": len(existing.failures),
+                        },
+                    )
                     return existing
             except (OSError, ValueError):
                 pass
@@ -1121,9 +1189,11 @@ class ProductionService:
             publish_exclusive_text(report_path, report.model_dump_json(indent=2) + "\n")
         except FileExistsError as exc:
             raise ConflictError("postproduction lineage QA was recorded concurrently") from exc
-        self.repository.append_run_event(
+        self.repository.append_run_event_once(
             run.id,
             "postproduction_lineage_qa_completed",
+            dedupe_key="report_sha256",
+            dedupe_value=report.report_sha256,
             from_status=run.status,
             to_status=run.status,
             message=(
@@ -1253,6 +1323,24 @@ class ProductionService:
                     and existing.status == report.status
                     and existing.failures == report.failures
                 ):
+                    self.repository.append_run_event_once(
+                        run.id,
+                        "visual_continuity_qa_completed",
+                        dedupe_key="report_sha256",
+                        dedupe_value=existing.report_sha256,
+                        from_status=run.status,
+                        to_status=run.status,
+                        message=(
+                            "Decoded identity, wardrobe, space/axis, pose and prop evidence "
+                            "was checked against the sealed master and confirmed library."
+                        ),
+                        payload={
+                            "status": existing.status,
+                            "report_sha256": existing.report_sha256,
+                            "failure_count": len(existing.failures),
+                            "human_review_replaced": False,
+                        },
+                    )
                     return existing
             except ConflictError:
                 pass
@@ -1261,9 +1349,11 @@ class ProductionService:
             publish_exclusive_text(report_path, report.model_dump_json(indent=2) + "\n")
         except FileExistsError as exc:
             raise ConflictError("visual continuity QA was recorded concurrently") from exc
-        self.repository.append_run_event(
+        self.repository.append_run_event_once(
             run.id,
             "visual_continuity_qa_completed",
+            dedupe_key="report_sha256",
+            dedupe_value=report.report_sha256,
             from_status=run.status,
             to_status=run.status,
             message=(
@@ -1465,15 +1555,34 @@ class ProductionService:
                 and existing.semantic_asr == report.semantic_asr
                 and existing.shot_boundaries == report.shot_boundaries
             ):
+                self.repository.append_run_event_once(
+                    run.id,
+                    "semantic_media_qa_completed",
+                    dedupe_key="report_sha256",
+                    dedupe_value=existing.report_sha256,
+                    from_status=run.status,
+                    to_status=run.status,
+                    message="Local semantic ASR and authored decoded-boundary QA completed.",
+                    payload={
+                        "status": existing.status,
+                        "report_sha256": existing.report_sha256,
+                        "failure_count": len(existing.failures),
+                        "local_recognition": bool(
+                            (existing.recognizer_execution or {}).get("local_recognition")
+                        ),
+                    },
+                )
                 return existing
             raise ConflictError("semantic media QA already exists with different evidence")
         try:
             publish_exclusive_text(report_path, report.model_dump_json(indent=2) + "\n")
         except FileExistsError as exc:
             raise ConflictError("semantic media QA was created concurrently") from exc
-        self.repository.append_run_event(
+        self.repository.append_run_event_once(
             run.id,
             "semantic_media_qa_completed",
+            dedupe_key="report_sha256",
+            dedupe_value=report.report_sha256,
             from_status=run.status,
             to_status=run.status,
             message="Local semantic ASR and authored decoded-boundary QA completed.",

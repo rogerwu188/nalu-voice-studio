@@ -901,6 +901,94 @@ def test_rendered_output_seal_recovers_exactly_one_event_after_file_commit_crash
     ) == 1
 
 
+def test_media_qa_recovers_exactly_one_event_after_durable_report_crash(
+    tmp_path: Path,
+) -> None:
+    api = client(tmp_path)
+    _project, episode, _entity = approved_episode_with_library(api)
+    run = api.post(
+        f"/v1/episodes/{episode['id']}/production-runs",
+        json={"dry_run": True},
+    ).json()
+    api.app.state.repository.update_run_status(run["id"], RunStatus.QA_REVIEW)
+    run_directory = Path(run["package_path"]).parent
+    exports = run_directory / "qingshan-workspace" / "exports"
+    create_playable_mp4(exports / "E01_MASTER.mp4")
+    (exports / "E01_zh-CN.vtt").write_text(
+        "WEBVTT\n\n00:00.100 --> 00:01.800\n回家\n", encoding="utf-8"
+    )
+    api.post(
+        f"/v1/production-runs/{run['id']}/rendered-output-seal",
+        json=seal_payload(),
+    ).raise_for_status()
+
+    repository = api.app.state.repository
+    with (
+        patch.object(
+            repository,
+            "append_run_event_once",
+            side_effect=RuntimeError("simulated exit before media QA event commit"),
+        ),
+        pytest.raises(RuntimeError, match="simulated exit"),
+    ):
+        api.post(f"/v1/production-runs/{run['id']}/media-structure-qa")
+
+    report_path = run_directory / "media-structure-qa.json"
+    durable_bytes = report_path.read_bytes()
+    durable_sha256 = hashlib.sha256(durable_bytes).hexdigest()
+    assert not any(
+        event.event_type == "media_structure_qa_completed"
+        for event in repository.list_run_events(run["id"])
+    )
+
+    restarted = client(tmp_path)
+    recovered = restarted.post(f"/v1/production-runs/{run['id']}/media-structure-qa")
+    assert recovered.status_code == 200, recovered.text
+    assert report_path.read_bytes() == durable_bytes
+    assert hashlib.sha256(report_path.read_bytes()).hexdigest() == durable_sha256
+    replay = restarted.post(f"/v1/production-runs/{run['id']}/media-structure-qa")
+    assert replay.json() == recovered.json()
+    events = restarted.get(f"/v1/production-runs/{run['id']}/events").json()
+    report_events = [
+        event for event in events if event["event_type"] == "media_structure_qa_completed"
+    ]
+    assert len(report_events) == 1
+    assert report_events[0]["payload"]["report_sha256"] == recovered.json()["report_sha256"]
+
+    recovered_repository = restarted.app.state.repository
+    first = recovered_repository.append_run_event_once(
+        run["id"],
+        "qa_event_dedupe_fixture",
+        dedupe_key="report_sha256",
+        dedupe_value="a" * 64,
+        payload={"report_sha256": "a" * 64},
+    )
+    replayed = recovered_repository.append_run_event_once(
+        run["id"],
+        "qa_event_dedupe_fixture",
+        dedupe_key="report_sha256",
+        dedupe_value="a" * 64,
+        payload={"report_sha256": "a" * 64},
+    )
+    changed = recovered_repository.append_run_event_once(
+        run["id"],
+        "qa_event_dedupe_fixture",
+        dedupe_key="report_sha256",
+        dedupe_value="b" * 64,
+        payload={"report_sha256": "b" * 64},
+    )
+    assert replayed.id == first.id
+    assert changed.id != first.id
+    with pytest.raises(ValueError, match="dedupe value"):
+        recovered_repository.append_run_event_once(
+            run["id"],
+            "qa_event_dedupe_fixture",
+            dedupe_key="report_sha256",
+            dedupe_value="c" * 64,
+            payload={"report_sha256": "different"},
+        )
+
+
 def test_verified_seal_and_human_qa_complete_atomically_and_retry_safely(
     tmp_path: Path,
 ) -> None:

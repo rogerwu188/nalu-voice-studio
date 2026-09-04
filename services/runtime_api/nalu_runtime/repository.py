@@ -7723,6 +7723,61 @@ class Repository:
             )
         return self.get_run_event(event_id)
 
+    def append_run_event_once(
+        self,
+        run_id: str,
+        event_type: str,
+        *,
+        dedupe_key: str,
+        dedupe_value: str,
+        from_status: RunStatus | None = None,
+        to_status: RunStatus | None = None,
+        message: str = "",
+        payload: dict[str, Any] | None = None,
+    ) -> RunEvent:
+        """Append an event unless the latest event already binds the same durable digest."""
+        event_id, now = new_id("evt"), utc_now()
+        payload = payload or {}
+        if payload.get(dedupe_key) != dedupe_value:
+            raise ValueError("event dedupe value must be present in its payload")
+        with self.db.connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            current = connection.execute(
+                "SELECT 1 FROM production_runs WHERE id = ?", (run_id,)
+            ).fetchone()
+            if current is None:
+                raise NotFoundError("production run not found")
+            prior = connection.execute(
+                """SELECT id, payload_json FROM run_events
+                   WHERE run_id = ? AND event_type = ?
+                   ORDER BY sequence DESC LIMIT 1""",
+                (run_id, event_type),
+            ).fetchone()
+            if prior is not None and decode(prior["payload_json"]).get(dedupe_key) == dedupe_value:
+                result_id = prior["id"]
+            else:
+                row = connection.execute(
+                    """SELECT COALESCE(MAX(sequence), 0) + 1 AS sequence
+                       FROM run_events WHERE run_id = ?""",
+                    (run_id,),
+                ).fetchone()
+                connection.execute(
+                    "INSERT INTO run_events VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (
+                        event_id,
+                        run_id,
+                        int(row["sequence"]),
+                        event_type,
+                        from_status,
+                        to_status,
+                        message,
+                        encode(payload),
+                        now,
+                    ),
+                )
+                result_id = event_id
+        return self.get_run_event(result_id)
+
     def record_local_visual_analysis(
         self,
         run_id: str,
