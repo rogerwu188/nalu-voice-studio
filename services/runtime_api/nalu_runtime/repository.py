@@ -5577,6 +5577,12 @@ class Repository:
         asset_id, now = asset_id or new_id("ast"), utc_now()
         with self.db.connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
+            duplicate = connection.execute(
+                "SELECT id FROM assets WHERE project_id = ? AND local_uri = ?",
+                (project_id, request.local_uri),
+            ).fetchone()
+            if duplicate is not None:
+                raise ConflictError("managed local file is already registered as an asset")
             connection.execute(
                 """INSERT INTO assets
                    (id, project_id, season_id, episode_id, kind, name, local_uri,

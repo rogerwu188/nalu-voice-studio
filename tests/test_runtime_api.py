@@ -3190,6 +3190,21 @@ def test_local_asset_import_consent_revocation_and_path_safety(tmp_path: Path) -
     assert records[0]["action_type"] == "granted"
     assert records[0]["statement"] == "我同意这张照片仅用于本项目"
 
+    duplicate_registration = api.post(
+        f"/v1/projects/{project['id']}/assets",
+        json={
+            "kind": "source_document",
+            "name": "重复登记同一受管文件",
+            "local_uri": asset["local_uri"],
+        },
+    )
+    assert duplicate_registration.status_code == 409
+    assert "already registered" in duplicate_registration.text
+    assert [item["id"] for item in api.get(f"/v1/projects/{project['id']}/assets").json()] == [
+        asset["id"]
+    ]
+    assert stored_path.read_bytes() == b"fake-jpeg"
+
     revoked = api.post(
         f"/v1/assets/{asset['id']}/consent-revocations",
         json={"requested_by": "本人", "reason": "我不再同意使用照片"},
@@ -3204,6 +3219,34 @@ def test_local_asset_import_consent_revocation_and_path_safety(tmp_path: Path) -
         headers={"Idempotency-Key": "revoked-biometric"},
     )
     assert blocked.status_code == 409
+
+
+def test_concurrent_existing_asset_registration_keeps_one_owner(tmp_path: Path) -> None:
+    api = client(tmp_path)
+    project, _, _ = create_approved_episode(api)
+    managed_directory = tmp_path / "data" / "assets" / project["id"] / "legacy-file"
+    managed_directory.mkdir(parents=True)
+    managed_file = managed_directory / "notes.txt"
+    managed_file.write_bytes(b"one managed file")
+    payload = {
+        "kind": "source_document",
+        "name": "旧版导入资料",
+        "local_uri": managed_file.resolve().as_uri(),
+    }
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        responses = list(
+            executor.map(
+                lambda _: api.post(f"/v1/projects/{project['id']}/assets", json=payload),
+                range(2),
+            )
+        )
+
+    assert sorted(response.status_code for response in responses) == [201, 409]
+    assets = api.get(f"/v1/projects/{project['id']}/assets").json()
+    assert len(assets) == 1
+    assert assets[0]["local_uri"] == managed_file.resolve().as_uri()
+    assert managed_file.read_bytes() == b"one managed file"
 
 
 def test_project_season_and_episode_asset_scope_inheritance(tmp_path: Path) -> None:
