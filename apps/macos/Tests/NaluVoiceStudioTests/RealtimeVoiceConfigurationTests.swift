@@ -141,6 +141,27 @@ final class RealtimeVoiceConfigurationTests: XCTestCase {
         )
     }
 
+    func testUnknownRealtimeErrorsNeverExposeProviderOrCredentialText() {
+        let secret = "sk-live-must-never-appear"
+        let providerError = NSError(
+            domain: "provider",
+            code: 401,
+            userInfo: [NSLocalizedDescriptionKey: "Authorization: Bearer \(secret)"]
+        )
+        let message = RealtimeVoiceError.publicDescription(for: providerError)
+
+        XCTAssertEqual(
+            message,
+            RealtimeVoiceError.sessionRequestFailed.localizedDescription
+        )
+        XCTAssertFalse(message.contains(secret))
+        XCTAssertFalse(message.contains("Bearer"))
+        XCTAssertEqual(
+            RealtimeVoiceError.publicDescription(for: RealtimeVoiceError.missingCredential),
+            RealtimeVoiceError.missingCredential.localizedDescription
+        )
+    }
+
     func testVisibleStatesDescribeConnectionAndInterruption() {
         XCTAssertEqual(RealtimeVoiceState.listening.label, "正在听您说话")
         XCTAssertTrue(RealtimeVoiceState.speaking.label.contains("随时插话"))
@@ -215,6 +236,8 @@ final class RealtimeVoiceConfigurationTests: XCTestCase {
         XCTAssertTrue(page.contains("function stop(notify = true, intentional = true)"))
         XCTAssertTrue(page.contains("if (intentional) stopping = true"))
         XCTAssertTrue(page.contains("stop(false, false)"))
+        XCTAssertFalse(page.contains("value.error?.message"))
+        XCTAssertFalse(page.contains("error.message ||"))
     }
 
     func testInterviewToolCallAllowsOnlyExactNarrowSchema() throws {

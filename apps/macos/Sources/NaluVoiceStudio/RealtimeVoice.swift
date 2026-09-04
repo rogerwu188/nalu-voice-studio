@@ -358,6 +358,13 @@ enum RealtimeVoiceError: LocalizedError {
         case .webViewNotReady: "实时语音组件尚未准备好，请稍后再试。"
         }
     }
+
+    static func publicDescription(for error: Error) -> String {
+        guard let known = error as? RealtimeVoiceError else {
+            return RealtimeVoiceError.sessionRequestFailed.localizedDescription
+        }
+        return known.localizedDescription
+    }
 }
 
 @MainActor
@@ -414,7 +421,7 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
             pendingToken = token
             startWebRTCIfReady()
         } catch {
-            state = .unavailable(error.localizedDescription)
+            state = .unavailable(RealtimeVoiceError.publicDescription(for: error))
             retryAllowed = true
         }
     }
@@ -437,9 +444,12 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
         guard let promptJSON = RealtimeJavaScriptBridge.stringLiteral(prompt) else { return }
         webView?.evaluateJavaScript("window.naluRealtime.speakPrompt(\(promptJSON))") {
             _, error in
-            if let error {
+            if error != nil {
                 Task { @MainActor in
-                    self.failSession(reason: error.localizedDescription, allowRetry: true)
+                    self.failSession(
+                        reason: "无法把当前问题交给自然语音，请重新连接。",
+                        allowRetry: true
+                    )
                 }
             }
         }
@@ -519,7 +529,7 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
         case .assistant:
             onAssistantTranscript?(event.value)
         case .error:
-            failSession(reason: event.value, allowRetry: true)
+            failSession(reason: "实时语音服务报告错误，请重新连接。", allowRetry: true)
         }
     }
 
@@ -583,9 +593,12 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
         webView?.evaluateJavaScript(
             "window.naluRealtime.completeToolCall(\(callIDJSON), \(outputJSON))"
         ) { _, error in
-            if let error {
+            if error != nil {
                 Task { @MainActor in
-                    self.failSession(reason: error.localizedDescription, allowRetry: true)
+                    self.failSession(
+                        reason: "语音采访结果无法返回，请重新连接。",
+                        allowRetry: true
+                    )
                 }
             }
         }
@@ -599,9 +612,12 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
             return
         }
         webView.evaluateJavaScript("window.naluRealtime.start(\(tokenJSON))") { _, error in
-            if let error {
+            if error != nil {
                 Task { @MainActor in
-                    self.failSession(reason: error.localizedDescription, allowRetry: true)
+                    self.failSession(
+                        reason: "实时语音组件启动失败，请重新连接。",
+                        allowRetry: true
+                    )
                 }
             }
         }
@@ -701,9 +717,7 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
                 arguments: call.arguments || "{}"
               }));
             }
-            if (value.type === "error") {
-              fail(value.error?.message || value.message || "实时语音发生错误");
-            }
+            if (value.type === "error") fail("实时语音服务报告错误，请重新连接");
           });
           const offer = await pc.createOffer();
           await pc.setLocalDescription(offer);
@@ -714,7 +728,11 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
           if (!response.ok) throw new Error("实时语音连接失败（" + response.status + "）");
           await pc.setRemoteDescription({type: "answer", sdp: await response.text()});
         } catch (error) {
-          fail(error.message || "实时语音连接失败");
+          if (error && error.name === "NotAllowedError") {
+            fail("需要麦克风权限才能开始自然语音");
+          } else {
+            fail("实时语音连接失败，请重新连接");
+          }
         }
       }
       function stop(notify = true, intentional = true) {
