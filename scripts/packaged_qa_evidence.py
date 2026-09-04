@@ -96,6 +96,12 @@ OFFLINE_E2E_SCENARIO_IDS = [
     "SOP-12-06-capability-routing",
     "SOP-12-07-governed-usability-feedback",
 ]
+FEEDBACK_POLICY_MEMBER = (
+    "Nalu Voice Studio.app/Contents/Resources/runtime-resources/configs/feedback-export.json"
+)
+HANDOFF_POLICY_MEMBER = (
+    "Nalu Voice Studio.app/Contents/Resources/runtime-resources/configs/development-handoff.json"
+)
 
 
 def validate_evidence_identifiers(
@@ -438,6 +444,104 @@ def verify_offline_e2e_artifact_archive(
     return {
         "artifact_archive_sha256": actual_sha,
         "offline_e2e_report_sha256": report_sha,
+    }
+
+
+def _strict_json_bytes(raw: bytes, *, label: str) -> dict[str, Any]:
+    try:
+        value = json.loads(raw, object_pairs_hook=_reject_duplicate_keys)
+    except (json.JSONDecodeError, UnicodeDecodeError) as error:
+        raise RuntimeError(f"{label} must be valid UTF-8 JSON") from error
+    if not isinstance(value, dict):
+        raise TypeError(f"{label} must be a JSON object")
+    return value
+
+
+def verify_controlled_evolution_policies(release_zip_path: Path) -> dict[str, str]:
+    regular_file_sha256(release_zip_path, label="release ZIP")
+    try:
+        with zipfile.ZipFile(release_zip_path) as release:
+            names = [info.filename for info in release.infolist()]
+            if len(names) != len(set(names)):
+                raise RuntimeError("release ZIP contains duplicate member names")
+            if not {FEEDBACK_POLICY_MEMBER, HANDOFF_POLICY_MEMBER}.issubset(names):
+                raise RuntimeError("release ZIP is missing controlled-evolution policies")
+            feedback_raw = release.read(FEEDBACK_POLICY_MEMBER)
+            handoff_raw = release.read(HANDOFF_POLICY_MEMBER)
+    except zipfile.BadZipFile as error:
+        raise RuntimeError("release ZIP is not a valid controlled-evolution package") from error
+    feedback = _strict_json_bytes(feedback_raw, label="feedback-export policy")
+    handoff = _strict_json_bytes(handoff_raw, label="development-handoff policy")
+    if feedback != {
+        "schema_version": "nalu.feedback-export-policy/v1",
+        "enabled": False,
+        "administrator_authorized": False,
+        "provider": "github_issues",
+        "endpoint": "",
+        "repository": "",
+        "max_payload_bytes": 65536,
+    }:
+        raise RuntimeError("packaged feedback-export policy is not disabled and target-free")
+    if handoff != {
+        "schema_version": "nalu.development-handoff-policy/v1",
+        "enabled": False,
+        "administrator_authorized": False,
+        "provider": "development_agent",
+        "endpoint": "",
+        "max_payload_bytes": 65536,
+    }:
+        raise RuntimeError("packaged development-handoff policy is not disabled and target-free")
+    return {
+        "feedback_export_policy_sha256": hashlib.sha256(feedback_raw).hexdigest(),
+        "development_handoff_policy_sha256": hashlib.sha256(handoff_raw).hexdigest(),
+    }
+
+
+def verify_release_artifact_archive(
+    *,
+    archive_path: Path,
+    expected_artifact_digest: str,
+    release_zip_path: Path,
+    release_member: str = "Nalu-Voice-Studio-macOS.zip",
+    checksum_member: str = "Nalu-Voice-Studio-macOS.zip.sha256",
+) -> dict[str, str]:
+    if not expected_artifact_digest.startswith("sha256:"):
+        raise RuntimeError("CI artifact digest must use the sha256: prefix")
+    expected_sha = expected_artifact_digest.removeprefix("sha256:")
+    if not SHA256_PATTERN.fullmatch(expected_sha):
+        raise RuntimeError("CI artifact digest must contain exactly 64 lowercase hex digits")
+    actual_sha = regular_file_sha256(archive_path, label="artifact archive")
+    if not hmac.compare_digest(actual_sha, expected_sha):
+        raise RuntimeError("artifact archive SHA-256 does not match GitHub artifact digest")
+    release_sha = regular_file_sha256(release_zip_path, label="release ZIP")
+    try:
+        with zipfile.ZipFile(archive_path) as archive:
+            names = [info.filename for info in archive.infolist()]
+            if len(names) != len(set(names)):
+                raise RuntimeError("artifact archive contains duplicate member names")
+            if not {release_member, checksum_member}.issubset(names):
+                raise RuntimeError("artifact archive is missing release evidence members")
+            with archive.open(release_member) as handle:
+                embedded_sha = _stream_sha256(handle)
+            if not hmac.compare_digest(embedded_sha, release_sha):
+                raise RuntimeError("release ZIP is not the release embedded in artifact")
+            checksum_text = archive.read(checksum_member).decode("utf-8").strip()
+    except (zipfile.BadZipFile, UnicodeDecodeError) as error:
+        raise RuntimeError("artifact archive is not a valid release evidence ZIP") from error
+    checksum_parts = checksum_text.split()
+    checksum_path = PurePosixPath(checksum_parts[1]) if len(checksum_parts) == 2 else None
+    if (
+        checksum_path is None
+        or checksum_path.is_absolute()
+        or ".." in checksum_path.parts
+        or checksum_path.name != release_member
+    ):
+        raise RuntimeError("artifact release checksum manifest is malformed")
+    if not hmac.compare_digest(checksum_parts[0], release_sha):
+        raise RuntimeError("artifact release checksum does not match embedded release ZIP")
+    return {
+        "artifact_archive_sha256": actual_sha,
+        "release_zip_sha256": release_sha,
     }
 
 

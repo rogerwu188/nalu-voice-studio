@@ -169,6 +169,14 @@ jobs:
             --release-zip-sha256 "$(awk '{print $1}' dist/Nalu-Voice-Studio-macOS.zip.sha256)" \
             --source-commit "$GITHUB_SHA" \
             --evidence dist/nalu-update-verification-universal.json
+      - name: Verify packaged controlled-evolution boundaries
+        run: |
+          python scripts/verify-packaged-evolution-boundaries.py \
+            --release-zip dist/Nalu-Voice-Studio-macOS.zip \
+            --release-zip-sha256 "$(awk '{print $1}' dist/Nalu-Voice-Studio-macOS.zip.sha256)" \
+            --source-commit "$GITHUB_SHA" \
+            --repository . \
+            --evidence dist/nalu-evolution-boundaries-universal.json
       - uses: actions/upload-artifact@v7
         with:
           name: Nalu-Voice-Studio-macOS
@@ -180,3 +188,4 @@ jobs:
             dist/nalu-publication-fixture-universal.json
             dist/nalu-publication-verification-universal.json
             dist/nalu-update-verification-universal.json
+            dist/nalu-evolution-boundaries-universal.json
