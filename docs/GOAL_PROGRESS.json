@@ -11,26 +11,26 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "e1f3a5c5c9b951775ddc753fa522d149dca1a026",
-  "last_advanced_at": "2026-09-04T09:06:47Z",
+  "observed_head": "021570c546746c8cdd3d29774ae6d1fba0c744bb",
+  "last_advanced_at": "2026-09-04T09:19:45Z",
   "last_closed_checkpoint": {
-    "id": "revalidate-current-atomic-asset-dependency-deletion",
+    "id": "revalidate-current-stale-project-deletion-inventory",
     "sop": "SOP-05",
-    "product_commit": "c01b60f745a730bf5b145d1c5aff9a53ed66393c",
-    "evidence_commit": "e1f3a5c5c9b951775ddc753fa522d149dca1a026",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33855982828",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33855982828/artifacts/9930437329",
+    "product_commit": "ba90f6bdc43c1aca310d6027be27b6880d3a8368",
+    "evidence_commit": "021570c546746c8cdd3d29774ae6d1fba0c744bb",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33857077039",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33857077039/artifacts/9930849213",
     "result": "PASS"
   },
   "current_checkpoint": {
     "sop": "SOP-05",
     "status": "IN_PROGRESS",
-    "summary": "Asset dependency lookup and record deletion now share one SQLite write transaction, so a stale deletable preview cannot remove bytes or records after an immutable production snapshot is bound. The accepted commit passed 238 Runtime tests and both native architectures through Universal packaging. SOP-05 remains in progress while privacy export/deletion, consent scope and memory-card paths are revalidated."
+    "summary": "Destructive project deletion now binds to exact asset/run inventories and revalidates them under the SQLite write lock; a late production snapshot causes complete filesystem rollback and no false verified-absent result. The accepted commit passed 239 Runtime tests and both native architectures through Universal packaging. SOP-05 remains in progress while consent scope, memory-card provenance and privacy-export integrity are revalidated."
   },
   "next_action": {
     "sop": "SOP-05",
     "id": "revalidate-current-asset-consent-isolation",
-    "summary": "Continue exercising project/season/episode scope isolation, consent and guardian authorization, revocation, memory-card provenance and complete privacy export/deletion against isolated SQLite; add deterministic or packaged evidence and close any remaining fail-open gap without external services.",
+    "summary": "Continue exercising project/season/episode scope isolation, consent and guardian authorization, revocation, memory-card provenance and privacy-export byte integrity against isolated SQLite; add deterministic or packaged evidence and close any remaining fail-open gap without external services.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
