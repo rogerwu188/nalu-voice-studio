@@ -7428,6 +7428,58 @@ class Repository:
         observations, directives = self._director_strategy_content(verified)
         with self.db.connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
+            locked_run = connection.execute(
+                """SELECT r.project_id, r.episode_id, r.status,
+                          e.episode_number, e.status AS episode_status,
+                          s.project_id AS season_project_id, s.season_number
+                   FROM production_runs r
+                   JOIN episodes e ON e.id = r.episode_id
+                   JOIN seasons s ON s.id = e.season_id
+                   WHERE r.id = ?""",
+                (run.id,),
+            ).fetchone()
+            if locked_run is None or (
+                locked_run["project_id"] != run.project_id
+                or locked_run["episode_id"] != run.episode_id
+                or locked_run["season_project_id"] != run.project_id
+                or RunStatus(locked_run["status"]) != RunStatus.COMPLETED
+                or EpisodeStatus(locked_run["episode_status"]) != EpisodeStatus.PUBLISHED
+            ):
+                raise ConflictError("publication metrics authority changed during verification")
+            locked_publication = connection.execute(
+                """SELECT remote_publication_id, record_sha256
+                   FROM publication_reconciliations
+                   WHERE run_id = ? AND platform = ?""",
+                (run.id, publication.platform),
+            ).fetchone()
+            if locked_publication is None or (
+                locked_publication["remote_publication_id"]
+                != publication.remote_publication_id
+                or locked_publication["record_sha256"] != publication.record_sha256
+            ):
+                raise ConflictError("publication identity changed during metrics verification")
+            locked_target = connection.execute(
+                """SELECT e.id, e.status FROM episodes e
+                   JOIN seasons s ON s.id = e.season_id
+                   WHERE s.project_id = ? AND (
+                     s.season_number > ? OR
+                     (s.season_number = ? AND e.episode_number > ?)
+                   )
+                   ORDER BY s.season_number, e.episode_number LIMIT 1""",
+                (
+                    run.project_id,
+                    locked_run["season_number"],
+                    locked_run["season_number"],
+                    locked_run["episode_number"],
+                ),
+            ).fetchone()
+            if (
+                locked_target is None
+                or locked_target["id"] != target["id"]
+                or EpisodeStatus(locked_target["status"])
+                not in EDITABLE_EPISODE_PLAN_STATUSES
+            ):
+                raise ConflictError("next-episode strategy authority changed during verification")
             revision = int(
                 connection.execute(
                     """SELECT COALESCE(MAX(revision), 0) + 1 AS revision

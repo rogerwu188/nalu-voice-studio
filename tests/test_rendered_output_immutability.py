@@ -2756,6 +2756,42 @@ def test_completed_media_qa_creates_offline_release_package_without_publishing(
             "window_end": "2026-09-08T00:00:00+00:00",
             "confirmation_text": "我确认只读同步这次发行指标",
         }
+        learning_repository = verified_api.app.state.repository
+        original_strategy_content = learning_repository._director_strategy_content
+
+        def lock_strategy_target_after_preflight(verified_metrics):
+            with sqlite3.connect(reconciliation_db) as connection:
+                connection.execute(
+                    "UPDATE episodes SET status = ? WHERE id = ?",
+                    ("preproduction", next_episode["id"]),
+                )
+            return original_strategy_content(verified_metrics)
+
+        with patch.object(
+            learning_repository,
+            "_director_strategy_content",
+            side_effect=lock_strategy_target_after_preflight,
+        ):
+            stale_target_learning = verified_api.post(
+                f"/v1/production-runs/{run['id']}/publication-metrics",
+                headers={"Idempotency-Key": "publication-metrics-stale-target"},
+                json=metrics_request,
+            )
+        assert stale_target_learning.status_code == 409
+        assert "strategy authority changed" in stale_target_learning.text
+        with sqlite3.connect(reconciliation_db) as connection:
+            assert connection.execute(
+                "SELECT COUNT(*) FROM publication_metric_snapshots"
+            ).fetchone()[0] == 0
+            assert connection.execute(
+                "SELECT COUNT(*) FROM director_strategy_revisions"
+            ).fetchone()[0] == 0
+            connection.execute(
+                "UPDATE episodes SET status = ? WHERE id = ?",
+                ("planned", next_episode["id"]),
+            )
+        verifier.metrics_calls = 0
+
         learned = verified_api.post(
             f"/v1/production-runs/{run['id']}/publication-metrics",
             headers={"Idempotency-Key": "publication-metrics-001"},
