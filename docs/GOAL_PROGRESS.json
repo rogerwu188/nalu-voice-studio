@@ -11,26 +11,26 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "cce3679d0280ce2d7544024fb2a08c99d7d1c431",
-  "last_advanced_at": "2026-09-04T13:43:28Z",
+  "observed_head": "e7853d59d13d6c6189529b1f802d3c38b13aa7a7",
+  "last_advanced_at": "2026-09-04T13:58:46Z",
   "last_closed_checkpoint": {
-    "id": "durable-postproduction-evidence-publication",
+    "id": "crash-consistent-rendered-output-seal-event",
     "sop": "SOP-09",
-    "product_commit": "3d7c9b060c59cd15a0e2f00872e20f796ab17577",
-    "evidence_commit": "cce3679d0280ce2d7544024fb2a08c99d7d1c431",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33878943656",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33878943656/artifacts/9939249573",
+    "product_commit": "ccbca3b3ab0af19d9d892fc95d8f77fa33462111",
+    "evidence_commit": "e7853d59d13d6c6189529b1f802d3c38b13aa7a7",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33880047560",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33880047560/artifacts/9939815153",
     "result": "PASS"
   },
   "current_checkpoint": {
     "sop": "SOP-09",
     "status": "IN_PROGRESS",
-    "summary": "Rendered-output seals and local visual-analysis evidence are now exclusively published with file and directory sync before any SQLite binding. Revalidation found a remaining seal-specific crash window: a process exit after durable seal publication but before its run event leaves valid immutable evidence on disk, but retry is rejected as a duplicate and the missing audit event is never recovered."
+    "summary": "Rendered-output sealing now recovers an exact durable file into one missing SQLite event and rejects changed bytes or normal duplicates. Revalidation found that the downstream repair plan plus media-structure, decoded-media, lineage, visual-continuity and semantic QA reports still publish through unsynced temporary-file replacements or links, so acknowledged release-blocking evidence can be lost across a power failure."
   },
   "next_action": {
     "sop": "SOP-09",
-    "id": "crash-consistent-rendered-output-seal-event",
-    "summary": "Make the rendered-output seal event idempotently recoverable only when the durable on-disk seal exactly matches the current run, package, artifact bytes and original request; preserve normal duplicate rejection, and prove a process exit between file publication and SQLite event commit recovers exactly one audit event after restart.",
+    "id": "durable-postproduction-qa-report-publication",
+    "summary": "Durably publish every SOP-09 repair plan and QA report before its SQLite audit event using synced exclusive-create or atomic-replace primitives as appropriate, preserve conflict/idempotency behavior, and prove replacement durability plus exact reopened report digests.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
