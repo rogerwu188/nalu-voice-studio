@@ -34,6 +34,11 @@ from pathlib import Path
 from typing import Any
 
 import av
+from packaged_qa_evidence import (
+    editorial_fixture_layout,
+    validate_evidence_identifiers,
+    verify_release_zip,
+)
 
 PORT = 8765
 BASE_URL = f"http://127.0.0.1:{PORT}"
@@ -463,15 +468,16 @@ def webvtt_timestamp(seconds: float) -> str:
 def make_plan(exports: Path, *, duration_seconds: int = 2) -> dict[str, Any]:
     provider = exports / "provider-results"
     video_path = provider / "provider-shot.mp4"
-    long_soak = duration_seconds > 2
-    source_video_seconds = min(300, duration_seconds)
+    long_soak, source_video_seconds, source_ranges = editorial_fixture_layout(
+        duration_seconds
+    )
     video = create_video(
         video_path,
         duration_seconds=source_video_seconds,
         width=64,
         height=64,
         fps=1 if long_soak else 10,
-        include_audio=not long_soak,
+        include_audio=True,
     )
     audio_layers = []
     shared_audio_path = provider / "shared-lossless-audio.flac"
@@ -488,7 +494,11 @@ def make_plan(exports: Path, *, duration_seconds: int = 2) -> dict[str, Any]:
         if long_soak:
             audio_sha = shared_audio_sha
         else:
-            create_audio(audio_path, frequency=330 + index * 55)
+            create_audio(
+                audio_path,
+                frequency=330 + index * 55,
+                duration_seconds=duration_seconds,
+            )
             audio_sha = sha256_file(audio_path)
         audio_layers.append(
             {
@@ -509,14 +519,6 @@ def make_plan(exports: Path, *, duration_seconds: int = 2) -> dict[str, Any]:
     relative_video = str(video_path.relative_to(exports))
     video_sha = hashlib.sha256(video).hexdigest()
     shots = []
-    source_ranges = (
-        [(0, 1), (1, 2)]
-        if not long_soak
-        else [
-            (0, min(300, duration_seconds - offset))
-            for offset in range(0, duration_seconds, 300)
-        ]
-    )
     for shot_number, (source_in, source_out) in enumerate(source_ranges, start=1):
         shots.append(
             {
@@ -776,9 +778,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--ci-run", required=True)
     parser.add_argument("--ci-artifact-id", required=True)
     parser.add_argument("--ci-artifact-digest", required=True)
+    parser.add_argument("--release-zip", type=Path, required=True)
     parser.add_argument("--release-zip-sha256", required=True)
     parser.add_argument("--source-commit", required=True)
     parser.add_argument("--duration-seconds", type=int, default=2)
+    parser.add_argument("--restart-replay", action="store_true")
     parser.add_argument("--sample-interval-seconds", type=float, default=1.0)
     parser.add_argument("--max-rss-mib", type=int, default=1024)
     parser.add_argument("--min-realtime-factor", type=float, default=0.25)
@@ -789,10 +793,18 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     app = args.app.resolve()
+    release_zip = args.release_zip.resolve()
     work_dir = args.work_dir.resolve()
     evidence = args.evidence.resolve()
-    if not 2 <= args.duration_seconds <= 1800:
-        raise RuntimeError("duration-seconds must be between 2 and 1800")
+    validate_evidence_identifiers(
+        artifact_digest=args.ci_artifact_digest,
+        source_commit=args.source_commit,
+    )
+    verified_release_zip_sha256 = verify_release_zip(
+        release_zip, args.release_zip_sha256
+    )
+    if args.duration_seconds != 2 and not 10 <= args.duration_seconds <= 1800:
+        raise RuntimeError("duration-seconds must be 2, or between 10 and 1800")
     if args.sample_interval_seconds <= 0 or args.max_rss_mib <= 0:
         raise RuntimeError("sampling interval and RSS limit must be positive")
     if not 0 < args.min_realtime_factor <= 10:
@@ -871,7 +883,7 @@ def main() -> int:
     else:
         raise RuntimeError("bundled Runtime left loopback port open after termination")
     restart_replay = {"performed": False}
-    if args.duration_seconds > 2:
+    if args.restart_replay or args.duration_seconds > 2:
         with log_path.open("ab") as log:
             restarted = subprocess.Popen(
                 [str(runtime)], stdout=log, stderr=subprocess.STDOUT, env=environment
@@ -921,7 +933,7 @@ def main() -> int:
         "ci_artifact": {
             "id": args.ci_artifact_id,
             "digest": args.ci_artifact_digest,
-            "release_zip_sha256": args.release_zip_sha256,
+            "release_zip_sha256": verified_release_zip_sha256,
         },
         "bundle": {
             "path": str(app),

@@ -24,6 +24,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from packaged_qa_evidence import validate_evidence_identifiers, verify_release_zip
+
 PORT = 8765
 BASE_URL = f"http://127.0.0.1:{PORT}"
 
@@ -346,6 +348,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--ci-run", required=True)
     parser.add_argument("--ci-artifact-id", required=True)
     parser.add_argument("--ci-artifact-digest", required=True)
+    parser.add_argument("--release-zip", type=Path, required=True)
     parser.add_argument("--release-zip-sha256", required=True)
     parser.add_argument("--source-commit", required=True)
     return parser.parse_args()
@@ -354,8 +357,16 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     app = args.app.resolve()
+    release_zip = args.release_zip.resolve()
     work_dir = args.work_dir.resolve()
     evidence = args.evidence.resolve()
+    validate_evidence_identifiers(
+        artifact_digest=args.ci_artifact_digest,
+        source_commit=args.source_commit,
+    )
+    verified_release_zip_sha256 = verify_release_zip(
+        release_zip, args.release_zip_sha256
+    )
     runtime = app / "Contents/Resources/runtime/nalu-runtime"
     runtime_resources = app / "Contents/Resources/runtime-resources"
     executable = app / "Contents/MacOS/NaluVoiceStudio"
@@ -403,7 +414,7 @@ def main() -> int:
         "ci_artifact": {
             "id": args.ci_artifact_id,
             "digest": args.ci_artifact_digest,
-            "release_zip_sha256": args.release_zip_sha256,
+            "release_zip_sha256": verified_release_zip_sha256,
         },
         "bundle": {
             "path": str(app),
