@@ -595,6 +595,19 @@ Current evidence:
   `sha256:c4ba7983f988707ef8e53e6376c08bfaf6ed00f346951a36010d901cc92c8104`.
   This closes the current automated child-biometric checkpoint, not human privacy,
   deletion, OCR or signed-install acceptance.
+- Commit `d6d056eba0d1c1a9359fdb5f6a774ef8963d894e`, GitHub CI run
+  `33855212529` and Universal artifact `9930110515` (artifact digest
+  `sha256:e5c65d78ce42aaadd72c84b202ec881f0ae3cc114f58361ca14e855fb2b10455`):
+  every managed local URI now has a single asset-record owner. The legacy registration
+  endpoint checks ownership after acquiring the SQLite write lock, so concurrent
+  requests cannot create two records whose later deletion would remove the same file
+  and strand the survivor. A five-run local concurrency stress and CI regression prove
+  exactly one of two simultaneous registrations succeeds, the rejected request creates
+  no row, and the managed bytes remain intact. CI passed 237 Runtime tests, both native
+  Swift suites and architecture builds, Universal merge, bundle smoke, project-isolation
+  rehearsal, staged update and rollback. The Universal artifact proves the fix is in the
+  package; this is a deterministic storage-ownership checkpoint, not human privacy,
+  deletion, OCR or signed-install acceptance.
 - Still required before `PASS`: human privacy/deletion QA and clean-account OCR,
   correction and voice archive QA on the same signed release candidate. Automated
   Computer Use crashed while opening the new asset sheet, while Nalu stayed running,
