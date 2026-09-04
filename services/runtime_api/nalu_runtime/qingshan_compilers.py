@@ -41,7 +41,7 @@ NEGATIVE_PROMPT_HEADERS = (
 )
 
 
-def _canonical_sha256(value: dict[str, Any]) -> str:
+def _canonical_sha256(value: Any) -> str:
     encoded = json.dumps(
         value,
         ensure_ascii=False,
@@ -61,7 +61,7 @@ class QingshanModelCompiler(ABC):
     """Compile an immutable Nalu package into one provider-specific planning contract."""
 
     adapter_id: str
-    adapter_version = "1.6.0"
+    adapter_version = "1.7.0"
     profile_id: str
     model: str
     native_resolution: str
@@ -123,6 +123,8 @@ class QingshanModelCompiler(ABC):
             "intentional_hold_requires_writer_reason": True,
             "provider_scope_projection_required": True,
             "provider_scope_schema": PROVIDER_SCOPE_SCHEMA,
+            "provider_scope_production_package_binding_required": True,
+            "provider_scope_complete_character_catalog_required": True,
             "episode_global_contract_provider_access_forbidden": True,
             "exclusive_visible_living_entity_set_required": True,
             "zero_background_population_required": True,
@@ -279,7 +281,12 @@ class ModelCompilerRegistry:
         return self.compiler_for(model).compile(package, workspace)
 
     def validate_paid_boundary_request(
-        self, model: str, request: dict[str, Any]
+        self,
+        model: str,
+        request: dict[str, Any],
+        *,
+        production_package: dict[str, Any] | None = None,
+        package_sha256: str | None = None,
     ) -> list[str]:
         """Validate immutable semantics immediately before a provider write."""
         try:
@@ -498,7 +505,15 @@ class ModelCompilerRegistry:
                         failures.append("intentional hold cannot contain a changed endpoint")
                     if not str(state_delta.get("writer_authored_hold_reason") or "").strip():
                         failures.append("intentional hold requires a writer-authored reason")
-        failures.extend(self._validate_provider_scope(compiler, request, prompt))
+        failures.extend(
+            self._validate_provider_scope(
+                compiler,
+                request,
+                prompt,
+                production_package=production_package,
+                package_sha256=package_sha256,
+            )
+        )
         return failures
 
     @staticmethod
@@ -506,6 +521,9 @@ class ModelCompilerRegistry:
         compiler: QingshanModelCompiler,
         request: dict[str, Any],
         prompt: object,
+        *,
+        production_package: dict[str, Any] | None,
+        package_sha256: str | None,
     ) -> list[str]:
         projection = request.get("provider_scope_projection")
         if not isinstance(projection, dict):
@@ -517,6 +535,12 @@ class ModelCompilerRegistry:
             failures.append("provider-scope projection is not locked")
         if projection.get("provider_reads_episode_global_contract_directly") is not False:
             failures.append("provider scope must forbid episode-global contract access")
+        projected_package_sha256 = projection.get("production_package_sha256")
+        if not _is_sha256(projected_package_sha256):
+            failures.append("provider scope requires a production-package SHA-256 binding")
+        projected_catalog_sha256 = projection.get("episode_character_catalog_sha256")
+        if not _is_sha256(projected_catalog_sha256):
+            failures.append("provider scope requires a character-catalog SHA-256 binding")
 
         visible = projection.get("visible_character_ids")
         if not isinstance(visible, list) or any(
@@ -613,6 +637,57 @@ class ModelCompilerRegistry:
                     )
         if len(absent_ids) != len(set(absent_ids)):
             failures.append("provider-scope absent entity identities must be unique")
+
+        if production_package is not None or package_sha256 is not None:
+            if production_package is None or not _is_sha256(package_sha256):
+                failures.append("paid boundary omitted its authoritative production package")
+            else:
+                package_body = {
+                    key: value
+                    for key, value in production_package.items()
+                    if key != "package_sha256"
+                }
+                if (
+                    production_package.get("package_sha256") != package_sha256
+                    or _canonical_sha256(package_body) != package_sha256
+                ):
+                    failures.append("provider scope authoritative production package is invalid")
+                if projected_package_sha256 != package_sha256:
+                    failures.append("provider scope is not bound to the approved production package")
+
+                resolved_library = production_package.get("resolved_library")
+                if not isinstance(resolved_library, list):
+                    failures.append("production package character catalog is missing")
+                    authoritative_ids: list[str] = []
+                else:
+                    authoritative_ids = []
+                    malformed_catalog = False
+                    for entity in resolved_library:
+                        if not isinstance(entity, dict):
+                            malformed_catalog = True
+                            continue
+                        if entity.get("kind") != "character":
+                            continue
+                        entity_id = entity.get("entity_id")
+                        if not isinstance(entity_id, str) or not entity_id.strip():
+                            malformed_catalog = True
+                            continue
+                        authoritative_ids.append(entity_id)
+                    if len(authoritative_ids) != len(set(authoritative_ids)):
+                        malformed_catalog = True
+                    if malformed_catalog:
+                        failures.append("production package character catalog is invalid")
+
+                canonical_catalog = sorted(set(authoritative_ids))
+                if projected_catalog_sha256 != _canonical_sha256(canonical_catalog):
+                    failures.append("provider scope character-catalog binding is invalid")
+                projected_ids = visible_ids + absent_ids
+                if len(projected_ids) != len(set(projected_ids)):
+                    failures.append("provider scope visible and absent character sets overlap")
+                if set(projected_ids) != set(canonical_catalog):
+                    failures.append(
+                        "provider scope does not cover the production package character catalog"
+                    )
 
         if isinstance(compiler, MiniMaxH3Compiler):
             lowered = prompt_text.casefold()

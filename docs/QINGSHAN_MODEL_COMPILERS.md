@@ -55,7 +55,7 @@ prompt do not silently turn an explicitly noncombat scene into combat. Missing,
 conflicting, out-of-range, non-finite or resolution-drifted values fail before the
 transport is called.
 
-The version `1.6.0` compiler contract also requires a Nalu-owned
+The version `1.7.0` compiler contract also requires a Nalu-owned
 `nalu.qingshan-provider-scope/v1` projection for every paid shot. The projection lists
 only the shot's visible character and prop IDs, requires exactly one visible instance
 per character, binds each reference index to one exclusive visible identity, and fixes
@@ -66,6 +66,15 @@ including negative clauses, and requires explicit `@ImageN` identity/cardinality
 exclusive population clause. Seedance preserves its separate negative-prompt semantics
 and scans only positive provider content. Any missing, duplicated or contradictory scope
 fails before the durable submitter can call a transport.
+
+The projection is not trusted as its own authority. At the sole durable paid boundary it
+must carry the exact approved production-package SHA-256 and a canonical digest of the
+package's complete character-ID catalog. The submitter reloads and rehashes the immutable
+package, independently derives every confirmed character from `resolved_library`, and
+requires the disjoint union of visible and absent IDs to equal that catalog exactly.
+Under-declaring a character, relinking a projection to another package, overlapping the
+visible and absent sets, duplicating package identities, or changing either digest fails
+before intent persistence and before provider I/O.
 
 Each materialized workspace also contains the result of Qingshan's own gate-registry
 integrity checker. A known upstream release defect may be quarantined only by exact

@@ -4797,6 +4797,8 @@ def test_qingshan_models_use_distinct_versioned_compilers(tmp_path: Path) -> Non
         "intentional_hold_requires_writer_reason": True,
         "provider_scope_projection_required": True,
         "provider_scope_schema": "nalu.qingshan-provider-scope/v1",
+        "provider_scope_production_package_binding_required": True,
+        "provider_scope_complete_character_catalog_required": True,
         "episode_global_contract_provider_access_forbidden": True,
         "exclusive_visible_living_entity_set_required": True,
         "zero_background_population_required": True,

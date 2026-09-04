@@ -115,13 +115,16 @@ class DurableRemoteTaskSubmitter:
         No concrete network transport is registered by default. Production adapters may
         call this method only after credentialed provider QA and explicit authorization.
         """
-        package_sha256 = self._authorized_package_sha256(run_id, model)
+        package_sha256, package = self._authorized_package(run_id, model)
         if transport.provider_name != provider:
             raise ConflictError("paid transport does not match the requested provider")
         if not transport.supports_idempotency:
             raise ConflictError("paid transport must guarantee provider idempotency")
         boundary_failures = ModelCompilerRegistry().validate_paid_boundary_request(
-            model, request
+            model,
+            request,
+            production_package=package,
+            package_sha256=package_sha256,
         )
         if boundary_failures:
             raise ConflictError("paid boundary contract failed: " + "; ".join(boundary_failures))
@@ -178,7 +181,7 @@ class DurableRemoteTaskSubmitter:
             charge_classification="TASK_ID_BOUND_CHARGE_PENDING",
         )
 
-    def _authorized_package_sha256(self, run_id: str, model: str) -> str:
+    def _authorized_package(self, run_id: str, model: str) -> tuple[str, dict[str, Any]]:
         run = self._repository.get_run(run_id)
         if run.dry_run:
             raise ConflictError("dry runs cannot use the paid submitter")
@@ -201,4 +204,4 @@ class DurableRemoteTaskSubmitter:
             raise ConflictError("paid submission requires explicit package-bound approval")
         if policy.get("requested_model") != model or run.requested_model != model:
             raise ConflictError("paid submission model does not match its approved package")
-        return package_sha256
+        return package_sha256, package

@@ -15,7 +15,7 @@ from nalu_runtime.remote_submitter import (
 from nalu_runtime.repository import ConflictError, utc_now
 
 
-def canonical_sha256(value: dict) -> str:
+def canonical_sha256(value: object) -> str:
     encoded = json.dumps(
         value, ensure_ascii=False, sort_keys=True, separators=(",", ":")
     )
@@ -26,6 +26,17 @@ H3_ZERO_POPULATION_SCOPE = (
     "\npopulation_scope: render exactly 0 living entity instances in total; "
     "background population count=0; unbound living entity count=0"
 )
+
+PAID_PACKAGE_BODY = {
+    "schema_version": "nalu.production-package/v1",
+    "resolved_library": [],
+    "production_policy": {
+        "requested_model": "MiniMax-H3",
+        "paid_generation_approved": True,
+        "approved_by": "QA 授权人",
+    },
+}
+PAID_PACKAGE_SHA256 = canonical_sha256(PAID_PACKAGE_BODY)
 
 
 def paid_request(prompt: str, **overrides: object) -> dict:
@@ -83,6 +94,8 @@ def paid_request(prompt: str, **overrides: object) -> dict:
             "reference_identity_bindings": [],
             "absent_episode_entities": [],
             "provider_reads_episode_global_contract_directly": False,
+            "production_package_sha256": PAID_PACKAGE_SHA256,
+            "episode_character_catalog_sha256": canonical_sha256([]),
         },
         "episode_scene_role": "OTHER_SCENE",
         "shot_state_delta_contract": {
@@ -109,6 +122,7 @@ def paid_run(
     *,
     run_id: str,
     approved: bool = True,
+    resolved_library: list[dict] | None = None,
 ) -> ProductionRun:
     project = api.post("/v1/projects", json={"title": "付费边界测试"}).json()
     season = api.post(
@@ -120,7 +134,8 @@ def paid_run(
         json={"title": "第一集", "episode_number": 1},
     ).json()
     package_body = {
-        "schema_version": "nalu.production-package/v1",
+        **PAID_PACKAGE_BODY,
+        "resolved_library": list(resolved_library or []),
         "production_policy": {
             "requested_model": "MiniMax-H3",
             "paid_generation_approved": approved,
@@ -679,6 +694,8 @@ def test_provider_scope_is_model_aware_and_blocks_absent_entities() -> None:
             }
         ],
         "provider_reads_episode_global_contract_directly": False,
+        "production_package_sha256": PAID_PACKAGE_SHA256,
+        "episode_character_catalog_sha256": canonical_sha256([]),
     }
     h3 = paid_request(
         "Only the empty room is visible.\nnegative_constraints: no black crow",
@@ -722,6 +739,8 @@ def test_provider_scope_enforces_exclusive_identity_and_population() -> None:
         ],
         "absent_episode_entities": [],
         "provider_reads_episode_global_contract_directly": False,
+        "production_package_sha256": PAID_PACKAGE_SHA256,
+        "episode_character_catalog_sha256": canonical_sha256([]),
     }
     request = paid_request("placeholder", provider_scope_projection=scope)
     request["prompt"] = (
@@ -755,6 +774,112 @@ def test_provider_scope_enforces_exclusive_identity_and_population() -> None:
     assert "provider-scope reference owner is not a visible character" in (
         registry.validate_paid_boundary_request("MiniMax-H3", changed_reference)
     )
+
+
+def test_paid_boundary_derives_complete_character_scope_from_approved_package(
+    tmp_path: Path,
+) -> None:
+    api = TestClient(create_app(tmp_path / "test.sqlite3", tmp_path / "data"))
+    resolved_library = [
+        {"kind": "character", "entity_id": "CHAR-LIN", "stable_name": "林叔"},
+        {"kind": "character", "entity_id": "CHAR-MEI", "stable_name": "梅姨"},
+        {"kind": "prop", "entity_id": "PROP-CASE", "stable_name": "旧皮箱"},
+    ]
+    run = paid_run(
+        api,
+        tmp_path,
+        run_id="run_paid_package_scope_authority",
+        resolved_library=resolved_library,
+    )
+    package = json.loads(Path(run.package_path).read_text(encoding="utf-8"))
+    scope = {
+        "schema_version": "nalu.qingshan-provider-scope/v1",
+        "status": "LOCKED",
+        "visible_character_ids": ["CHAR-LIN"],
+        "visible_entity_instance_counts": {"CHAR-LIN": 1},
+        "exclusive_visible_living_entity_set": True,
+        "visible_living_entity_instance_total": 1,
+        "background_population_count": 0,
+        "unbound_visible_living_entity_count": 0,
+        "visible_prop_ids": [],
+        "reference_identity_bindings": [
+            {
+                "reference_index": 1,
+                "entity_id": "CHAR-LIN",
+                "provider_entity_label": "Grandpa Lin",
+                "exclusive_identity_owner": True,
+            }
+        ],
+        "absent_episode_entities": [
+            {
+                "entity_id": "CHAR-MEI",
+                "forbidden_provider_terms": ["Grandma Mei"],
+            }
+        ],
+        "provider_reads_episode_global_contract_directly": False,
+        "production_package_sha256": package["package_sha256"],
+        "episode_character_catalog_sha256": canonical_sha256(
+            ["CHAR-LIN", "CHAR-MEI"]
+        ),
+    }
+    request = paid_request("placeholder", provider_scope_projection=scope)
+    request["prompt"] = (
+        "@Image1: exclusive identity of Grandpa Lin; exactly one visible instance of "
+        "Grandpa Lin.\npopulation_scope: render exactly 1 living entity instances in "
+        "total; background population count=0; unbound living entity count=0"
+    )
+    invalid_cases = (
+        (
+            lambda changed: changed["provider_scope_projection"].update(
+                absent_episode_entities=[]
+            ),
+            "does not cover the production package character catalog",
+        ),
+        (
+            lambda changed: changed["provider_scope_projection"].update(
+                production_package_sha256="0" * 64
+            ),
+            "not bound to the approved production package",
+        ),
+        (
+            lambda changed: changed["provider_scope_projection"].update(
+                episode_character_catalog_sha256="0" * 64
+            ),
+            "character-catalog binding is invalid",
+        ),
+        (
+            lambda changed: changed["provider_scope_projection"]
+            ["absent_episode_entities"].append(
+                {"entity_id": "CHAR-LIN", "forbidden_provider_terms": []}
+            ),
+            "visible and absent character sets overlap",
+        ),
+    )
+    transport = IdempotentFakeTransport()
+    for index, (mutate, expected) in enumerate(invalid_cases, start=1):
+        changed = deepcopy(request)
+        mutate(changed)
+        with pytest.raises(ConflictError, match=expected):
+            api.app.state.remote_task_submitter.submit_paid_task(
+                run.id,
+                task_key=f"E01-invalid-{index}",
+                provider="giggle",
+                model="MiniMax-H3",
+                request=changed,
+                transport=transport,
+            )
+    assert transport.calls == 0
+
+    accepted = api.app.state.remote_task_submitter.submit_paid_task(
+        run.id,
+        task_key="E01-valid",
+        provider="giggle",
+        model="MiniMax-H3",
+        request=request,
+        transport=transport,
+    )
+    assert accepted.state == RemoteTaskState.SUBMITTED
+    assert transport.calls == 1
 
 
 def test_only_submitter_source_invokes_paid_transport() -> None:
