@@ -291,6 +291,19 @@ Current evidence:
   tests, both native Swift suites and architecture builds, Universal merge, bundle smoke,
   staged update and rollback. This closes deterministic inbound-event validation and
   memory bounding without claiming an authorized paid function-call session.
+- Commit `56a303e2dd4ff8675a64baa65dc4e7593dbf5f0b`, GitHub CI run
+  `33839596332`, Universal artifact `9924545480` (artifact digest
+  `sha256:c1d172a2cea0975b8d9ed283ede62131e4ef000fd9260b9c9cc2b2c7d028ad35`):
+  native interview-tool results are now normalized to one line, capped at 1,000
+  characters per message/question field and limited to 8,192 encoded UTF-8 bytes.
+  Empty or pathological output becomes a fixed rejected result requiring visible
+  confirmation. The embedded page independently validates the call ID and serialized
+  output before sending them as function-output data; the subsequent response request
+  contains no dynamic instructions. Regression tests cover instruction-shaped content,
+  whitespace, character limits, encoded-byte overflow and the compiled page contract.
+  CI passed 193 Runtime tests, both native Swift suites and architecture builds,
+  Universal merge, bundle smoke, staged update and rollback. This closes deterministic
+  outbound tool-result bounding without claiming an authorized paid tool exchange.
 - Still required before `PASS`: authorized paid Realtime connectivity, interruption,
   real function-call, network-loss, session-expiry and provider usage/cost QA;
   VoiceOver/Accessibility Inspector audit; and a clean-account voice-only QA session
