@@ -536,6 +536,18 @@ Current evidence:
   Universal artifact proves the accepted code was packaged but is not represented as
   a direct packaged transaction rehearsal. This closes the current deterministic
   authority-gate revalidation checkpoint, not the remaining human voice acceptance.
+- Commit `b968f68ac3b1076c8e249c51c1a13ff291c7205c`, GitHub CI run
+  `33864513654`, Runtime QA artifact `9933573905` and Universal artifact
+  `9933581597` (artifact digest
+  `sha256:ec003ea93a2249d990c6615e6ec61976e3611962b0f3157607afe013231d6cef`):
+  script approval and revocation now resolve the current episode, season and project
+  relationship under the same SQLite write lock as the lifecycle event and approval
+  record. A project hierarchy deleted after stale preflight returns not-found and cannot
+  write an approval, revocation or transition using a stale project identity. Direct
+  negative regressions cover both operations. CI passed 252 Runtime tests, both native
+  Swift suites and architecture builds, Universal merge, bundled smoke, packaged
+  project-isolation, staged-update and rollback QA. This closes the deterministic script
+  parent-authority checkpoint, not the remaining human voice acceptance.
 - Still required before `PASS`: human spoken-summary fidelity QA and clean-account
   voice correction/approval evidence; implementation and synthesized playback alone
   do not satisfy the human acceptance criterion.
