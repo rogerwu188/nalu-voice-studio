@@ -1955,6 +1955,22 @@ Current evidence:
   `sha256:8c648be61ef2cb0d105461c1d228944cf52c0fa0151cb80f76beef34cb0b92dc`.
   This closes the deterministic SOP-09 report/event crash boundary, not downstream repair-
   plan recovery, real-master Apple Speech or original-resolution human QA.
+- Product commit `d94a85ec47ee27293317a74e799ace41fdac6d06`, GitHub CI run
+  `33883847784`: every replayed failed container-structure, decoded-media, lineage,
+  visual-continuity or semantic QA result now continues through the repair derivation
+  boundary after verifying its durable report. A crash/restart integration fixture exits
+  after the failed media report and its digest-bound event have committed but before the
+  repair plan is written; restart preserves the exact report bytes, reconstructs the
+  `mp4_structure` task, and leaves exactly one report event and one repair-plan event.
+  Passing reports remain unchanged, while conflicting immutable evidence still fails
+  closed. All 278 Runtime tests and the Runtime, Apple Silicon, Intel and Universal jobs
+  passed, including bundled-Runtime smoke, project isolation, staged update, populated
+  rollback and controlled-evolution checks. Runtime QA artifact `9941087635` has digest
+  `sha256:40883793c53a308229806dc915ec269eb71326e4c51aedcc012b36c76f39a3d2`;
+  Universal artifact `9941335109` has digest
+  `sha256:fcbd9d046b74153f5bc8cb5669ed0ac9c96114e2331d6a6a71cea3f628091e81`.
+  This closes deterministic downstream repair-plan recovery after a report/event crash,
+  not real-master Apple Speech, original-resolution human audiovisual QA or SOP-09.
 
 ## SOP-10 · Controlled release and learning loop — IN_PROGRESS
 
