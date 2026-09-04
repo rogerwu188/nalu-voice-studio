@@ -317,6 +317,23 @@ Current evidence:
   tests, both native Swift suites and architecture builds, Universal merge, bundle smoke,
   staged update and rollback. This closes deterministic response serialization without
   claiming live interruption latency or provider ordering acceptance.
+- Product commits `8aad256f0042595ef45e46eb8738d55eebc71aa2` and
+  `123174b5103d803247a85e104ee1713562998034`, GitHub CI run `33852111301`,
+  Universal artifact `9928901204` (artifact digest
+  `sha256:47144a4d7cda97df38c77544fda785ebdebde950b3ae02607a46626a6a96b403`):
+  the native broker and embedded WebRTC client were rechecked against the current
+  official OpenAI Realtime WebRTC, client-secret and conversation-event contracts on
+  2026-09-04. Client-secret requests now explicitly ask for a 60-second, `created_at`-
+  anchored lifetime and reject an effective secret lifetime above 120 seconds rather
+  than silently inheriting a service default. `response.done` now requires an exact
+  response object and status; only `completed` may release transcripts or tool calls,
+  `cancelled` is cleared without executing a tool, and failed, incomplete or malformed
+  terminal responses fail closed. The first CI run `33851815266` was not accepted because
+  an older source-contract assertion still expected the previous output lookup; the
+  corrected run passed 228 Runtime tests, 75 XCTest tests plus 29 Swift Testing tests,
+  both architecture builds, Universal merge, bundle smoke, staged-update and rollback
+  QA. No API key, microphone, provider request or paid session was used. This closes the
+  current deterministic protocol-drift checkpoint, not live Realtime acceptance.
 - Still required before `PASS`: authorized paid Realtime connectivity, interruption,
   real function-call, network-loss, session-expiry and provider usage/cost QA;
   VoiceOver/Accessibility Inspector audit; and a clean-account voice-only QA session
