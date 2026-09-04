@@ -11,26 +11,26 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "00a5f53053e0c0d58f9f6d35550dafdb5a2ab0c6",
-  "last_advanced_at": "2026-09-04T02:04:00Z",
+  "observed_head": "87fcab6cf469b1ae4acde90fbdb35a381086dad4",
+  "last_advanced_at": "2026-09-04T02:17:00Z",
   "last_closed_checkpoint": {
-    "id": "realtime-data-channel-event-boundary",
+    "id": "realtime-channel-lifecycle",
     "sop": "SOP-02",
-    "product_commit": "e6bc0b2762aa766f3595ce471089c6f3e2a998d6",
-    "evidence_commit": "00a5f53053e0c0d58f9f6d35550dafdb5a2ab0c6",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33827397944",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33827397944/artifacts/9920628770",
+    "product_commit": "7836e03abd857e52c567b17785c58cbea03415a7",
+    "evidence_commit": "87fcab6cf469b1ae4acde90fbdb35a381086dad4",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33828174957",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33828174957/artifacts/9920802527",
     "result": "PASS"
   },
   "current_checkpoint": {
     "sop": "SOP-02",
     "status": "IN_PROGRESS",
-    "summary": "The Realtime bridge now validates exact bounded status, transcript, provider-error and tool envelopes and rejects malformed or oversized data-channel events. A field-contract defect that kept completed user and assistant transcripts out of the visible conversation was corrected. A shared test-fixture race exposed by arm64 was also removed. Runtime, both native architectures, Universal packaging, staged update and rollback passed final CI. SOP-02 remains incomplete without authorized live Realtime and human accessibility acceptance."
+    "summary": "Realtime peer and data-channel failure events now converge on one idempotent recovery path, intentional stop is quiet and stale callbacks cannot fail a replacement connection. Runtime, both native architectures, Universal packaging, staged update and rollback passed CI. SOP-02 remains incomplete without authorized paid connectivity, real network/session-expiry and human accessibility acceptance; those requirements are preserved as authorization gates while safe work continues elsewhere."
   },
   "next_action": {
-    "sop": "SOP-02",
-    "id": "harden-realtime-channel-lifecycle",
-    "summary": "Make data-channel close/error and peer disconnected/failed states converge on one deterministic native recovery path without reporting an error during an intentional stop. Add tests for one-shot failure, retry eligibility and clean stop, then run packaging CI and record evidence without credentials or paid calls.",
+    "sop": "SOP-07",
+    "id": "audit-latest-qingshan-upstream-release",
+    "summary": "Fetch and independently inspect the latest Qingshan release and immutable tag. Re-run the registered test contract, version/registry/portable-manifest integrity and Nalu compatibility checks. Promote only a coherent candidate; otherwise record the exact quarantine reason and productize any independently verified safe upstream constraints without provider calls.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
