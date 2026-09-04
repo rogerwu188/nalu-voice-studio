@@ -11,13 +11,13 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "d8f0a2e4995b8b8a3ccfe62821aa77653932e800",
-  "last_advanced_at": "2026-09-04T05:32:49Z",
+  "observed_head": "fd9e297cd9a4cb70025f67cc4b0a11a48906bd02",
+  "last_advanced_at": "2026-09-04T05:38:27Z",
   "last_closed_checkpoint": {
-    "id": "serialize-realtime-response-creation",
-    "sop": "SOP-02",
+    "id": "package-project-lifecycle-rehearsal",
+    "sop": "SOP-03",
     "product_commit": "2cd54c02af0a89e16934bcea7b2f9a2014896c32",
-    "evidence_commit": "d8f0a2e4995b8b8a3ccfe62821aa77653932e800",
+    "evidence_commit": "fd9e297cd9a4cb70025f67cc4b0a11a48906bd02",
     "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33840428018",
     "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33840428018/artifacts/9924849197",
     "result": "PASS"
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-03",
     "status": "IN_PROGRESS",
-    "summary": "Realtime response creation now waits for acknowledged response.created and response.done events instead of a guessed cancellation delay, retains only the latest local question and serializes native tool-result responses through the same gate. Runtime, both native architectures, Universal packaging, staged update and rollback passed CI. SOP-02 remains incomplete only on authorized paid and human acceptance gates, so safe work advances to SOP-03 while those gates remain fail-closed."
+    "summary": "The current Universal packaged Runtime created and approved ten ordered episodes in isolated SQLite, survived a real process restart, and restored the versioned project export into a clean database with matching state and verified evidence/package digests. SOP-03 remains incomplete only on clean-account native-window, voice-only and accessibility acceptance, so safe work advances while those gates remain fail-closed."
   },
   "next_action": {
-    "sop": "SOP-03",
-    "id": "package-project-lifecycle-rehearsal",
-    "summary": "Add a deterministic packaged-Runtime QA rehearsal and artifact for a 10-episode project that survives a real process restart and versioned export/restore in isolated local SQLite, with project type and episode numbering/state assertions. Exercise it on arm64, Intel and Universal CI without touching user data or external services.",
+    "sop": "SOP-04",
+    "id": "revalidate-script-authority-current-candidate",
+    "summary": "Revalidate on the current Universal candidate that script corrections append revisions, stale/revoked/unapproved revisions cannot authorize production, child approval remains guardian-gated, and exact authoring provenance survives export/restore. Record the immutable CI evidence without claiming human spoken-summary fidelity.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
