@@ -221,6 +221,18 @@ Current evidence:
   and overlong text. CI passed 193 Runtime tests, both architecture Swift suites and
   builds, Universal merge, bundle smoke, staged update and rollback. This closes the
   untrusted-context checkpoint without claiming live model-behavior or paid-audio QA.
+- Commit `d6a5ebe9c4d0d6d272bd162b0d7d410f7d722e6c`, GitHub CI run
+  `33835006637`, Universal artifact `9923092849` (artifact digest
+  `sha256:cb6abd5cc31e69c2b39f3e1d53115394ff6b06481cb1834930408d42478d6712`):
+  raw provider, broker, JavaScript and WebKit error descriptions can no longer enter the
+  visible Realtime status. Known local failures retain fixed help text; every unknown or
+  upstream failure collapses to a bounded Chinese message. A regression fixture embeds a
+  fake Bearer credential in an NSError and proves neither the credential nor header label
+  is surfaced; static assertions reject the prior raw JavaScript provider-message paths,
+  and the extracted embedded script passed an independent syntax check. CI passed all
+  Runtime and Swift tests, both architecture builds, Universal merge, bundle smoke,
+  staged update and rollback. This closes deterministic error-redaction only; packet
+  inspection with an authorized live session remains outstanding.
 - Still required before `PASS`: authorized paid Realtime connectivity, interruption,
   real function-call, network-loss, session-expiry and provider usage/cost QA;
   VoiceOver/Accessibility Inspector audit; and a clean-account voice-only QA session

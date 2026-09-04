@@ -56,6 +56,12 @@ expired, wrong-session, wrong-model, padded, oversized and malformed responses a
 rejected locally. This validation does not replace the still-required credential-
 authorized live-session and packet-boundary QA.
 
+Provider and WebKit error objects are also untrusted. Their raw descriptions never enter
+the visible status or conversation: known local Nalu errors retain fixed help text, while
+unknown broker, provider, JavaScript and WebKit failures collapse to bounded local-language
+messages. This prevents an upstream diagnostic from echoing authorization headers, client
+secrets or request details into UI capture, feedback or support material.
+
 ## Implemented native path
 
 - A visible “自然语音对话” control opens a per-session consent sheet.
