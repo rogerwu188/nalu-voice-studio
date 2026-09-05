@@ -1465,6 +1465,26 @@ Current evidence:
   No provider transport, credential or paid call was used. This closes the versioned
   capability-routing checkpoint only, not a persisted routing-decision receipt, corrected
   upstream promotion, real-provider QA or SOP-07.
+- Product commit `e2a3edebc38638e3eba041ee29a83ccf9bea958e`, GitHub CI run
+  `33948843016`: project and atomic project-plan creation now persist a canonical,
+  SHA-256-bound `nalu.production-route-decision/v1` receipt containing the exact registry
+  version and digest, requested capabilities, every candidate and rejection reason,
+  selected adapter and resolved pipeline. The read API rejects changed receipt bytes,
+  production recomputes a current-registry decision before adapter execution, and legacy
+  projects create an explicit `legacy_backfill` receipt before their first production
+  attempt. Project export v23 preserves the receipt; an internally modified receipt remains
+  rejected even when the outer export digest is recomputed, while correctly shaped older
+  exports remain importable. All 289 Runtime tests, OpenAPI compatibility, real HTTP smoke,
+  schema-27 restart/rollback, three-project planning isolation and offline E2E rehearsal
+  passed. Apple Silicon, Intel and Universal native builds, Swift tests, bundled-Runtime
+  smoke, staged update, rollback and packaged controlled-evolution checks also passed.
+  Runtime QA artifact `9964201116` has digest
+  `sha256:2d5e495ba7d0b8dbc0f850b4c2284e3acc8f570acec17bb0d3e3374610d0926e`;
+  Universal artifact `9964230291` has digest
+  `sha256:adcffc718993c083c854362a26c7a6fef39d2044157fe6c803fd90beebee379f`.
+  No provider transport, credential, paid call or publication was used. This closes the
+  persisted routing-decision checkpoint only, not corrected upstream promotion,
+  authorized real-provider QA or SOP-07.
 - Still required before `PASS`: a corrected pinned Qingshan release whose registry
   integrity and complete registered tests pass, plus authorized real-provider sandbox
   task/result/receipt evidence. Offline authority and transport doubles are not a paid
