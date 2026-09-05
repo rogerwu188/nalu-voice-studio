@@ -243,7 +243,8 @@ def test_documentary_projects_cannot_silently_use_short_drama_adapter(tmp_path: 
             "production_pipeline": "qingshan-short-drama",
         },
     )
-    assert blocked.status_code == 422
+    assert blocked.status_code == 409
+    assert "does not support this creative format" in blocked.text
 
     planned = api.post(
         "/v1/projects",

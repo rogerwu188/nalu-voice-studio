@@ -64,6 +64,7 @@ from .postproduction_materializer import (
     PostproductionMaterializationError,
     materialize_postproduction,
 )
+from .production_adapters import ProductionAdapterRegistry
 from .publication_adapters import publication_adapter
 from .publication_learning import PublicationLearningVerifier
 from .qingshan_adapter import QingshanAdapter, QingshanAdapterError
@@ -330,7 +331,23 @@ class ProductionService:
         self.data_root = data_root.resolve()
         secure_directory(self.data_root)
         self.repository_root = repository_root
+        self.adapter_registry = ProductionAdapterRegistry.load(
+            repository_root / "configs" / "production-adapters.json"
+        )
         self.adapter = QingshanAdapter(repository_root)
+        compiler_models = self.adapter.model_compilers.supported_models
+        compiler_versions = {
+            self.adapter.model_compilers.compiler_for(model).adapter_version
+            for model in compiler_models
+        }
+        if len(compiler_versions) != 1:
+            raise RuntimeError("Qingshan compiler adapter versions are inconsistent")
+        self.adapter_registry.validate_runtime_binding(
+            "qingshan-short-drama",
+            runtime_driver="qingshan",
+            adapter_version=compiler_versions.pop(),
+            requested_models=compiler_models,
+        )
         configured_analyzer = os.environ.get("NALU_VISUAL_ANALYZER_BINARY")
         self.visual_analyzer = visual_analyzer or AppleVisionAnalyzer(
             Path(configured_analyzer) if configured_analyzer else None
@@ -2351,10 +2368,15 @@ class ProductionService:
 
         season = self.repository.get_season(episode.season_id)
         project = self.repository.get_project(season.project_id)
-        if project.production_pipeline != "qingshan-short-drama":
+        adapter_registration = self.adapter_registry.require_execution_route(
+            project.creative_format.value, project.production_pipeline
+        )
+        if adapter_registration["runtime_driver"] != "qingshan":
             raise ConflictError(
                 "this project has no approved production adapter; choose a supported pipeline"
             )
+        if request.requested_model not in adapter_registration["requested_models"]:
+            raise ConflictError("requested model is not registered for this production adapter")
         script = self.repository.get_script(episode.id, episode.approved_script_revision)
         try:
             writer_receipt_reconciliation = (

@@ -290,6 +290,13 @@ def create_app(
 
     @app.post("/v1/projects", response_model=Project, status_code=201)
     def create_project(request: ProjectCreate) -> Project:
+        request = request.model_copy(
+            update={
+                "production_pipeline": production.adapter_registry.resolve(
+                    request.creative_format.value, request.production_pipeline
+                )
+            }
+        )
         return repository.create_project(request)
 
     @app.post("/v1/project-plans", response_model=ProjectPlan, status_code=201)
@@ -297,6 +304,15 @@ def create_app(
         request: ProjectPlanCreate,
         idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     ) -> ProjectPlan:
+        project = request.project.model_copy(
+            update={
+                "production_pipeline": production.adapter_registry.resolve(
+                    request.project.creative_format.value,
+                    request.project.production_pipeline,
+                )
+            }
+        )
+        request = request.model_copy(update={"project": project})
         return repository.create_project_plan(request, idempotency_key)
 
     @app.get("/v1/projects", response_model=list[Project])

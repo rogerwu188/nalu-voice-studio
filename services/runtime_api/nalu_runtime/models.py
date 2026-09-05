@@ -99,19 +99,7 @@ class ProjectCreate(BaseModel):
     target_episode_seconds: int = Field(default=150, ge=15, le=3600)
     project_bible: dict[str, Any] = Field(default_factory=dict)
     creative_format: CreativeFormat = CreativeFormat.SHORT_DRAMA_SERIES
-    production_pipeline: str = Field(default="qingshan-short-drama", min_length=1, max_length=120)
-
-    @model_validator(mode="after")
-    def fail_closed_for_documentary_route(self) -> ProjectCreate:
-        if (
-            self.creative_format == CreativeFormat.DOCUMENTARY_SERIES
-            and self.production_pipeline != "unassigned"
-        ):
-            raise ValueError(
-                "documentary projects require the unassigned route until a documentary "
-                "adapter passes capability and authenticity QA"
-            )
-        return self
+    production_pipeline: str = Field(default="auto", min_length=1, max_length=120)
 
 
 class Project(ProjectCreate):

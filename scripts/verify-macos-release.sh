@@ -32,6 +32,7 @@ test -f "$update_discovery"
 test -f "$feedback_export"
 test -f "$development_handoff"
 test -f "$bundle/Contents/Resources/runtime-resources/configs/qingshan-upstream.json"
+test -f "$bundle/Contents/Resources/runtime-resources/configs/production-adapters.json"
 test -f "$bundle/Contents/Resources/runtime-resources/vendor/qingshan/LICENSE"
 
 semantic_entitlements="$(mktemp)"

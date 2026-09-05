@@ -6,11 +6,20 @@ Nalu's voice entrance is independent from any single media production line.
 
 `natural conversation → creative brief → project plan → production route → adapter → deliverables`
 
-The project records two versioned routing fields:
+The project records two routing fields:
 
 - `creative_format`: `short_drama_series`, `documentary_series`,
   `animation_series`, or `commercial_campaign`.
-- `production_pipeline`: the selected adapter identifier.
+- `production_pipeline`: `auto` on input, then the selected adapter identifier or
+  the explicit fail-closed value `unassigned` in persisted project state.
+
+`configs/production-adapters.json` is the versioned, SHA-256-sealed routing authority.
+It declares each adapter's creative formats, required capabilities, supported provider
+models, runtime driver and adapter version. Application startup binds those declarations
+to the bundled compiler implementations; a version, model-set or driver mismatch stops
+startup. Project creation resolves `auto`, while every production start revalidates the
+persisted route against the current registry so a quarantined adapter or capability
+change cannot silently reach a paid provider.
 
 The current UI continues to use the stable Project → Season → Episode storage model,
 while presenting audience-appropriate labels:

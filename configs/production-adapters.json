@@ -1,0 +1,66 @@
+{
+  "schema_version": "nalu.production-adapter-registry/v1",
+  "registry_version": "2026.09.05.1",
+  "adapters": [
+    {
+      "adapter_id": "qingshan-short-drama",
+      "adapter_version": "1.7.0",
+      "status": "ACTIVE",
+      "runtime_driver": "qingshan",
+      "creative_formats": [
+        "short_drama_series",
+        "animation_series"
+      ],
+      "capabilities": [
+        "multi_episode",
+        "episodic_narrative",
+        "synthetic_visual_style",
+        "character_continuity",
+        "scene_continuity",
+        "prop_continuity",
+        "voice_continuity"
+      ],
+      "requested_models": [
+        "seedance-2.0-pro",
+        "MiniMax-H3"
+      ]
+    }
+  ],
+  "format_routes": {
+    "short_drama_series": {
+      "default_adapter_id": "qingshan-short-drama",
+      "required_capabilities": [
+        "multi_episode",
+        "episodic_narrative",
+        "character_continuity",
+        "scene_continuity",
+        "prop_continuity",
+        "voice_continuity"
+      ]
+    },
+    "animation_series": {
+      "default_adapter_id": "qingshan-short-drama",
+      "required_capabilities": [
+        "multi_episode",
+        "episodic_narrative",
+        "synthetic_visual_style",
+        "character_continuity"
+      ]
+    },
+    "commercial_campaign": {
+      "default_adapter_id": null,
+      "required_capabilities": [
+        "commercial_claims_review",
+        "brand_policy_review"
+      ]
+    },
+    "documentary_series": {
+      "default_adapter_id": null,
+      "required_capabilities": [
+        "source_citation",
+        "documentary_authenticity_qa"
+      ]
+    }
+  },
+  "registry_sha256": "1dee4399ae6238ccbecfcf84304e2df1449284c8b5a5d9f1b5c1391cd136f0a6"
+}

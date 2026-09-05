@@ -156,6 +156,30 @@ def test_creative_format_routes_projects_without_faking_an_adapter(tmp_path: Pat
     )
     assert commercial.status_code == 201
     assert commercial.json()["production_pipeline"] == "unassigned"
+
+    automatically_unassigned = api.post(
+        "/v1/projects",
+        json={
+            "title": "自动路由广告",
+            "creative_format": "commercial_campaign",
+        },
+    )
+    assert automatically_unassigned.status_code == 201
+    assert automatically_unassigned.json()["production_pipeline"] == "unassigned"
+
+    documentary = api.post(
+        "/v1/projects",
+        json={"title": "家庭档案", "creative_format": "documentary_series"},
+    )
+    assert documentary.status_code == 201
+    assert documentary.json()["production_pipeline"] == "unassigned"
+
+    unknown = api.post(
+        "/v1/projects",
+        json={"title": "未知生产线", "production_pipeline": "unknown-pipeline"},
+    )
+    assert unknown.status_code == 409
+    assert "not registered" in unknown.text
     commercial_id = commercial.json()["id"]
     season = api.post(
         f"/v1/projects/{commercial_id}/seasons",

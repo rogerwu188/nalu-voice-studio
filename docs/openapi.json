@@ -5830,7 +5830,7 @@
             "type": "integer"
           },
           "production_pipeline": {
-            "default": "qingshan-short-drama",
+            "default": "auto",
             "maxLength": 120,
             "minLength": 1,
             "title": "Production Pipeline",
@@ -5913,7 +5913,7 @@
             "type": "integer"
           },
           "production_pipeline": {
-            "default": "qingshan-short-drama",
+            "default": "auto",
             "maxLength": 120,
             "minLength": 1,
             "title": "Production Pipeline",

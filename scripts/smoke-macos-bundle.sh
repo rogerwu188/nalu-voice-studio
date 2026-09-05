@@ -32,6 +32,7 @@ test -f "$update_trust"
 test -f "$update_discovery"
 test -f "$runtime_resources/configs/feedback-export.json"
 test -f "$runtime_resources/configs/qingshan-upstream.json"
+test -f "$runtime_resources/configs/production-adapters.json"
 test -f "$runtime_resources/vendor/qingshan/LICENSE"
 "$repo_root/scripts/verify-macos-release.sh" "$bundle"
 if "$update_helper" >/dev/null 2>&1; then
