@@ -69,7 +69,7 @@ struct ProjectDraft: Codable, Sendable {
     var targetEpisodeSeconds = 150
     var projectBible: [String: String] = [:]
     var creativeFormat = "short_drama_series"
-    var productionPipeline = "qingshan-short-drama"
+    var productionPipeline = "auto"
 
     enum CodingKeys: String, CodingKey {
         case title, description

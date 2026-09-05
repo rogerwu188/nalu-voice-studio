@@ -41,6 +41,12 @@ adapter execution; the normal current-registry production checks still apply.
 The current UI continues to use the stable Project → Season → Episode storage model,
 while presenting audience-appropriate labels:
 
+The macOS interview client never selects an adapter itself. It submits the user's
+`creative_format` with `production_pipeline: auto`, including for documentary and
+commercial projects, and then reloads the Runtime's resolved project. This keeps the
+sealed local registry as the single routing authority and prevents a stale adapter
+identifier from being copied into current interview routing logic.
+
 | Creative format | Group label | Unit label |
 | --- | --- | --- |
 | Short drama | Season | Episode |

@@ -1,7 +1,17 @@
+import Foundation
 import XCTest
 @testable import NaluVoiceStudio
 
 final class InterviewFlowTests: XCTestCase {
+    func testProjectDraftEncodesRegistryOwnedAutoRoute() throws {
+        let data = try JSONEncoder().encode(ProjectDraft())
+        let object = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: data) as? [String: Any]
+        )
+        XCTAssertEqual(object["creative_format"] as? String, "short_drama_series")
+        XCTAssertEqual(object["production_pipeline"] as? String, "auto")
+    }
+
     func testCompletesVoiceOnlyProjectSetup() {
         var flow = InterviewFlow()
         XCTAssertTrue(flow.begin().contains("长辈"))
@@ -22,6 +32,8 @@ final class InterviewFlowTests: XCTestCase {
         }
         XCTAssertEqual(draft.title, "我的远方")
         XCTAssertEqual(draft.plannedEpisodeCount, 12)
+        XCTAssertEqual(draft.creativeFormat, "short_drama_series")
+        XCTAssertEqual(draft.productionPipeline, "auto")
         XCTAssertEqual(flow.step, .creating)
     }
 
@@ -78,17 +90,18 @@ final class InterviewFlowTests: XCTestCase {
         XCTAssertEqual(flow.step, .premise)
         XCTAssertEqual(flow.draft.audienceMode, "child")
         XCTAssertEqual(flow.draft.creativeFormat, "animation_series")
+        XCTAssertEqual(flow.draft.productionPipeline, "auto")
         XCTAssertEqual(flow.draft.projectBible["guardian_name"], "妈妈李女士")
         XCTAssertEqual(flow.draft.projectBible["guardian_setup_approved"], "true")
     }
 
-    func testCommercialIntentCreatesAnUnassignedFailClosedRoute() {
+    func testCommercialIntentDelegatesFailClosedRoutingToRuntimeRegistry() {
         var flow = InterviewFlow()
         _ = flow.begin()
         _ = flow.consume("我自己使用")
         assertResponse(flow.consume("我要给护肤品做广告片"), contains: "广告创作简报")
         XCTAssertEqual(flow.draft.creativeFormat, "commercial_campaign")
-        XCTAssertEqual(flow.draft.productionPipeline, "unassigned")
+        XCTAssertEqual(flow.draft.productionPipeline, "auto")
     }
 
     func testDocumentaryIntentCapturesArchivalAndHybridModesFailClosed() {
@@ -97,7 +110,7 @@ final class InterviewFlowTests: XCTestCase {
         _ = archival.consume("家里老人使用")
         assertResponse(archival.consume("我要做真实资料纪录片"), contains: "照片")
         XCTAssertEqual(archival.draft.creativeFormat, "documentary_series")
-        XCTAssertEqual(archival.draft.productionPipeline, "unassigned")
+        XCTAssertEqual(archival.draft.productionPipeline, "auto")
         XCTAssertEqual(archival.draft.projectBible["documentary_mode"], "archival_voiceover")
 
         var hybrid = InterviewFlow()
@@ -134,6 +147,7 @@ final class InterviewFlowTests: XCTestCase {
         assertResponse(flow.consume("动画片"), contains: "主要角色")
         XCTAssertEqual(flow.step, .premise)
         XCTAssertEqual(flow.draft.creativeFormat, "animation_series")
+        XCTAssertEqual(flow.draft.productionPipeline, "auto")
     }
 
     private func assertResponse(

@@ -88,14 +88,14 @@ struct InterviewFlow {
         case .creativeFormat:
             if spoken.contains("广告") || spoken.contains("宣传片") {
                 draft.creativeFormat = "commercial_campaign"
-                draft.productionPipeline = "unassigned"
+                draft.productionPipeline = "auto"
                 draft.plannedEpisodeCount = 1
                 step = .premise
                 return .respond("好的，我们先建立广告创作简报。请告诉我产品、观众和最想表达的重点。")
             }
             if spoken.contains("动画") || spoken.contains("卡通") {
                 draft.creativeFormat = "animation_series"
-                draft.productionPipeline = "qingshan-short-drama"
+                draft.productionPipeline = "auto"
                 step = .premise
                 return .respond("好的，我们来做动画系列。请告诉我主要角色和故事想法。")
             }
@@ -105,7 +105,7 @@ struct InterviewFlow {
             ]
             if documentarySignals.contains(where: spoken.contains) {
                 draft.creativeFormat = "documentary_series"
-                draft.productionPipeline = "unassigned"
+                draft.productionPipeline = "auto"
                 let hybrid = spoken.contains("重现") || spoken.contains("混合")
                     || spoken.contains("纪实剧情")
                 draft.projectBible["documentary_mode"] = hybrid
@@ -119,7 +119,7 @@ struct InterviewFlow {
                 )
             }
             draft.creativeFormat = "short_drama_series"
-            draft.productionPipeline = "qingshan-short-drama"
+            draft.productionPipeline = "auto"
             step = .premise
             return .respond("好的，我们来做连续短剧。请告诉我，这个故事主要讲什么？")
         case .premise:
