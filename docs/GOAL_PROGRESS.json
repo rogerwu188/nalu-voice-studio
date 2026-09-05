@@ -11,26 +11,26 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "7b85f90d936b94fc5c1eb7ef6236f8603c14d44a",
-  "last_advanced_at": "2026-09-04T22:39:56Z",
+  "observed_head": "6b6ada12660eab9b83260c7b02e2ef3796bbfad4",
+  "last_advanced_at": "2026-09-05T05:23:18Z",
   "last_closed_checkpoint": {
-    "id": "provider-scope-package-authority",
+    "id": "qingshan-compilation-schema-authority",
     "sop": "SOP-07",
-    "product_commit": "367e2ede7acf828a7c5496ea586b109b6698d6bf",
-    "evidence_commit": "7b85f90d936b94fc5c1eb7ef6236f8603c14d44a",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33925888764",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33925888764/artifacts/9956934894",
+    "product_commit": "55cda5d3749f556d273741acc5679c0cee2ffe95",
+    "evidence_commit": "6b6ada12660eab9b83260c7b02e2ef3796bbfad4",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33926836092",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33926836092/artifacts/9957255467",
     "result": "PASS"
   },
   "current_checkpoint": {
     "sop": "SOP-07",
     "status": "IN_PROGRESS",
-    "summary": "Provider scope is now derived against the immutable approved production package and its complete character catalog. The committed qingshan-model-compilation JSON Schema still rejects valid current compiler output because its closed paid-boundary definition predates many implemented contract fields, so schema validation is not yet an executable authority."
+    "summary": "The current compiler contract and package-derived provider scope now have executable closed validation. Project creation still stores caller-selected creative-format/pipeline strings and execution later special-cases one Qingshan name instead of routing through the required versioned capability registry."
   },
   "next_action": {
     "sop": "SOP-07",
-    "id": "qingshan-compilation-schema-authority",
-    "summary": "Reconcile the closed qingshan-model-compilation JSON Schema with the complete current compiler contract, validate every generated model compilation in tests and CI, and prove unknown or missing paid-boundary fields fail closed.",
+    "id": "creative-format-capability-registry",
+    "summary": "Introduce a versioned production-adapter capability registry, derive and validate creative-format routes at project creation and production start, preserve explicit unassigned routes for unsupported formats, and fail closed on unknown, incompatible or capability-drifted adapters.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
