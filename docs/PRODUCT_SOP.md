@@ -1428,6 +1428,23 @@ Current evidence:
   No credential, provider request or paid call was used. This closes package-derived
   provider-scope authority only, not corrected upstream promotion, real-provider QA or
   SOP-07.
+- Product commit `55cda5d3749f556d273741acc5679c0cee2ffe95`, GitHub CI run
+  `33926836092`: the committed Draft 2020-12 model-compilation schema is now a closed
+  executable contract for adapter `1.7.0` instead of a stale descriptive subset. It
+  enumerates every current paid-boundary field, defines the complete distinct Seedance
+  and MiniMax provider contracts, couples model/adapter/profile/provider identities and
+  native limits, and rejects unknown properties. CI validates both generated model
+  compilations, independently recomputes each compilation digest, removes every paid-
+  boundary field one at a time and injects unknown paid/provider fields; all omissions
+  and unreviewed expansions fail schema validation. All 282 Runtime tests and the
+  Runtime, Apple Silicon, Intel and Universal jobs passed, including bundle smoke,
+  project isolation, staged update, populated rollback and controlled-evolution checks.
+  Runtime QA artifact `9957158385` has digest
+  `sha256:ccfcd0bf15167f149e98e93100e093b8d59979e8e54300d92f68695c9741d98c`;
+  Universal artifact `9957255467` has digest
+  `sha256:ddc3d9b83077830998b01b121c8b95e300e5932f8371cb4f2e7b8504a2f5dbd7`.
+  This closes compiler-schema authority only, not capability-based creative-format
+  routing, corrected upstream promotion, real-provider QA or SOP-07.
 - Still required before `PASS`: a corrected pinned Qingshan release whose registry
   integrity and complete registered tests pass, plus authorized real-provider sandbox
   task/result/receipt evidence. Offline authority and transport doubles are not a paid
