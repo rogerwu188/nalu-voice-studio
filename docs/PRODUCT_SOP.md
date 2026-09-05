@@ -1485,6 +1485,22 @@ Current evidence:
   No provider transport, credential, paid call or publication was used. This closes the
   persisted routing-decision checkpoint only, not corrected upstream promotion,
   authorized real-provider QA or SOP-07.
+- Product commit `f876a3e2219f877bc00ca201c81a0ac38acdc35a`, GitHub CI run
+  `33949359214`: the native macOS interview no longer writes literal adapter identifiers.
+  Every supported creative format now submits `production_pipeline=auto` together with
+  its format, leaving the Runtime's versioned adapter registry and sealed routing receipt
+  as the sole route authority; the client then reloads the persisted, resolved project.
+  Swift reducer tests cover draft encoding and short-drama, documentary, animation and
+  commercial interview paths. All 289 Runtime tests, OpenAPI compatibility, real HTTP
+  smoke, offline E2E rehearsal, Swift tests, Apple Silicon and Intel builds, Universal
+  merge, bundled-Runtime smoke, staged update, populated rollback and packaged
+  controlled-evolution checks passed. Runtime QA artifact `9964344354` has digest
+  `sha256:3623a38fd69592d83f53299f86878f02c16edb671ba1bae515311ceb534c837e`;
+  Universal artifact `9964382754` has digest
+  `sha256:5e09f77883108bcc73c1fc861a148ce905347249cba29b6a4c26b1a473f9a264`.
+  No provider transport, credential, paid call or publication was used. This closes the
+  native registry-ownership checkpoint only, not corrected upstream promotion,
+  authorized real-provider QA or SOP-07.
 - Still required before `PASS`: a corrected pinned Qingshan release whose registry
   integrity and complete registered tests pass, plus authorized real-provider sandbox
   task/result/receipt evidence. Offline authority and transport doubles are not a paid
