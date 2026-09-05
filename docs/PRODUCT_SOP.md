@@ -1445,6 +1445,26 @@ Current evidence:
   `sha256:ddc3d9b83077830998b01b121c8b95e300e5932f8371cb4f2e7b8504a2f5dbd7`.
   This closes compiler-schema authority only, not capability-based creative-format
   routing, corrected upstream promotion, real-provider QA or SOP-07.
+- Product commit `418bd9767f42f0b7431d83eaafbc0e472227b9ad`, GitHub CI run
+  `33947687878`: creative-format routing now uses the SHA-256-sealed adapter registry
+  `2026.09.05.1` instead of a model validator and a literal production-line name.
+  Project and project-plan creation resolve `auto` by declared capabilities; short drama
+  and animation select the active Qingshan adapter, while documentary and commercial
+  persist the explicit fail-closed `unassigned` route. Unknown and incompatible adapters,
+  missing required capabilities, changed registry bytes, quarantined defaults, unsupported
+  provider models and registry/runtime driver, compiler-version or model-set drift all fail
+  closed. Production start revalidates the persisted format/adapter/model route, and both
+  source architecture bundles plus the Universal package verify the registry is present.
+  All 288 Runtime tests, OpenAPI compatibility, real HTTP smoke, offline E2E evidence,
+  Swift tests, Apple Silicon and Intel builds, Universal merge, bundle smoke, staged update,
+  populated rollback and controlled-evolution checks passed. Runtime QA artifact
+  `9963889364` has digest
+  `sha256:6163c4ed554253faf8ad5b228b67a91de242de9ad01b6b5103a1cf43ac93246a`;
+  Universal artifact `9963921489` has digest
+  `sha256:4103d99058140fde75b6acdfe1c0a11a696d03f600dcd5f3e0fbfe38d446c8d1`.
+  No provider transport, credential or paid call was used. This closes the versioned
+  capability-routing checkpoint only, not a persisted routing-decision receipt, corrected
+  upstream promotion, real-provider QA or SOP-07.
 - Still required before `PASS`: a corrected pinned Qingshan release whose registry
   integrity and complete registered tests pass, plus authorized real-provider sandbox
   task/result/receipt evidence. Offline authority and transport doubles are not a paid
