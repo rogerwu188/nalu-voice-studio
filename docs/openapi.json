@@ -5658,6 +5658,152 @@
         "title": "ProductionCompletionResult",
         "type": "object"
       },
+      "ProductionRouteCandidate": {
+        "properties": {
+          "adapter_id": {
+            "title": "Adapter Id",
+            "type": "string"
+          },
+          "adapter_version": {
+            "title": "Adapter Version",
+            "type": "string"
+          },
+          "creative_format_supported": {
+            "title": "Creative Format Supported",
+            "type": "boolean"
+          },
+          "missing_capabilities": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing Capabilities",
+            "type": "array"
+          },
+          "rejection_reasons": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Rejection Reasons",
+            "type": "array"
+          },
+          "selected": {
+            "title": "Selected",
+            "type": "boolean"
+          },
+          "status": {
+            "enum": [
+              "ACTIVE",
+              "QUARANTINED"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "adapter_id",
+          "adapter_version",
+          "status",
+          "creative_format_supported",
+          "missing_capabilities",
+          "rejection_reasons",
+          "selected"
+        ],
+        "title": "ProductionRouteCandidate",
+        "type": "object"
+      },
+      "ProductionRouteDecision": {
+        "properties": {
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/ProductionRouteCandidate"
+            },
+            "title": "Candidates",
+            "type": "array"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "creative_format": {
+            "$ref": "#/components/schemas/CreativeFormat"
+          },
+          "decision_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Decision Sha256",
+            "type": "string"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "registry_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Registry Sha256",
+            "type": "string"
+          },
+          "registry_version": {
+            "title": "Registry Version",
+            "type": "string"
+          },
+          "requested_pipeline": {
+            "title": "Requested Pipeline",
+            "type": "string"
+          },
+          "required_capabilities": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Required Capabilities",
+            "type": "array"
+          },
+          "resolved_pipeline": {
+            "title": "Resolved Pipeline",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "nalu.production-route-decision/v1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "selected_adapter_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selected Adapter Id"
+          },
+          "source": {
+            "enum": [
+              "project_creation",
+              "project_plan",
+              "legacy_backfill"
+            ],
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "schema_version",
+          "project_id",
+          "registry_version",
+          "registry_sha256",
+          "creative_format",
+          "requested_pipeline",
+          "required_capabilities",
+          "candidates",
+          "selected_adapter_id",
+          "resolved_pipeline",
+          "source",
+          "created_at",
+          "decision_sha256"
+        ],
+        "title": "ProductionRouteDecision",
+        "type": "object"
+      },
       "ProductionRun": {
         "properties": {
           "created_at": {
@@ -6061,7 +6207,7 @@
             "type": "string"
           },
           "schema_version": {
-            "default": "nalu.project-export/v22",
+            "default": "nalu.project-export/v23",
             "enum": [
               "nalu.project-export/v1",
               "nalu.project-export/v2",
@@ -6084,7 +6230,8 @@
               "nalu.project-export/v19",
               "nalu.project-export/v20",
               "nalu.project-export/v21",
-              "nalu.project-export/v22"
+              "nalu.project-export/v22",
+              "nalu.project-export/v23"
             ],
             "title": "Schema Version",
             "type": "string"
@@ -13616,6 +13763,45 @@
           }
         },
         "summary": "Privacy Export"
+      }
+    },
+    "/v1/projects/{project_id}/production-route": {
+      "get": {
+        "operationId": "get_production_route_v1_projects__project_id__production_route_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductionRouteDecision"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Production Route"
       }
     },
     "/v1/projects/{project_id}/seasons": {

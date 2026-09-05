@@ -145,6 +145,15 @@ def test_creative_format_routes_projects_without_faking_an_adapter(tmp_path: Pat
     )
     assert animation.status_code == 201
     assert animation.json()["creative_format"] == "animation_series"
+    animation_route = api.get(
+        f"/v1/projects/{animation.json()['id']}/production-route"
+    )
+    assert animation_route.status_code == 200
+    assert animation_route.json()["registry_version"] == "2026.09.05.1"
+    assert animation_route.json()["selected_adapter_id"] == "qingshan-short-drama"
+    assert animation_route.json()["resolved_pipeline"] == "qingshan-short-drama"
+    assert animation_route.json()["source"] == "project_creation"
+    assert animation_route.json()["candidates"][0]["selected"] is True
 
     commercial = api.post(
         "/v1/projects",
@@ -166,6 +175,16 @@ def test_creative_format_routes_projects_without_faking_an_adapter(tmp_path: Pat
     )
     assert automatically_unassigned.status_code == 201
     assert automatically_unassigned.json()["production_pipeline"] == "unassigned"
+    unassigned_route = api.get(
+        f"/v1/projects/{automatically_unassigned.json()['id']}/production-route"
+    )
+    assert unassigned_route.status_code == 200
+    assert unassigned_route.json()["requested_pipeline"] == "auto"
+    assert unassigned_route.json()["selected_adapter_id"] is None
+    assert unassigned_route.json()["candidates"][0]["rejection_reasons"] == [
+        "creative_format_not_supported",
+        "required_capabilities_missing",
+    ]
 
     documentary = api.post(
         "/v1/projects",
@@ -207,6 +226,71 @@ def test_creative_format_routes_projects_without_faking_an_adapter(tmp_path: Pat
     )
     assert blocked.status_code == 409
     assert "no approved production adapter" in blocked.text
+
+
+def test_production_route_decision_tamper_and_legacy_backfill(tmp_path: Path) -> None:
+    api = client(tmp_path)
+    project, _, episode = create_approved_episode(api)
+    route_path = f"/v1/projects/{project['id']}/production-route"
+    original = api.get(route_path)
+    assert original.status_code == 200
+    assert original.json()["decision_sha256"]
+
+    backup = api.get(f"/v1/projects/{project['id']}/export").json()
+    assert backup["schema_version"] == "nalu.project-export/v23"
+    assert len(backup["payload"]["production_route_decisions"]) == 1
+    restored = client(tmp_path / "restored-route")
+    assert restored.post("/v1/project-imports", json=backup).status_code == 201
+    assert restored.get(route_path).json() == original.json()
+
+    tampered_backup = deepcopy(backup)
+    route_body = json.loads(
+        tampered_backup["payload"]["production_route_decisions"][0]["decision_json"]
+    )
+    route_body["resolved_pipeline"] = "unassigned"
+    tampered_backup["payload"]["production_route_decisions"][0][
+        "decision_json"
+    ] = json.dumps(route_body, ensure_ascii=False, sort_keys=True)
+    tampered_backup["payload_sha256"] = hashlib.sha256(
+        json.dumps(
+            tampered_backup["payload"], ensure_ascii=False, sort_keys=True
+        ).encode()
+    ).hexdigest()
+    rejected_backup = client(tmp_path / "tampered-route-export").post(
+        "/v1/project-imports", json=tampered_backup
+    )
+    assert rejected_backup.status_code == 409
+    assert "tampered route decision" in rejected_backup.text
+
+    with api.app.state.repository.db.connect() as connection:
+        row = connection.execute(
+            "SELECT decision_json FROM production_route_decisions WHERE project_id = ?",
+            (project["id"],),
+        ).fetchone()
+        changed = json.loads(row["decision_json"])
+        changed["resolved_pipeline"] = "unassigned"
+        connection.execute(
+            "UPDATE production_route_decisions SET decision_json = ? WHERE project_id = ?",
+            (json.dumps(changed), project["id"]),
+        )
+    tampered = api.get(route_path)
+    assert tampered.status_code == 409
+    assert "digest mismatch" in tampered.text
+
+    with api.app.state.repository.db.connect() as connection:
+        connection.execute(
+            "DELETE FROM production_route_decisions WHERE project_id = ?",
+            (project["id"],),
+        )
+    run = api.post(
+        f"/v1/episodes/{episode['id']}/production-runs",
+        json={"dry_run": True, "requested_model": "seedance-2.0-pro"},
+    )
+    assert run.status_code == 201
+    backfilled = api.get(route_path)
+    assert backfilled.status_code == 200
+    assert backfilled.json()["source"] == "legacy_backfill"
+    assert backfilled.json()["project_id"] == project["id"]
 
 
 def test_documentary_readiness_requires_confirmed_citable_sources(tmp_path: Path) -> None:
@@ -446,7 +530,7 @@ def test_feedback_review_bundle_is_local_redacted_immutable_and_exported(
     assert bundle["attachments"] == []
     assert bundle["diagnostics"] == {
         "runtime_version": "0.1.0",
-        "schema_version": "26",
+        "schema_version": "27",
         "screen": "family-materials",
     }
     assert bundle["redaction_applied"] is True
@@ -464,7 +548,7 @@ def test_feedback_review_bundle_is_local_redacted_immutable_and_exported(
     assert api.get(f"/v1/feedback/{feedback['id']}/review-bundle").json() == bundle
 
     backup = api.get(f"/v1/projects/{project['id']}/export").json()
-    assert backup["schema_version"] == "nalu.project-export/v22"
+    assert backup["schema_version"] == "nalu.project-export/v23"
     assert (
         backup["payload"]["feedback_review_bundles"][0]["bundle_sha256"] == bundle["bundle_sha256"]
     )
@@ -672,13 +756,14 @@ def test_feedback_release_linkage_is_hash_bound_immutable_and_never_claims_relea
     assert current_feedback["status"] == "ready_for_review"
 
     backup = api.get(f"/v1/projects/{project['id']}/export").json()
-    assert backup["schema_version"] == "nalu.project-export/v22"
+    assert backup["schema_version"] == "nalu.project-export/v23"
     assert (
         backup["payload"]["feedback_release_linkages"][0]["linkage_sha256"]
         == linkage["linkage_sha256"]
     )
     legacy_backup = deepcopy(backup)
     legacy_backup["schema_version"] = "nalu.project-export/v16"
+    legacy_backup["payload"].pop("production_route_decisions")
     legacy_backup["payload"].pop("script_writer_receipt_reconciliations")
     legacy_backup["payload"].pop("script_writer_provider_reconciliations")
     legacy_backup["payload"].pop("feedback_development_results")
@@ -803,7 +888,7 @@ def test_feedback_triage_is_human_confirmed_inert_immutable_and_exported(
     assert current_feedback["status"] == "ready_for_review"
 
     backup = api.get(f"/v1/projects/{project['id']}/export").json()
-    assert backup["schema_version"] == "nalu.project-export/v22"
+    assert backup["schema_version"] == "nalu.project-export/v23"
     assert (
         backup["payload"]["feedback_triage_records"][0]["record_sha256"] == triage["record_sha256"]
     )
@@ -1310,7 +1395,7 @@ def test_feedback_external_export_is_authorized_idempotent_and_ambiguity_safe(
     assert len(release_evidence_verifier.calls) == 2
 
     backup = api.get(f"/v1/projects/{project['id']}/export").json()
-    assert backup["schema_version"] == "nalu.project-export/v22"
+    assert backup["schema_version"] == "nalu.project-export/v23"
     restored = client(tmp_path / "export-restored")
     assert restored.post("/v1/project-imports", json=backup).status_code == 201
     assert restored.get(endpoint).json() == receipt
@@ -1395,6 +1480,7 @@ def test_feedback_external_export_is_authorized_idempotent_and_ambiguity_safe(
 
     legacy_v12 = deepcopy(backup)
     legacy_v12["schema_version"] = "nalu.project-export/v12"
+    legacy_v12["payload"].pop("production_route_decisions")
     legacy_v12["payload"].pop("script_writer_receipt_reconciliations")
     legacy_v12["payload"].pop("script_writer_provider_reconciliations")
     legacy_v12["payload"].pop("feedback_external_reconciliations")
@@ -1835,6 +1921,7 @@ def test_feedback_external_export_is_authorized_idempotent_and_ambiguity_safe(
 
     legacy_v13 = deepcopy(reconciled_backup)
     legacy_v13["schema_version"] = "nalu.project-export/v13"
+    legacy_v13["payload"].pop("production_route_decisions")
     legacy_v13["payload"].pop("script_writer_receipt_reconciliations")
     legacy_v13["payload"].pop("script_writer_provider_reconciliations")
     legacy_v13["payload"].pop("feedback_development_work_orders")
@@ -2063,7 +2150,7 @@ def test_memory_card_requires_explicit_confirmation_and_keeps_evidence(tmp_path:
     assert confirmations[0]["spoken_confirmation"] == "我确认这张记忆卡并归档"
 
     backup = api.get(f"/v1/projects/{project['id']}/export").json()
-    assert backup["schema_version"] == "nalu.project-export/v22"
+    assert backup["schema_version"] == "nalu.project-export/v23"
     assert backup["payload"]["memory_cards"][0]["asset_id"] == asset["id"]
 
     other = api.post("/v1/projects", json={"title": "另一个项目"}).json()
@@ -2858,7 +2945,7 @@ def test_writer_receipt_reconciliation_is_fail_closed_exported_and_packaged(
     assert package["writer_receipt_reconciliation"] == record
 
     backup = api.get(f"/v1/projects/{project_id}/export").json()
-    assert backup["schema_version"] == "nalu.project-export/v22"
+    assert backup["schema_version"] == "nalu.project-export/v23"
     assert len(backup["payload"]["script_writer_receipt_reconciliations"]) == 1
     restored = client(tmp_path / "restored-writer-receipt")
     assert restored.post("/v1/project-imports", json=backup).status_code == 201
@@ -2871,6 +2958,7 @@ def test_writer_receipt_reconciliation_is_fail_closed_exported_and_packaged(
 
     compatible_v20 = deepcopy(backup)
     compatible_v20["schema_version"] = "nalu.project-export/v20"
+    compatible_v20["payload"].pop("production_route_decisions")
     compatible_v20["payload"].pop("script_writer_receipt_reconciliations")
     compatible_v20["payload"].pop("script_writer_provider_reconciliations")
     compatible_v20["payload_sha256"] = hashlib.sha256(
@@ -2970,6 +3058,13 @@ def test_atomic_multi_episode_project_plan(tmp_path: Path) -> None:
     plan = response.json()
     assert plan["season"]["project_id"] == plan["project"]["id"]
     assert [row["episode_number"] for row in plan["episodes"]] == list(range(1, 11))
+    route = api.get(
+        f"/v1/projects/{plan['project']['id']}/production-route"
+    )
+    assert route.status_code == 200
+    assert route.json()["source"] == "project_plan"
+    assert route.json()["requested_pipeline"] == "auto"
+    assert route.json()["resolved_pipeline"] == "qingshan-short-drama"
 
     rejected = api.post(
         "/v1/project-plans",
@@ -3312,6 +3407,7 @@ def test_project_rename_archive_export_and_restore(tmp_path: Path) -> None:
 
     legacy = deepcopy(backup)
     legacy["schema_version"] = "nalu.project-export/v1"
+    legacy["payload"].pop("production_route_decisions")
     legacy["payload"].pop("script_writer_receipt_reconciliations")
     legacy["payload"].pop("script_writer_provider_reconciliations")
     legacy["payload"].pop("season_plan_revisions")
@@ -3511,7 +3607,7 @@ def test_database_migration_preserves_existing_database(tmp_path: Path) -> None:
         connection.execute("INSERT INTO legacy_marker VALUES ('preserve-me')")
 
     api = create_app(database_path, tmp_path / "data")
-    assert api.state.repository.db.schema_version() == 26
+    assert api.state.repository.db.schema_version() == 27
     with sqlite3.connect(database_path) as connection:
         marker = connection.execute("SELECT value FROM legacy_marker").fetchone()[0]
         approval_table = connection.execute(
@@ -3563,7 +3659,7 @@ def test_populated_v1_database_upgrades_without_project_loss(tmp_path: Path) -> 
         connection.execute("DELETE FROM schema_migrations WHERE version >= 2")
 
     after = TestClient(create_app(database_path, data_root))
-    assert after.app.state.repository.db.schema_version() == 26
+    assert after.app.state.repository.db.schema_version() == 27
     assert after.get(f"/v1/projects/{project['id']}").json()["title"] == "我的一生"
     assert after.get(f"/v1/episodes/{episode['id']}").json()["approved_script_revision"] == 1
     approvals = after.get(f"/v1/episodes/{episode['id']}/script-approvals").json()
@@ -4152,6 +4248,7 @@ def test_project_season_and_episode_asset_scope_inheritance(tmp_path: Path) -> N
     backup = api.get(f"/v1/projects/{project['id']}/export").json()
     legacy_v3 = deepcopy(backup)
     legacy_v3["schema_version"] = "nalu.project-export/v3"
+    legacy_v3["payload"].pop("production_route_decisions")
     legacy_v3["payload"].pop("script_writer_receipt_reconciliations")
     legacy_v3["payload"].pop("script_writer_provider_reconciliations")
     legacy_v3["payload"].pop("feedback_items")
@@ -4288,7 +4385,7 @@ def test_complete_privacy_export_and_confirmed_project_deletion(tmp_path: Path) 
         assert {"project-export.json", "privacy-manifest.json", media_name} <= names
         assert archive.read(media_name) == b"private-photo-bytes"
         project_backup = json.loads(archive.read("project-export.json"))
-        assert project_backup["schema_version"] == "nalu.project-export/v22"
+        assert project_backup["schema_version"] == "nalu.project-export/v23"
         assert project_backup["payload"]["asset_consent_records"][0]["action_type"] == "granted"
         manifest = json.loads(archive.read("privacy-manifest.json"))
         assert manifest["database_included"] is False

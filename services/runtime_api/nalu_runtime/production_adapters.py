@@ -51,14 +51,67 @@ class ProductionAdapterRegistry:
     def registry_version(self) -> str:
         return str(self._manifest["registry_version"])
 
-    def resolve(self, creative_format: str, requested_pipeline: str) -> str:
+    @property
+    def registry_sha256(self) -> str:
+        return str(self._manifest["registry_sha256"])
+
+    def decision(self, creative_format: str, requested_pipeline: str) -> dict[str, Any]:
         route = self._route(creative_format)
-        if requested_pipeline == "auto":
-            requested_pipeline = route["default_adapter_id"] or "unassigned"
-        if requested_pipeline == "unassigned":
-            return requested_pipeline
-        self._require_compatible(route, creative_format, requested_pipeline)
-        return requested_pipeline
+        selected_adapter_id = (
+            route["default_adapter_id"] if requested_pipeline == "auto" else requested_pipeline
+        )
+        if selected_adapter_id == "unassigned":
+            selected_adapter_id = None
+        if selected_adapter_id is not None:
+            self._require_compatible(route, creative_format, selected_adapter_id)
+
+        candidates: list[dict[str, Any]] = []
+        for adapter_id in sorted(self._adapters):
+            adapter = self._adapters[adapter_id]
+            supported = creative_format in adapter["creative_formats"]
+            missing = sorted(
+                set(route["required_capabilities"]) - set(adapter["capabilities"])
+            )
+            reasons: list[str] = []
+            if adapter["status"] != "ACTIVE":
+                reasons.append("adapter_not_active")
+            if not supported:
+                reasons.append("creative_format_not_supported")
+            if missing:
+                reasons.append("required_capabilities_missing")
+            selected = adapter_id == selected_adapter_id
+            if not selected and not reasons:
+                reasons.append(
+                    "explicitly_unassigned"
+                    if selected_adapter_id is None
+                    else "not_selected"
+                )
+            candidates.append(
+                {
+                    "adapter_id": adapter_id,
+                    "adapter_version": adapter["adapter_version"],
+                    "status": adapter["status"],
+                    "creative_format_supported": supported,
+                    "missing_capabilities": missing,
+                    "rejection_reasons": reasons,
+                    "selected": selected,
+                }
+            )
+        resolved = selected_adapter_id or "unassigned"
+        return {
+            "schema_version": "nalu.production-route-decision/v1",
+            "registry_version": self.registry_version,
+            "registry_sha256": self.registry_sha256,
+            "creative_format": creative_format,
+            "requested_pipeline": requested_pipeline,
+            "required_capabilities": list(route["required_capabilities"]),
+            "candidates": candidates,
+            "selected_adapter_id": selected_adapter_id,
+            "resolved_pipeline": resolved,
+        }
+
+    def resolve(self, creative_format: str, requested_pipeline: str) -> str:
+        return str(self.decision(creative_format, requested_pipeline)["resolved_pipeline"])
 
     def require_execution_route(
         self, creative_format: str, production_pipeline: str
@@ -88,6 +141,33 @@ class ProductionAdapterRegistry:
             raise RuntimeError("production adapter version binding drift")
         if set(adapter["requested_models"]) != set(requested_models):
             raise RuntimeError("production adapter model binding drift")
+
+    def validate_persisted_decision(
+        self, decision: Any, *, project_id: str, creative_format: str, pipeline: str
+    ) -> None:
+        if (
+            decision.project_id != project_id
+            or decision.creative_format.value != creative_format
+            or decision.resolved_pipeline != pipeline
+            or decision.selected_adapter_id
+            != (None if pipeline == "unassigned" else pipeline)
+        ):
+            raise ConflictError("production route decision project binding mismatch")
+        selected = [candidate.adapter_id for candidate in decision.candidates if candidate.selected]
+        expected_selected = [] if decision.selected_adapter_id is None else [decision.selected_adapter_id]
+        if selected != expected_selected:
+            raise ConflictError("production route decision selection is inconsistent")
+        if (
+            decision.registry_version == self.registry_version
+            and decision.registry_sha256 == self.registry_sha256
+        ):
+            current = self.decision(creative_format, decision.requested_pipeline)
+            persisted = decision.model_dump(
+                mode="json",
+                exclude={"project_id", "source", "created_at", "decision_sha256"},
+            )
+            if current != persisted:
+                raise ConflictError("production route decision does not match its registry")
 
     def _route(self, creative_format: str) -> dict[str, Any]:
         route = self._routes.get(creative_format)

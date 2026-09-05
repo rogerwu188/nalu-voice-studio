@@ -675,6 +675,18 @@ MIGRATIONS = (
         );
         """,
     ),
+    (
+        27,
+        "production_route_decisions",
+        """
+        CREATE TABLE IF NOT EXISTS production_route_decisions (
+          project_id TEXT PRIMARY KEY REFERENCES projects(id) ON DELETE CASCADE,
+          decision_json TEXT NOT NULL,
+          decision_sha256 TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        );
+        """,
+    ),
 )
 
 

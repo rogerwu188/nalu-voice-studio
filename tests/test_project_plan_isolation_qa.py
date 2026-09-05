@@ -19,7 +19,7 @@ def valid_report(module) -> dict[str, object]:
         "status": "PASS",
         "source_commit": "1" * 40,
         "runtime_mode": "packaged",
-        "runtime_schema_version": "26",
+        "runtime_schema_version": "27",
         "project_count": 3,
         "episodes_per_project": 10,
         "concurrent_atomic_planning": True,

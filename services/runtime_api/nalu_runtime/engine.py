@@ -2368,6 +2368,20 @@ class ProductionService:
 
         season = self.repository.get_season(episode.season_id)
         project = self.repository.get_project(season.project_id)
+        route_decision = self.repository.get_production_route_decision(project.id)
+        if route_decision is None:
+            route_decision = self.repository.backfill_production_route_decision(
+                project.id,
+                self.adapter_registry.decision(
+                    project.creative_format.value, project.production_pipeline
+                ),
+            )
+        self.adapter_registry.validate_persisted_decision(
+            route_decision,
+            project_id=project.id,
+            creative_format=project.creative_format.value,
+            pipeline=project.production_pipeline,
+        )
         adapter_registration = self.adapter_registry.require_execution_route(
             project.creative_format.value, project.production_pipeline
         )

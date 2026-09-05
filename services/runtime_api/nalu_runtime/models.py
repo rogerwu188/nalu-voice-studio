@@ -109,6 +109,32 @@ class Project(ProjectCreate):
     updated_at: str
 
 
+class ProductionRouteCandidate(BaseModel):
+    adapter_id: str
+    adapter_version: str
+    status: Literal["ACTIVE", "QUARANTINED"]
+    creative_format_supported: bool
+    missing_capabilities: list[str]
+    rejection_reasons: list[str]
+    selected: bool
+
+
+class ProductionRouteDecision(BaseModel):
+    schema_version: Literal["nalu.production-route-decision/v1"]
+    project_id: str
+    registry_version: str
+    registry_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    creative_format: CreativeFormat
+    requested_pipeline: str
+    required_capabilities: list[str]
+    candidates: list[ProductionRouteCandidate]
+    selected_adapter_id: str | None
+    resolved_pipeline: str
+    source: Literal["project_creation", "project_plan", "legacy_backfill"]
+    created_at: str
+    decision_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+
+
 class ProjectRename(BaseModel):
     title: str = Field(min_length=1, max_length=160)
 
@@ -152,7 +178,8 @@ class ProjectExport(BaseModel):
         "nalu.project-export/v20",
         "nalu.project-export/v21",
         "nalu.project-export/v22",
-    ] = "nalu.project-export/v22"
+        "nalu.project-export/v23",
+    ] = "nalu.project-export/v23"
     exported_at: str
     payload: dict[str, Any]
     payload_sha256: str

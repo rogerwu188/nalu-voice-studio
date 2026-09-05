@@ -21,6 +21,23 @@ startup. Project creation resolves `auto`, while every production start revalida
 persisted route against the current registry so a quarantined adapter or capability
 change cannot silently reach a paid provider.
 
+Each project and atomic project plan also persists a
+`nalu.production-route-decision/v1` receipt. The receipt binds the project ID,
+creative format, requested pipeline, registry version and registry digest to the
+required capabilities, every candidate adapter, its rejection reasons, the selected
+adapter, and the resolved pipeline. `decision_sha256` seals the canonical receipt.
+Clients can inspect it with `GET /v1/projects/{project_id}/production-route`; an
+unreadable, modified, cross-project, or internally inconsistent receipt fails closed.
+When the referenced registry is still current, production recomputes and compares the
+entire decision before invoking an adapter, then separately revalidates the selected
+adapter against the current executable capability registry.
+
+Project export schema v23 carries the sealed receipt so restore preserves the routing
+provenance. Older exports remain importable without inventing historical evidence.
+For an upgraded legacy project with no receipt, the first production attempt creates a
+`legacy_backfill` receipt from its persisted format and explicit pipeline before any
+adapter execution; the normal current-registry production checks still apply.
+
 The current UI continues to use the stable Project → Season → Episode storage model,
 while presenting audience-appropriate labels:
 
@@ -66,9 +83,9 @@ Every production adapter declares:
 - progress, cancellation, recovery, QA evidence, output manifest, and rollback;
 - pricing estimator and explicit authorization requirements.
 
-Routing produces a machine-readable decision with the requested capabilities,
-candidate adapters, selected adapter, rejected reasons, and policy version. No
-adapter match means `blocked`, not a best-effort paid call.
+Routing produces the sealed machine-readable decision described above. No adapter
+match persists the explicit `unassigned` route and production returns a blocking
+error, never a best-effort paid call.
 
 ## Voice interview
 

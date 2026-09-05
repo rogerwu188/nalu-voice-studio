@@ -88,6 +88,7 @@ from .models import (
     MemoryCardUpdate,
     MemoryGraphConflict,
     MemoryGraphConflictReport,
+    ProductionRouteDecision,
     ProductionRun,
     Project,
     ProjectArchiveRequest,
@@ -275,7 +276,40 @@ class Repository:
         ):
             raise PermissionError("remote task writes require the bound durable submitter")
 
-    def create_project(self, request: ProjectCreate) -> Project:
+    @staticmethod
+    def _route_decision_record(
+        project_id: str, decision: dict[str, Any], source: str, created_at: str
+    ) -> ProductionRouteDecision:
+        body = {
+            **decision,
+            "project_id": project_id,
+            "source": source,
+            "created_at": created_at,
+        }
+        return ProductionRouteDecision(
+            **body,
+            decision_sha256=hashlib.sha256(encode(body).encode()).hexdigest(),
+        )
+
+    @staticmethod
+    def _insert_route_decision(
+        connection: sqlite3.Connection, decision: ProductionRouteDecision
+    ) -> None:
+        body = decision.model_dump(mode="json", exclude={"decision_sha256"})
+        connection.execute(
+            """INSERT OR REPLACE INTO production_route_decisions
+               VALUES (?, ?, ?, ?)""",
+            (
+                decision.project_id,
+                encode(body),
+                decision.decision_sha256,
+                decision.created_at,
+            ),
+        )
+
+    def create_project(
+        self, request: ProjectCreate, route_decision: dict[str, Any] | None = None
+    ) -> Project:
         project_id, now = new_id("prj"), utc_now()
         with self.db.connect() as connection:
             connection.execute(
@@ -300,6 +334,13 @@ class Repository:
                     now,
                 ),
             )
+            if route_decision is not None:
+                self._insert_route_decision(
+                    connection,
+                    self._route_decision_record(
+                        project_id, route_decision, "project_creation", now
+                    ),
+                )
         return self.get_project(project_id)
 
     def claim_operation(
@@ -355,7 +396,10 @@ class Repository:
             )
 
     def create_project_plan(
-        self, request: ProjectPlanCreate, idempotency_key: str | None = None
+        self,
+        request: ProjectPlanCreate,
+        idempotency_key: str | None = None,
+        route_decision: dict[str, Any] | None = None,
     ) -> ProjectPlan:
         """Create or finalize a draft project with its first season atomically."""
         canonical_request = request.model_dump_json(exclude_none=True)
@@ -437,6 +481,13 @@ class Repository:
                         request.project.production_pipeline,
                         now,
                         now,
+                    ),
+                )
+            if route_decision is not None:
+                self._insert_route_decision(
+                    connection,
+                    self._route_decision_record(
+                        project_id, route_decision, "project_plan", now
                     ),
                 )
             connection.execute(
@@ -521,6 +572,50 @@ class Repository:
                 )
         return plan
 
+    def get_production_route_decision(
+        self, project_id: str
+    ) -> ProductionRouteDecision | None:
+        self.get_project(project_id)
+        with self.db.connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM production_route_decisions WHERE project_id = ?",
+                (project_id,),
+            ).fetchone()
+        if row is None:
+            return None
+        try:
+            body = decode(row["decision_json"])
+            decision = ProductionRouteDecision.model_validate(
+                {**body, "decision_sha256": row["decision_sha256"]}
+            )
+        except (TypeError, ValueError, json.JSONDecodeError) as exc:
+            raise ConflictError("production route decision is unreadable") from exc
+        if (
+            decision.project_id != project_id
+            or decision.created_at != row["created_at"]
+            or hashlib.sha256(encode(body).encode()).hexdigest()
+            != decision.decision_sha256
+        ):
+            raise ConflictError("production route decision digest mismatch")
+        return decision
+
+    def backfill_production_route_decision(
+        self, project_id: str, decision: dict[str, Any]
+    ) -> ProductionRouteDecision:
+        now = utc_now()
+        record = self._route_decision_record(
+            project_id, decision, "legacy_backfill", now
+        )
+        with self.db.connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            existing = connection.execute(
+                "SELECT project_id FROM production_route_decisions WHERE project_id = ?",
+                (project_id,),
+            ).fetchone()
+            if existing is None:
+                self._insert_route_decision(connection, record)
+        return self.get_production_route_decision(project_id) or record
+
     def get_project(self, project_id: str) -> Project:
         with self.db.connect() as connection:
             row = connection.execute(
@@ -564,6 +659,10 @@ class Repository:
         self.get_project(project_id)
         queries = {
             "projects": ("SELECT * FROM projects WHERE id = ?", (project_id,)),
+            "production_route_decisions": (
+                "SELECT * FROM production_route_decisions WHERE project_id = ?",
+                (project_id,),
+            ),
             "seasons": ("SELECT * FROM seasons WHERE project_id = ?", (project_id,)),
             "episodes": (
                 """SELECT e.* FROM episodes e JOIN seasons s ON s.id = e.season_id
@@ -767,6 +866,12 @@ class Repository:
                 "archived_at",
                 "creative_format",
                 "production_pipeline",
+            ),
+            "production_route_decisions": (
+                "project_id",
+                "decision_json",
+                "decision_sha256",
+                "created_at",
             ),
             "seasons": (
                 "id",
@@ -1277,12 +1382,14 @@ class Repository:
             "nalu.project-export/v20",
             "nalu.project-export/v21",
             "nalu.project-export/v22",
+            "nalu.project-export/v23",
         }:
             allowed_columns.pop("feedback_release_evidence_reconciliations")
         if backup.schema_version not in {
             "nalu.project-export/v20",
             "nalu.project-export/v21",
             "nalu.project-export/v22",
+            "nalu.project-export/v23",
         }:
             allowed_columns.pop("production_runs")
             allowed_columns.pop("publication_reconciliations")
@@ -1291,10 +1398,16 @@ class Repository:
         if backup.schema_version not in {
             "nalu.project-export/v21",
             "nalu.project-export/v22",
+            "nalu.project-export/v23",
         }:
             allowed_columns.pop("script_writer_receipt_reconciliations")
-        if backup.schema_version != "nalu.project-export/v22":
+        if backup.schema_version not in {
+            "nalu.project-export/v22",
+            "nalu.project-export/v23",
+        }:
             allowed_columns.pop("script_writer_provider_reconciliations")
+        if backup.schema_version != "nalu.project-export/v23":
+            allowed_columns.pop("production_route_decisions")
         if backup.schema_version in {
             "nalu.project-export/v1",
             "nalu.project-export/v2",
@@ -1342,6 +1455,31 @@ class Repository:
         episode_ids = {row.get("id") for row in backup.payload["episodes"]}
         if not isinstance(project_id, str) or not project_id:
             raise ConflictError("project export has an invalid project ID")
+        route_rows = backup.payload.get("production_route_decisions", [])
+        if backup.schema_version == "nalu.project-export/v23":
+            if len(route_rows) > 1:
+                raise ConflictError("project export contains duplicate route decisions")
+            if route_rows:
+                route_row = route_rows[0]
+                try:
+                    route_body = decode(route_row.get("decision_json", ""))
+                    route = ProductionRouteDecision.model_validate(
+                        {**route_body, "decision_sha256": route_row.get("decision_sha256")}
+                    )
+                except (TypeError, ValueError, json.JSONDecodeError) as exc:
+                    raise ConflictError(
+                        "project export contains an invalid route decision"
+                    ) from exc
+                if (
+                    route.project_id != project_id
+                    or route_row.get("project_id") != project_id
+                    or route.created_at != route_row.get("created_at")
+                    or route.creative_format.value != project_rows[0].get("creative_format")
+                    or route.resolved_pipeline != project_rows[0].get("production_pipeline")
+                    or hashlib.sha256(encode(route_body).encode()).hexdigest()
+                    != route.decision_sha256
+                ):
+                    raise ConflictError("project export contains a tampered route decision")
         if any(row.get("project_id") != project_id for row in backup.payload["seasons"]):
             raise ConflictError("project export contains a season from another project")
         if any(row.get("season_id") not in season_ids for row in backup.payload["episodes"]):
@@ -2005,6 +2143,7 @@ class Repository:
                 "nalu.project-export/v20",
                 "nalu.project-export/v21",
                 "nalu.project-export/v22",
+                "nalu.project-export/v23",
             } and (
                 result is None
                 or linkage.development_result_sha256 != result.record_sha256

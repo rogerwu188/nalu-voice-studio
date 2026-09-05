@@ -102,6 +102,7 @@ from .models import (
     PostproductionRepairPlan,
     ProductionCompletionRequest,
     ProductionCompletionResult,
+    ProductionRouteDecision,
     ProductionRun,
     ProductionRunCreate,
     Project,
@@ -290,30 +291,38 @@ def create_app(
 
     @app.post("/v1/projects", response_model=Project, status_code=201)
     def create_project(request: ProjectCreate) -> Project:
-        request = request.model_copy(
-            update={
-                "production_pipeline": production.adapter_registry.resolve(
-                    request.creative_format.value, request.production_pipeline
-                )
-            }
+        route_decision = production.adapter_registry.decision(
+            request.creative_format.value, request.production_pipeline
         )
-        return repository.create_project(request)
+        request = request.model_copy(
+            update={"production_pipeline": route_decision["resolved_pipeline"]}
+        )
+        return repository.create_project(request, route_decision)
 
     @app.post("/v1/project-plans", response_model=ProjectPlan, status_code=201)
     def create_project_plan(
         request: ProjectPlanCreate,
         idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     ) -> ProjectPlan:
+        route_decision = production.adapter_registry.decision(
+            request.project.creative_format.value,
+            request.project.production_pipeline,
+        )
         project = request.project.model_copy(
-            update={
-                "production_pipeline": production.adapter_registry.resolve(
-                    request.project.creative_format.value,
-                    request.project.production_pipeline,
-                )
-            }
+            update={"production_pipeline": route_decision["resolved_pipeline"]}
         )
         request = request.model_copy(update={"project": project})
-        return repository.create_project_plan(request, idempotency_key)
+        return repository.create_project_plan(request, idempotency_key, route_decision)
+
+    @app.get(
+        "/v1/projects/{project_id}/production-route",
+        response_model=ProductionRouteDecision,
+    )
+    def get_production_route(project_id: str) -> ProductionRouteDecision:
+        decision = repository.get_production_route_decision(project_id)
+        if decision is None:
+            raise NotFoundError("production route decision not found")
+        return decision
 
     @app.get("/v1/projects", response_model=list[Project])
     def list_projects(include_archived: bool = False) -> list[Project]:

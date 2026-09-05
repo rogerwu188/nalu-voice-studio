@@ -138,7 +138,7 @@ def test_approved_script_metadata_becomes_reviewable_confirmed_handoff(
     assert "already has" in duplicate.text
 
     backup = api.get(f"/v1/projects/{plan['project']['id']}/export").json()
-    assert backup["schema_version"] == "nalu.project-export/v22"
+    assert backup["schema_version"] == "nalu.project-export/v23"
     confirmation_record = backup["payload"][
         "continuity_extraction_confirmation_records"
     ][0]

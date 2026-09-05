@@ -166,7 +166,7 @@ def test_writer_provider_reconciliation_is_read_only_idempotent_and_packaged(
     assert package["writer_provider_reconciliation"] == record
 
     backup = api.get(f"/v1/projects/{project_id}/export").json()
-    assert backup["schema_version"] == "nalu.project-export/v22"
+    assert backup["schema_version"] == "nalu.project-export/v23"
     assert len(backup["payload"]["script_writer_provider_reconciliations"]) == 1
     restored = api_client(tmp_path / "restored")
     assert restored.post("/v1/project-imports", json=backup).status_code == 201
@@ -174,6 +174,7 @@ def test_writer_provider_reconciliation_is_read_only_idempotent_and_packaged(
 
     compatible_v21 = deepcopy(backup)
     compatible_v21["schema_version"] = "nalu.project-export/v21"
+    compatible_v21["payload"].pop("production_route_decisions")
     compatible_v21["payload"].pop("script_writer_provider_reconciliations")
     compatible_v21["payload_sha256"] = hashlib.sha256(
         json.dumps(compatible_v21["payload"], ensure_ascii=False, sort_keys=True).encode()
