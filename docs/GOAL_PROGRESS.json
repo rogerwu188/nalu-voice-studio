@@ -11,26 +11,26 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "1212cf178b90076b622bfadf0869d7e4fbef0f10",
-  "last_advanced_at": "2026-09-05T05:46:01Z",
+  "observed_head": "d0019a329dc81659d5eb902f8cf24989024ae78b",
+  "last_advanced_at": "2026-09-05T06:12:24Z",
   "last_closed_checkpoint": {
-    "id": "creative-format-capability-registry",
+    "id": "production-route-decision-receipt",
     "sop": "SOP-07",
-    "product_commit": "418bd9767f42f0b7431d83eaafbc0e472227b9ad",
-    "evidence_commit": "1212cf178b90076b622bfadf0869d7e4fbef0f10",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33947687878",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33947687878/artifacts/9963921489",
+    "product_commit": "e2a3edebc38638e3eba041ee29a83ccf9bea958e",
+    "evidence_commit": "d0019a329dc81659d5eb902f8cf24989024ae78b",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33948843016",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33948843016/artifacts/9964230291",
     "result": "PASS"
   },
   "current_checkpoint": {
     "sop": "SOP-07",
     "status": "IN_PROGRESS",
-    "summary": "Creative formats now resolve and revalidate through the sealed capability registry. The architecture contract also requires a machine-readable routing decision with policy version, requested capabilities, selected adapter and rejected reasons, but project creation currently persists only the selected pipeline string."
+    "summary": "Capability routing and its persisted, digest-bound decision receipt are complete. The latest reviewed Qingshan candidate v2026.09.04.6 remains quarantined because its public package and CLI version disagree with its portable manifest; paid-provider acceptance also remains authorization-gated."
   },
   "next_action": {
     "sop": "SOP-07",
-    "id": "production-route-decision-receipt",
-    "summary": "Create a digest-bound machine-readable routing decision for project and project-plan creation, persist its registry version, requested capabilities, candidates, selection and rejection reasons, and revalidate that receipt before production without weakening legacy-project compatibility.",
+    "id": "qingshan-corrected-release-discovery",
+    "summary": "Recheck the upstream latest release against the reviewed candidate; if the version mismatch is corrected, quarantine the exact release, reproduce its integrity and registered tests, adapt safe deltas behind Nalu contracts, and promote only after complete CI. Continue keeping real provider execution fail-closed pending explicit authorization.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
