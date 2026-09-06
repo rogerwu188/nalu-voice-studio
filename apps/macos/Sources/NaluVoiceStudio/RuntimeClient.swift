@@ -200,6 +200,22 @@ actor RuntimeClient {
         try await post("v1/projects/\(projectID)/interactive-story/turns/\(turnID)/answer", body: answer)
     }
 
+    func generateStoryAnswer(projectID: String, turnID: String, revision: Int,
+                             model: String, apiKey: String) async throws -> InteractiveStoryState {
+        var request = URLRequest(url: baseURL.appending(path:
+            "v1/projects/\(projectID)/interactive-story/turns/\(turnID)/generate"))
+        request.httpMethod = "POST"
+        request.timeoutInterval = 120
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(apiKey, forHTTPHeaderField: "X-Nalu-Writer-Key")
+        request.httpBody = try JSONSerialization.data(withJSONObject: [
+            "expected_revision": revision, "model": model,
+        ])
+        let (data, response) = try await authorizedData(for: request)
+        try validate(response, data: data)
+        return try decoder.decode(InteractiveStoryState.self, from: data)
+    }
+
     func createFeedback(_ draft: FeedbackDraft) async throws -> FeedbackItem {
         try await post("v1/feedback", body: draft)
     }

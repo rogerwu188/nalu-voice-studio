@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 from typing import Annotated
 
+import httpx
 from fastapi import Body, FastAPI, Header, HTTPException, Query, Response
 from fastapi.responses import FileResponse, JSONResponse
 
@@ -30,6 +31,7 @@ from .feedback_export import (
     IssueTrackerTransport,
 )
 from .interactive_story import InteractiveStory, StoryAnswer, StoryInput
+from .interactive_writer_service import InteractiveWriterService, WriterGenerationRequest
 from .models import (
     ApprovalCreate,
     ApprovalRecord,
@@ -165,6 +167,7 @@ from .writer_provider import (
     DisabledWriterProviderVerifier,
     WriterProviderVerifier,
 )
+from .writer_transport import HopsWriterTransport, WriterTransportError
 
 
 def create_app(
@@ -183,6 +186,7 @@ def create_app(
     publication_learning_verifier: PublicationLearningVerifier | None = None,
     semantic_recognizer: LocalSemanticRecognizer | None = None,
     writer_provider_verifier: WriterProviderVerifier | None = None,
+    writer_http_transport: httpx.BaseTransport | None = None,
 ) -> FastAPI:
     repository_root = Path(
         os.environ.get("NALU_REPOSITORY_ROOT", Path(__file__).resolve().parents[3])
@@ -324,6 +328,24 @@ def create_app(
     @app.post("/v1/projects/{project_id}/interactive-story/turns/{turn_id}/answer")
     def save_story_answer(project_id: str, turn_id: str, request: StoryAnswer) -> dict:
         return interactive_story.answer(project_id, turn_id, request)
+
+    @app.post("/v1/projects/{project_id}/interactive-story/turns/{turn_id}/generate")
+    def generate_story_answer(
+        project_id: str, turn_id: str, request: WriterGenerationRequest,
+        writer_key: str | None = Header(default=None, alias="X-Nalu-Writer-Key"),
+        origin: str | None = Header(default=None),
+    ) -> dict:
+        # Native caller supplies its own Keychain credential transiently. Never
+        # read ambient credentials or accept a client-selected destination/body.
+        if origin is not None or not writer_key or len(writer_key) > 1024:
+            raise HTTPException(403, "native writer credential required")
+        try:
+            return InteractiveWriterService(database).generate(
+                project_id, turn_id, request.expected_revision, model=request.model,
+                transport=HopsWriterTransport(lambda: writer_key, transport=writer_http_transport),
+            )
+        except WriterTransportError as exc:
+            raise HTTPException(502, str(exc)) from None
 
     @app.post("/v1/project-plans", response_model=ProjectPlan, status_code=201)
     def create_project_plan(

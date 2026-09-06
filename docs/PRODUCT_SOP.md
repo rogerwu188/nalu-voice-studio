@@ -57,6 +57,9 @@ draft receipts, with [interrupted-save recovery evidence](qa/runtime-interactive
 This is not yet native activation or real provider verification.
 Writer executions now survive project export/import with imported results
 quarantined against automatic retry; [backup regression evidence](qa/writer-execution-backup-2026-09-06.md).
+The native configured Hops path now calls the runtime-owned generation endpoint;
+[endpoint regression and pending packaged QA](qa/native-runtime-writer-2026-09-06.md).
+This wiring does not establish successful live provider, video or release QA.
 
 2026-09-06 native checkpoints on `4e03c16`, CI
 [34054486473](https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34054486473):

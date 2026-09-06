@@ -5,6 +5,8 @@ import json
 from copy import deepcopy
 from urllib.parse import urlsplit
 
+from pydantic import BaseModel, ConfigDict, Field
+
 from .database import Database
 from .interactive_story import InteractiveStory, StoryAnswer
 from .repository import ConflictError
@@ -40,6 +42,12 @@ def writer_request(state: dict, model: str) -> bytes:
     if len(body) > 1_100_000:
         raise ConflictError("writer context exceeds request limit")
     return body
+
+
+class WriterGenerationRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    expected_revision: int = Field(ge=1)
+    model: str = Field(min_length=3, max_length=160, pattern=r"^[A-Za-z0-9_.:/-]+$")
 
 
 class InteractiveWriterService:

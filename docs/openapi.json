@@ -6267,7 +6267,8 @@
               "nalu.project-export/v20",
               "nalu.project-export/v21",
               "nalu.project-export/v22",
-              "nalu.project-export/v23"
+              "nalu.project-export/v23",
+              "nalu.project-export/v24"
             ],
             "title": "Schema Version",
             "type": "string"
@@ -8598,6 +8599,29 @@
           "report_sha256"
         ],
         "title": "VisualContinuityQAReport",
+        "type": "object"
+      },
+      "WriterGenerationRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_revision": {
+            "minimum": 1.0,
+            "title": "Expected Revision",
+            "type": "integer"
+          },
+          "model": {
+            "maxLength": 160,
+            "minLength": 3,
+            "pattern": "^[A-Za-z0-9_.:/-]+$",
+            "title": "Model",
+            "type": "string"
+          }
+        },
+        "required": [
+          "expected_revision",
+          "model"
+        ],
+        "title": "WriterGenerationRequest",
         "type": "object"
       },
       "WriterProviderReconciliationCreate": {
@@ -13794,6 +13818,98 @@
           }
         },
         "summary": "Save Story Answer"
+      }
+    },
+    "/v1/projects/{project_id}/interactive-story/turns/{turn_id}/generate": {
+      "post": {
+        "operationId": "generate_story_answer_v1_projects__project_id__interactive_story_turns__turn_id__generate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "turn_id",
+            "required": true,
+            "schema": {
+              "title": "Turn Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Nalu-Writer-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Nalu-Writer-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "origin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Origin"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WriterGenerationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Generate Story Answer V1 Projects  Project Id  Interactive Story Turns  Turn Id  Generate Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Generate Story Answer"
       }
     },
     "/v1/projects/{project_id}/library-entities": {

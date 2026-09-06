@@ -334,6 +334,7 @@ final class VoiceInterviewViewModel {
             var projectID = initialProjectID
             var generation = initialGeneration
             var revision: Int?
+            var runtimeOwnedWriter = false
             defer {
                 Task { await drainStorySupplements(projectID: projectID, generation: generation) }
             }
@@ -367,13 +368,30 @@ final class VoiceInterviewViewModel {
                     input: .init(turn_id: turnID, expected_revision: existing.revision,
                                  text: spoken, source_mode: "narrated_story"))
                 revision = state.revision
-                let result = try await storyWriter.write(state: state)
-                let answer = result.answer
-                _ = try await runtime.saveStoryAnswer(projectID: projectID, turnID: turnID,
-                    answer: .init(expected_revision: state.revision, reply: answer.reply,
-                                  summary: answer.summary, episode_drafts: answer.episode_drafts,
-                                  outcome: "answered", external_writer: result.declaration,
-                                  writer_response_json: result.responseJSON))
+                let endpoint = try AIServiceEndpoint.current()
+                let answer: InteractiveStoryAnswer
+                if endpoint.baseURL.absoluteString.trimmingCharacters(in: CharacterSet(charactersIn: "/")) == "https://hopsapi.com/v1" {
+                    runtimeOwnedWriter = true
+                    guard let key = try KeychainSecretStore().secret(for: .openAIRealtime), !key.isEmpty
+                    else { throw InteractiveStoryWriter.WriterError.unavailable }
+                    let model = try AIServiceModels.load(for: endpoint).research
+                    let saved = try await runtime.generateStoryAnswer(projectID: projectID,
+                        turnID: turnID, revision: state.revision, model: model, apiKey: key)
+                    guard let generated = saved.turns.last?.answer else {
+                        throw InteractiveStoryWriter.WriterError.invalidResponse
+                    }
+                    answer = generated
+                } else {
+                    // Other configured providers retain their existing path;
+                    // never silently fall back after a Hops request failure.
+                    let result = try await storyWriter.write(state: state)
+                    answer = result.answer
+                    _ = try await runtime.saveStoryAnswer(projectID: projectID, turnID: turnID,
+                        answer: .init(expected_revision: state.revision, reply: answer.reply,
+                                      summary: answer.summary, episode_drafts: answer.episode_drafts,
+                                      outcome: "answered", external_writer: result.declaration,
+                                      writer_response_json: result.responseJSON))
+                }
                 assistantActionStatus = nil
                 guard projectSelectionGeneration == generation else { return }
                 let drafts = answer.episode_drafts.map {
@@ -382,7 +400,7 @@ final class VoiceInterviewViewModel {
                 messages.append(.init(speaker: .nalu, text: answer.reply + (drafts.isEmpty ? "" : "\n\n" + drafts + "\n\n您可以继续说哪里要改；要放进分集审阅，请说“采用第1集草稿”（换成对应集数）。")))
                 speechPlayback.speak(answer.reply, rate: comfortPreferences.speechRate)
             } catch {
-                if let projectID, let revision {
+                if !runtimeOwnedWriter, let projectID, let revision {
                     _ = try? await runtime.saveStoryAnswer(projectID: projectID, turnID: turnID,
                         answer: .init(expected_revision: revision,
                                       reply: "编剧请求未完成，原有故事和草稿保留。", summary: "",
