@@ -1,0 +1,61 @@
+{
+  "schema_version": "nalu.spoken-assistant-action-qa/v1",
+  "recorded_at": "2026-09-06T06:48:00Z",
+  "product_commit": "b229727b1661daedfc5a4b4a8ec2249cf1815912",
+  "implementation_commits": [
+    "ccb8c67",
+    "0dde548",
+    "fec704e",
+    "5c4465c",
+    "b229727"
+  ],
+  "ci": {
+    "run_id": 34017000589,
+    "url": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34017000589",
+    "conclusion": "success",
+    "jobs": {
+      "runtime": "success",
+      "macos_arm64": "success",
+      "macos_x86_64": "success",
+      "macos_universal": "success"
+    },
+    "runtime_test_count": 291,
+    "xctest_count_per_architecture": 89,
+    "swift_testing_count_per_architecture": 29
+  },
+  "artifact": {
+    "id": 9984350949,
+    "url": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34017000589/artifacts/9984350949",
+    "github_archive_sha256": "9790e997340be05f92cc024e928455e75335d2c4dc08096068d8da026a0e3a31"
+  },
+  "deterministic_contract": {
+    "spoken_read_only_search_is_routed_before_interview_reducer": true,
+    "local_push_to_talk_supported": true,
+    "realtime_exact_schema_tool_supported": true,
+    "visible_in_progress_status": "正在替您上网查找…",
+    "responses_endpoint": "https://api.openai.com/v1/responses",
+    "hosted_tool": "web_search",
+    "response_storage_disabled": true,
+    "https_sources_only": true,
+    "visible_source_limit": 5,
+    "interview_resumes_after_result": true,
+    "concurrent_requests_serialized": true,
+    "automatic_retry": false,
+    "protected_external_writes_require_confirmation": true
+  },
+  "external_effects": {
+    "credential_used": false,
+    "provider_call_performed": false,
+    "paid_call_performed": false,
+    "download_performed": false,
+    "publication_performed": false
+  },
+  "native_visual_qa": {
+    "minimum_window_and_enlarged_text_completed": false,
+    "voiceover_completed": false,
+    "real_microphone_completed": false
+  },
+  "checkpoint_result": "IN_PROGRESS",
+  "checkpoint_scope": "Deterministic routing, request/response safety contract, dual-architecture tests and Universal packaged build only.",
+  "sop_02_status_after_checkpoint": "IN_PROGRESS"
+}

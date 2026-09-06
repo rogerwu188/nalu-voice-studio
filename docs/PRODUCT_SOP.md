@@ -392,6 +392,25 @@ Current evidence:
   `docs/qa/recording-waveform-contract-2026-09-06.json`. This closes deterministic and
   fixture-backed native visible motion only; SOP-02 remains `IN_PROGRESS` pending real
   speech, paid Realtime, VoiceOver and older-adult/child human accessibility acceptance.
+- Product commits `ccb8c67`, `0dde548`, `fec704e`, `5c4465c` and `b229727`,
+  GitHub CI run `34017000589`, Universal artifact `9984350949` (artifact digest
+  `sha256:9790e997340be05f92cc024e928455e75335d2c4dc08096068d8da026a0e3a31`):
+  the project actions and microphone control are no longer part of the variable-height
+  conversation region, so the primary create and speak actions remain outside their
+  respective scroll views. Spoken read-only requests containing an explicit search or
+  website instruction now route before the interview reducer to an observable assistant
+  action, call the OpenAI Responses API with hosted `web_search`, show the answer and up
+  to five clickable HTTPS sources, and then return to the unfinished interview prompt.
+  The Realtime session exposes the same behavior through an exact-schema
+  `research_web_read_only` tool. Downloads, login, payment, publication, deletion and
+  other external writes remain confirmation-gated; missing credentials and malformed or
+  failed provider responses do not advance the interview and are not retried. CI passed
+  291 Runtime tests and, on each architecture, 89 XCTest tests plus 29 Swift Testing
+  tests, both application builds, packaged smoke/update/rollback QA and the Universal
+  merge. This closes deterministic action routing, response parsing, source admission,
+  serialization and packaged-build checks. No API key or paid provider request was used,
+  and the exact artifact has not yet received minimum-window/enlarged-text native visual
+  QA, so live search execution and the control-visibility human checkpoint remain open.
 
 ## SOP-03 · Multi-project, season and episode planning — IN_PROGRESS
 

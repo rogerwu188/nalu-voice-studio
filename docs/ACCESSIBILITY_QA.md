@@ -339,3 +339,30 @@ claim that the microphone was unused. No credential, paid provider, production o
 publication operation was performed. Exact facts are in
 `docs/qa/native-project-persistence-2026-09-06.json`. This is native project-transfer
 evidence, not a clean-account VoiceOver or older-adult/guardian-and-child human pass.
+
+## 2026-09-06 · Critical controls and spoken assistant actions
+
+Product commit `ccb8c67` separates the fixed create-project and microphone controls from
+the two variable-height scroll regions. Secondary project actions may scroll when space
+is constrained, but the primary create action stays below them; conversation content may
+scroll, but its listening status and microphone action stay below it. Horizontal action
+groups use a vertical fallback when enlarged text no longer fits.
+
+Product commits `0dde548`, `fec704e`, `5c4465c` and `b229727` add an explicit read-only
+assistant-action path. A spoken request such as “请在网上搜索……” now shows “正在替您上网查找…”,
+uses hosted web search, displays a bounded answer and clickable HTTPS sources, and returns
+to the question that was interrupted. Local push-to-talk and Realtime use the same safety
+boundary. Download, login, payment, publication, upload, send and delete requests require
+separate confirmation and are never silently executed. Concurrent search requests are
+serialized rather than charged in parallel.
+
+GitHub CI run `34017000589` passed 291 Runtime tests, 89 XCTest tests plus 29 Swift Testing
+tests per architecture, both architecture builds, packaged smoke/update/rollback QA and
+Universal merge. Universal artifact `9984350949` has GitHub artifact digest
+`sha256:9790e997340be05f92cc024e928455e75335d2c4dc08096068d8da026a0e3a31`.
+Machine-readable evidence is
+`docs/qa/spoken-assistant-action-contract-2026-09-06.json`.
+
+This is deterministic and packaged-build evidence. It does not claim that the exact
+artifact has passed minimum-window/enlarged-text visual inspection, VoiceOver traversal,
+a real microphone request or an authorized paid web-search/Realtime provider session.
