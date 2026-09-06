@@ -206,3 +206,23 @@ remain separate gates.
 
 Final observation: CI 34051937128 completed success, all four jobs including
 Universal. Live Realtime and signed/notarized acceptance remain unverified.
+
+## Capability distinction follow-up
+
+Primary sources checked on 2026-09-06:
+[OpenAI WebRTC guide](https://developers.openai.com/api/docs/guides/realtime-webrtc)
+documents ephemeral-token creation and a separate Realtime calls SDP exchange.
+[HopsAPI homepage](https://hopsapi.com/) shows `/v1/chat/completions`, while its
+linked guide could not be retrieved unauthenticated. These sources do not establish
+HopsAPI Realtime or Responses web-search support. Do not claim it is unsupported
+solely from absent documentation/model IDs, or transfer OpenAI capability claims
+to a compatible gateway.
+
+Connection-check follow-up now compares all returned model IDs with each of the
+provider's **saved** research/Realtime/transcription selections (not unsaved
+drafts). Presence remains explicitly function-unverified; absence requests provider
+confirmation rather than silently selecting a replacement or blocking by inference.
+Checks use the complete sanitized list, not just ten displayed names, and do not
+echo selected values that could accidentally be credentials. Three regression
+tests cover independent role status, beyond-ten membership and secret redaction.
+Syntax/diff checks pass; full CI and exact-artifact native result QA remain open.
