@@ -43,7 +43,8 @@ registry SHA-256 is
 `0b7d478904638f0d9e22452971b7aa8d95b9e7445355b53e364ff187fd0613a4`.
 Nalu's isolated audit proves all 69 registered gates are structurally complete and all
 66 coded gates are runtime-bound. With credential-like environment variables stripped,
-all 47 registered portable modules ran: 368 tests passed with 11 declared skips, and all
+all 47 registered portable modules ran: 368 tests passed with 11 declared skips locally
+(12 in the GitHub Linux runner because one optional environment-dependent case is unavailable), and all
 six Writer-v2 tests passed. The installable package, CLI and portable manifest now agree
 on public version `0.3.1`, closing the public-interface defect in the prior reviewed
 candidate. Relative to `v2026.09.04.6`, this release adds a tracked deployment-code

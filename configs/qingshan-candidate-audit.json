@@ -52,6 +52,10 @@
   "registered_test_module_count": 47,
   "registered_portable_test_count": 368,
   "registered_portable_skipped_count": 11,
+  "registered_portable_skipped_count_range": [
+    11,
+    12
+  ],
   "registered_writer_test_count": 6,
   "registered_test_failures": [],
   "promotion_status": "QUARANTINED",

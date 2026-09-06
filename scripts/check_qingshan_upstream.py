@@ -152,6 +152,7 @@ def verify_candidate_audit(manifest: dict, audit: dict) -> list[str]:
         audit.get("registered_portable_skipped_count"),
         audit.get("registered_writer_test_count"),
     )
+    registered_skipped_range = audit.get("registered_portable_skipped_count_range")
     registered_test_record_valid = (
         audit.get("registered_test_execution_performed") is True
         and audit.get("registered_test_status") == "PASS"
@@ -160,6 +161,13 @@ def verify_candidate_audit(manifest: dict, audit: dict) -> list[str]:
         and audit.get("registered_portable_test_count", 0) > 0
         and audit.get("registered_writer_test_count", 0) > 0
         and audit.get("registered_test_failures") == []
+        and isinstance(registered_skipped_range, list)
+        and len(registered_skipped_range) == 2
+        and all(isinstance(value, int) for value in registered_skipped_range)
+        and registered_skipped_range[0] <= registered_skipped_range[1]
+        and registered_skipped_range[0]
+        <= audit.get("registered_portable_skipped_count", -1)
+        <= registered_skipped_range[1]
     )
     if not registered_test_record_valid:
         failures.append("candidate registered-test evidence is incomplete")

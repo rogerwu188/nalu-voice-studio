@@ -43,10 +43,10 @@ def test_candidate_audit_is_quarantined_and_fail_closed() -> None:
     assert audit["replaces_active_pin"] is False
     assert audit["failures"] == []
     assert audit["integrity_status"] == "PASS"
-    assert audit["public_interface_status"] == "FAIL"
-    assert audit["public_interface_failures"] == [
-        "public_interface:portable_manifest_version_mismatch"
-    ]
+    assert audit["candidate_release"] == "v2026.09.05.2"
+    assert audit["public_interface_status"] == "PASS"
+    assert audit["public_interface_version"] == "0.3.1"
+    assert audit["public_interface_failures"] == []
     assert audit["public_cli_entrypoint"] == "qingshan_engine.cli:main"
     assert audit["public_cli_commands"] == [
         "doctor",
@@ -61,9 +61,10 @@ def test_candidate_audit_is_quarantined_and_fail_closed() -> None:
     assert "default" in audit["writer_generic_model_aliases"]
     assert audit["registered_test_execution_performed"] is True
     assert audit["registered_test_status"] == "PASS"
-    assert audit["registered_test_module_count"] == 33
-    assert audit["registered_portable_test_count"] == 210
-    assert audit["registered_portable_skipped_count"] == 1
+    assert audit["registered_test_module_count"] == 47
+    assert audit["registered_portable_test_count"] == 368
+    assert audit["registered_portable_skipped_count"] == 11
+    assert audit["registered_portable_skipped_count_range"] == [11, 12]
     assert audit["registered_writer_test_count"] == 6
     assert audit["registered_test_failures"] == []
 
@@ -127,6 +128,7 @@ def test_registered_test_comparison_rejects_count_drift() -> None:
         "registered_test_module_count": 33,
         "registered_portable_test_count": 208,
         "registered_portable_skipped_count": 1,
+        "registered_portable_skipped_count_range": [1, 2],
         "registered_writer_test_count": 6,
         "registered_test_failures": [],
     }
@@ -135,6 +137,29 @@ def test_registered_test_comparison_rejects_count_drift() -> None:
 
     assert runner.compare_test_evidence(actual, expected) == [
         "candidate registered-test drift: registered_portable_test_count"
+    ]
+
+
+def test_registered_test_comparison_allows_environmental_skip_range() -> None:
+    runner = load_registered_test_auditor()
+    expected = {
+        "registered_test_execution_performed": True,
+        "registered_test_status": "PASS",
+        "registered_test_module_count": 47,
+        "registered_portable_test_count": 368,
+        "registered_portable_skipped_count": 11,
+        "registered_portable_skipped_count_range": [11, 12],
+        "registered_writer_test_count": 6,
+        "registered_test_failures": [],
+    }
+    actual = deepcopy(expected)
+    actual["registered_portable_skipped_count"] = 12
+
+    assert runner.compare_test_evidence(actual, expected) == []
+
+    actual["registered_portable_skipped_count"] = 13
+    assert runner.compare_test_evidence(actual, expected) == [
+        "candidate registered-test drift: registered_portable_skipped_count"
     ]
 
 

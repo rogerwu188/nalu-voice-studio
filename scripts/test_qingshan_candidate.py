@@ -99,15 +99,30 @@ def compare_test_evidence(actual: dict[str, Any], expected: dict[str, Any]) -> l
         "registered_test_status",
         "registered_test_module_count",
         "registered_portable_test_count",
-        "registered_portable_skipped_count",
         "registered_writer_test_count",
         "registered_test_failures",
     )
-    return [
+    failures = [
         f"candidate registered-test drift: {field}"
         for field in fields
         if actual.get(field) != expected.get(field)
     ]
+    skipped_range = expected.get("registered_portable_skipped_count_range")
+    skipped_count = actual.get("registered_portable_skipped_count")
+    if (
+        not isinstance(skipped_range, list)
+        or len(skipped_range) != 2
+        or not all(isinstance(value, int) for value in skipped_range)
+        or skipped_range[0] > skipped_range[1]
+    ):
+        failures.append("candidate registered-test evidence has invalid skipped-count range")
+    elif not isinstance(skipped_count, int) or not (
+        skipped_range[0] <= skipped_count <= skipped_range[1]
+    ):
+        failures.append(
+            "candidate registered-test drift: registered_portable_skipped_count"
+        )
+    return failures
 
 
 def main() -> int:
