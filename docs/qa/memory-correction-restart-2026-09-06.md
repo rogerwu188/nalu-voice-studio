@@ -29,3 +29,10 @@ separate SQLite/data directory. It verifies exact revision/confirmation history,
 retained OCR, the corrected date, draft status, exclusion from confirmed-only
 results, and rejection of stale revision 2 confirmation after restore. Focused
 local regression passed; this remains API coverage, not native backup-picker QA.
+
+Conflict recovery follow-up: the date-conflict regression now corrects the
+conflicting year, checks that conflict clearance leaves the card in draft and
+outside confirmed-only results, rejects confirmation of its pre-correction
+revision without creating a receipt, then explicitly confirms the current
+revision. Both original and corrected years remain in revision history.
+All five memory conflict tests passed locally; Ruff and diff checks passed.

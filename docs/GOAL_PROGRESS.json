@@ -11,7 +11,7 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "adc21bb35363eb3403342fb83f4d1a5fbfa1f3cc",
+  "observed_head": "ec2d0e1",
   "last_advanced_at": "2026-09-06T16:14:00Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-05",
     "status": "IN_PROGRESS",
-    "summary": "Correction/restart adc21bb passed all four CI jobs in 34043937411. Added separate-database export/import regression verifying exact historical revisions/confirmations, original OCR, corrected date and stale-confirmation rejection. Focused local regression passes. Native correction remains unverified after assistive-access denial. Evidence: docs/qa/memory-correction-restart-2026-09-06.md."
+    "summary": "Correction/restart adc21bb passed all four CI jobs in 34043937411. Backup provenance regression committed/pushed as ec2d0e1, focused test passed. Conflict recovery now verifies that resolving a date conflict still requires explicit current-version confirmation; five conflict tests pass locally. Native correction remains unverified after assistive-access denial. Evidence: docs/qa/memory-correction-restart-2026-09-06.md."
   },
   "next_action": {
     "sop": "SOP-05",
-    "id": "memory-backup-ci-and-conflict-recovery",
-    "summary": "Verify backup regression CI; inspect correction of conflicting memory cards and test that resolving a conflict still requires explicit current-version confirmation. Native edit QA remains open until assistive access is restored; do not bypass OS permission or substitute API results for native acceptance.",
+    "id": "packaged-memory-provenance-qa",
+    "summary": "Verify backup/conflict regression CI, then run a bounded synthetic memory correction/export/import scenario against a verified packaged runtime through real loopback HTTP with isolated data; preserve original OCR, revisions and stale-approval rejection. This is packaged runtime QA, not native UI or real-mic acceptance. Native edit QA still requires restored assistive access.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

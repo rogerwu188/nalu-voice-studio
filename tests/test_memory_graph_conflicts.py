@@ -125,6 +125,36 @@ def test_same_event_with_incompatible_year_is_blocked(tmp_path: Path) -> None:
     assert [item["kind"] for item in report["conflicts"]] == ["event_date"]
     assert confirm(api, candidate).status_code == 409
 
+    corrected_response = api.patch(
+        f"/v1/memory-cards/{candidate['id']}",
+        json={
+            "approximate_date": "1982 年秋天",
+            "source_channel": "visual",
+            "change_summary": "核对资料后更正年份",
+        },
+    )
+    assert corrected_response.status_code == 200
+    corrected = corrected_response.json()
+    assert corrected["current_revision"] == 2
+    assert corrected["confirmation_status"] == "draft"
+    assert api.get(f"/v1/memory-cards/{candidate['id']}/conflicts").json()[
+        "blocking"
+    ] is False
+    # Resolving the conflict is not permission to archive automatically.
+    confirmed_cards = api.get(
+        f"/v1/projects/{project['id']}/memory-cards",
+        params={"confirmed_only": True},
+    ).json()
+    assert [card["id"] for card in confirmed_cards] == [first["id"]]
+    assert confirm(api, candidate).status_code == 409
+    assert api.get(
+        f"/v1/memory-cards/{candidate['id']}/confirmations"
+    ).json() == []
+    assert confirm(api, corrected).status_code == 200
+    revisions = api.get(f"/v1/memory-cards/{candidate['id']}/revisions").json()
+    assert revisions[0]["content"]["approximate_date"] == "1985 年"
+    assert revisions[1]["content"]["approximate_date"] == "1982 年秋天"
+
 
 def test_same_event_with_incompatible_place_is_blocked(tmp_path: Path) -> None:
     api = client(tmp_path)
