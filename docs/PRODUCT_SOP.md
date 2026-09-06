@@ -7,6 +7,12 @@ against the current main branch.
 
 ## Status vocabulary
 
+Latest SOP-05 checkpoint (2026-09-06): correction/restart provenance regression
+passes in the full 301-test local runtime suite. Native edit QA remains open due
+to macOS assistive-access denial; see
+[bounded evidence](qa/memory-correction-restart-2026-09-06.md).
+This checkpoint does not change any SOP completion status.
+
 - `TODO`: not started.
 - `IN_PROGRESS`: implementation or QA is incomplete.
 - `WAITING_AUTHORIZATION`: blocked only on an explicit user-controlled action.

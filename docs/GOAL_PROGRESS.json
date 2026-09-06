@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "a11baf9acd9c02631c5c9606827fa1f6d0feec37",
-  "last_advanced_at": "2026-09-06T15:31:44Z",
+  "observed_head": "c61d13540336e02c1a90525fce331ce5195894e5",
+  "last_advanced_at": "2026-09-06T15:57:06Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-05",
     "status": "IN_PROGRESS",
-    "summary": "Exact Universal 93f9622 imported a synthetic printed Chinese image and retained local OCR in a reference-only unconfirmed draft. Evidence in a11baf9; its printed/malformed native OCR regressions passed all four CI jobs in 34042647560. Ten targeted authority/conflict regressions passed locally. Human handwriting and spoken confirmation remain open."
+    "summary": "Native correction QA encountered macOS assistive-access denial (-25211), so remains unverified. Extended synthetic API coverage for post-confirmation correction, SQLite restart, stale confirmation rejection, original OCR and historical revision preservation; focused regression passes. Evidence: docs/qa/memory-correction-restart-2026-09-06.md. Baseline c61d135 CI 34043029586 passed all four jobs."
   },
   "next_action": {
     "sop": "SOP-05",
-    "id": "native-memory-review-correction-qa",
-    "summary": "Use the isolated synthetic OCR project (nalu-ocr-native.d9zi2lwJG8) and the verified packaged app to inspect native memory review/edit UI, make an explicit fictional metadata correction, and verify revision/provenance preservation. Do not treat typed/native test input as human voice acceptance; do not grant biometric rights or use paid providers.",
+    "id": "memory-correction-regression-ci-and-backup-qa",
+    "summary": "Check correction/restart regression CI, then verify export/import retains revised memory provenance and does not resurrect obsolete confirmation. Native edit QA remains open until assistive access is restored; do not bypass OS permission or substitute API results for native acceptance.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

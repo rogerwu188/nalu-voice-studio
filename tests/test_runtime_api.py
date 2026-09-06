@@ -2149,6 +2149,49 @@ def test_memory_card_requires_explicit_confirmation_and_keeps_evidence(tmp_path:
     assert confirmations[0]["reviewed_revision"] == 2
     assert confirmations[0]["spoken_confirmation"] == "我确认这张记忆卡并归档"
 
+    # A later correction must not inherit approval of the previous version.
+    revised = api.patch(
+        f"/v1/memory-cards/{created.json()['id']}",
+        json={
+            "approximate_date": "1981年春天",
+            "source_channel": "visual",
+            "change_summary": "测试更正年份，保留原始识别证据",
+        },
+    )
+    assert revised.status_code == 200
+    assert revised.json()["current_revision"] == 3
+    assert revised.json()["confirmation_status"] == "draft"
+    assert revised.json()["ocr_text"] == "一九八零年春天"
+    assert revised.json()["spoken_context"] == created.json()["spoken_context"]
+
+    # Reopen the runtime over the same local database, not an in-memory object.
+    reopened = client(tmp_path)
+    assert reopened.get(
+        f"/v1/projects/{project['id']}/memory-cards",
+        params={"confirmed_only": True},
+    ).json() == []
+    stale_confirmation = reopened.post(
+        f"/v1/memory-cards/{created.json()['id']}/confirm",
+        json={
+            "confirmed_by": "本人",
+            "reviewed_revision": 2,
+            "review_channel": "voice_and_visual",
+            "spoken_confirmation": "我确认这张记忆卡并归档",
+        },
+    )
+    assert stale_confirmation.status_code == 409
+    history = reopened.get(
+        f"/v1/memory-cards/{created.json()['id']}/revisions"
+    ).json()
+    assert [item["revision"] for item in history] == [1, 2, 3]
+    assert history[0]["content"]["place"] == "杭州西湖"
+    assert history[1]["content"]["approximate_date"] == "1980年春天"
+    assert history[2]["content"]["approximate_date"] == "1981年春天"
+    assert all(item["content"]["ocr_text"] == "一九八零年春天" for item in history)
+    assert reopened.get(
+        f"/v1/memory-cards/{created.json()['id']}/confirmations"
+    ).json() == confirmations
+
     backup = api.get(f"/v1/projects/{project['id']}/export").json()
     assert backup["schema_version"] == "nalu.project-export/v23"
     assert backup["payload"]["memory_cards"][0]["asset_id"] == asset["id"]
