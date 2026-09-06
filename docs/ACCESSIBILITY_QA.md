@@ -216,3 +216,34 @@ Keychain credential was read, and no Realtime, provider, paid-generation, produc
 publication call was made. This is deterministic packaged native regression evidence;
 it does not replace a real-microphone session, VoiceOver traversal, Accessibility
 Inspector matrix or older-adult/guardian-and-child human acceptance.
+
+## 2026-09-06 · Stable primary-control accessibility selectors
+
+Product commit `18fac0ba6b7529b4c11c5dab39dded259ff59161` assigns stable,
+unique identifiers to the primary older-adult interaction surface:
+
+- `nalu.projects.list` and `nalu.projects.create`;
+- `nalu.status.runtime`;
+- `nalu.voice.realtime`, `nalu.voice.activity` and
+  `nalu.voice.microphone.toggle`;
+- `nalu.assets.import.toolbar` and `nalu.assets.import.card`.
+
+GitHub CI run `34008547788` passed the Runtime suite, both architecture-specific
+Swift suites and application builds, bundled smoke tests and Universal merge. The new
+Swift test rejects duplicate, whitespace-bearing or non-`nalu.*` selectors. These
+identifiers let future Computer Use and Accessibility Inspector runs address controls
+without depending on translated button text.
+
+The Universal artifact is `9981803874`. A repository-external download reproduced its
+GitHub artifact SHA-256
+`6b8dc142859ca001bfb2ede5b8c39d79dd37f1fc073a6fdb436e212e42bc5225`;
+the inner application ZIP SHA-256 is
+`e807b309cb57e7526eee20bb6744a74ec0d1d6a2af38c0abaae0c1a3e11126d2`.
+The extracted `studio.nalu.voice` application is version 0.1.0, its native executable
+contains `x86_64` and `arm64`, and a packaged-binary scan found all eight identifiers.
+The CI artifact remains ad-hoc signed with no Team ID and is not a release candidate.
+
+The current Mac was locked when the freshly built window was ready for inspection, so
+this checkpoint deliberately records no claim about visible placement, VoiceOver order,
+animation, microphone permission or human usability. Those observations still require
+an unlocked desktop and remain part of SOP-02 acceptance.

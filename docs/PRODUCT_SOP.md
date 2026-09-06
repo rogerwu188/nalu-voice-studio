@@ -356,6 +356,18 @@ Current evidence:
   project existed. The Mac locked before visible window, scrolling, animated state,
   attachment and microphone-permission checks, so this is explicitly partial launch
   evidence and does not satisfy the human/native-window acceptance above.
+- Product commit `18fac0ba6b7529b4c11c5dab39dded259ff59161`, GitHub CI run
+  `34008547788`: the project list, create-project action, Runtime state, natural-voice
+  action, both simple family-material entry points, animated recording state and
+  microphone toggle now expose stable, unique `nalu.*` accessibility identifiers.
+  A Swift regression test fixes that selector contract, and Runtime, Apple Silicon,
+  Intel and Universal jobs all passed. Universal artifact `9981803874` has GitHub
+  SHA-256 `6b8dc142859ca001bfb2ede5b8c39d79dd37f1fc073a6fdb436e212e42bc5225`;
+  a repository-external download reproduced it and its declared inner ZIP SHA-256
+  `e807b309cb57e7526eee20bb6744a74ec0d1d6a2af38c0abaae0c1a3e11126d2`.
+  This makes repeated native-window and VoiceOver QA resilient to copy changes; it is
+  automation infrastructure, not a claim that the locked-Mac visual, real microphone,
+  paid Realtime or human accessibility matrix passed.
 
 ## SOP-03 · Multi-project, season and episode planning — IN_PROGRESS
 
