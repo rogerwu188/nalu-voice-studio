@@ -7726,6 +7726,19 @@
             "title": "Content",
             "type": "string"
           },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "maxLength": 160,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
           "narrative_metadata": {
             "additionalProperties": true,
             "title": "Narrative Metadata",

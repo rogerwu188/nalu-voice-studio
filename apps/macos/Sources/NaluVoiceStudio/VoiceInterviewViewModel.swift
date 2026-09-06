@@ -442,7 +442,8 @@ final class VoiceInterviewViewModel {
             } else {
                 script = try await runtime.createScript(episodeID: episode.id, content: draft.script,
                     summary: draft.outline, sourceTranscript: state.summary,
-                    authoringOrigin: "external_ai_generated", externalWriter: writer)
+                    authoringOrigin: "external_ai_generated", externalWriter: writer,
+                    idempotencyKey: "interactive-" + writer.receiptSHA256)
             }
             if let receipt = state.draft_receipts?[String(number)] ?? nil {
                 try await runtime.reconcileInteractiveReceipt(episodeID: episode.id,

@@ -475,6 +475,7 @@ struct ScriptRevisionDraft: Codable, Sendable {
     let sourceTranscript: String
     let narrativeMetadata: [String: JSONValue]
     let authoring: ScriptAuthoringDraft
+    var idempotencyKey: String? = nil
 
     enum CodingKeys: String, CodingKey {
         case content
@@ -482,6 +483,7 @@ struct ScriptRevisionDraft: Codable, Sendable {
         case sourceTranscript = "source_transcript"
         case narrativeMetadata = "narrative_metadata"
         case authoring
+        case idempotencyKey = "idempotency_key"
     }
 }
 

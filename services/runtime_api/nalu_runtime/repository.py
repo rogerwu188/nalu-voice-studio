@@ -4873,6 +4873,12 @@ class Repository:
             if current_run_ids and not request.delete_production_snapshots:
                 raise ConflictError("immutable production snapshot deletion was not confirmed")
             connection.execute("DELETE FROM production_runs WHERE project_id = ?", (project_id,))
+            connection.execute(
+                """DELETE FROM idempotent_operations WHERE scope IN (
+                     SELECT 'script-revision:' || e.id FROM episodes e
+                     JOIN seasons s ON s.id=e.season_id WHERE s.project_id=?)""",
+                (project_id,),
+            )
             connection.execute("DELETE FROM projects WHERE id = ?", (project_id,))
         return len(current_asset_ids), len(current_run_ids)
 
@@ -5249,13 +5255,6 @@ class Repository:
 
     def create_script(self, episode_id: str, request: ScriptRevisionCreate) -> ScriptRevision:
         episode = self.get_episode(episode_id)
-        if (
-            EpisodeStatus.SCRIPT_REVIEW not in EPISODE_TRANSITIONS[episode.status]
-            and episode.status != EpisodeStatus.SCRIPT_REVIEW
-        ):
-            raise ConflictError(
-                f"cannot create a script revision while episode is {episode.status}"
-            )
         if SCRIPT_AUTHORING_PROVENANCE_KEY in request.narrative_metadata:
             raise ConflictError("script authoring provenance is managed by Nalu")
         provenance = _seal_script_authoring_provenance(request)
@@ -5264,8 +5263,19 @@ class Repository:
             SCRIPT_AUTHORING_PROVENANCE_KEY: provenance.model_dump(mode="json"),
         }
         now = utc_now()
+        operation_scope = f"script-revision:{episode_id}"
+        request_sha = _text_sha256(encode(request.model_dump(mode="json", exclude={"idempotency_key"})))
         with self.db.connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
+            if request.idempotency_key:
+                operation = connection.execute(
+                    "SELECT request_sha256, resource_id FROM idempotent_operations WHERE scope=? AND idempotency_key=?",
+                    (operation_scope, request.idempotency_key),
+                ).fetchone()
+                if operation:
+                    if operation["request_sha256"] != request_sha:
+                        raise ConflictError("script idempotency key already belongs to another request")
+                    return self.get_script(episode_id, int(operation["resource_id"]))
             current = connection.execute(
                 "SELECT status FROM episodes WHERE id = ?", (episode_id,)
             ).fetchone()
@@ -5302,6 +5312,12 @@ class Repository:
                    updated_at = ? WHERE id = ?""",
                 (EpisodeStatus.SCRIPT_REVIEW, now, episode.id),
             )
+            if request.idempotency_key:
+                connection.execute(
+                    "INSERT INTO idempotent_operations VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    (operation_scope, request.idempotency_key, request_sha, str(revision),
+                     "completed", None, now, now),
+                )
             if current_status != EpisodeStatus.SCRIPT_REVIEW:
                 self._record_episode_transition(
                     connection,

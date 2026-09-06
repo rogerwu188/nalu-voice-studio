@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "7d9c490 full CI 34059397691 succeeded. Receipt app artifact 9997030619 verified and running at /tmp/nalu-receipt-app.KpcDF6/app on 18769. Two synthetic episode scripts reconciled in its actual runtime without approval or provider-execution claims. One real Hops writer request returned HTTP 401 using existing readable Keychain credential; no retries. Await provider access confirmation while continuing safe native/queue/adoption work. Evidence docs/qa/live-writer-authorization-2026-09-06.md."
+    "summary": "Added optional script revision retry keys sealed atomically with revision creation. Native draft adoption uses receipt-derived keys; concurrent/restarted retries do not duplicate versions or change later approvals, and project deletion clears retry records. 328 runtime tests, Ruff, Swift parse and API compatibility passed; CI/native validation pending. Evidence docs/qa/script-adoption-idempotency-2026-09-06.md. Hops 401 remains unresolved; no repeated live request."
   },
   "next_action": {
     "sop": "SOP-04",

@@ -1083,6 +1083,7 @@ class WriterProviderReconciliationRecord(BaseModel):
 
 
 class ScriptRevisionCreate(BaseModel):
+    idempotency_key: str | None = Field(default=None, min_length=1, max_length=160)
     content: str = Field(min_length=1)
     summary_for_voice_review: str = Field(min_length=1)
     source_transcript: str = ""
