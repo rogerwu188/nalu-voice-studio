@@ -20,3 +20,12 @@ test passes in 1.91 seconds; ten existing port tests pass, Ruff and Swift parsin
 pass. Full CI, frozen/PyInstaller pipe inheritance, native app crash/restart and
 production-job recovery on the packaged candidate remain unverified. SOP-08 and
 SOP-11 are not complete.
+
+Follow-up: the full local Runtime suite passes **313 tests** (53.77s, two
+dependency deprecation warnings). A packaged rehearsal command now reuses the
+same dual-instance scenario against the exact app Runtime, binds evidence to its
+binary SHA-256, and runs in arm64, x86_64 and Universal CI. Packaged startup has a
+120-second bound. It passes the app's bundled resource registry explicitly, as
+the real supervisor does; an initial harness attempt without that registry
+failed during boot and is not cancellation evidence. Actual new-package results
+and native app crash testing remain open.

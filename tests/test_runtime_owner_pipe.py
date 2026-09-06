@@ -8,7 +8,7 @@ import urllib.error
 import urllib.request
 
 
-def test_owner_eof_stops_only_owned_runtime_and_preserves_database(tmp_path):
+def rehearse_owner_lifetime(tmp_path, command=None, startup_timeout=10, resources=None):
     processes = []
 
     def start(name):
@@ -24,14 +24,22 @@ def test_owner_eof_stops_only_owned_runtime_and_preserves_database(tmp_path):
             "NALU_DATA_ROOT": str(root / "data"),
             "NALU_DATABASE_PATH": str(root / "nalu.sqlite3"),
         }
-        process = subprocess.Popen(
-            [sys.executable, "-m", "nalu_runtime"], env=environment,
-            stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-        )
+        if resources is not None:
+            environment["NALU_REPOSITORY_ROOT"] = str(resources)
+        log_path = root / "runtime.log"
+        with log_path.open("wb") as log:
+            process = subprocess.Popen(
+                command or [sys.executable, "-m", "nalu_runtime"], env=environment,
+                stdin=subprocess.PIPE, stdout=log, stderr=log,
+            )
         processes.append(process)
         url = f"http://127.0.0.1:{port}/health"
-        for _ in range(100):
-            assert process.poll() is None, "Managed Runtime exited before owner EOF"
+        deadline = time.monotonic() + startup_timeout
+        while time.monotonic() < deadline:
+            assert process.poll() is None, (
+                "Managed Runtime exited before owner EOF: "
+                + log_path.read_text(errors="replace")[-2000:]
+            )
             try:
                 with urllib.request.urlopen(url, timeout=0.3) as response:
                     assert response.status == 200
@@ -67,3 +75,7 @@ def test_owner_eof_stops_only_owned_runtime_and_preserves_database(tmp_path):
                 except subprocess.TimeoutExpired:
                     process.kill()
                     process.wait(timeout=5)
+
+
+def test_owner_eof_stops_only_owned_runtime_and_preserves_database(tmp_path):
+    rehearse_owner_lifetime(tmp_path)

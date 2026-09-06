@@ -80,6 +80,7 @@ jobs:
       - run: scripts/build-macos-app.sh
       - run: scripts/verify-macos-release.sh
       - run: NALU_PUBLICATION_FIXTURE_EVIDENCE=/tmp/nalu-publication-fixture-arm64.json scripts/smoke-macos-bundle.sh
+      - run: python scripts/qa-runtime-owner-lifetime.py --app "dist/Nalu Voice Studio.app" --evidence dist/nalu-owner-lifetime-arm64.json
       - run: python scripts/qa-macos-staged-update.py --app "dist/Nalu Voice Studio.app" --evidence /tmp/nalu-staged-update-arm64.json
       - run: python scripts/qa-macos-upgrade-rollback.py --app "dist/Nalu Voice Studio.app" --evidence /tmp/nalu-upgrade-rollback-arm64.json
       - run: cp /tmp/nalu-upgrade-rollback-arm64.json dist/nalu-upgrade-rollback-arm64.json
@@ -95,6 +96,7 @@ jobs:
             dist/Nalu-Voice-Studio-macOS.zip.sha256
             dist/nalu-upgrade-rollback-arm64.json
             dist/nalu-staged-update-arm64.json
+            dist/nalu-owner-lifetime-arm64.json
             dist/nalu-publication-fixture-arm64.json
 
   macos-x86_64:
@@ -111,6 +113,7 @@ jobs:
       - run: scripts/build-macos-app.sh
       - run: scripts/verify-macos-release.sh
       - run: NALU_PUBLICATION_FIXTURE_EVIDENCE=/tmp/nalu-publication-fixture-x86_64.json scripts/smoke-macos-bundle.sh
+      - run: python scripts/qa-runtime-owner-lifetime.py --app "dist/Nalu Voice Studio.app" --evidence dist/nalu-owner-lifetime-x86_64.json
       - run: python scripts/qa-macos-staged-update.py --app "dist/Nalu Voice Studio.app" --evidence /tmp/nalu-staged-update-x86_64.json
       - run: python scripts/qa-macos-upgrade-rollback.py --app "dist/Nalu Voice Studio.app" --evidence /tmp/nalu-upgrade-rollback-x86_64.json
       - run: cp /tmp/nalu-upgrade-rollback-x86_64.json dist/nalu-upgrade-rollback-x86_64.json
@@ -126,6 +129,7 @@ jobs:
             dist/Nalu-Voice-Studio-macOS.zip.sha256
             dist/nalu-upgrade-rollback-x86_64.json
             dist/nalu-staged-update-x86_64.json
+            dist/nalu-owner-lifetime-x86_64.json
             dist/nalu-publication-fixture-x86_64.json
 
   macos-universal:
@@ -151,6 +155,7 @@ jobs:
       - run: scripts/merge-macos-universal.sh ".build/universal/arm64/app/Nalu Voice Studio.app" ".build/universal/x86_64/app/Nalu Voice Studio.app" "dist/Nalu Voice Studio.app"
       - run: NALU_REQUIRE_UNIVERSAL=true scripts/verify-macos-release.sh
       - run: NALU_PUBLICATION_FIXTURE_EVIDENCE=/tmp/nalu-publication-fixture-universal.json scripts/smoke-macos-bundle.sh
+      - run: python scripts/qa-runtime-owner-lifetime.py --app "dist/Nalu Voice Studio.app" --evidence dist/nalu-owner-lifetime-universal.json
       - run: python scripts/qa-project-plan-isolation.py --app "dist/Nalu Voice Studio.app" --source-commit "$GITHUB_SHA" --evidence dist/nalu-project-plan-isolation-universal.json
       - run: python scripts/qa-memory-provenance.py --app "dist/Nalu Voice Studio.app" --source-commit "$GITHUB_SHA" --evidence dist/nalu-memory-provenance-universal.json
       - run: python scripts/qa-macos-staged-update.py --app "dist/Nalu Voice Studio.app" --evidence /tmp/nalu-staged-update-universal.json
@@ -193,6 +198,7 @@ jobs:
             dist/Nalu-Voice-Studio-macOS.zip.sha256
             dist/nalu-upgrade-rollback-universal.json
             dist/nalu-staged-update-universal.json
+            dist/nalu-owner-lifetime-universal.json
             dist/nalu-publication-fixture-universal.json
             dist/nalu-project-plan-isolation-universal.json
             dist/nalu-memory-provenance-universal.json
