@@ -1,0 +1,49 @@
+{
+  "schema_version": "nalu.native-fixed-controls-qa/v1",
+  "recorded_at": "2026-09-06T13:51:53Z",
+  "product_commit": "ae388fdfab54e50319bb4e4babdde3a1efd35148",
+  "project_complete": false,
+  "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34037029775",
+  "artifact": {
+    "id": 9990515799,
+    "architecture": "arm64",
+    "downloaded_zip_sha256": "a1face8aedb37e77e2be8a5aff8901977085164b82f8b2e85f2fd47775570ddb",
+    "matches_declared_digest": true
+  },
+  "native_qa": {
+    "app_pid": 60777,
+    "window_id": 3927,
+    "requested_window_size_points": [980, 720],
+    "actual_window_size_points": [980, 736],
+    "scenario": "conversation-scroll",
+    "isolated_data_directory": "/var/folders/y4/k84st0yj7fz043tnxkfrjn1w0000gn/T/nalu-controls-native.npTIj8U5jv/data",
+    "runtime_port": 18766,
+    "runtime_health": "ok",
+    "runtime_schema_version": 27,
+    "create_project_button_fully_visible": true,
+    "stop_speaking_button_fully_visible": true,
+    "recording_status_visible": true,
+    "final_fixture_transcript_visible_after_automatic_scroll": true,
+    "maximum_font_command_acknowledged": true,
+    "critical_controls_visible_after_maximum_font_command": true,
+    "qa_app_terminated_by_exact_pid": true,
+    "qa_app_and_runtime_processes_exited": true,
+    "qa_port_closed_after_exit": true
+  },
+  "screenshots": {
+    "initial_repository_path": "docs/qa/images/native-fixed-controls-transcript-2026-09-06.png",
+    "maximum_font_repository_path": "docs/qa/images/native-fixed-controls-maximum-font-2026-09-06.png",
+    "initial_local_path": "/var/folders/y4/k84st0yj7fz043tnxkfrjn1w0000gn/T/nalu-controls-native.npTIj8U5jv/minimum.png",
+    "initial_sha256": "b560816e2af094b45c9c5706763f380b1d24896271ce6c7af1742e3bbb13ab20",
+    "maximum_font_local_path": "/var/folders/y4/k84st0yj7fz043tnxkfrjn1w0000gn/T/nalu-controls-native.npTIj8U5jv/enlarged-window.png",
+    "maximum_font_sha256": "0f3ad72cb788e59668fbe844cc635489fe0f031416cd7507322babc174f8bca2"
+  },
+  "boundaries": [
+    "Fixture-only listening presentation; no microphone capture or paid provider call.",
+    "Native QA used the arm64 artifact, not the Universal artifact.",
+    "The initial font preference was already maximum; this is not evidence of a before/after font-size transition.",
+    "A separate source-runtime smoke observed listeners on 8765 and 18766 simultaneously. The older application was absent at final inspection; no claim is made about why it exited.",
+    "Screenshots are checked-in fixture-only evidence, not signed release artifacts.",
+    "This checkpoint does not satisfy real speech, human accessibility, signing, notarization or full SOP acceptance."
+  ]
+}

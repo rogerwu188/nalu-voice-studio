@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "8de6a8a0ef1b457c98bfb64924bc464d6776cdf4",
-  "last_advanced_at": "2026-09-06T06:52:00Z",
+  "observed_head": "ae388fdfab54e50319bb4e4babdde3a1efd35148",
+  "last_advanced_at": "2026-09-06T13:51:53Z",
   "last_closed_checkpoint": {
     "id": "native-isolated-project-restart-backup-restore-qa",
     "sop": "SOP-03",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-02",
     "status": "IN_PROGRESS",
-    "summary": "Spoken read-only search now has deterministic local and Realtime routing, visible progress, clickable HTTPS sources, protected-operation confirmation gates and successful dual-architecture/Universal CI evidence. The exact artifact still needs minimum-window and enlarged-text native visual QA, and live provider execution remains authorization-bound."
+    "summary": "Isolated QA port support is implemented and tested. Exact ae388fd arm64 artifact passed native fixed-control visibility at 980x736 points with maximum font and long fixture conversation. Screenshots and qualified evidence are recorded in docs/qa/native-fixed-controls-2026-09-06.json. Universal CI is still pending; no whole-SOP completion is claimed."
   },
   "next_action": {
     "sop": "SOP-02",
     "id": "critical-controls-native-visual-qa",
-    "summary": "Finish CI for isolated QA port support, then launch its Universal artifact with NALU_ENABLE_LOCAL_QA=1, an existing system-temporary NALU_LOCAL_QA_APPLICATION_SUPPORT directory and NALU_LOCAL_QA_PORT=18766. Verify fixed create and microphone controls at minimum window and enlarged text alongside the existing recording app. Record evidence and continue the next unblocked SOP item.",
+    "summary": "Finish CI run 34037029775 and verify its Universal artifact; preserve the completed arm64 native visibility evidence. Then verify idle-state fixed controls and font-size transition using isolated QA data before selecting the next unblocked SOP item. Do not execute paid providers without authorization.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

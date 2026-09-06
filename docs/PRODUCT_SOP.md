@@ -87,6 +87,15 @@ Current evidence:
 
 ## SOP-02 · Voice interview and accessible conversation — IN_PROGRESS
 
+- 2026-09-06 native fixed-control evidence: product `ae388fdfab54e50319bb4e4babdde3a1efd35148`
+  arm64 CI artifact passed fixture-only native checks at a 980x736-point window:
+  create-project and stop-speaking controls remain fully visible with maximum font,
+  and the current fixture transcript is visible after automatic scrolling.
+  See [qualified evidence](qa/native-fixed-controls-2026-09-06.json) and its checked-in
+  screenshots. QA used an isolated temporary database and port 18766. Universal CI,
+  idle-state/font-transition checks and real speech/human acceptance remain open;
+  this does not mark SOP-02 PASS.
+
 Active follow-up: the existing app is still recording on port 8765. The isolated
 native QA launch now accepts `NALU_LOCAL_QA_PORT` only with the local-QA flag and
 an existing system-temporary storage directory. The supervisor, client and bundled
