@@ -464,10 +464,14 @@ enum RealtimeMediaCapturePolicy {
 }
 
 actor RealtimeSessionBroker {
-    private let keychain = KeychainSecretStore()
+    private let credential: @Sendable () async throws -> String?
     private let session: URLSession
 
-    init(session: URLSession? = nil) {
+    init(session: URLSession? = nil,
+         credential: @escaping @Sendable () async throws -> String? = {
+             try KeychainSecretStore().secret(for: .openAIRealtime)
+         }) {
+        self.credential = credential
         if let session {
             self.session = session
         } else {
@@ -479,8 +483,13 @@ actor RealtimeSessionBroker {
     }
 
     func createClientSecret(instructions: String, endpoint: AIServiceEndpoint) async throws -> String {
+        try Task.checkCancellation()
         let models = try AIServiceModels.load(for: endpoint)
-        guard let apiKey = try keychain.secret(for: .openAIRealtime) else {
+        let storedKey = try await credential()
+        // Security.framework may return after the user has cancelled. Do not
+        // turn that late permission result into a new external request.
+        try Task.checkCancellation()
+        guard let apiKey = storedKey else {
             throw RealtimeVoiceError.missingCredential
         }
         var request = URLRequest(url: endpoint.url("realtime/client_secrets"))
@@ -492,7 +501,9 @@ actor RealtimeSessionBroker {
         request.httpBody = try RealtimeSessionConfiguration.requestBody(
             instructions: instructions, models: models
         )
+        try Task.checkCancellation()
         let (data, response) = try await session.data(for: request)
+        try Task.checkCancellation()
         guard let http = response as? HTTPURLResponse else {
             throw RealtimeVoiceError.sessionRequestFailed
         }
@@ -556,7 +567,8 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
     var onInterviewAnswer: ((String) -> RealtimeInterviewToolResult)?
     var onWebResearch: ((String) async -> RealtimeInterviewToolResult)?
 
-    private let broker = RealtimeSessionBroker()
+    private let broker: RealtimeSessionBroker
+    private var connectionTask: Task<String, Error>?
     private var activeCallsURL = RealtimeAPIContract.callsURL
     private weak var webView: WKWebView?
     private var isPageReady = false
@@ -567,6 +579,11 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
     private var dataChannelReady = false
     private var pendingSpokenPrompt: String?
     private var connectionAttempts = RealtimeConnectionAttemptGate()
+
+    init(broker: RealtimeSessionBroker = RealtimeSessionBroker()) {
+        self.broker = broker
+        super.init()
+    }
 
     func attach(_ webView: WKWebView) {
         guard self.webView !== webView else { return }
@@ -581,6 +598,9 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
     }
 
     func start(instructions: String, limitMinutes: Int = 10) async {
+        connectionTask?.cancel()
+        connectionTask = nil
+        pendingToken = nil
         guard webView != nil else {
             state = .unavailable(RealtimeVoiceError.webViewNotReady.localizedDescription)
             return
@@ -595,10 +615,24 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
         retryAllowed = false
         state = .connecting
         let attempt = connectionAttempts.begin()
+        defer {
+            if connectionAttempts.accepts(attempt) { connectionTask = nil }
+        }
         do {
+            try Task.checkCancellation()
             let endpoint = try AIServiceEndpoint.current()
             activeCallsURL = endpoint.url("realtime/calls").absoluteString
-            let token = try await broker.createClientSecret(instructions: instructions, endpoint: endpoint)
+            let broker = broker
+            let requestTask = Task {
+                try await broker.createClientSecret(instructions: instructions, endpoint: endpoint)
+            }
+            connectionTask = requestTask
+            let token = try await withTaskCancellationHandler {
+                try await requestTask.value
+            } onCancel: {
+                requestTask.cancel()
+            }
+            try Task.checkCancellation()
             guard connectionAttempts.accepts(attempt), state == .connecting else { return }
             pendingToken = token
             startWebRTCIfReady()
@@ -640,6 +674,8 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
     }
 
     func stop() {
+        connectionTask?.cancel()
+        connectionTask = nil
         connectionAttempts.invalidate()
         webView?.evaluateJavaScript("window.naluRealtime.stop()")
         pendingToken = nil

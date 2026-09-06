@@ -30,7 +30,7 @@
   "next_action": {
     "sop": "SOP-02",
     "id": "verify-async-deletion-isolation-and-first-open-credential-state",
-    "summary": "Finish CI 34054894231 and commit/push native first-open evidence plus SOP index. Current isolated 87085 runs 45f76ac, credentials sheet timeout message visible, data tmp.gEDfvkaLEc/18769. Next safe implementation: Realtime cancellation while awaiting Keychain must prevent a late client-secret POST (broker currently checks attempt only after POST returns); add cancellation-aware task ownership and injected synthetic-credential regression tests without provider calls. Real provider, user-controlled Keychain authorization, human QA and signed release gates remain open.",
+    "summary": "Finish live CI 34054894231, then push c96b78f first-open evidence and Realtime cancellation follow-up. Cancellation task ownership, broker checks after late credentials, and synthetic no-transport tests are implemented; syntax/diff passed, compiled CI/package QA pending. See qa/realtime-connection-cancellation-2026-09-06.md. Current isolated 87085 runs 45f76ac with tmp.gEDfvkaLEc/18769. Provider capability, Keychain user authorization, human QA and signed-release gates remain open.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
