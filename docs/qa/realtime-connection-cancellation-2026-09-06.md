@@ -63,3 +63,23 @@ Universal packaging and individual WebKit test log inspection are still pending.
 The same clean local source passed all **312 Runtime tests** in 45.26 seconds;
 two existing dependency deprecation warnings remain. None of these simulated
 checks closes the real voice or signed release acceptance gates.
+
+### Native arm64 package follow-up
+
+Artifact `9995982902` from that run was downloaded; ZIP SHA-256:
+`0c71cbd76a667ba399937bdee99aad9e83ff2f0f42c8cb61396513a17ea2b6d4`.
+App process `90994` and bundled runtime `91008` were launched from
+`/tmp/nalu-cancel.3RK4CU/app/Nalu Voice Studio.app` on the existing isolated
+`tmp.gEDfvkaLEc` QA data at port 18769, after stopping the precisely identified
+older QA processes. No production data was used or removed.
+
+System Events readback on the first credential-sheet open reported all three
+stored-key badges and `https://hopsapi.com/v1` in the non-secret address field.
+Secure fields were not read or changed. Escape dismissed the sheet. No microphone,
+client-secret request or generation was initiated. This is startup/settings
+retention evidence, not a packaged real voice cancellation test.
+
+The arm64 job log explicitly reports the WebKit ten-scenario test passed in
+9.197 seconds and 139 Swift tests with zero failures; broker cancellation tests
+also explicitly passed. Both architecture jobs and Runtime are now successful;
+Universal remains live at this observation.
