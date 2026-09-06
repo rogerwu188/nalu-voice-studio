@@ -2,6 +2,26 @@ import XCTest
 @testable import NaluVoiceStudio
 
 final class InteractiveStoryTests: XCTestCase {
+    func testEpisodeRetainsRuntimeSeasonIdentifier() throws {
+        let data = Data(#"{"id":"episode","season_id":"season-two","title":"第二季开篇","episode_number":1,"logline":"","outline":{},"target_seconds":60,"status":"draft"}"#.utf8)
+        XCTAssertEqual(try JSONDecoder().decode(NaluEpisode.self, from: data).seasonID, "season-two")
+    }
+
+    func testRestoreIncludesScriptsAndDoesNotPretendPendingCallSucceeded() {
+        let state = InteractiveStoryState(revision: 3, turns: [
+            .init(turn_id: "one", text: "外婆的故事", source_mode: "narrated_story", status: "answered",
+                  answer: .init(reply: "请核对", summary: "", episode_drafts: [
+                    .init(episode_number: 1, title: "海边", outline: "童年", script: "外婆牵着我的手。")
+                  ], outcome: "answered")),
+            .init(turn_id: "two", text: "改成下雨天", source_mode: "narrated_story", status: "pending", answer: nil),
+        ], summary: "", episode_drafts: [])
+        let restored = state.conversationMessages()
+        XCTAssertEqual(restored.count, 4)
+        XCTAssertEqual(restored.first?.text, "外婆的故事")
+        XCTAssertTrue(restored[1].text.contains("外婆牵着我的手。"))
+        XCTAssertTrue(restored.last?.text.contains("没有自动重复调用") == true)
+    }
+
     @MainActor
     func testAdoptionRequiresExplicitEpisodeSelectionNotVagueAgreement() {
         XCTAssertEqual(VoiceInterviewViewModel.interactiveDraftSelection("采用第一集草稿"), 1)

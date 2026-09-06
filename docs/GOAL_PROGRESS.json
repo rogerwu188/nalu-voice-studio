@@ -11,7 +11,7 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "def710ddc694170ed1d18f386130c43ffdcd1d65",
+  "observed_head": "38ec1b1606a5ee97c1c946a0621dad0de9d84d1d",
   "last_advanced_at": "2026-09-06T20:21:42Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "SQLite story persistence landed in eb26911 (315 local runtime tests; CI 34057449160 pending). Native ordinary-story input now invokes configured chat/completions writer with accumulated story and saved research context, displays episode drafts and saves them locally. Three writer contract/parser tests added; Swift parse passed, compiled CI and real native/provider journey QA still pending. Existing TTS remains baseline."
+    "summary": "Core story writer and explicit draft adoption implemented; 316 local runtime tests pass. CI 34057785241 exposed missing NaluEpisode.seasonID; decoding fix and regression test added. Conversation restoration and project-owned first-use source lookup added. Current changes need compiled CI and real native/provider journey QA; existing TTS remains baseline."
   },
   "next_action": {
     "sop": "SOP-04",

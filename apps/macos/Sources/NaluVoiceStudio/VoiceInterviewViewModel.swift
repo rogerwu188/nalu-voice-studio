@@ -310,6 +310,7 @@ final class VoiceInterviewViewModel {
                     await selectProject(project.id)
                     projectID = project.id
                     generation = projectSelectionGeneration
+                    messages.append(.init(speaker: .user, text: spoken))
                 }
                 guard let projectID else { throw InteractiveStoryWriter.WriterError.unavailable }
                 let existing = try await runtime.interactiveStory(projectID: projectID)
@@ -668,10 +669,12 @@ final class VoiceInterviewViewModel {
     }
 
     func selectProject(_ projectID: String) async {
+        let switchedProject = selectedProjectID != projectID
         selectedProjectID = projectID
         // Also supersede a concurrent reload of the same project.
         projectSelectionGeneration = UUID()
         let generation = projectSelectionGeneration
+        if switchedProject { messages = [] }
         let isDocumentary = selectedProject?.creativeFormat == "documentary_series"
         pendingVoiceRunCancellationID = nil
         memoryConflictReports = [:]
@@ -748,6 +751,19 @@ final class VoiceInterviewViewModel {
             memoryCards = loadedMemories
             libraryEntities = loadedLibrary
             seasons = loadedSeasons
+            if switchedProject {
+                do {
+                    let story = try await runtime.interactiveStory(projectID: projectID)
+                    guard projectSelectionGeneration == generation else { return }
+                    messages = story.conversationMessages()
+                    if messages.isEmpty {
+                        messages = [.init(speaker: .nalu, text: "我们可以从您的故事开始，也可以先找您想用的网上资料。请告诉我。")]
+                    }
+                } catch {
+                    guard projectSelectionGeneration == generation else { return }
+                    messages = [.init(speaker: .nalu, text: "这个项目的历史对话暂时没有读到；我没有删除它。请稍后重新打开项目。")]
+                }
+            }
             await refreshPublicationLearning(projectID: projectID)
         } catch {
             guard projectSelectionGeneration == generation else { return }
@@ -2357,10 +2373,10 @@ final class VoiceInterviewViewModel {
 
     private func handleAssistantAction(_ request: AssistantActionRequest) {
         switch request {
-        case .requiresConfirmation:
-            let response = "我听见了，但这个要求可能会下载、登录、付款、发布或改变外部内容。为了防止误操作，我现在没有执行。请在可见界面确认具体对象和操作后再继续。\n\n我们仍停在这里：\(currentInterviewPrompt)"
+        case .requiresConfirmation(let description):
+            let response = "我先帮您查找公开来源。下载整份资料、登录、购买或发布会另行确认，不影响现在先查找。"
             messages.append(.init(speaker: .nalu, text: response))
-            speechPlayback.speak(response, rate: comfortPreferences.speechRate)
+            handleAssistantAction(.webResearch(query: description))
         case .webResearch(let query):
             guard assistantActionStatus == nil else {
                 let response = "我还在完成上一项联网查找。请等结果出现后再说下一项；您的创作进度没有改变。"
@@ -2372,13 +2388,31 @@ final class VoiceInterviewViewModel {
             let startMessage = "好的，我现在替您上网查找。查找期间不会改变您的故事，也不会自动下载或发布任何内容。"
             messages.append(.init(speaker: .nalu, text: startMessage))
             speechPlayback.speak(startMessage, rate: comfortPreferences.speechRate)
-            let resumePrompt = currentInterviewPrompt
-            let projectID = selectedProjectID
-            let generation = projectSelectionGeneration
+            let resumePrompt = selectedProjectID == nil
+                ? "您想采用哪份来源？也可以继续讲故事，我们把内容整理成分集剧本。"
+                : currentInterviewPrompt
+            let originalProjectID = selectedProjectID
+            let originalGeneration = projectSelectionGeneration
             let turnID = UUID().uuidString
             Task {
+                var projectID = originalProjectID
+                var generation = originalGeneration
                 var savedRevision: Int?
                 do {
+                    if projectID == nil {
+                        var draft = ProjectDraft()
+                        draft.title = "资料故事"
+                        let created = try await runtime.createProject(draft)
+                        guard projectSelectionGeneration == originalGeneration else {
+                            assistantActionStatus = nil
+                            return
+                        }
+                        projects = try await runtime.listProjects(includeArchived: includeArchivedProjects)
+                        await selectProject(created.id)
+                        projectID = created.id
+                        generation = projectSelectionGeneration
+                        messages.append(.init(speaker: .user, text: query))
+                    }
                     if let projectID {
                         let state = try await runtime.interactiveStory(projectID: projectID)
                         let saved = try await runtime.appendStoryInput(

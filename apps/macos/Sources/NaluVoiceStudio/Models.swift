@@ -232,6 +232,7 @@ struct EpisodeDraft: Codable, Sendable {
 }
 
 struct NaluEpisode: Codable, Identifiable, Sendable {
+    var seasonID: String? = nil
     let id: String
     let title: String
     let episodeNumber: Int
@@ -242,6 +243,7 @@ struct NaluEpisode: Codable, Identifiable, Sendable {
 
     enum CodingKeys: String, CodingKey {
         case id, title, logline, outline, status
+        case seasonID = "season_id"
         case episodeNumber = "episode_number"
         case targetSeconds = "target_seconds"
     }

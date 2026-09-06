@@ -69,3 +69,16 @@ explicit-adoption parser tests. Compiled CI for this change, native adoption and
 provider receipt reconciliation remain pending. Prior writer candidate `def710d`
 has arm64 and runtime success in CI `34057559900`; Intel was still running at
 20:22 UTC. That result does not validate this later adoption change.
+
+## Regression and restoration follow-up
+
+CI `34057785241` arm64 failed compiling `38ec1b1`: `NaluEpisode` lacked
+`seasonID`. Added decoding of the existing runtime `season_id` field, with a
+regression test. This candidate is not native-QA ready until new CI compiles it.
+
+Project switching/restart now restores persisted turns and script drafts to the
+conversation; pending calls are shown as unresolved and are not resubmitted.
+First-use web lookup now creates a project and saves its query/results there.
+Compound lookup-plus-download/publish requests execute only the read-only lookup
+stage, leaving the protected action unexecuted. Real source retrieval and native
+journey QA are still open. Added restoration tests; local Swift parse passed.
