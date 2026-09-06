@@ -11,7 +11,7 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "bfb5717eeee20fd8754a7fa78e2e0a49a374b5ac",
+  "observed_head": "2485e6c72bfda4c7ff154fc2f724ae6a3f80da36",
   "last_advanced_at": "2026-09-06T22:58:38Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Per-shot estimate approval endpoint atomically reserves local estimated credits and binds exact preparation/request/package digests. 63 boundary tests passed, including concurrent budget exhaustion, replay, restart and invalid-state guards; Ruff passed. Evidence docs/qa/video-estimate-reservations-2026-09-06.md. Estimates are not verified provider prices; paid dispatch and native/E2E remain open. No live provider call performed."
+    "summary": "Per-shot estimate approval endpoint atomically reserves local estimates and binds request/package digests. Commit 2485e6c pushed; full regression 391 passed, Ruff passed; CI 34065564913 pending. Official pricing page now located for automatic estimates. Evidence docs/qa/video-estimate-reservations-2026-09-06.md. Paid dispatch and native/E2E remain open; no live provider call performed."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Connect verified price/explicit authorization and current-script/package revalidation to reserved exact shot requests before concrete SD2 single-attempt dispatch. Local estimated-credit reservations do not cap provider charges. Connect actual AI/upstream shot planning and first-frame inputs, native confirmation and polling; H3/omni remain open. Keep Hops 401 quarantined. Complete source/story-to-script-to-video QA; dry-runs are not delivery.",
+    "summary": "Build automatic duration/count estimates from official https://apidocs.giggle.pro/8562698m0 (read 2026-09-06: Pro 26 credits/sec, Fast 22), bind price-source freshness and exact request to confirmation, then current-script/package revalidation and SD2 single-attempt dispatch. Estimates do not guarantee final billing. Connect actual AI/upstream shot plans and first-frame inputs, native confirmation/polling; H3/omni remain open. Keep Hops 401 quarantined. Complete real source/story-to-video QA.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

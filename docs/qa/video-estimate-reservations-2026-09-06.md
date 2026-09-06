@@ -21,6 +21,18 @@ archived/cancelled/dry-run/child guards, stale preparations and corrupt prior
 reservation. Ruff passed and OpenAPI regenerated. Tests use synthetic local
 records only; no provider calls or charges.
 
+Full runtime regression on `2485e6c72bfda4c7ff154fc2f724ae6a3f80da36`:
+391 passed in 49.93 seconds. CI
+[34065564913](https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34065564913)
+was pending at inspection; current native acceptance remains unproven.
+
+Next-step pricing source found and read on 2026-09-06:
+[official Pricing & Billing](https://apidocs.giggle.pro/8562698m0) lists
+SD2 Pro at 26 Credits/second and Fast at 22, multiplied by generation count.
+The page explicitly distinguishes these rates from actual consumption computed
+by its system. This supplies a source for automatic estimates, not an account
+quote or hard billing cap; freshness and exact request binding still need code.
+
 Important limits: these are caller-reviewed **estimates**, not independently
 verified provider quotes or guarantees that a provider cannot overcharge. Each
 receipt says `provider_price_verified=false`,
