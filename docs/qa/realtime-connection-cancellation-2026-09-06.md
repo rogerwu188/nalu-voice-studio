@@ -40,3 +40,11 @@ five async boundaries and a late result at each boundary after a replacement con
 Mocks deliberately ignore abort to exercise late-result rejection. No browser
 microphone, key, network or provider is used. The test is added to runtime CI;
 full new CI and actual WKWebView/package cancellation QA remain open.
+
+`RealtimeWebKitCancellationTests` now loads the unchanged production HTML in an
+ephemeral WKWebView, injecting synthetic media/peer/fetch before document load.
+It covers the same ten Stop/replacement boundary combinations in WebKit rather
+than Node VM. A bounded stage deadline fails instead of hanging if setup breaks.
+Syntax validation passes locally; execution is pending the next macOS CI build.
+This deliberately does not exercise native microphone permission or provider
+transport, so it is not real Realtime acceptance or installed-app manual QA.
