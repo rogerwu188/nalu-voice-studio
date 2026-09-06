@@ -1,13 +1,13 @@
 {
   "schema_version": "nalu.qingshan-candidate-audit/v1",
   "repository": "rogerwu188/qingshan-short-drama-production-line",
-  "candidate_release": "v2026.09.04.6",
-  "candidate_commit": "3ec9a34a7abad8ae00bfed8cea34706fef4b3fba",
-  "candidate_tree_sha256": "5f001db127c365f7aae1921f14e5d1addfc67cd225749c791cf2d87feea63423",
+  "candidate_release": "v2026.09.05.2",
+  "candidate_commit": "401111636a2386c7f087d8dd2ff9df5c0cb98455",
+  "candidate_tree_sha256": "c829aab6a54ad2fe2a65ff6a134649380087a6573ac6eb38cc6fbdcec5895a7d",
   "gate_registry_path": "configs/GATE_REGISTRY_v3_20260716.json",
   "gate_registry_sha256": "0b7d478904638f0d9e22452971b7aa8d95b9e7445355b53e364ff187fd0613a4",
-  "public_interface_status": "FAIL",
-  "public_interface_version": "0.3.0",
+  "public_interface_status": "PASS",
+  "public_interface_version": "0.3.1",
   "public_cli_entrypoint": "qingshan_engine.cli:main",
   "public_cli_commands": [
     "doctor",
@@ -40,10 +40,8 @@
     "opus"
   ],
   "writer_v2_failures": [],
-  "portable_core_manifest_sha256": "61db4eeaad2f26643713f38e0c9ebaedf6bea952e8a8305661d8ae9b8add676a",
-  "public_interface_failures": [
-    "public_interface:portable_manifest_version_mismatch"
-  ],
+  "portable_core_manifest_sha256": "63bb56d35073f37ec68c55d06c46c494bd5d2a4c7db72673ad1c0b671f5196c9",
+  "public_interface_failures": [],
   "gate_count": 69,
   "coded_gate_count": 66,
   "runtime_bound_count": 66,
@@ -51,13 +49,13 @@
   "failures": [],
   "registered_test_execution_performed": true,
   "registered_test_status": "PASS",
-  "registered_test_module_count": 33,
-  "registered_portable_test_count": 210,
-  "registered_portable_skipped_count": 1,
+  "registered_test_module_count": 47,
+  "registered_portable_test_count": 368,
+  "registered_portable_skipped_count": 11,
   "registered_writer_test_count": 6,
   "registered_test_failures": [],
   "promotion_status": "QUARANTINED",
   "paid_execution_allowed": false,
   "replaces_active_pin": false,
-  "audited_at": "2026-09-04T21:56:00Z"
+  "audited_at": "2026-09-06T02:38:00Z"
 }

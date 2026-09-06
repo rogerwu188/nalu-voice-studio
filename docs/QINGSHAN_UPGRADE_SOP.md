@@ -36,33 +36,34 @@ It may support local contract work, but cannot authorize a paid request. Any add
 changed failure is unreviewed drift and fails closed. The exception must be removed—not
 carried forward—when the corrected upstream release is promoted.
 
-The latest reviewed candidate is `v2026.09.04.6` at commit
-`3ec9a34a7abad8ae00bfed8cea34706fef4b3fba`. Its tracked-tree SHA-256 is
-`5f001db127c365f7aae1921f14e5d1addfc67cd225749c791cf2d87feea63423`; the
+The latest reviewed candidate is `v2026.09.05.2` at commit
+`401111636a2386c7f087d8dd2ff9df5c0cb98455`. Its tracked-tree SHA-256 is
+`c829aab6a54ad2fe2a65ff6a134649380087a6573ac6eb38cc6fbdcec5895a7d`; the
 registry SHA-256 is
 `0b7d478904638f0d9e22452971b7aa8d95b9e7445355b53e364ff187fd0613a4`.
 Nalu's isolated audit proves all 69 registered gates are structurally complete and all
 66 coded gates are runtime-bound. With credential-like environment variables stripped,
-all 33 registered portable modules ran: 210 tests passed with one declared skip, and all
-six Writer-v2 tests passed. The candidate still cannot be promoted: its installable
-package and CLI declare version `0.3.0`, while the portable manifest declares `0.3.1`.
-Between the prior reviewed `.8` tag and `.6`, upstream added a provider-visible per-unit
-scope projection, exclusive character-reference ownership, absent-entity prompt scans,
-H3 visible-population cardinality and keyframe population evidence. Nalu classifies these
-as useful paid-boundary safety semantics to adapt behind its stable contracts; it does not
-copy the candidate into the active runtime. `configs/qingshan-candidate-audit.json` binds
-the exact public-interface failure,
-candidate tree, registry, portable manifest, CLI surface, Writer contract and registered-
-test result. CI validates that the record remains `QUARANTINED`, cannot replace the
-active pin and cannot authorize paid execution. No provider credential or paid call is
-part of this evidence.
+all 47 registered portable modules ran: 368 tests passed with 11 declared skips, and all
+six Writer-v2 tests passed. The installable package, CLI and portable manifest now agree
+on public version `0.3.1`, closing the public-interface defect in the prior reviewed
+candidate. Relative to `v2026.09.04.6`, this release adds a tracked deployment-code
+integrity manifest, persistent release-authorization policy, H3 cross-modal speaker
+binding, native release-audio leveling and stronger provider submission/receipt, ledger,
+opening-anchor and pipeline-reliability checks. Nalu classifies these as candidate
+reliability and paid-boundary semantics that still require mapping and adapter regression
+before promotion; it does not copy the candidate into the active runtime merely because
+upstream tests pass. `configs/qingshan-candidate-audit.json` binds the exact candidate
+tree, registry, portable manifest, CLI surface, Writer contract and registered-test
+result. CI validates that the record remains `QUARANTINED`, cannot replace the active pin
+and cannot authorize paid execution. No provider credential or paid call is part of this
+evidence.
 Daily discovery treats both the active pin and this exact reviewed candidate as covered;
 only a newer, unaudited tag opens a new deduplicated upgrade issue.
-Product commit `3000920f78d7e0d2446f0c99eb8264be6c975762` passed all four jobs in
-GitHub CI run `33822968508`; Universal artifact `9919040824` has GitHub digest
-`sha256:63e2dfe13afc1e5ff84af4ddf86c19a41e2774ab043757f3f454c1322dcaedc8`.
-This evidence closes only `.6` discovery and local reproduction, not candidate promotion,
-real-provider QA or SOP-07.
+The prior `v2026.09.04.6` quarantine evidence remains in repository history at product
+commit `3000920f78d7e0d2446f0c99eb8264be6c975762` and GitHub CI run
+`33822968508`. The current candidate record closes only `v2026.09.05.2` discovery and
+local reproduction until its own whole-tree CI evidence is attached; it does not claim
+candidate promotion, real-provider QA or SOP-07.
 
 Nalu productized two safe `v2026.09.01.7` contracts without copying its runtime into the
 paid path: exact adapter/profile/logical/provider model identity at the final I/O boundary,
