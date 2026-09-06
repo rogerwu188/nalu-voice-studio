@@ -179,6 +179,7 @@ class ProjectExport(BaseModel):
         "nalu.project-export/v21",
         "nalu.project-export/v22",
         "nalu.project-export/v23",
+        "nalu.project-export/v24",
     ] = "nalu.project-export/v23"
     exported_at: str
     payload: dict[str, Any]

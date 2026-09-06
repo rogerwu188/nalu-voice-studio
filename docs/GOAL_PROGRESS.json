@@ -11,7 +11,7 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "da9f829c38570cc9979dbb7efba2c8e8d292bcf2",
+  "observed_head": "97eafcf6836cd0948be65007b8c8d3070fde05fe",
   "last_advanced_at": "2026-09-06T21:23:31Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Runtime service now constructs request from pending story, executes through ledger/transport and persists draft receipts. Two new tests cover interrupted-answer-save recovery with one network call, preserved queue and prompt projection; Ruff passed. Prior full suite 341 passed. Evidence docs/qa/runtime-interactive-writer-2026-09-06.md. Next: backup/privacy treatment of ledger, native endpoint wiring and authentic observed-execution provenance; still no real provider verification."
+    "summary": "Added v24 writer-ledger export/import when execution rows exist; v23 remains for other projects. Imported rows preserve response but quarantine execution and prevent resend. Four backup tests plus 15 service/ledger/audit/library tests and Ruff passed. Evidence docs/qa/writer-execution-backup-2026-09-06.md. Packaged migration/backup and full CI remain open; next is native endpoint wiring and authentic observed-execution provenance."
   },
   "next_action": {
     "sop": "SOP-04",

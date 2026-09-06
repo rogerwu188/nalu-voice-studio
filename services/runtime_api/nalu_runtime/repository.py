@@ -659,6 +659,7 @@ class Repository:
         self.get_project(project_id)
         queries = {
             "projects": ("SELECT * FROM projects WHERE id = ?", (project_id,)),
+            "writer_executions": ("SELECT * FROM writer_executions WHERE project_id = ?", (project_id,)),
             "production_route_decisions": (
                 "SELECT * FROM production_route_decisions WHERE project_id = ?",
                 (project_id,),
@@ -839,8 +840,12 @@ class Repository:
         with self.db.connect() as connection:
             for table, (sql, params) in queries.items():
                 payload[table] = [dict(row) for row in connection.execute(sql, params)]
+        export_version = "nalu.project-export/v24" if payload["writer_executions"] else "nalu.project-export/v23"
+        if not payload["writer_executions"]:
+            payload.pop("writer_executions")
         canonical = encode(payload)
         return ProjectExport(
+            schema_version=export_version,
             exported_at=utc_now(),
             payload=payload,
             payload_sha256=hashlib.sha256(canonical.encode()).hexdigest(),
@@ -850,6 +855,10 @@ class Repository:
         canonical = encode(backup.payload)
         if hashlib.sha256(canonical.encode()).hexdigest() != backup.payload_sha256:
             raise ConflictError("project export digest mismatch")
+        has_writer_executions = backup.schema_version == "nalu.project-export/v24"
+        if has_writer_executions:
+            # v24 adds only the writer ledger; all other table semantics are v23.
+            backup = backup.model_copy(update={"schema_version": "nalu.project-export/v23"})
         allowed_columns = {
             "projects": (
                 "id",
@@ -1445,6 +1454,11 @@ class Repository:
             allowed_columns.pop("asset_consent_records")
         elif backup.schema_version == "nalu.project-export/v2":
             allowed_columns.pop("asset_consent_records")
+        if has_writer_executions:
+            allowed_columns["writer_executions"] = (
+                "project_id", "turn_id", "request_sha256", "state", "response_json",
+                "response_sha256", "started_at", "completed_at",
+            )
         if set(backup.payload) != set(allowed_columns):
             raise ConflictError("project export contains an unsupported table set")
         project_rows = backup.payload["projects"]
@@ -1455,6 +1469,17 @@ class Repository:
         episode_ids = {row.get("id") for row in backup.payload["episodes"]}
         if not isinstance(project_id, str) or not project_id:
             raise ConflictError("project export has an invalid project ID")
+        for execution in backup.payload.get("writer_executions", []):
+            if (execution.get("project_id") != project_id
+                    or not isinstance(execution.get("turn_id"), str) or not execution["turn_id"]
+                    or execution.get("state") not in {"submitting", "completed", "ambiguous"}):
+                raise ConflictError("invalid writer execution in project export")
+            raw = execution.get("response_json")
+            if raw is not None and (not isinstance(raw, str)
+                    or hashlib.sha256(raw.encode()).hexdigest() != execution.get("response_sha256")):
+                raise ConflictError("writer execution response digest mismatch")
+            if execution["state"] == "completed" and raw is None:
+                raise ConflictError("completed writer execution has no response")
         route_rows = backup.payload.get("production_route_decisions", [])
         if backup.schema_version == "nalu.project-export/v23":
             if len(route_rows) > 1:
@@ -2336,6 +2361,11 @@ class Repository:
                         if set(row) != set(columns):
                             raise ConflictError(f"invalid columns in project export table {table}")
                         values = dict(row)
+                        if table == "writer_executions":
+                            # Imported response bytes are retained for review, not
+                            # promoted to locally observed/authenticated execution.
+                            # Quarantine also prevents retrying a formerly in-flight call.
+                            values["state"] = "ambiguous"
                         if table == "production_runs":
                             values["package_path"] = str(
                                 self.db.path.parent
