@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "bcf3a5ca55142c53b96057c8be4adb9a7440368f",
-  "last_advanced_at": "2026-09-06T17:13:03Z",
+  "observed_head": "ebe0500f9e45dff6c79ab4d4cd4ac4d822513dd8",
+  "last_advanced_at": "2026-09-06T17:31:00Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -24,16 +24,19 @@
   },
   "current_checkpoint": {
     "sop": "SOP-05",
-    "status": "IN_PROGRESS",
-    "summary": "Expanded conflict CI 34046986861 passed on bcf3a5c; log and artifact 9993484267 metadata verified. Qingshan latest still matches v2026.09.05.2; vendor and promoted review checks pass. Added fail-closed optimized-Python and source-identity checks to packaged QA, with two passing subprocess tests. Evidence: docs/qa/memory-correction-restart-2026-09-06.md. Native UI acceptance remains open."
+    "status": "BLOCKED",
+    "summary": "Source-bound packaged memory QA passed CI 34047940031, 303 runtime tests. Reviewed all eleven incomplete SOP acceptance gates: remaining native/human, paid-provider, account, signing and release evidence requires external conditions or explicit authority. No concrete new unblocked defect established. See docs/qa/remaining-acceptance-gates-2026-09-06.md; no SOP promoted."
   },
   "next_action": {
     "sop": "SOP-05",
-    "id": "verify-source-bound-memory-qa-and-remaining-gates",
-    "summary": "Verify source-bound memory QA CI and report. Then inspect remaining SOP acceptance gates and identify actual unblocked implementation gaps versus human/paid/account/signing authorization needs; do not keep adding redundant tests as a substitute for blocked real acceptance. Native assistive-access, real-mic, paid-provider and signing gates remain open.",
-    "requires_user_authorization": false
+    "id": "restore-native-access-and-run-correction-acceptance",
+    "summary": "After the user restores macOS Accessibility access and an unlocked session, resume isolated synthetic native memory correction QA. Continue read-only CI/upstream supervision; resume safe development on any concrete newly identified defect. Other real acceptance gates are listed in docs/qa/remaining-acceptance-gates-2026-09-06.md.",
+    "requires_user_authorization": true
   },
-  "waiting_authorization": null,
+  "waiting_authorization": {
+    "id": "macos-assistive-access-native-qa",
+    "requested_action": "Restore Accessibility access for the automation host and keep the Mac unlocked for isolated native QA; do not grant paid API, publication or signing authority implicitly."
+  },
   "blocking_conditions": [
     {
       "id": "paid-realtime-and-provider-qa",
@@ -69,7 +72,7 @@
   "execution_policy": {
     "checkpoint_requires_implementation_tests_native_qa_docs_commit_push_ci_evidence": true,
     "pause_allowed_only_when_all_remaining_items_are_blocked": true,
-    "paused": false,
+    "paused": true,
     "chat_context_is_not_authoritative_progress_storage": true
   },
   "external_write_policy": {

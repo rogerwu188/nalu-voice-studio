@@ -13,6 +13,11 @@ to macOS assistive-access denial; see
 [bounded evidence](qa/memory-correction-restart-2026-09-06.md).
 This checkpoint does not change any SOP completion status.
 
+The 2026-09-06 remaining-gates review is recorded in
+[authorization and acceptance handoff](qa/remaining-acceptance-gates-2026-09-06.md).
+All eleven incomplete SOPs remain incomplete; the next native step needs restored
+macOS assistive access. Synthetic packaged checks cannot replace these gates.
+
 - `TODO`: not started.
 - `IN_PROGRESS`: implementation or QA is incomplete.
 - `WAITING_AUTHORIZATION`: blocked only on an explicit user-controlled action.
