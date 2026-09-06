@@ -50,6 +50,8 @@ take priority over further command polish; this is not only an account blocker.
 Migration 28 and the runtime-owned invocation ledger now have
 [bounded transport-fixture coverage](qa/durable-writer-execution-2026-09-06.md).
 They are not yet a wired or verified real-provider workflow.
+The bounded Hops HTTP transport now has [mock transport/ledger coverage](qa/writer-transport-2026-09-06.md);
+native activation and actual provider acceptance remain open.
 
 2026-09-06 native checkpoints on `4e03c16`, CI
 [34054486473](https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34054486473):
