@@ -687,6 +687,23 @@ MIGRATIONS = (
         );
         """,
     ),
+    (
+        28,
+        "durable_writer_executions",
+        """
+        CREATE TABLE IF NOT EXISTS writer_executions (
+          project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+          turn_id TEXT NOT NULL,
+          request_sha256 TEXT NOT NULL,
+          state TEXT NOT NULL CHECK(state IN ('submitting', 'completed', 'ambiguous')),
+          response_json TEXT,
+          response_sha256 TEXT,
+          started_at TEXT NOT NULL,
+          completed_at TEXT,
+          PRIMARY KEY(project_id, turn_id)
+        );
+        """,
+    ),
 )
 
 

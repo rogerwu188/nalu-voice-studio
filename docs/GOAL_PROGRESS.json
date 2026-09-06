@@ -11,7 +11,7 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "ad2f5c3a713118f16aacd32da1e3430fd7d77f74",
+  "observed_head": "a0f8772b8f8e95d7d6df4f1596054512630f9dbf",
   "last_advanced_at": "2026-09-06T21:23:31Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Fresh e623f12 local suite: 329 passed in 50.08s; goal-progress audit passes with project_complete false. Earlier c02c8ad ARM CI 34060675399 passed Swift tests/build/bundle/rollback, confirming command/recovery compilation; its runtime audit failed before the full-hash fix. Latest full CI and packaged cache-exclusion acceptance remain pending. Evidence docs/qa/interactive-production-preflight-2026-09-06.md and docs/qa/review-episode-recovery-2026-09-06.md."
+    "summary": "Added migration 28 runtime-owned writer invocation ledger. Three fake-transport tests pass for pre-I/O commit, replay, timeout quarantine and concurrent suppression; Ruff passes. No real provider verification claim or native wiring yet. Full suite running. Evidence docs/qa/durable-writer-execution-2026-09-06.md. Next: trusted transport, response validation, local provenance binding and backup/privacy handling before enabling the new path."
   },
   "next_action": {
     "sop": "SOP-04",

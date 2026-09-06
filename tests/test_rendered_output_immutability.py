@@ -3213,7 +3213,7 @@ def test_completed_media_qa_creates_offline_release_package_without_publishing(
         assert restarted_api.get(
             f"/v1/projects/{package['project_id']}/director-strategies"
         ).json() == [result["strategy"]]
-        assert restarted_api.get("/health").json()["schema_version"] == "27"
+        assert restarted_api.get("/health").json()["schema_version"] == "28"
 
     dry_run_path = Path(run["package_path"]).parent / "publication-dry-run-youtube.json"
     tampered = json.loads(dry_run_path.read_text(encoding="utf-8"))

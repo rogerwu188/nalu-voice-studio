@@ -47,6 +47,9 @@ See [preflight evidence and cache-boundary regression](qa/interactive-production
 Important remaining implementation gap: packaged writer execution verification
 is still disabled. [Evidence and next integration](qa/writer-production-integration-gap-2026-09-06.md)
 take priority over further command polish; this is not only an account blocker.
+Migration 28 and the runtime-owned invocation ledger now have
+[bounded transport-fixture coverage](qa/durable-writer-execution-2026-09-06.md).
+They are not yet a wired or verified real-provider workflow.
 
 2026-09-06 native checkpoints on `4e03c16`, CI
 [34054486473](https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34054486473):

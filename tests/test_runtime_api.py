@@ -530,7 +530,7 @@ def test_feedback_review_bundle_is_local_redacted_immutable_and_exported(
     assert bundle["attachments"] == []
     assert bundle["diagnostics"] == {
         "runtime_version": "0.1.0",
-        "schema_version": "27",
+        "schema_version": "28",
         "screen": "family-materials",
     }
     assert bundle["redaction_applied"] is True
@@ -3680,7 +3680,7 @@ def test_database_migration_preserves_existing_database(tmp_path: Path) -> None:
         connection.execute("INSERT INTO legacy_marker VALUES ('preserve-me')")
 
     api = create_app(database_path, tmp_path / "data")
-    assert api.state.repository.db.schema_version() == 27
+    assert api.state.repository.db.schema_version() == 28
     with sqlite3.connect(database_path) as connection:
         marker = connection.execute("SELECT value FROM legacy_marker").fetchone()[0]
         approval_table = connection.execute(
@@ -3732,7 +3732,7 @@ def test_populated_v1_database_upgrades_without_project_loss(tmp_path: Path) -> 
         connection.execute("DELETE FROM schema_migrations WHERE version >= 2")
 
     after = TestClient(create_app(database_path, data_root))
-    assert after.app.state.repository.db.schema_version() == 27
+    assert after.app.state.repository.db.schema_version() == 28
     assert after.get(f"/v1/projects/{project['id']}").json()["title"] == "我的一生"
     assert after.get(f"/v1/episodes/{episode['id']}").json()["approved_script_revision"] == 1
     approvals = after.get(f"/v1/episodes/{episode['id']}/script-approvals").json()
