@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "ebe0500f9e45dff6c79ab4d4cd4ac4d822513dd8",
-  "last_advanced_at": "2026-09-06T17:31:00Z",
+  "observed_head": "6fb578e22bc75539eac5259ee0f55657f19284fe",
+  "last_advanced_at": "2026-09-06T17:42:08Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -24,19 +24,16 @@
   },
   "current_checkpoint": {
     "sop": "SOP-05",
-    "status": "BLOCKED",
-    "summary": "Source-bound packaged memory QA passed CI 34047940031, 303 runtime tests. Reviewed all eleven incomplete SOP acceptance gates: remaining native/human, paid-provider, account, signing and release evidence requires external conditions or explicit authority. No concrete new unblocked defect established. See docs/qa/remaining-acceptance-gates-2026-09-06.md; no SOP promoted."
+    "status": "IN_PROGRESS",
+    "summary": "Native Accessibility actions worked again. Verified synthetic OCR card correction via native paste/save on Universal 75adedc: revision 3 draft/reference-only with original OCR retained in all revisions, no consent granted. Evidence: docs/qa/native-memory-correction-2026-09-06.md. Latest baseline CI 34049134925 succeeded. This is not real voice or signed-candidate acceptance."
   },
   "next_action": {
     "sop": "SOP-05",
-    "id": "restore-native-access-and-run-correction-acceptance",
-    "summary": "After the user restores macOS Accessibility access and an unlocked session, resume isolated synthetic native memory correction QA. Continue read-only CI/upstream supervision; resume safe development on any concrete newly identified defect. Other real acceptance gates are listed in docs/qa/remaining-acceptance-gates-2026-09-06.md.",
-    "requires_user_authorization": true
+    "id": "native-synthetic-privacy-preview-qa",
+    "summary": "Using the isolated synthetic OCR project and verified 75adedc app, inspect the native asset dependency/deletion preview and cancel path. Verify cancel preserves original media, memory revisions and local consent flags. Do not touch user projects or treat this as human privacy/voice acceptance. Check evidence-commit CI first.",
+    "requires_user_authorization": false
   },
-  "waiting_authorization": {
-    "id": "macos-assistive-access-native-qa",
-    "requested_action": "Restore Accessibility access for the automation host and keep the Mac unlocked for isolated native QA; do not grant paid API, publication or signing authority implicitly."
-  },
+  "waiting_authorization": null,
   "blocking_conditions": [
     {
       "id": "paid-realtime-and-provider-qa",
@@ -72,7 +69,7 @@
   "execution_policy": {
     "checkpoint_requires_implementation_tests_native_qa_docs_commit_push_ci_evidence": true,
     "pause_allowed_only_when_all_remaining_items_are_blocked": true,
-    "paused": true,
+    "paused": false,
     "chat_context_is_not_authoritative_progress_storage": true
   },
   "external_write_policy": {

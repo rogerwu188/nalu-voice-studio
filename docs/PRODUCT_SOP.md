@@ -18,6 +18,11 @@ The 2026-09-06 remaining-gates review is recorded in
 All eleven incomplete SOPs remain incomplete; the next native step needs restored
 macOS assistive access. Synthetic packaged checks cannot replace these gates.
 
+Update 2026-09-06T17:42Z: assistive access worked again and isolated native
+text correction/save was verified; see
+[native correction evidence](qa/native-memory-correction-2026-09-06.md).
+Real voice, human privacy and same signed-candidate acceptance remain open.
+
 - `TODO`: not started.
 - `IN_PROGRESS`: implementation or QA is incomplete.
 - `WAITING_AUTHORIZATION`: blocked only on an explicit user-controlled action.
