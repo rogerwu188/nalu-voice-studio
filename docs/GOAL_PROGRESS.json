@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "8af99ac0223b0e0efa60b0942f32a7a4631abf44",
-  "last_advanced_at": "2026-09-06T18:37:44Z",
+  "observed_head": "db83812057a9823ae5076a9a0355d795d14225be",
+  "last_advanced_at": "2026-09-06T18:55:21Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-02",
     "status": "IN_PROGRESS",
-    "summary": "Native bcfc86a artifact 9994834005 verifies responsive credentials sheet and saved-key badge, synthetic provider model save/reopen, invalid model rejection, restoring HopsAPI selections, and consent address/model disclosure with Start disabled before consent. Archive checksum and entitlement verifier pass. CI 34051937128 completed success, all four jobs. No secrets changed, recording or paid calls. Full SOP remains incomplete."
+    "summary": "Native db83812 artifact 9995218616 checksum/signature checks passed, but process 83373 still stalls inside SecItemCopyMatching on Check despite noninteractive policy. Address is HopsAPI and badge becomes saved after interaction. Diagnostic timeout/single-worker guard and regression tests now implemented, syntax/diff checked, awaiting new CI/native QA. No paid calls or secret changes. Full SOP remains incomplete."
   },
   "next_action": {
     "sop": "SOP-02",
     "id": "verify-async-deletion-isolation-and-first-open-credential-state",
-    "summary": "CI 34052638609 all four jobs pass; native 8af99ac confirmation/cancel and referenced-asset no-delete checks pass with unchanged fixture hash (docs/qa/native-asset-dependency-2026-09-06.md). Resolve first-open credentials status freshness and finish native model-advisory result check on running isolated process 82280, port 18769. Inspect asynchronous asset deletion for project-switch contamination and add regression tests before claiming whole flow complete. Provider Realtime details requested asynchronously; no silent model replacement. Full SOP unchanged.",
+    "summary": "Finish observing CI 34053223425, then push diagnostic timeout follow-up and verify its CI and exact native artifact: five-second error, re-enabled check control, duplicate saved-key read suppression, no late provider request. Current 83373 binary is pre-timeout and stuck; replace only with verified new artifact, preserving tmp.gEDfvkaLEc data/port 18769. Then fix first-open badge freshness. Keep provider Realtime capability and all signed-candidate/human QA gates open; no silent model substitution.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

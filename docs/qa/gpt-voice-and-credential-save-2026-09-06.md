@@ -242,3 +242,26 @@ voice operations retain their normal system authorization behavior. No permissio
 is bypassed. Query-policy tests cover the noninteractive diagnostic and retained
 interactive policy; syntax/diff checks pass. Full CI and native denial/success
 paths remain to be verified. Initial stale status display remains a separate item.
+
+### Exact-artifact retest: the wait is still reproducible
+
+`db83812057a9823ae5076a9a0355d795d14225be`, CI `34053223425`, arm64 artifact
+`9995218616`, ZIP SHA-256
+`3e172e80fc4b9448ee9ce13811a2936b7171de5b41b758a1014d8e8aa562ac73`:
+archive checksum and ad-hoc signature/entitlement verification passed. Native
+process 83373, existing isolated data at port 18769, displayed the saved-key badge
+and HopsAPI address, but Check remained disabled. A process sample again showed
+`SecItemCopyMatching` waiting before URLSession, despite the noninteractive flag.
+Therefore the previous change is **not** a verified fix for the diagnostic hang.
+The initial credential badge also required interaction before becoming current.
+No live Realtime acceptance, paid generation, or credential modification occurred.
+
+Follow-up adds a five-second diagnostic-only caller timeout and a shared single
+worker gate. A timed-out system call cannot be forcibly cancelled; until it exits,
+further saved-key diagnostic reads fail promptly without queuing more work. Its
+late result cannot resume the expired request or contact the provider. A user-
+entered draft remains an explicit alternative. Normal credential save and voice
+authorization policies are unchanged. Tests cover success, missing value, errors,
+timeout, duplicate suppression, and a late return followed by a fresh read.
+Syntax and diff checks pass; compilation, CI and exact new native-artifact QA
+remain required. SOP-02 stays IN_PROGRESS; no full-product completion is asserted.
