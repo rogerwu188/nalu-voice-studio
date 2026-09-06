@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "9eb628a5a66cd39a06911f8fc9c1aee9db964373",
-  "last_advanced_at": "2026-09-06T19:26:56Z",
+  "observed_head": "1c31daed182ee2abf01857794e1d4f0de353b0ab",
+  "last_advanced_at": "2026-09-06T19:46:10Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-02",
     "status": "IN_PROGRESS",
-    "summary": "45f76ac first-open credential presence has bounded native evidence and CI 34054894231 passed. Current cancellation checkpoint has Swift broker/coordinator coverage on c13082a (CI 34055471880 still running), browser generation/abort guards on 9eb628a, and ten passing local simulated handshake/replacement tests. Packaged cancellation and real provider voice acceptance remain open."
+    "summary": "c13082a broker/coordinator cancellation passed full CI 34055471880 including universal package gates. Browser guards 9eb628a and ten Node tests aec26a3 pass locally. Native WebKit simulated boundary tests 1c31dae are syntax-checked but not yet executed; next candidate CI must compile/run them. Real voice and packaged manual cancellation acceptance remain open."
   },
   "next_action": {
     "sop": "SOP-02",
     "id": "verify-realtime-cancellation-same-candidate",
-    "summary": "Wait for CI 34055471880 to finish before pushing queued browser fixes/tests, avoiding concurrency cancellation of universal QA. Then verify all ten JS regression cases and compiled Swift tests on the same pushed candidate, followed by packaged cancellation QA. Current isolated 87085 runs older 45f76ac, data tmp.gEDfvkaLEc/18769. Real provider, Keychain user authorization, human QA and signed-release gates remain open.",
+    "summary": "Push queued browser fixes and native WebKit tests now that CI 34055471880 succeeded. Inspect the new main run for ten Node cases and native WebKit Stop/replacement cases on both architectures; fix any failure, then verify packaged cancellation. Current isolated 87085 runs older 45f76ac, data tmp.gEDfvkaLEc/18769. Real provider, Keychain user authorization, human QA and signed-release gates remain open.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

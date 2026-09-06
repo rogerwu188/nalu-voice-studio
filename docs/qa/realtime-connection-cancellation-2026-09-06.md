@@ -2,6 +2,11 @@
 
 SOP-02 stays IN_PROGRESS.
 
+Broker/coordinator commit `c13082ae512eeb94f82eed0bce27a55bd7d7fa6c`
+passed [full CI 34055471880](https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34055471880)
+on 2026-09-06: Runtime, both macOS architectures and Universal package gates.
+That run predates the browser guard and native WebKit test commits below.
+
 The [official WebRTC guide](https://developers.openai.com/api/docs/guides/realtime-webrtc)
 documents client-secret creation followed by a separate SDP call exchange. In
 Nalu, an attempt gate previously discarded a stale returned token, but the broker
