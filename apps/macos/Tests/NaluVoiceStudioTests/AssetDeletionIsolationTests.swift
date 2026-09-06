@@ -94,4 +94,64 @@ final class AssetDeletionIsolationTests: XCTestCase {
         XCTAssertTrue(model.assets.isEmpty)
         XCTAssertEqual(model.messages.last?.text, "本地素材和素材记录已经删除。")
     }
+
+    func testProjectLoadDiscardsResponsesAtEachProjectBoundary() async {
+        for boundary in ["assets", "memory-cards", "library-entities", "seasons"] {
+            let model = model()
+            let sentinel = asset("B-only", project: "B")
+            AssetIsolationProtocol.hook = { request in
+                guard request.url?.path == "/v1/projects/A/\(boundary)" else { return }
+                await MainActor.run {
+                    model.selectedProjectID = "B"
+                    model.assets = [sentinel]
+                }
+            }
+            await model.selectProject("A")
+            XCTAssertEqual(model.selectedProjectID, "B", boundary)
+            XCTAssertEqual(model.assets.map(\.id), ["B-only"], boundary)
+            XCTAssertFalse(AssetIsolationProtocol.paths.contains("/v1/projects/A/director-strategies"))
+        }
+    }
+
+    func testProjectLoadClearsPreviousAssetsBeforeWaiting() async {
+        let model = model()
+        AssetIsolationProtocol.hook = { _ in
+            await MainActor.run {
+                XCTAssertTrue(model.assets.isEmpty)
+                XCTAssertNil(model.selectedEpisodeID)
+            }
+        }
+        await model.selectProject("B")
+        XCTAssertEqual(model.selectedProjectID, "B")
+        XCTAssertTrue(model.assets.isEmpty)
+    }
+
+    func testProjectLoadCannotOverwriteAfterSwitchAwayAndBack() async {
+        let model = model()
+        let sentinel = asset("new-A", project: "A")
+        AssetIsolationProtocol.hook = { request in
+            guard request.url?.path == "/v1/projects/A/assets" else { return }
+            await MainActor.run {
+                model.selectedProjectID = "B"
+                model.selectedProjectID = "A"
+                model.assets = [sentinel]
+            }
+        }
+        await model.selectProject("A")
+        XCTAssertEqual(model.assets.map(\.id), ["new-A"])
+        XCTAssertEqual(AssetIsolationProtocol.paths, ["/v1/projects/A/assets"])
+    }
+
+    func testNewerReloadOfSameProjectSupersedesOldRequest() async {
+        let model = model()
+        let sentinel = asset("fresh-reload", project: "A")
+        AssetIsolationProtocol.hook = { request in
+            guard request.url?.path == "/v1/projects/A/assets",
+                  AssetIsolationProtocol.paths.count == 1 else { return }
+            await model.selectProject("A")
+            await MainActor.run { model.assets = [sentinel] }
+        }
+        await model.selectProject("A")
+        XCTAssertEqual(model.assets.map(\.id), ["fresh-reload"])
+    }
 }

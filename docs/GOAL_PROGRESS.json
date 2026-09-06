@@ -11,7 +11,7 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "5a1994551e2c237a20d6b37e52959a2c65ce7ce0",
+  "observed_head": "680256be3c25c6fee7ea667e257dfa499d858a47",
   "last_advanced_at": "2026-09-06T19:04:08Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
@@ -30,7 +30,7 @@
   "next_action": {
     "sop": "SOP-02",
     "id": "verify-async-deletion-isolation-and-first-open-credential-state",
-    "summary": "Push ab3283d plus native-timeout evidence now CI 34053634282 passed. Observe new CI, obtain its exact arm64 artifact and verify first-open saved badge without interaction, retaining timeout behavior. Current isolated native process 84742 runs 5a19945 with tmp.gEDfvkaLEc data/port 18769. macOS Keychain authorization is user-controlled, never enter passwords or approve automatically. Provider Realtime capability and full signed-candidate/human QA remain open; no model substitution.",
+    "summary": "CI 34054002146 is live for pushed 680256b (first-open badge Bindings). Obtain exact arm64 artifact and verify first-open saved badge without interaction plus retained timeout behavior. Current isolated process 84742 runs 5a19945, data tmp.gEDfvkaLEc/port 18769. While waiting, project-load generation isolation and regression tests were implemented; commit locally, push after current CI finishes, then compiled/native rapid-switch QA required. See qa/project-selection-generation-2026-09-06.md. Keychain authorization stays user-controlled. Realtime capability and signed-candidate/human QA remain open.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

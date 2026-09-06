@@ -546,25 +546,54 @@ final class VoiceInterviewViewModel {
 
     func selectProject(_ projectID: String) async {
         selectedProjectID = projectID
+        // Also supersede a concurrent reload of the same project.
+        projectSelectionGeneration = UUID()
+        let generation = projectSelectionGeneration
+        let isDocumentary = selectedProject?.creativeFormat == "documentary_series"
         pendingVoiceRunCancellationID = nil
         memoryConflictReports = [:]
         publicationLearning = []
         publicationLearningWarning = nil
+        publicationLearningIsLoading = false
+        assets = []
+        memoryCards = []
+        libraryEntities = []
+        documentaryReadiness = nil
+        seasons = []
+        episodes = []
+        episodeProgressByID = [:]
+        selectedEpisodeID = nil
+        scriptRevisions = []
+        scriptContent = ""
+        scriptSummary = ""
+        viewedScriptRevision = nil
+        seasonPlanSummary = ""
+        episodeLogline = ""
+        episodeOutlineSummary = ""
+        productionProgressLastRefreshedAt = nil
+        productionProgressRefreshWarning = nil
         do {
-            assets = try await runtime.listAssets(projectID: projectID)
-            memoryCards = try await runtime.listMemoryCards(projectID: projectID)
-            libraryEntities = try await runtime.listLibraryEntities(projectID: projectID)
-            if selectedProject?.creativeFormat == "documentary_series" {
-                documentaryReadiness = try await runtime.documentaryReadiness(
-                    projectID: projectID
-                )
+            let loadedAssets = try await runtime.listAssets(projectID: projectID)
+            guard projectSelectionGeneration == generation else { return }
+            let loadedMemories = try await runtime.listMemoryCards(projectID: projectID)
+            guard projectSelectionGeneration == generation else { return }
+            let loadedLibrary = try await runtime.listLibraryEntities(projectID: projectID)
+            guard projectSelectionGeneration == generation else { return }
+            if isDocumentary {
+                let readiness = try await runtime.documentaryReadiness(projectID: projectID)
+                guard projectSelectionGeneration == generation else { return }
+                documentaryReadiness = readiness
             } else {
                 documentaryReadiness = nil
             }
-            seasons = try await runtime.listSeasons(projectID: projectID)
-            if let season = seasons.first {
-                episodes = try await runtime.listEpisodes(seasonID: season.id)
+            let loadedSeasons = try await runtime.listSeasons(projectID: projectID)
+            guard projectSelectionGeneration == generation else { return }
+            if let season = loadedSeasons.first {
+                let loadedEpisodes = try await runtime.listEpisodes(seasonID: season.id)
+                guard projectSelectionGeneration == generation else { return }
                 let progress = try await runtime.listEpisodeProgress(seasonID: season.id)
+                guard projectSelectionGeneration == generation else { return }
+                episodes = loadedEpisodes
                 episodeProgressByID = Dictionary(
                     uniqueKeysWithValues: progress.map { ($0.episodeID, $0) }
                 )
@@ -592,8 +621,13 @@ final class VoiceInterviewViewModel {
                 episodeLogline = ""
                 episodeOutlineSummary = ""
             }
+            assets = loadedAssets
+            memoryCards = loadedMemories
+            libraryEntities = loadedLibrary
+            seasons = loadedSeasons
             await refreshPublicationLearning(projectID: projectID)
         } catch {
+            guard projectSelectionGeneration == generation else { return }
             errorMessage = error.localizedDescription
         }
     }
@@ -604,13 +638,14 @@ final class VoiceInterviewViewModel {
     }
 
     private func refreshPublicationLearning(projectID: String) async {
+        let generation = projectSelectionGeneration
         publicationLearningIsLoading = true
         defer {
-            if selectedProjectID == projectID { publicationLearningIsLoading = false }
+            if projectSelectionGeneration == generation { publicationLearningIsLoading = false }
         }
         do {
             let records = try await runtime.publicationLearning(projectID: projectID)
-            guard selectedProjectID == projectID else { return }
+            guard selectedProjectID == projectID, projectSelectionGeneration == generation else { return }
             publicationLearning = records.map { record in
                 PublicationLearningPresentation(
                     record: record,
@@ -621,7 +656,7 @@ final class VoiceInterviewViewModel {
             }
             publicationLearningWarning = nil
         } catch {
-            guard selectedProjectID == projectID else { return }
+            guard selectedProjectID == projectID, projectSelectionGeneration == generation else { return }
             publicationLearning = []
             publicationLearningWarning = "反馈记录暂时无法安全核验；没有触发发布、制作或付费操作。"
         }
