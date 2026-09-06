@@ -25,16 +25,24 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Narrated supplements now queue in SQLite without superseding active answers; native drain honors project generation and FIFO restart ordering. 326 runtime tests pass, Swift parse and API compatibility pass; native concurrent-input QA and compiled tests remain pending. 7d9c490 receipt adapter arm64/runtime CI jobs passed; full run 34059397691 still live. Receipt app artifact 9997030619 downloading via session 96733 to /tmp/nalu-receipt-app.KpcDF6. Currently running app remains 70a9b06 on isolated port 18769. Evidence docs/qa/interactive-supplements-2026-09-06.md."
+    "summary": "7d9c490 full CI 34059397691 succeeded. Receipt app artifact 9997030619 verified and running at /tmp/nalu-receipt-app.KpcDF6/app on 18769. Two synthetic episode scripts reconciled in its actual runtime without approval or provider-execution claims. One real Hops writer request returned HTTP 401 using existing readable Keychain credential; no retries. Await provider access confirmation while continuing safe native/queue/adoption work. Evidence docs/qa/live-writer-authorization-2026-09-06.md."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-interactive-story-writer-and-source-input",
-    "summary": "Source read is verified in downloaded 70a9b06 app. Finish CI 34059397691 receipt adapter, then verify actual configured writer -> adoption -> review. Complete follow-up preservation, provider execution reconciliation, atomic adoption/season binding and production/release. Existing app QA support is tmp.gEDfvkaLEc on 18769. No full SOP completion; do not treat canceled older runs as full CI success.",
+    "summary": "Await Hops HTTP 401 resolution for live writing; do not repeat the recorded attempt automatically. Meanwhile verify queued-supplement CI/native behavior and atomic adoption/season binding. Receipt-enabled app at /tmp/nalu-receipt-app.KpcDF6/app uses tmp.gEDfvkaLEc/18769, with synthetic two-episode receipt QA project prj_5cbd6dab0cec4e7ca756d5f1ddc275ca. Full production/provider reconciliation and release remain open.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
   "blocking_conditions": [
+    {
+      "id": "configured-hops-writer-http-401",
+      "sops": ["SOP-04", "SOP-08"],
+      "requires_user_authorization": true,
+      "continue_other_work": true,
+      "evidence": "docs/qa/live-writer-authorization-2026-09-06.md",
+      "detail": "Existing Keychain credential read successfully; single real Hops chat-completions request returned 401. Await Hops key/account access confirmation, no automatic retry."
+    },
     {
       "id": "paid-realtime-and-provider-qa",
       "sops": ["SOP-02", "SOP-08"],
