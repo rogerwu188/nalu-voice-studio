@@ -114,15 +114,17 @@ actor OpenAIWebResearchClient {
         return try Self.parseResponse(data)
     }
 
-    static func makeRequest(query: String, apiKey: String) throws -> URLRequest {
-        var request = URLRequest(url: try AIServiceEndpoint.current().url("responses"))
+    static func makeRequest(query: String, apiKey: String, configuredModels: AIServiceModels? = nil) throws -> URLRequest {
+        let endpoint = try AIServiceEndpoint.current()
+        let models = try configuredModels?.validated() ?? AIServiceModels.load(for: endpoint)
+        var request = URLRequest(url: endpoint.url("responses"))
         request.httpMethod = "POST"
         request.cachePolicy = .reloadIgnoringLocalCacheData
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.httpBody = try JSONSerialization.data(withJSONObject: [
-            "model": Self.model,
+            "model": models.research,
             "instructions": """
                 你是 Nalu 的只读联网研究员。只回答用户本次查询，不执行下载、登录、购买、
                 发布、上传、发送、删除或其他外部写入。用简短清楚的中文回答，保留事实限定。

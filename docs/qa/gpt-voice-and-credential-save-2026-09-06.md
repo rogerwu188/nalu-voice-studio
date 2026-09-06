@@ -126,3 +126,12 @@ string/integer impostors, nested impostors, non-dictionaries and corrupt/missing
 files. Ruff passes. The same native arm64 artifact now passes the revised
 verifier without the extraction warning. Full CI for the verifier change is
 still required; this does not provide Developer ID/notarization acceptance.
+
+Model-configuration implementation checkpoint: research, Realtime and input
+transcription now have independently validated model IDs scoped to each provider
+address. Request construction uses that selection; Realtime response validation
+compares against the captured requested model rather than a global default.
+No provider selection was silently changed and no generation called. Regression
+tests cover provider isolation/persistence, invalid IDs, request fields and
+response model mismatch. Syntax parsing passes. Native settings editing UI,
+full CI and live capability testing are not yet complete for this checkpoint.

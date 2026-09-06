@@ -186,8 +186,9 @@ struct RealtimeSessionConfiguration {
         ]
     }
 
-    static func requestBody(instructions: String) throws -> Data {
-        try JSONSerialization.data(
+    static func requestBody(instructions: String, models: AIServiceModels = AIServiceModels()) throws -> Data {
+        let selected = try models.validated()
+        return try JSONSerialization.data(
             withJSONObject: [
                 "expires_after": [
                     "anchor": "created_at",
@@ -195,7 +196,7 @@ struct RealtimeSessionConfiguration {
                 ],
                 "session": [
                     "type": "realtime",
-                    "model": model,
+                    "model": selected.realtime,
                     "instructions": instructions,
                     "output_modalities": ["audio"],
                     "max_output_tokens": 512,
@@ -204,7 +205,7 @@ struct RealtimeSessionConfiguration {
                     "audio": [
                         "input": [
                             "transcription": [
-                                "model": "gpt-4o-mini-transcribe",
+                                "model": selected.transcription,
                                 "language": "zh",
                             ],
                             "turn_detection": [
@@ -249,7 +250,7 @@ enum RealtimeAPIContract {
     static let maximumClientSecretLifetime: TimeInterval = 120
     static let maximumClientSecretBytes = 4_096
 
-    static func validatedClientSecret(from data: Data, now: Date = Date()) throws -> String {
+    static func validatedClientSecret(from data: Data, now: Date = Date(), expectedModel: String = RealtimeSessionConfiguration.model) throws -> String {
         guard let envelope = try? JSONDecoder().decode(
             RealtimeClientSecretEnvelope.self,
             from: data
@@ -264,7 +265,7 @@ enum RealtimeAPIContract {
               envelope.expiresAt - now.timeIntervalSince1970 >= minimumClientSecretLifetime,
               envelope.expiresAt - now.timeIntervalSince1970 <= maximumClientSecretLifetime,
               envelope.session.type == "realtime",
-              envelope.session.model == RealtimeSessionConfiguration.model else {
+              envelope.session.model == expectedModel else {
             throw RealtimeVoiceError.invalidSessionResponse
         }
         return trimmedValue
@@ -478,6 +479,7 @@ actor RealtimeSessionBroker {
     }
 
     func createClientSecret(instructions: String, endpoint: AIServiceEndpoint) async throws -> String {
+        let models = try AIServiceModels.load(for: endpoint)
         guard let apiKey = try keychain.secret(for: .openAIRealtime) else {
             throw RealtimeVoiceError.missingCredential
         }
@@ -488,7 +490,7 @@ actor RealtimeSessionBroker {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.httpBody = try RealtimeSessionConfiguration.requestBody(
-            instructions: instructions
+            instructions: instructions, models: models
         )
         let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse else {
@@ -497,7 +499,7 @@ actor RealtimeSessionBroker {
         if let failure = RealtimeVoiceError.forHTTPStatus(http.statusCode) {
             throw failure
         }
-        return try RealtimeAPIContract.validatedClientSecret(from: data)
+        return try RealtimeAPIContract.validatedClientSecret(from: data, expectedModel: models.realtime)
     }
 }
 

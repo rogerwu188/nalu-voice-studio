@@ -29,8 +29,8 @@
   },
   "next_action": {
     "sop": "SOP-02",
-    "id": "verify-provider-connection-check-and-native-settings",
-    "summary": "Native provider address save/reopen and read-only connection succeeded on source 3fdc8c6; all four CI jobs passed. Verify follow-up exact speech-entitlement verifier CI (9 local tests and native bundle verification pass). Next address explicit per-capability model configuration and confirm provider Realtime support: current list has 15 models but lacks existing realtime/research defaults. Never silently substitute models or infer audio support from model-list success. Evidence: docs/qa/gpt-voice-and-credential-save-2026-09-06.md.",
+    "id": "complete-provider-model-settings-native-entry",
+    "summary": "Complete native settings inputs and consent disclosure for provider-scoped research/realtime/transcription model selections. Request-layer implementation and regression tests added, syntax passed; full CI/native QA pending. Do not silently pick replacement models or equate listed-model availability with Realtime or web-search support. Also verify speech-entitlement change CI. Full SOP goal remains unchanged. Evidence: docs/qa/gpt-voice-and-credential-save-2026-09-06.md.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
