@@ -36,3 +36,19 @@ outside confirmed-only results, rejects confirmation of its pre-correction
 revision without creating a receipt, then explicitly confirms the current
 revision. Both original and corrected years remain in revision history.
 All five memory conflict tests passed locally; Ruff and diff checks passed.
+
+Packaged runtime follow-up: `scripts/qa-memory-provenance.py` ran against the
+previously verified Universal candidate `93f962232a22f40c3e172e9b45949d162549e5c2`.
+Real loopback HTTP created synthetic reference-only material, confirmed revision 1,
+corrected it to draft revision 2, exported it, stopped the runtime, and restored
+into a second isolated SQLite/data directory. Exact OCR, revision history and
+old confirmation receipts survived; obsolete confirmation returned 409 and the
+restored card remained outside confirmed-only results. Both owned processes
+stopped and temporary synthetic stores were removed. No user data was used.
+See `packaged-memory-provenance-2026-09-06.json` for runtime binary digest and
+bounded results. This script is now included in Universal CI, pending its first run.
+
+CI correction: run 34044862862 failed the progress-file gate because
+`observed_head` contained a short SHA. Commit
+`3a57c33d3336d83fee9d21a41d2fe1b1930e87e6` repairs the full identity; local audit
+passes. The failure was not a passing runtime/native acceptance result.

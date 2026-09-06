@@ -11,7 +11,7 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "6e3eb68f43ca59be41085b71b92fc8bb678b3bbf",
+  "observed_head": "3a57c33d3336d83fee9d21a41d2fe1b1930e87e6",
   "last_advanced_at": "2026-09-06T16:32:00Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-05",
     "status": "IN_PROGRESS",
-    "summary": "Correction/restart adc21bb passed all four CI jobs in 34043937411. Backup provenance regression committed/pushed as ec2d0e1, focused test passed. Conflict recovery now verifies that resolving a date conflict still requires explicit current-version confirmation; five conflict tests pass locally. Native correction remains unverified after assistive-access denial. Evidence: docs/qa/memory-correction-restart-2026-09-06.md."
+    "summary": "Real packaged 93f9622 runtime memory correction/export/import QA passed with two isolated stores and loopback HTTP; OCR/history preserved, stale approval rejected. Evidence: docs/qa/packaged-memory-provenance-2026-09-06.json. Added reproducible Universal CI step. Prior 34044862862 failed short observed_head gate, corrected by 3a57c33; new CI still required. Native UI acceptance remains open."
   },
   "next_action": {
     "sop": "SOP-05",
-    "id": "packaged-memory-provenance-qa",
-    "summary": "Verify backup/conflict regression CI, then run a bounded synthetic memory correction/export/import scenario against a verified packaged runtime through real loopback HTTP with isolated data; preserve original OCR, revisions and stale-approval rejection. This is packaged runtime QA, not native UI or real-mic acceptance. Native edit QA still requires restored assistive access.",
+    "id": "verify-packaged-memory-ci-evidence",
+    "summary": "Check first Universal CI memory-provenance run and artifact, fix any failure, bind evidence to the exact commit. Then extend packaged rehearsal to conflict-resolution confirmation boundaries. Native edit QA still requires restored assistive access; packaged HTTP is not native UI or real-mic acceptance.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
