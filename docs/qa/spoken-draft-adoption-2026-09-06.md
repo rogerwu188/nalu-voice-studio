@@ -16,3 +16,7 @@ puts a draft into review; it does not approve a script or start paid production.
 XCTest cases cover the accepted variants and rejected intents. Swift parsing and
 diff whitespace validation passed locally. Parsing is not compiled test or
 native microphone evidence; those remain required before acceptance.
+
+Subsequent compiled evidence: `swift test --package-path apps/macos` passed in
+the ARM job of run 34060675399 on c02c8ad (includes the command parser changes).
+This establishes compiled regression coverage, not live microphone acceptance.

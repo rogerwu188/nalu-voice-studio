@@ -15,3 +15,10 @@ response, unchanged existing plans, and cross-season rejection. These tests are
 not evidence of full native script approval or production. The season-create
 step, script revision and receipt reconciliation still form separate steps;
 the whole adoption workflow is not an atomic server transaction.
+
+Compiled ARM evidence: CI run 34060675399, commit
+c02c8ad748a96371de1c39818637d4221c45b862, completed `swift test`, app build,
+release verification, bundle smoke, owner lifetime and upgrade rollback checks
+successfully. The overall run is not green: its runtime progress-audit step
+failed on an abbreviated commit field, subsequently fixed in e623f12.
+Native lost-response interaction remains unverified.

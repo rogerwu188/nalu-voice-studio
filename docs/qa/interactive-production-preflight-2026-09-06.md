@@ -28,3 +28,8 @@ Full suite result: 328 passed, one progress-audit failure caused by the prior
 abbreviated `observed_head`. Corrected that field to a full existing commit and
 reran all six progress-audit tests successfully. Do not label the original full
 run green; a fresh full CI run and packaged verification are still required.
+
+Fresh local rerun on e623f12f9c059245ee8287ec83864ceef5632b60:
+329 tests passed (50.08 seconds); standalone goal-progress audit passed with
+`project_complete: false`. This closes the local abbreviated-commit regression,
+not the pending packaged/cross-platform acceptance.
