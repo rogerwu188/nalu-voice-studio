@@ -87,6 +87,14 @@ Current evidence:
 
 ## SOP-02 · Voice interview and accessible conversation — IN_PROGRESS
 
+- Explicit macOS comfort typography implementation follows the failed native
+  font-transition evidence: main-window semantic text styles now map to bounded
+  point sizes (90%, 100%, 120%, 140%) inherited by controls, transcript, messages
+  and activity labels. Text reflows; the view is not bitmap-scaled. Regression
+  tests require every supported style to grow and invalid stored levels to clamp.
+  This implementation still requires successful CI and measured native growth;
+  the prior failure is not closed merely by source changes.
+
 - Native font-transition defect (2026-09-06): CI `34038401250` passed all four jobs
   for `246188240b3008071a66d340005270d3202d09ac`; QA preference isolation and idle
   primary-button visibility passed. Actual font enlargement did **not** pass:

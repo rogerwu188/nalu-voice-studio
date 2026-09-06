@@ -34,7 +34,7 @@ struct RuntimeStatusBadge: View {
 
     var body: some View {
         Label(state.text, systemImage: state.symbol)
-            .font(.headline)
+            .naluFont(.headline)
             .foregroundStyle(state.color)
             .accessibilityLabel("系统状态：\(state.text)")
             .accessibilityIdentifier(NaluPrimaryAccessibilityID.runtimeStatus)
@@ -75,18 +75,18 @@ struct VoiceActivityStatus: View {
                 .frame(width: 72, height: 38)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("正在录音 · 我在听")
-                        .font(.title3.bold())
+                        .naluFont(.title3, weight: .bold)
                         .foregroundStyle(.red)
                     Text("请继续说；说完后再按一下红色按钮")
                         .foregroundStyle(.secondary)
                 }
             } else {
                 Image(systemName: "arrow.down.circle.fill")
-                    .font(.title)
+                    .naluFont(.title)
                     .foregroundStyle(.blue)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("准备好了 → 按下面的蓝色按钮")
-                        .font(.title3.bold())
+                        .naluFont(.title3, weight: .bold)
                     Text("按钮变红并开始跳动，就代表 Nalu 正在听")
                         .foregroundStyle(.secondary)
                 }

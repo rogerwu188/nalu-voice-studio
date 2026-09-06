@@ -73,7 +73,8 @@ struct ContentView: View {
             sidebar.frame(minWidth: 260, idealWidth: 290, maxWidth: 340)
             interview
         }
-        .dynamicTypeSize(preferredDynamicTypeSize)
+        .naluFont(.body)
+        .environment(\.naluComfortTextLevel, model.comfortPreferences.textLevel)
         .task {
             do {
                 try await RuntimeSupervisor.shared.start()
@@ -181,23 +182,23 @@ struct ContentView: View {
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: 16) {
             Label("Nalu 语音短剧工坊", systemImage: "waveform.circle.fill")
-                .font(.title2.bold())
+                .naluFont(.title2, weight: .bold)
                 .padding(.top, 22)
                 .padding(.horizontal, 18)
             Text("我的短剧项目")
-                .font(.headline)
+                .naluFont(.headline)
                 .padding(.horizontal, 18)
             List(model.projects) { project in
                 Button {
                     Task { await model.selectProject(project.id) }
                 } label: {
                     VStack(alignment: .leading, spacing: 5) {
-                        Text(project.title).font(.headline)
+                        Text(project.title).naluFont(.headline)
                         Text(projectSummary(project))
                             .foregroundStyle(.secondary)
                         if project.archivedAt != nil {
                             Label("已归档", systemImage: "archivebox")
-                                .font(.caption)
+                                .naluFont(.caption)
                                 .foregroundStyle(.secondary)
                         }
                     }
@@ -268,7 +269,7 @@ struct ContentView: View {
         VStack(spacing: 0) {
             HStack {
                 VStack(alignment: .leading) {
-                    Text("和 Nalu 讲故事").font(.title.bold())
+                    Text("和 Nalu 讲故事").naluFont(.title, weight: .bold)
                     RuntimeStatusBadge(status: model.runtimeStatus)
                     if let diagnostics = model.storageDiagnostics {
                         StorageStatusBadge(diagnostics: diagnostics)
@@ -326,7 +327,7 @@ struct ContentView: View {
                         Image(systemName: realtimeVoice.state.systemImage)
                     }
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(realtimeVoice.state.label).font(.headline)
+                        Text(realtimeVoice.state.label).naluFont(.headline)
                         if realtimeVoice.sessionStartedAt != nil {
                             Text(
                                 "本次时长 " + RealtimeSessionLimit.elapsedLabel(
@@ -334,7 +335,7 @@ struct ContentView: View {
                                     limitMinutes: realtimeVoice.sessionLimitMinutes
                                 )
                             )
-                            .font(.caption.monospacedDigit())
+                            .naluFont(.caption, monospacedDigits: true)
                         }
                     }
                     Spacer()
@@ -394,17 +395,17 @@ struct ContentView: View {
                 } label: {
                     HStack(spacing: 14) {
                         Image(systemName: "photo.stack.fill")
-                            .font(.title2)
+                            .naluFont(.title2)
                         VStack(alignment: .leading, spacing: 3) {
                             Text("添加一张照片、手稿或家庭视频")
-                                .font(.headline)
+                                .naluFont(.headline)
                             Text("Nalu 会陪您说明人物、时间和地点，再朗读给您确认归档")
-                                .font(.body)
+                                .naluFont(.body)
                                 .opacity(0.9)
                         }
                         Spacer()
                         Image(systemName: "chevron.right.circle.fill")
-                            .font(.title2)
+                            .naluFont(.title2)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.vertical, 8)
@@ -425,7 +426,7 @@ struct ContentView: View {
                     libraryEditor
                         .padding(.top, 10)
                 }
-                .font(.headline)
+                .naluFont(.headline)
                 .padding(.horizontal, 24)
                 .padding(.vertical, 14)
                 .background(Color.secondary.opacity(0.04))
@@ -440,12 +441,12 @@ struct ContentView: View {
                             } label: {
                                 VStack(alignment: .leading, spacing: 5) {
                                     Text("第 \(episode.episodeNumber) 集")
-                                        .font(.headline)
+                                        .naluFont(.headline)
                                     if let progress = model.episodeProgressByID[episode.id] {
                                         ProgressView(value: Double(progress.progressPercent), total: 100)
                                             .frame(width: 105)
                                         Text("\(progress.currentAction) · \(progress.progressPercent)%")
-                                            .font(.caption)
+                                            .naluFont(.caption)
                                     }
                                 }
                             }
@@ -467,7 +468,7 @@ struct ContentView: View {
                         if let assistantActionStatus = model.assistantActionStatus {
                             HStack(spacing: 12) {
                                 ProgressView()
-                                Text(assistantActionStatus).font(.headline)
+                                Text(assistantActionStatus).naluFont(.headline)
                                 Spacer()
                             }
                             .foregroundStyle(.blue)
@@ -483,12 +484,12 @@ struct ContentView: View {
                         if !model.transcript.isEmpty {
                             VStack(alignment: .leading, spacing: 6) {
                                 Label("正在把您的话记下来", systemImage: "quote.bubble.fill")
-                                    .font(.headline)
+                                    .naluFont(.headline)
                                     .foregroundStyle(.blue)
-                                Text(model.transcript).font(.title3)
+                                Text(model.transcript).naluFont(.title3)
                                 if model.transcriptConfidence > 0 {
                                     Text(model.transcriptConfidence < 0.2 ? "我可能没听清" : "我听清了")
-                                        .font(.caption)
+                                        .naluFont(.caption)
                                         .foregroundStyle(
                                             model.transcriptConfidence < 0.2 ? .orange : .secondary
                                         )
@@ -517,7 +518,7 @@ struct ContentView: View {
             Divider()
             if let planningVoiceLabel = model.planningVoiceLabel {
                 Label("当前语音任务：\(planningVoiceLabel)", systemImage: "waveform.badge.mic")
-                    .font(.headline)
+                    .naluFont(.headline)
                     .foregroundStyle(.blue)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 24)
@@ -529,7 +530,7 @@ struct ContentView: View {
                     model.isListening ? "说完了" : "按一下，然后开始说",
                     systemImage: model.isListening ? "stop.circle.fill" : "mic.circle.fill"
                 )
-                .font(.title2.bold())
+                .naluFont(.title2, weight: .bold)
                 .frame(maxWidth: .infinity, minHeight: 58)
             }
             .buttonStyle(.borderedProminent)
@@ -574,14 +575,14 @@ struct ContentView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Label("本季与分集规划", systemImage: "list.bullet.rectangle.portrait")
-                    .font(.headline)
+                    .naluFont(.headline)
                 Spacer()
                 Text(seasonPlanStatus)
                     .foregroundStyle(seasonPlanIsCurrent ? .green : .orange)
             }
             TextField("用一两句话说明这一季从哪里开始、在哪里结束", text: seasonPlanBinding)
                 .textFieldStyle(.roundedBorder)
-                .font(.title3)
+                .naluFont(.title3)
             HStack {
                 Button("保存季纲") { Task { await model.saveSeasonPlan() } }
                     .buttonStyle(.borderedProminent)
@@ -625,13 +626,13 @@ struct ContentView: View {
             if let episode = selectedEpisode {
                 Divider()
                 Text("第 \(episode.episodeNumber) 集 · \(episode.title)")
-                    .font(.headline)
+                    .naluFont(.headline)
                 if let progress = selectedEpisodeProgress {
                     HStack(spacing: 12) {
                         ProgressView(value: Double(progress.progressPercent), total: 100)
                             .frame(maxWidth: 240)
                         Text("\(progress.progressPercent)% · \(progress.currentAction)")
-                            .font(.headline)
+                            .naluFont(.headline)
                     }
                     Text(progress.explanation)
                         .foregroundStyle(.secondary)
@@ -667,12 +668,12 @@ struct ContentView: View {
                     scriptEditor
                         .padding(.top, 10)
                 }
-                .font(.headline)
+                .naluFont(.headline)
                 DisclosureGroup("跨集连续性与本集交接", isExpanded: $isContinuityExpanded) {
                     continuityEditor
                         .padding(.top, 10)
                 }
-                .font(.headline)
+                .naluFont(.headline)
             }
         }
         .padding(.horizontal, 24)
@@ -683,7 +684,7 @@ struct ContentView: View {
     private var libraryEditor: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("这些是整个项目共用的设定。只有您明确确认的版本，才会进入后面的分集和制作。")
-                .font(.body)
+                .naluFont(.body)
                 .foregroundStyle(.secondary)
             HStack(alignment: .top, spacing: 10) {
                 Picker(
@@ -741,21 +742,21 @@ struct ContentView: View {
                     "还没有项目级设定。可以先从主角、重要地点或旁白声音开始。",
                     systemImage: "books.vertical"
                 )
-                .font(.body)
+                .naluFont(.body)
                 .foregroundStyle(.secondary)
                 .padding(.vertical, 8)
             } else {
                 ForEach(model.libraryEntities) { entity in
                     HStack(alignment: .top, spacing: 12) {
                         Image(systemName: libraryKindIcon(entity.kind))
-                            .font(.title2)
+                            .naluFont(.title2)
                             .foregroundStyle(.blue)
                             .frame(width: 30)
                         VStack(alignment: .leading, spacing: 3) {
                             Text("\(libraryKindLabel(entity.kind)) · \(entity.current.name)")
-                                .font(.headline)
+                                .naluFont(.headline)
                             Text(entity.current.description)
-                                .font(.body)
+                                .naluFont(.body)
                             Label(
                                 entity.confirmedRevision == entity.currentRevision
                                     ? "当前第 \(entity.currentRevision) 版已确认"
@@ -763,7 +764,7 @@ struct ContentView: View {
                                 systemImage: entity.confirmedRevision == entity.currentRevision
                                     ? "checkmark.seal.fill" : "exclamationmark.shield.fill"
                             )
-                            .font(.caption)
+                            .naluFont(.caption)
                             .foregroundStyle(
                                 entity.confirmedRevision == entity.currentRevision ? .green : .orange
                             )
@@ -807,7 +808,7 @@ struct ContentView: View {
                     .foregroundStyle(.secondary)
             }
             TextEditor(text: scriptContentBinding)
-                .font(.body)
+                .naluFont(.body)
                 .frame(minHeight: 110, maxHeight: 180)
                 .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.secondary.opacity(0.3)))
             TextField("给长辈和孩子听的简短摘要", text: scriptSummaryBinding, axis: .vertical)
@@ -862,17 +863,17 @@ struct ContentView: View {
             }
             if !scriptIsLatestViewed {
                 Label("正在查看旧版本；旧版本不能批准，保存会创建一个新的最新版本。", systemImage: "clock.arrow.circlepath")
-                    .font(.caption)
+                    .naluFont(.caption)
                     .foregroundStyle(.orange)
             }
         }
-        .font(.body)
+        .naluFont(.body)
     }
 
     private var continuityEditor: some View {
         VStack(alignment: .leading, spacing: 16) {
             Label(model.continuityStatus, systemImage: continuityStatusIcon)
-                .font(.headline)
+                .naluFont(.headline)
                 .foregroundStyle(continuityStatusColor)
             if model.inheritedContinuity == nil {
                 Text("本季第一集不需要核对上一集。完成本集剧本后，请保存结尾交接卡。")
@@ -888,12 +889,12 @@ struct ContentView: View {
                                     "上一集留下 \(model.continuityHookResolutions.count) 个悬念",
                                     systemImage: "questionmark.bubble.fill"
                                 )
-                                .font(.headline)
+                                .naluFont(.headline)
                                 Text("Nalu 会把选择写进剧本。悬念不能悄悄消失。")
                                     .foregroundStyle(.secondary)
                                 ForEach(model.continuityHookResolutions) { resolution in
                                     VStack(alignment: .leading, spacing: 8) {
-                                        Text(resolution.hook).font(.body.weight(.semibold))
+                                        Text(resolution.hook).naluFont(.body, weight: .semibold)
                                         Picker(
                                             "这一集怎样处理",
                                             selection: Binding(
@@ -999,7 +1000,7 @@ struct ContentView: View {
                     .accessibilityHint("从当前已确认的剧本整理人物、道具、时间和未解悬念，不会自动确认")
                     if selectedEpisode?.status != "script_approved" {
                         Label("请先确认本集剧本，Nalu 才能整理结尾。", systemImage: "lock.fill")
-                            .font(.caption)
+                            .naluFont(.caption)
                             .foregroundStyle(.secondary)
                     }
                     if let proposal = model.continuityExtractionProposal {
@@ -1014,7 +1015,7 @@ struct ContentView: View {
                             systemImage: proposalWasReviewed
                                 ? "checkmark.seal.fill" : "waveform"
                         )
-                        .font(.headline)
+                        .naluFont(.headline)
                         .foregroundStyle(
                             proposalWasReviewed ? .green : .orange
                         )
@@ -1073,7 +1074,7 @@ struct ContentView: View {
                                     ? "朗读结束后，确认按钮会自动亮起。"
                                     : "请先按“朗读本集结尾”。修改任何内容后，需要重新朗读。"
                             )
-                                .font(.caption)
+                                .naluFont(.caption)
                                 .foregroundStyle(.orange)
                         }
                     } else {
@@ -1100,14 +1101,14 @@ struct ContentView: View {
                             "本集已保存 \(model.continuitySnapshots.count) 个历史快照，旧快照不会被覆盖",
                             systemImage: "lock.doc.fill"
                         )
-                        .font(.caption)
+                        .naluFont(.caption)
                         .foregroundStyle(.secondary)
                     }
                 }
                 .padding(.top, 6)
             }
         }
-        .font(.body)
+        .naluFont(.body)
     }
 
     @ViewBuilder
@@ -1128,7 +1129,7 @@ struct ContentView: View {
                 }
                 ForEach(result.conflicts) { conflict in
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(continuityPathLabel(conflict.path)).font(.headline)
+                        Text(continuityPathLabel(conflict.path)).naluFont(.headline)
                         Text("上一集：\(conflict.inheritedValue.readableText)")
                         Text("本集开场：\(conflict.proposedValue.readableText)")
                     }
@@ -1259,14 +1260,14 @@ struct ContentView: View {
             }
             VStack(alignment: .leading, spacing: 12) {
                 Text("不用填写表格")
-                    .font(.title2.bold())
+                    .naluFont(.title2, weight: .bold)
                 Text("您只要选择照片、手稿、录音或家庭视频。Nalu 会在本机识别并建立草稿，再用语音问您缺少的内容。")
-                    .font(.body)
+                    .naluFont(.body)
                 Label(
                     "第一次导入只供理解和核对，不会自动同意用人脸或声音生成画面。",
                     systemImage: "lock.shield.fill"
                 )
-                .font(.callout)
+                .naluFont(.callout)
                 .foregroundStyle(.secondary)
                 Button("选择家庭资料，让 Nalu 整理", systemImage: "plus.rectangle.on.folder") {
                     isAutomaticAssetImport = true
@@ -1287,24 +1288,24 @@ struct ContentView: View {
                 advancedAssetEditor
                     .padding(.top, 12)
             }
-            .font(.headline)
+            .naluFont(.headline)
             .padding(.vertical, 8)
             if model.assets.isEmpty {
                 Text("还没有资料。按上面的蓝色按钮选择一份就可以。")
-                    .font(.body)
+                    .naluFont(.body)
                     .foregroundStyle(.secondary)
             } else {
                 Divider()
                 ForEach(model.assets) { asset in
                     HStack(alignment: .top, spacing: 12) {
                         Image(systemName: assetIcon(asset.kind))
-                            .font(.title2)
+                            .naluFont(.title2)
                             .foregroundStyle(.blue)
                             .frame(width: 28)
                         VStack(alignment: .leading, spacing: 3) {
-                            Text(asset.name).font(.body.bold())
+                            Text(asset.name).naluFont(.body, weight: .bold)
                             Text("\(assetKindLabel(asset.kind)) · \(assetScopeLabel(asset))")
-                                .font(.caption)
+                                .naluFont(.caption)
                                 .foregroundStyle(.secondary)
                             if assetIsBiometricKind(asset.kind) {
                                 Label(
@@ -1312,7 +1313,7 @@ struct ContentView: View {
                                     systemImage: asset.consentGranted
                                         ? "checkmark.shield.fill" : "xmark.shield.fill"
                                 )
-                                .font(.caption)
+                                .naluFont(.caption)
                                 .foregroundStyle(asset.consentGranted ? .green : .red)
                             }
                             if let card = model.memoryCards.first(where: { $0.assetID == asset.id }) {
@@ -1322,12 +1323,12 @@ struct ContentView: View {
                                     systemImage: card.confirmationStatus == "confirmed"
                                         ? "checkmark.seal.fill" : "ear.badge.waveform"
                                 )
-                                .font(.caption)
+                                .naluFont(.caption)
                                 .foregroundStyle(
                                     card.confirmationStatus == "confirmed" ? .green : .orange
                                 )
                                 Text(memoryCardSummary(card))
-                                    .font(.caption)
+                                    .naluFont(.caption)
                                     .foregroundStyle(.secondary)
                                     .lineLimit(2)
                                 if let report = model.memoryConflictReports[card.id], report.blocking {
@@ -1335,7 +1336,7 @@ struct ContentView: View {
                                         "发现 \(report.conflicts.count) 处资料对不上，尚未归档",
                                         systemImage: "exclamationmark.triangle.fill"
                                     )
-                                    .font(.caption.bold())
+                                    .naluFont(.caption, weight: .bold)
                                     .foregroundStyle(.red)
                                     .accessibilityHint("按右侧朗读矛盾，可听取两份资料哪里不同")
                                 }
@@ -1391,7 +1392,7 @@ struct ContentView: View {
                 }
             }
         }
-        .font(.body)
+        .naluFont(.body)
         .onChange(of: assetKind) {
             assetConsentGranted = false
             assetGuardianApproved = false
@@ -1403,7 +1404,7 @@ struct ContentView: View {
     private var advancedAssetEditor: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("这些是专业设置。大多数情况下不需要修改。")
-                .font(.body)
+                .naluFont(.body)
                 .foregroundStyle(.secondary)
             HStack {
                 Picker("资料类型", selection: $assetKind) {
@@ -1457,12 +1458,12 @@ struct ContentView: View {
                 .disabled(!assetImportIsReady)
                 if assetIsBiometric && !assetConsentGranted {
                     Label("人物照片和声音必须先取得明确授权", systemImage: "hand.raised.fill")
-                        .font(.caption)
+                        .naluFont(.caption)
                         .foregroundStyle(.orange)
                 }
             }
         }
-        .font(.body)
+        .naluFont(.body)
     }
 
     @ViewBuilder
@@ -1471,12 +1472,12 @@ struct ContentView: View {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(alignment: .top, spacing: 12) {
                     Image(systemName: "doc.text.magnifyingglass")
-                        .font(.title)
+                        .naluFont(.title)
                         .foregroundStyle(.blue)
                         .frame(width: 34)
                     VStack(alignment: .leading, spacing: 5) {
                         Text("纪录片资料准备")
-                            .font(.title2.bold())
+                            .naluFont(.title2, weight: .bold)
                         Label(
                             report.canPlanChapters
                                 ? "资料已足够开始规划章节"
@@ -1484,7 +1485,7 @@ struct ContentView: View {
                             systemImage: report.canPlanChapters
                                 ? "checkmark.circle.fill" : "exclamationmark.circle.fill"
                         )
-                        .font(.title3.bold())
+                        .naluFont(.title3, weight: .bold)
                         .foregroundStyle(report.canPlanChapters ? .green : .orange)
                     }
                     Spacer()
@@ -1499,24 +1500,24 @@ struct ContentView: View {
                     + "\(report.confirmedNarrativeSourceCount) 份已确认可作为故事依据；"
                     + "\(report.draftOrUnlinkedSourceCount) 份仍需说明或确认。"
                 )
-                .font(.body)
+                .naluFont(.body)
 
                 if report.generatedReenactmentLabelRequired {
                     Label(
                         "这个项目允许少量剧情重现。生成画面必须明确标注“剧情重现”，不能冒充历史影像。",
                         systemImage: "exclamationmark.triangle.fill"
                     )
-                    .font(.body.bold())
+                    .naluFont(.body, weight: .bold)
                     .foregroundStyle(.orange)
                 }
 
                 Divider()
                 VStack(alignment: .leading, spacing: 8) {
                     Text("接下来 Nalu 会这样问")
-                        .font(.headline)
+                        .naluFont(.headline)
                     ForEach(Array(report.nextQuestions.prefix(2)), id: \.self) { question in
                         Label(question, systemImage: "questionmark.bubble")
-                            .font(.body)
+                            .naluFont(.body)
                     }
                 }
 
@@ -1524,7 +1525,7 @@ struct ContentView: View {
                     "现在只开放资料整理和章节规划。纪录片生产线通过真实性与发行检查前，不会开始生成成片。",
                     systemImage: "lock.shield.fill"
                 )
-                .font(.callout)
+                .naluFont(.callout)
                 .foregroundStyle(.secondary)
             }
             .padding(18)
@@ -1534,7 +1535,7 @@ struct ContentView: View {
             HStack(spacing: 12) {
                 ProgressView()
                 Text("正在检查纪录片资料…")
-                    .font(.body)
+                    .naluFont(.body)
             }
             .padding(18)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -1546,11 +1547,11 @@ struct ContentView: View {
         VStack(spacing: 0) {
             HStack(spacing: 14) {
                 Image(systemName: "photo.stack.fill")
-                    .font(.title)
+                    .naluFont(.title)
                     .foregroundStyle(.blue)
                 VStack(alignment: .leading, spacing: 3) {
                     Text("管理家庭资料")
-                        .font(.title2.bold())
+                        .naluFont(.title2, weight: .bold)
                     Text("查看已经归档的资料；专业类型和授权设置在需要时再展开。")
                         .foregroundStyle(.secondary)
                 }
@@ -1573,10 +1574,10 @@ struct ContentView: View {
     private var realtimeConsentSheet: some View {
         VStack(alignment: .leading, spacing: 18) {
             Label("开启自然语音对话", systemImage: "waveform.and.mic")
-                .font(.title2.bold())
+                .naluFont(.title2, weight: .bold)
                 .foregroundStyle(.purple)
             Text("开启后可以像打电话一样交谈：您可以停顿、插话、问问题，Nalu 会先回答，再回到创作流程。")
-                .font(.title3)
+                .naluFont(.title3)
             GroupBox("开启前请您知道") {
                 VStack(alignment: .leading, spacing: 10) {
                     Label("麦克风声音会发送给 OpenAI Realtime 处理", systemImage: "icloud.and.arrow.up")
@@ -1587,7 +1588,7 @@ struct ContentView: View {
                 .padding(.top, 5)
             }
             Toggle("我知道声音会离开这台 Mac，并同意开启这次云端语音会话", isOn: $realtimeCloudConsent)
-                .font(.headline)
+                .naluFont(.headline)
             Picker("本次最长时长", selection: $realtimeSessionLimitMinutes) {
                 ForEach(RealtimeSessionLimit.choices, id: \.self) { minutes in
                     Text("\(minutes) 分钟").tag(minutes)
@@ -1595,11 +1596,11 @@ struct ContentView: View {
             }
             .pickerStyle(.segmented)
             Text("到达上限会自动断开，避免忘记关闭。实际费用由您的 OpenAI 账户用量决定。")
-                .font(.caption)
+                .naluFont(.caption)
                 .foregroundStyle(.secondary)
             if selectedProject?.audienceMode == "child" {
                 Toggle("监护人正在现场，并同意孩子开启这次云端语音会话", isOn: $realtimeGuardianConsent)
-                    .font(.headline)
+                    .naluFont(.headline)
             }
             if !realtimeCredentialIsConfigured {
                 Label("尚未设置 OpenAI Realtime 密钥", systemImage: "key.slash")
@@ -1635,14 +1636,14 @@ struct ContentView: View {
     private var projectDeletionSheet: some View {
         VStack(alignment: .leading, spacing: 18) {
             Label("永久删除本机项目", systemImage: "exclamationmark.triangle.fill")
-                .font(.title2.bold())
+                .naluFont(.title2, weight: .bold)
                 .foregroundStyle(.red)
             if let preview = deletionPreview {
                 Text("将删除“\(preview.projectTitle)”以及 \(preview.assetCount) 个本地素材。")
-                    .font(.title3)
+                    .naluFont(.title3)
                 if preview.productionRunCount > 0 {
                     Text("还包括 \(preview.productionRunCount) 个不可变制作快照和对应工作目录。")
-                        .font(.headline)
+                        .naluFont(.headline)
                         .foregroundStyle(.red)
                     Toggle(
                         "我确认同时删除这些制作快照",
@@ -1653,7 +1654,7 @@ struct ContentView: View {
                     .foregroundStyle(.secondary)
                 TextField("项目名称", text: $projectDeletionConfirmation)
                     .textFieldStyle(.roundedBorder)
-                    .font(.title3)
+                    .naluFont(.title3)
                 HStack {
                     Button("取消", role: .cancel) {
                         isPresentingProjectDeletion = false
@@ -1676,7 +1677,7 @@ struct ContentView: View {
     private var providerCredentialsSheet: some View {
         VStack(alignment: .leading, spacing: 20) {
             Label("模型服务密钥", systemImage: "key.fill")
-                .font(.title2.bold())
+                .naluFont(.title2, weight: .bold)
             Text("密钥只保存在当前 Mac 用户的系统钥匙串中，不写入 SQLite、项目备份、隐私包或 Runtime 启动参数。")
                 .foregroundStyle(.secondary)
             credentialEditor(
@@ -1697,7 +1698,7 @@ struct ContentView: View {
                 configured: openAIRealtimeIsConfigured
             )
             Text("保存密钥不会触发付费调用。明确说“网上搜索”时会为该次查询使用 Responses API；自然语音仍在单独同意后才开启。下载、发布、付款和外部写入必须另行确认。")
-                .font(.caption)
+                .naluFont(.caption)
                 .foregroundStyle(.secondary)
             HStack {
                 Spacer()
@@ -1712,9 +1713,9 @@ struct ContentView: View {
     private var feedbackSheet: some View {
         VStack(alignment: .leading, spacing: 18) {
             Label("告诉 Nalu，怎样才能更好用", systemImage: "ear.badge.waveform")
-                .font(.title2.bold())
+                .naluFont(.title2, weight: .bold)
             Text("可以说哪里看不清、哪里不会用、哪里出错，或者希望增加什么。")
-                .font(.title3)
+                .naluFont(.title3)
             Picker("意见类型", selection: $feedbackCategory) {
                 Text("不好用").tag("usability")
                 Text("出错了").tag("bug")
@@ -1733,7 +1734,7 @@ struct ContentView: View {
                     }
                 )
             )
-            .font(.title3)
+            .naluFont(.title3)
             .frame(minHeight: 130)
             .padding(8)
             .overlay(RoundedRectangle(cornerRadius: 12).stroke(.secondary.opacity(0.4)))
@@ -1759,7 +1760,7 @@ struct ContentView: View {
 
             Toggle("允许脱敏并由 Nalu 自动整理本地审核资料", isOn: $feedbackShareAuthorized)
             Text("Nalu 会替您填写专业审核资料。默认只保存在本机；不会上传照片、视频、声音、密钥，也不会未经审核自动修改程序。")
-                .font(.callout)
+                .naluFont(.callout)
                 .foregroundStyle(.secondary)
             if selectedProject?.audienceMode == "child", feedbackShareAuthorized {
                 Toggle("监护人同意提交这条改进意见", isOn: $feedbackGuardianApproved)
@@ -1767,13 +1768,13 @@ struct ContentView: View {
             if let readiness = model.feedbackReleaseReadiness {
                 VStack(alignment: .leading, spacing: 10) {
                     Label("这条意见的改进进度", systemImage: "checklist")
-                        .font(.headline)
+                        .naluFont(.headline)
                     Text(
                         readiness.readyForAuthorizedRollout
                             ? "发布前证据已齐，但仍未发布。"
                             : "已经记录，不代表已经修好。"
                     )
-                    .font(.title3.bold())
+                    .naluFont(.title3, weight: .bold)
                     .foregroundStyle(readiness.released ? .green : .orange)
                     ForEach(readiness.checks) { check in
                         Label(
@@ -1828,13 +1829,13 @@ struct ContentView: View {
     private var memoryEditorSheet: some View {
         VStack(alignment: .leading, spacing: 16) {
             Label("修改记忆卡", systemImage: "photo.badge.checkmark")
-                .font(.title2.bold())
+                .naluFont(.title2, weight: .bold)
             Text("保存修改会建立新版本，并撤销原来的确认。请重新朗读核对后再归档。")
                 .foregroundStyle(.secondary)
             TextField("记忆卡标题", text: $editingMemoryTitle)
                 .textFieldStyle(.roundedBorder)
             TextEditor(text: $editingMemoryDescription)
-                .font(.title3)
+                .naluFont(.title3)
                 .frame(minHeight: 100)
                 .padding(8)
                 .overlay(RoundedRectangle(cornerRadius: 12).stroke(.secondary.opacity(0.4)))
@@ -1876,7 +1877,7 @@ struct ContentView: View {
     ) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text(credential.label).font(.headline)
+                Text(credential.label).naluFont(.headline)
                 Spacer()
                 Label(
                     configured ? "已存入钥匙串" : "尚未配置",
@@ -1905,11 +1906,11 @@ struct ContentView: View {
             if message.speaker == .user { Spacer(minLength: 80) }
             if message.speaker == .nalu {
                 Image(systemName: "waveform.circle.fill")
-                    .font(.title)
+                    .naluFont(.title)
                     .foregroundStyle(.blue)
             }
             Text((try? AttributedString(markdown: message.text)) ?? AttributedString(message.text))
-                .font(.title3)
+                .naluFont(.title3)
                 .lineSpacing(7)
                 .padding(18)
                 .background(bubbleColor(message), in: RoundedRectangle(cornerRadius: 18))
@@ -1947,15 +1948,6 @@ struct ContentView: View {
 
     private var selectedProject: NaluProject? {
         model.projects.first { $0.id == model.selectedProjectID }
-    }
-
-    private var preferredDynamicTypeSize: DynamicTypeSize {
-        switch model.comfortPreferences.textLevel {
-        case 0: .large
-        case 1: .xLarge
-        case 2: .xxLarge
-        default: .xxxLarge
-        }
     }
 
     private var selectedSeason: NaluSeason? { model.seasons.first }

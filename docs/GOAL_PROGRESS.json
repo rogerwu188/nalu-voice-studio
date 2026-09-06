@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "246188240b3008071a66d340005270d3202d09ac",
-  "last_advanced_at": "2026-09-06T14:18:21Z",
+  "observed_head": "7f62262fe09127283b36dda513f37e9edb523ec3",
+  "last_advanced_at": "2026-09-06T14:37:05Z",
   "last_closed_checkpoint": {
     "id": "native-isolated-project-restart-backup-restore-qa",
     "sop": "SOP-03",
@@ -30,7 +30,7 @@
   "next_action": {
     "sop": "SOP-02",
     "id": "explicit-macos-comfort-font-scaling",
-    "summary": "Fix macOS font scaling: ContentView currently relies on dynamicTypeSize but native greeting size stays identical after level changes. Add explicit comfort typography for conversation and primary controls, automated size-policy tests, then verify actual growth and fixed-button visibility in isolated native QA. Preserve failed before-evidence and do not claim full SOP completion.",
+    "summary": "Explicit comfort point-size policy is implemented across ContentView and activity labels with monotonic/clamping tests. Finish its CI and download the exact new artifact, then measure the same greeting at levels 1 and 3 in isolated QA and verify create/microphone buttons remain visible at minimum window size. Preserve failed before-evidence; implementation alone does not close the defect.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
