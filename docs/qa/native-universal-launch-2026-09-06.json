@@ -1,0 +1,35 @@
+{
+  "schema_version": "nalu.native-universal-launch-qa/v1",
+  "observed_at": "2026-09-06T03:07:14Z",
+  "source_commit": "ca6e56eb4993f8a3947601a2d47ee464f2862f04",
+  "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34007661410",
+  "artifact_id": 9981535248,
+  "artifact_outer_sha256": "e4f2c87714f066671b56f16a1fc1c694f9c297f068d9b3090fa11c80a58682e5",
+  "inner_zip_sha256": "31db3255d84297daa73d2521927c1f9e2bfb18957b13c8635af3c3cbc747df51",
+  "inner_zip_declared_sha256": "31db3255d84297daa73d2521927c1f9e2bfb18957b13c8635af3c3cbc747df51",
+  "bundle_identifier": "studio.nalu.voice",
+  "bundle_version": "0.1.0",
+  "bundle_build": "1",
+  "bundle_architectures": [
+    "arm64",
+    "x86_64"
+  ],
+  "signature": "adhoc",
+  "runtime_health": {
+    "status": "ok",
+    "service": "nalu-runtime",
+    "version": "0.1.0",
+    "sqlite_schema_version": "27",
+    "loopback_port": 8765
+  },
+  "default_project_observed": true,
+  "default_project_title": "未命名故事",
+  "native_process_alive": true,
+  "visual_window_qa": "BLOCKED_MAC_LOCKED",
+  "microphone_permission_qa": "NOT_RUN",
+  "provider_credentials_present": false,
+  "provider_call_performed": false,
+  "paid_call_performed": false,
+  "publication_performed": false,
+  "checkpoint_complete": false
+}

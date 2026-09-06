@@ -349,6 +349,13 @@ Current evidence:
   real function-call, network-loss, session-expiry and provider usage/cost QA;
   VoiceOver/Accessibility Inspector audit; and a clean-account voice-only QA session
   with real permissions.
+- Native launch evidence `docs/qa/native-universal-launch-2026-09-06.json` binds the
+  exact Universal artifact from CI run `34007661410`: the GitHub archive digest matched,
+  the inner ZIP matched its declared SHA-256, the `studio.nalu.voice` arm64+x86_64 app
+  launched, its loopback Runtime returned schema 27 health, and the initial unnamed story
+  project existed. The Mac locked before visible window, scrolling, animated state,
+  attachment and microphone-permission checks, so this is explicitly partial launch
+  evidence and does not satisfy the human/native-window acceptance above.
 
 ## SOP-03 · Multi-project, season and episode planning — IN_PROGRESS
 
