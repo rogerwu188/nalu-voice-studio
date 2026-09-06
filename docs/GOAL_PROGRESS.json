@@ -11,7 +11,7 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "e623f12f9c059245ee8287ec83864ceef5632b60",
+  "observed_head": "ad2f5c3a713118f16aacd32da1e3430fd7d77f74",
   "last_advanced_at": "2026-09-06T21:23:31Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
@@ -29,8 +29,8 @@
   },
   "next_action": {
     "sop": "SOP-04",
-    "id": "connect-interactive-story-writer-and-source-input",
-    "summary": "Await Hops HTTP 401 resolution for live writing; do not repeat recorded attempt automatically. Continue production-preflight validation and newer recovery/command CI. Running cf674a9 app is /tmp/nalu-queue-app.9CBYTS/app using tmp.gEDfvkaLEc/18769. Synthetic project prj_5cbd6dab0cec4e7ca756d5f1ddc275ca has episode one approved, episode two unapproved, zero production runs. Full provider reconciliation and release remain open.",
+    "id": "connect-runtime-owned-writer-execution-evidence",
+    "summary": "Implement authentic runtime-owned durable writer execution evidence or a documented authenticated read-only provider lookup; shipped verifier is currently disabled. Do not mint verified evidence from client JSON or silently enable provider storage. See docs/qa/writer-production-integration-gap-2026-09-06.md. Fake-transport crash/replay integration is unblocked; live Hops QA still awaits 401 resolution. Running cf674a9 app /tmp/nalu-queue-app.9CBYTS/app uses tmp.gEDfvkaLEc/18769; synthetic episode one now has a dry-run preflight, not video.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

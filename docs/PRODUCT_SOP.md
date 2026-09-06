@@ -44,6 +44,9 @@ episode two remained unapproved. Real production gates remain open.
 The approved synthetic episode reaches QingShan local preflight; package
 inspection exposed interview-cache inclusion, now excluded for new packages.
 See [preflight evidence and cache-boundary regression](qa/interactive-production-preflight-2026-09-06.md).
+Important remaining implementation gap: packaged writer execution verification
+is still disabled. [Evidence and next integration](qa/writer-production-integration-gap-2026-09-06.md)
+take priority over further command polish; this is not only an account blocker.
 
 2026-09-06 native checkpoints on `4e03c16`, CI
 [34054486473](https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34054486473):
