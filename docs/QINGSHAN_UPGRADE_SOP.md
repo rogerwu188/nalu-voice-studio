@@ -58,11 +58,16 @@ now the promoted `configs/qingshan-upstream.json` pin. Promotion never authorize
 execution. No provider credential or paid call is part of this evidence.
 Daily discovery treats both the active pin and this exact reviewed candidate as covered;
 only a newer, unaudited tag opens a new deduplicated upgrade issue.
+Promotion product commit `ca6e56eb4993f8a3947601a2d47ee464f2862f04` passed Runtime,
+Apple Silicon, Intel and Universal jobs in GitHub CI run `34007661410`. Runtime QA
+artifact `9981495390` has digest
+`sha256:c09006bbef3d52ff89b0efcb9aa11fd7fe98c5dcb6dd64f5b2e2a025f1b9f9cb`;
+Universal artifact `9981535248` has digest
+`sha256:e4f2c87714f066671b56f16a1fc1c694f9c297f068d9b3090fa11c80a58682e5`.
 The prior `v2026.09.04.6` quarantine evidence remains in repository history at product
 commit `3000920f78d7e0d2446f0c99eb8264be6c975762` and GitHub CI run
-`33822968508`. The current review promotes `v2026.09.05.2`; the promotion checkpoint is
-not closed until its whole-tree Nalu and macOS CI evidence is attached. It does not claim
-real-provider QA or completion of SOP-07.
+`33822968508`. The current review closes the `v2026.09.05.2` promotion checkpoint. It
+does not claim real-provider QA or completion of SOP-07.
 
 Nalu productized two safe `v2026.09.01.7` contracts without copying its runtime into the
 paid path: exact adapter/profile/logical/provider model identity at the final I/O boundary,

@@ -1501,10 +1501,26 @@ Current evidence:
   No provider transport, credential, paid call or publication was used. This closes the
   native registry-ownership checkpoint only, not corrected upstream promotion,
   authorized real-provider QA or SOP-07.
-- Still required before `PASS`: a corrected pinned Qingshan release whose registry
-  integrity and complete registered tests pass, plus authorized real-provider sandbox
-  task/result/receipt evidence. Offline authority and transport doubles are not a paid
-  generation claim.
+- Product commit `ca6e56eb4993f8a3947601a2d47ee464f2862f04`, GitHub CI run
+  `34007661410`: the complete Qingshan `v2026.09.05.2` tracked tree at upstream commit
+  `401111636a2386c7f087d8dd2ff9df5c0cb98455` is now the reviewed active pin. Its 1,852
+  files reproduce the exact upstream tree digest
+  `c829aab6a54ad2fe2a65ff6a134649380087a6573ac6eb38cc6fbdcec5895a7d`;
+  all 69 registry gates are structurally complete, all 66 coded gates are runtime-bound,
+  the package/CLI/portable manifest agree on version `0.3.1`, and the exact registered
+  contract ran 47 modules, 368 portable tests with 11–12 environment-dependent skips,
+  plus six Writer-v2 tests with no failure. Nalu mapped and re-hashed all eight stable
+  adapter capabilities, removed the old nine-defect registry exception, and passed all
+  291 Runtime tests, HTTP/offline/rollback/project-isolation QA, Swift tests, Apple
+  Silicon and Intel builds, bundle smokes and Universal merge. Runtime QA artifact
+  `9981495390` has digest
+  `sha256:c09006bbef3d52ff89b0efcb9aa11fd7fe98c5dcb6dd64f5b2e2a025f1b9f9cb`;
+  Universal artifact `9981535248` has digest
+  `sha256:e4f2c87714f066671b56f16a1fc1c694f9c297f068d9b3090fa11c80a58682e5`.
+  No provider credential, paid request or publication was used. This closes corrected
+  upstream discovery, isolation and promotion, not authorized real-provider QA or SOP-07.
+- Still required before `PASS`: authorized real-provider sandbox task/result/receipt
+  evidence. Offline authority and transport doubles are not a paid generation claim.
 
 ## SOP-08 · Production jobs, progress, cancellation and recovery — IN_PROGRESS
 
