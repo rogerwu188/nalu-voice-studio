@@ -2,6 +2,12 @@ import XCTest
 @testable import NaluVoiceStudio
 
 final class AssistantActionExecutorTests: XCTestCase {
+    func testSuppliedSourceURLRoutesToReadingWithoutSearchKeywords() {
+        XCTAssertEqual(AssistantActionRouter.sourceURL(in: "用 https://example.com/book，这是资料"), "https://example.com/book")
+        XCTAssertEqual(AssistantActionRouter.route("https://example.com/book"), .webResearch(query: "https://example.com/book"))
+        XCTAssertNil(AssistantActionRouter.sourceURL(in: "我想讲海边的故事"))
+    }
+
     func testRoutesExplicitOnlineResearchWithoutMutatingInterview() {
         XCTAssertEqual(
             AssistantActionRouter.route("请在网上搜索青山短剧生产线的项目主页"),

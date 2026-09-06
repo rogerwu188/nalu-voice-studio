@@ -180,6 +180,16 @@ actor RuntimeClient {
         try await get("v1/projects/\(projectID)/interactive-story")
     }
 
+    func readSourceText(projectID: String, url: String) async throws -> PublicSourceText {
+        var components = URLComponents(url: baseURL.appending(path: "v1/projects/\(projectID)/source-text"), resolvingAgainstBaseURL: false)!
+        components.queryItems = [URLQueryItem(name: "url", value: url)]
+        var request = URLRequest(url: components.url!)
+        request.timeoutInterval = 60
+        let (data, response) = try await authorizedData(for: request)
+        try validate(response, data: data)
+        return try decoder.decode(PublicSourceText.self, from: data)
+    }
+
     func appendStoryInput(projectID: String, input: InteractiveStoryInput) async throws -> InteractiveStoryState {
         try await post("v1/projects/\(projectID)/interactive-story/turns", body: input)
     }

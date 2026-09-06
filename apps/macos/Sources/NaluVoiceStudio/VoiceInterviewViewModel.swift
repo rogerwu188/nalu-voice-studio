@@ -2424,7 +2424,16 @@ final class VoiceInterviewViewModel {
                         )
                         savedRevision = saved.revision
                     }
-                    let result = try await webResearch.research(query)
+                    let result: WebResearchResult
+                    if let sourceURL = AssistantActionRouter.sourceURL(in: query), let projectID {
+                        let source = try await runtime.readSourceText(projectID: projectID, url: sourceURL)
+                        guard let url = URL(string: source.url) else { throw WebResearchError.invalidResponse }
+                        result = WebResearchResult(
+                            answer: "已读取这个网页的文字节选（不是整本书，也未确认改编授权）：\n" + String(source.text.prefix(8000)),
+                            sources: [.init(title: "用户指定网页", url: url)])
+                    } else {
+                        result = try await webResearch.research(query)
+                    }
                     let response = result.conversationText(resumePrompt: resumePrompt)
                     if let projectID, let savedRevision {
                         _ = try await runtime.saveStoryAnswer(

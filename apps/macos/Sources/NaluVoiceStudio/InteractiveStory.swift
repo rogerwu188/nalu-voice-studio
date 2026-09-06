@@ -1,5 +1,12 @@
 import Foundation
 
+struct PublicSourceText: Decodable, Sendable {
+    let url: String
+    let text: String
+    let truncated: Bool
+    let scope: String
+}
+
 struct InteractiveEpisodeDraft: Codable, Equatable, Sendable {
     let episode_number: Int
     let title: String

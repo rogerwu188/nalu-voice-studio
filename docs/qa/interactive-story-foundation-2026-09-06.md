@@ -82,3 +82,24 @@ First-use web lookup now creates a project and saves its query/results there.
 Compound lookup-plus-download/publish requests execute only the read-only lookup
 stage, leaving the protected action unexecuted. Real source retrieval and native
 journey QA are still open. Added restoration tests; local Swift parse passed.
+
+## Supplied URL reading
+
+Implemented a project-bound public HTTPS text reader and connected supplied URLs
+to it in ordinary conversation. It pins a validated public IP while keeping TLS
+hostname verification, rejects private/reserved DNS answers and credentials,
+checks each redirect, accepts only text/HTML and bounds the response/excerpt.
+No account login, paywall bypass, paid service or publication is involved.
+Returned text is labeled as one-page excerpt, not a complete novel or granted
+adaptation rights. Native conversation retains up to 8,000 characters with source
+URL; later writing uses the saved source context.
+
+Real read-only check: user-provided QingShan GitHub repository URL returned
+17,233 extracted characters, `truncated=false`, `single_page_excerpt`, repository
+name present. This proves public page reading, not novel acquisition or adaptation.
+Full local runtime suite **319 passed**; Swift parse, Ruff and OpenAPI compatibility
+passed. Compiled CI for source reader pending. Prior candidate `14b4ed1` has both
+Swift test jobs passing in `34057920337`, arm64 artifact `9996575318` available;
+its remaining jobs were still running. Named-book search service compatibility,
+multi-page import/rights confirmation and real native two-path QA remain open.
+In-flight spoken follow-ups are still a known gap; do not mark them complete.

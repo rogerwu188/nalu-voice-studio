@@ -15,7 +15,7 @@ enum AssistantActionRouter {
         let executionSignals = [
             "网上", "网络上", "上网", "网站", "搜索", "搜一下", "查一下", "查找", "帮我找",
         ]
-        guard executionSignals.contains(where: cleaned.contains) else { return nil }
+        guard executionSignals.contains(where: cleaned.contains) || sourceURL(in: cleaned) != nil else { return nil }
 
         if requiresConfirmation(cleaned) {
             return .requiresConfirmation(description: String(cleaned.prefix(maximumQueryCharacters)))
@@ -28,6 +28,11 @@ enum AssistantActionRouter {
             "下载", "购买", "付款", "下单", "发布", "上传", "发送", "删除", "注册", "登录",
         ]
         return protectedSignals.contains(where: text.contains)
+    }
+
+    static func sourceURL(in text: String) -> String? {
+        guard let range = text.range(of: #"https://[^\s<>"，。！？]+"#, options: .regularExpression) else { return nil }
+        return String(text[range]).trimmingCharacters(in: CharacterSet(charactersIn: "),;。"))
     }
 }
 

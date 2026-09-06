@@ -11,7 +11,7 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "38ec1b1606a5ee97c1c946a0621dad0de9d84d1d",
+  "observed_head": "14b4ed11b7778e4efd72dc163fc0231817a74e58",
   "last_advanced_at": "2026-09-06T20:21:42Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
@@ -30,7 +30,7 @@
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-interactive-story-writer-and-source-input",
-    "summary": "Writer metadata/raw response capture and explicit adoption into episode script-review are implemented but need compiled/native verification. Check CI, test real narration -> draft -> adoption -> review; complete provider receipt reconciliation and atomic handoff idempotency. Verify source lookup/content acquisition, restored draft display and season-bound numbering. Continue through real production/QA/release; no SOP is complete from this checkpoint.",
+    "summary": "Check compiled CI and run native narration -> draft -> adoption -> review. Supplied HTTPS URL text reader now works on a real public page and is connected to saved story context; verify named-book search provider and source selection/rights. Complete in-flight follow-up preservation, provider receipt reconciliation, atomic adoption and season numbering, then real production/QA/release. No SOP is complete from these checkpoints.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
