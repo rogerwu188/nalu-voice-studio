@@ -30,7 +30,7 @@
   "next_action": {
     "sop": "SOP-02",
     "id": "verify-realtime-cancellation-same-candidate",
-    "summary": "Push queued browser fixes and native WebKit tests now that CI 34055471880 succeeded. Inspect the new main run for ten Node cases and native WebKit Stop/replacement cases on both architectures; fix any failure, then verify packaged cancellation. Current isolated 87085 runs older 45f76ac, data tmp.gEDfvkaLEc/18769. Real provider, Keychain user authorization, human QA and signed-release gates remain open.",
+    "summary": "Candidate deb9cc01b4b54bb891ee73eadcf18258aae3a1e8 is pushed; CI 34055936631 is live with both architecture Swift test steps and ten-case Node step successful. Inspect individual WebKit test logs after job completion, then full Universal result and packaged cancellation QA. Local 312 Runtime tests pass. Do not push evidence-only followup until this run finishes. Current isolated 87085 runs older 45f76ac, data tmp.gEDfvkaLEc/18769. Real provider, Keychain user authorization, human QA and signed-release gates remain open.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

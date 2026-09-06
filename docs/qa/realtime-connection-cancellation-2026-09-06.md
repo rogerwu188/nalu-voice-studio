@@ -53,3 +53,13 @@ than Node VM. A bounded stage deadline fails instead of hanging if setup breaks.
 Syntax validation passes locally; execution is pending the next macOS CI build.
 This deliberately does not exercise native microphone permission or provider
 transport, so it is not real Realtime acceptance or installed-app manual QA.
+
+## Candidate deb9cc0 verification
+
+[CI 34055936631](https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34055936631)
+is running on `deb9cc01b4b54bb891ee73eadcf18258aae3a1e8`. Both arm64 and x86_64
+Swift test steps have succeeded, as has the ten-case Node test step. Full jobs,
+Universal packaging and individual WebKit test log inspection are still pending.
+The same clean local source passed all **312 Runtime tests** in 45.26 seconds;
+two existing dependency deprecation warnings remain. None of these simulated
+checks closes the real voice or signed release acceptance gates.
