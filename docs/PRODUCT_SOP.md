@@ -110,6 +110,10 @@ real model/frame/video/master/release and full accessibility acceptance remain o
 The [pinned QingShan image HTTP transport](qa/giggle-image-transport-2026-09-06.md)
 now has bounded mock-network coverage. It is not exposed for paid use until
 persistent image intents, upstream gates and cost approvals are integrated.
+The [durable image submission service](qa/durable-image-submission-2026-09-06.md)
+now preserves intents/receipts across restart and rejects automatic replay after
+uncertainty in mocked integration tests. Concrete image authority, native
+activation and actual generated frames remain incomplete.
 
 2026-09-06 native checkpoints on `4e03c16`, CI
 [34054486473](https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34054486473):

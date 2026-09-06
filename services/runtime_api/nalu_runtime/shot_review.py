@@ -68,7 +68,9 @@ class ShotReviewService:
                 return self.repository.get_run_event(latest["id"])
             if latest["id"] != source_id or plan_sha != request.expected_plan_sha256:
                 raise ConflictError("shot plan changed; reload before confirming")
-            if any(row["event_type"] in {"video_estimate_reserved", "video_task_prepared"} for row in events):
+            if any(row["event_type"] in {"video_estimate_reserved", "video_task_prepared",
+                                        "image_submit_intent", "image_submit_unconfirmed",
+                                        "image_task_submitted"} for row in events):
                 raise ConflictError("shot preparation has started; reconcile downstream tasks before changing the plan")
             if db.execute("SELECT 1 FROM remote_task_bindings WHERE run_id = ? LIMIT 1", (run_id,)).fetchone():
                 raise ConflictError("provider task exists; do not overwrite its creative source")

@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "66e743392733f3b9cf021ee1bb6c75c22abb620a",
-  "last_advanced_at": "2026-09-06T23:44:52Z",
+  "observed_head": "afe54533e998edc33fe06fcb10f96d1de53a1402",
+  "last_advanced_at": "2026-09-06T23:47:39Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Pinned QingShan text/image-to-image HTTP transport implemented with fixed endpoints, exact hash authorization callback and bounded secret-safe responses. Full regression 442 passed in 58.90s; Ruff passed. Evidence docs/qa/giggle-image-transport-2026-09-06.md. Implementation CI/live provider unverified; prior evidence CI 34067607241 in progress. No public paid route: persistent image intent/approval integration still required. Candidate 026dac2 native synthetic review and four-job CI remain the previous verified checkpoint, not full SOP completion."
+    "summary": "Durable image submission records intent before HTTP and reuses observations after restart; downstream image intents also lock shot-plan edits. Full local regression 451 passed; affected image/shot suite 19 passed after lock change, Ruff passed. Evidence docs/qa/durable-image-submission-2026-09-06.md. Mandatory concrete authority/native integration and current checkpoint CI remain pending. Prior image transport afe5453 CI 34067785303 in progress at observation; native QA evidence commit 66e7433 CI 34067607241 succeeded. No actual provider image generation or billing verified."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Connect the image transport to runtime-owned durable image intents, exact reviewed-cost approval and QingShan scope/entry-state contracts; then safe task polling/media retrieval, frame QA/lock and native activation. Do not expose the raw transport as an ungated paid route. Continue professional video compilation and real source/story-to-master/release. QA app/support/port remain in packaged-shot-review evidence; no repeat of quarantined Hops attempt.",
+    "summary": "Wire concrete reviewed image requests/cost approval and QingShan scope/entry-state/reference consent checks into the now-durable image submission service. Then add saved image task polling, safe result retrieval, visual frame lock and native activation. Do not expose synthetic or caller-supplied approval callbacks. Continue full video compilation and real story/source-to-master/release; preserve existing isolated QA app and quarantined Hops attempt.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

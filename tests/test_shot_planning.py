@@ -117,11 +117,15 @@ def test_approved_script_to_durable_shot_plan(tmp_path, case):
         reopened = TestClient(create_app(db_path, tmp_path / "data", writer_http_transport=httpx.MockTransport(serve)))
         assert reopened.get(current_url).json()["id"] == approved["id"]
         assert reopened.post(confirm_url, json=confirm).json()["id"] == approved["id"]
-        reopened.app.state.repository.append_run_event_once(run.id, "video_task_prepared", dedupe_key="test_id",
-            dedupe_value="synthetic-downstream", message="Synthetic downstream lock", payload={"test_id": "synthetic-downstream"})
-        assert reopened.post(endpoint + f"/{approved['id']}/review", json={
-            **edit, "expected_plan_sha256": approved["payload"]["plan_sha256"]}).status_code == 409
-        assert reopened.get(current_url).json()["id"] == approved["id"]
+        for kind in ("video_task_prepared", "image_submit_intent", "image_submit_unconfirmed", "image_task_submitted"):
+            reopened.app.state.repository.append_run_event_once(run.id, kind, dedupe_key="test_id",
+                dedupe_value="synthetic-downstream", message="Synthetic downstream lock", payload={"test_id": "synthetic-downstream"})
+            assert reopened.post(endpoint + f"/{approved['id']}/review", json={
+                **edit, "expected_plan_sha256": approved["payload"]["plan_sha256"]}).status_code == 409
+            assert reopened.get(current_url).json()["id"] == approved["id"]
+            # Remove only this synthetic fixture so each downstream state is checked independently.
+            with reopened.app.state.repository.db.connect() as db:
+                db.execute("DELETE FROM run_events WHERE run_id=? AND event_type=?", (run.id, kind))
         assert len(calls) == 1  # All local review/edit/confirmation operations are model-free.
     else:
         assert second.status_code in {409, 502}
