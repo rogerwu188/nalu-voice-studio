@@ -129,6 +129,23 @@ class ShotPlanningService:
         raw = WriterExecution(self.repository.db).execute(run.project_id, execution_id, body,
                                                          destination=transport.endpoint, transport=transport)
         root, plan = parse_plan(raw)
+        tasks = self.tasks_for_plan(plan, episode, script, assets)
+        current = self.repository.get_episode(episode.id)
+        if (current.approved_script_revision != episode.approved_script_revision
+                or current.target_seconds != episode.target_seconds
+                or self._package(run).get("package_sha256") != package_sha):
+            raise ConflictError("episode changed while planning; saved response is not adopted")
+        record = {"plan": plan.model_dump(), "tasks": tasks, "production_package_sha256": package_sha,
+                  "script_revision": episode.approved_script_revision, "execution_id": execution_id,
+                  "request_sha256": hashlib.sha256(body).hexdigest(), "response_sha256": hashlib.sha256(raw).hexdigest(),
+                  "provider_task_id": root["id"], "model": root["model"],
+                  "approved": False, "frames_generated": False, "generation_performed": False}
+        record["plan_sha256"] = digest(record)
+        return self.repository.append_run_event_once(run_id, "shot_plan_drafted", dedupe_key="plan_sha256",
+            dedupe_value=record["plan_sha256"], message="AI shot plan saved for review; no image or video generated.", payload=record)
+
+    @staticmethod
+    def tasks_for_plan(plan, episode, script, assets):
         if sum(shot.duration_seconds for shot in plan.shots) != episode.target_seconds:
             raise ConflictError("shot durations do not cover the approved episode duration")
         known_assets = {a["id"] for a in assets}
@@ -146,16 +163,4 @@ class ShotPlanningService:
                           "previous_task_key": tasks[-1]["task_key"] if shot.transition == "continuous" else None,
                           "state": "awaiting_plan_review_and_frame"})
             cursor += shot.duration_seconds
-        current = self.repository.get_episode(episode.id)
-        if (current.approved_script_revision != episode.approved_script_revision
-                or current.target_seconds != episode.target_seconds
-                or self._package(run).get("package_sha256") != package_sha):
-            raise ConflictError("episode changed while planning; saved response is not adopted")
-        record = {"plan": plan.model_dump(), "tasks": tasks, "production_package_sha256": package_sha,
-                  "script_revision": episode.approved_script_revision, "execution_id": execution_id,
-                  "request_sha256": hashlib.sha256(body).hexdigest(), "response_sha256": hashlib.sha256(raw).hexdigest(),
-                  "provider_task_id": root["id"], "model": root["model"],
-                  "approved": False, "frames_generated": False, "generation_performed": False}
-        record["plan_sha256"] = digest(record)
-        return self.repository.append_run_event_once(run_id, "shot_plan_drafted", dedupe_key="plan_sha256",
-            dedupe_value=record["plan_sha256"], message="AI shot plan saved for review; no image or video generated.", payload=record)
+        return tasks

@@ -111,7 +111,16 @@ def test_reserved_shot_dispatch_revalidates_and_posts_once(tmp_path, case, monke
         with ThreadPoolExecutor(max_workers=2) as pool:
             results = list(pool.map(lambda _: api.post(submit_url, headers=headers), range(2)))
         assert all(item.status_code in {200, 409} for item in results)
-        result = next(item for item in results if item.status_code == 200)
+        successful_responses = [item for item in results if item.status_code == 200]
+        # A competing observer may return the durable pre-HTTP uncertainty
+        # marker while the winning request is still running. After joining both
+        # futures, the winner must have submitted; response order is irrelevant.
+        assert all(item.json()["state"] in {"submitted", "ambiguous_charge"} for item in successful_responses)
+        submitted = [item for item in successful_responses if item.json()["state"] == "submitted"]
+        assert submitted, [item.text for item in results]
+        result = submitted[0]
+        binding = api.app.state.repository.get_remote_task_binding(result.json()["id"])
+        assert binding.state == RemoteTaskState.SUBMITTED
     else:
         result = api.post(submit_url, headers=headers)
     if case in {"cancelled", "script_changed", "price_changed", "package_changed", "cancel_during_dispatch"}:

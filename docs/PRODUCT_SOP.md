@@ -94,6 +94,9 @@ Approved episodes now have [durable AI shot-draft planning](qa/episode-shot-plan
 with source, timing, continuity and current-package checks. This is backend/mock
 evidence only; native review, generated entry frames and real production remain
 open, and no SOP status is promoted by this checkpoint.
+Saved plans now support [version-bound local modification and confirmation](qa/shot-plan-review-2026-09-06.md).
+These backend records do not yet establish native interaction or entry-frame/
+video production; confirmation is not spending authorization.
 
 2026-09-06 native checkpoints on `4e03c16`, CI
 [34054486473](https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34054486473):

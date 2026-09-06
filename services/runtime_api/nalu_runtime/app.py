@@ -164,6 +164,7 @@ from .remote_submitter import DurableRemoteTaskSubmitter
 from .repository import ConflictError, NotFoundError, Repository
 from .semantic_recognizer import LocalSemanticRecognizer
 from .shot_planning import ShotPlanningRequest, ShotPlanningService, validate_plan
+from .shot_review import ShotReviewRequest, ShotReviewService
 from .source_reader import read_public_source, source_failure_code
 from .storage_diagnostics import inspect_storage
 from .task_observation_service import TaskObservationService
@@ -1128,6 +1129,14 @@ def create_app(
     @app.post("/v1/production-runs/{run_id}/video-task-preparations", response_model=RunEvent)
     def prepare_video_task(run_id: str, request: VideoPreparationRequest) -> RunEvent:
         return VideoPreparationService(repository).prepare(run_id, request)
+
+    @app.get("/v1/production-runs/{run_id}/shot-plans/current", response_model=RunEvent | None)
+    def current_shot_plan(run_id: str):
+        return ShotReviewService(repository).current(run_id)
+
+    @app.post("/v1/production-runs/{run_id}/shot-plans/{source_id}/review", response_model=RunEvent)
+    def review_shot_plan(run_id: str, source_id: str, request: ShotReviewRequest):
+        return ShotReviewService(repository).review(run_id, source_id, request)
 
     @app.post("/v1/production-runs/{run_id}/shot-plans", response_model=RunEvent)
     def generate_shot_plan(run_id: str, request: ShotPlanningRequest,

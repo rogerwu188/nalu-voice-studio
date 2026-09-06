@@ -8370,6 +8370,136 @@
         "title": "SemanticMediaQARequest",
         "type": "object"
       },
+      "ShotDraft": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Action",
+            "type": "string"
+          },
+          "camera": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Camera",
+            "type": "string"
+          },
+          "dialogue_or_narration": {
+            "maxLength": 4000,
+            "title": "Dialogue Or Narration",
+            "type": "string"
+          },
+          "duration_seconds": {
+            "maximum": 15.0,
+            "minimum": 4.0,
+            "title": "Duration Seconds",
+            "type": "integer"
+          },
+          "entry_state": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Entry State",
+            "type": "string"
+          },
+          "exit_state": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Exit State",
+            "type": "string"
+          },
+          "image_prompt": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Image Prompt",
+            "type": "string"
+          },
+          "reference_asset_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 12,
+            "title": "Reference Asset Ids",
+            "type": "array"
+          },
+          "scene": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Scene",
+            "type": "string"
+          },
+          "sound": {
+            "maxLength": 1000,
+            "title": "Sound",
+            "type": "string"
+          },
+          "source_excerpt": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Source Excerpt",
+            "type": "string"
+          },
+          "transition": {
+            "enum": [
+              "scene_start",
+              "continuous",
+              "time_passage",
+              "cut"
+            ],
+            "title": "Transition",
+            "type": "string"
+          },
+          "video_prompt": {
+            "maxLength": 10000,
+            "minLength": 1,
+            "title": "Video Prompt",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_excerpt",
+          "scene",
+          "duration_seconds",
+          "entry_state",
+          "action",
+          "exit_state",
+          "camera",
+          "dialogue_or_narration",
+          "sound",
+          "image_prompt",
+          "video_prompt",
+          "reference_asset_ids",
+          "transition"
+        ],
+        "title": "ShotDraft",
+        "type": "object"
+      },
+      "ShotPlan": {
+        "additionalProperties": false,
+        "properties": {
+          "shots": {
+            "items": {
+              "$ref": "#/components/schemas/ShotDraft"
+            },
+            "maxItems": 120,
+            "minItems": 1,
+            "title": "Shots",
+            "type": "array"
+          },
+          "summary": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "summary",
+          "shots"
+        ],
+        "title": "ShotPlan",
+        "type": "object"
+      },
       "ShotPlanningRequest": {
         "additionalProperties": false,
         "properties": {
@@ -8385,6 +8515,54 @@
           "model"
         ],
         "title": "ShotPlanningRequest",
+        "type": "object"
+      },
+      "ShotReviewRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "enum": [
+              "revise",
+              "approve"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "confirmation": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Confirmation",
+            "type": "string"
+          },
+          "expected_plan_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Expected Plan Sha256",
+            "type": "string"
+          },
+          "plan": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ShotPlan"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reviewed_by": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Reviewed By",
+            "type": "string"
+          }
+        },
+        "required": [
+          "expected_plan_sha256",
+          "action",
+          "reviewed_by",
+          "confirmation"
+        ],
+        "title": "ShotReviewRequest",
         "type": "object"
       },
       "StorageDiagnostics": {
@@ -13073,6 +13251,111 @@
           }
         },
         "summary": "Generate Shot Plan"
+      }
+    },
+    "/v1/production-runs/{run_id}/shot-plans/current": {
+      "get": {
+        "operationId": "current_shot_plan_v1_production_runs__run_id__shot_plans_current_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/RunEvent"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Current Shot Plan V1 Production Runs  Run Id  Shot Plans Current Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Current Shot Plan"
+      }
+    },
+    "/v1/production-runs/{run_id}/shot-plans/{source_id}/review": {
+      "post": {
+        "operationId": "review_shot_plan_v1_production_runs__run_id__shot_plans__source_id__review_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "source_id",
+            "required": true,
+            "schema": {
+              "title": "Source Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShotReviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunEvent"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Review Shot Plan"
       }
     },
     "/v1/production-runs/{run_id}/tasks/{binding_id}/refresh": {

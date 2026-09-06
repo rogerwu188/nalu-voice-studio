@@ -85,5 +85,43 @@ def test_approved_script_to_durable_shot_plan(tmp_path, case):
     assert len(calls) == 1
     if case in {"ok", "continuous_ok"}:
         assert second.json()["id"] == first.json()["id"]
+        source = first.json()
+        current_url = endpoint + "/current"
+        assert restarted.get(current_url).json()["id"] == source["id"]
+        review_url = endpoint + f"/{source['id']}/review"
+        plan = source["payload"]["plan"]
+        plan["shots"][0]["camera"] = "老人提出修改：从手部特写开始，慢慢拉远"
+        edit = {"expected_plan_sha256": source["payload"]["plan_sha256"], "action": "revise", "plan": plan,
+                "reviewed_by": "QA", "confirmation": "先改第一个镜头"}
+        invalid = json.loads(json.dumps(edit))
+        invalid["plan"]["shots"][0]["source_excerpt"] = "不是本集剧本的内容"
+        assert restarted.post(review_url, json=invalid).status_code == 409
+        modified = restarted.post(review_url, json=edit)
+        assert modified.status_code == 200, modified.text
+        modified = modified.json()
+        assert modified["payload"]["approved"] is False
+        assert modified["payload"]["source_event_id"] == source["id"]
+        assert restarted.post(review_url, json=edit).json()["id"] == modified["id"]
+        confirm = {"expected_plan_sha256": modified["payload"]["plan_sha256"], "action": "approve",
+                   "reviewed_by": "QA", "confirmation": "就按修改后的分镜继续"}
+        confirm_url = endpoint + f"/{modified['id']}/review"
+        assert restarted.post(confirm_url, json={**confirm, "plan": plan}).status_code == 422
+        approved = restarted.post(confirm_url, json=confirm)
+        assert approved.status_code == 200, approved.text
+        approved = approved.json()
+        assert approved["payload"]["approved"] is True
+        assert approved["payload"]["paid_approved"] is False
+        assert approved["payload"]["tasks"][0]["state"] == "awaiting_entry_frame"
+        assert approved["payload"]["plan"]["shots"][0]["camera"] == plan["shots"][0]["camera"]
+        assert restarted.post(review_url, json=edit).status_code == 409
+        reopened = TestClient(create_app(db_path, tmp_path / "data", writer_http_transport=httpx.MockTransport(serve)))
+        assert reopened.get(current_url).json()["id"] == approved["id"]
+        assert reopened.post(confirm_url, json=confirm).json()["id"] == approved["id"]
+        reopened.app.state.repository.append_run_event_once(run.id, "video_task_prepared", dedupe_key="test_id",
+            dedupe_value="synthetic-downstream", message="Synthetic downstream lock", payload={"test_id": "synthetic-downstream"})
+        assert reopened.post(endpoint + f"/{approved['id']}/review", json={
+            **edit, "expected_plan_sha256": approved["payload"]["plan_sha256"]}).status_code == 409
+        assert reopened.get(current_url).json()["id"] == approved["id"]
+        assert len(calls) == 1  # All local review/edit/confirmation operations are model-free.
     else:
         assert second.status_code in {409, 502}

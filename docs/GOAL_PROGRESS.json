@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "14c0212883688c33578e0483348ec39ee1403b37",
-  "last_advanced_at": "2026-09-06T23:18:31Z",
+  "observed_head": "746c56bf1721042cf5d7e6e9d19a3a0427a06dd4",
+  "last_advanced_at": "2026-09-06T23:21:21Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Approved-episode AI shot planning implemented with durable writer invocation, literal source and duration validation, continuity task dependencies and current-package checks. Evidence docs/qa/episode-shot-planning-2026-09-06.md. Full regression 419 passed in 53.72s; Ruff/OpenAPI passed. Native review/entry-frame generation and live E2E remain open. Previous dispatch CI 34066107435 cancelled by newer evidence commit; CI 34066172804 was in progress, not claimed passed. Current planning commit/CI verification pending."
+    "summary": "Local shot-plan read/revise/approve endpoints implemented with atomic version binding, shared source/timing/continuity validation and downstream preparation locks. Evidence docs/qa/shot-plan-review-2026-09-06.md. Full regression 419 passed in 53.61s after fixing an observer-order assumption in the concurrent-dispatch test; production safety unchanged. Ruff/OpenAPI passed. Planning commit 746c56b pushed, CI 34066540063 observed in progress; preceding evidence commit CI 34066172804 passed. Current review checkpoint CI/native QA pending; live generation/master/release remain incomplete."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Connect the saved AI shot draft to native review and concrete entry-frame generation, then full structured video preparation, observed-price approval, dispatch and task polling. Commit and verify current planning regression first. Existing dispatch/planning are mock integration only. Investigate Hops access without repeating quarantined writer invocation; actual source/story-to-video/master/release QA remains open.",
+    "summary": "Wire native selected-episode production view to shot-plan generation/current/review endpoints, using existing local TTS. Add user review/edit/confirmation without JSON forms; bind approved plan to concrete entry-frame generation and structured preparation, price review, dispatch and polling. Commit and verify current review regression first. Real source/story-to-video/master/release QA remains open; do not repeat quarantined Hops writer attempt.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
