@@ -2032,9 +2032,11 @@ final class VoiceInterviewViewModel {
         defer { assistantActionStatus = nil }
         do {
             let result = try await webResearch.research(query)
+            let visibleResult = result.conversationText(resumePrompt: currentInterviewPrompt)
+            messages.append(.init(speaker: .nalu, text: visibleResult))
             return .init(
                 accepted: true,
-                message: result.conversationText(resumePrompt: currentInterviewPrompt),
+                message: "已经完成只读联网查找，详细结果和来源显示在对话中。\(result.answer) 我们再接着刚才的创作。",
                 nextPrompt: currentInterviewPrompt,
                 requiresVisibleConfirmation: false
             )

@@ -44,7 +44,12 @@ struct WebResearchResult: Equatable, Sendable {
         var sections = [answer]
         if !sources.isEmpty {
             let links = sources.prefix(5).map { source in
-                "• [\(source.title)](\(source.url.absoluteString))"
+                let safeTitle = source.title
+                    .replacingOccurrences(of: "[", with: "（")
+                    .replacingOccurrences(of: "]", with: "）")
+                    .replacingOccurrences(of: "(", with: "（")
+                    .replacingOccurrences(of: ")", with: "）")
+                return "• [\(safeTitle)](\(source.url.absoluteString))"
             }
             sections.append("参考来源：\n" + links.joined(separator: "\n"))
         }
