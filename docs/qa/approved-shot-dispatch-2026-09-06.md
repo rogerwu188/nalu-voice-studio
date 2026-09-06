@@ -30,6 +30,11 @@ Validation:
   run, before the final two dispatch cases were added.
 - Ruff and OpenAPI freshness passed. Full regression/CI remain to verify.
 
+Follow-up: full runtime regression on `2bc20f64d28afb7e944b076439ff9824c38b32b9`
+passed 409 tests in 51.31 seconds. Pushed
+[CI 34066107435](https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34066107435)
+was pending at inspection; native/real-provider acceptance is still open.
+
 No real video generation, provider charge, account lookup or publication occurred.
 Native orchestration, actual AI/upstream shot planning and generated entry frames,
 H3/omni, continuous task polling, final media/continuity QA and controlled release

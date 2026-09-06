@@ -11,7 +11,7 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "a394be8bf1a917ff25ef46b0b3ddb0c53dd20e35",
+  "observed_head": "2bc20f64d28afb7e944b076439ff9824c38b32b9",
   "last_advanced_at": "2026-09-06T23:09:25Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Reviewed reservation now dispatches the exact SD2 request through the sole durable submitter, with current script/package/consent/price checks. Eight mock HTTP flow cases passed, including restart, concurrency and cancellation after intent. Source single-invoker regression fixed without weakening its test. Evidence docs/qa/approved-shot-dispatch-2026-09-06.md. No real paid call; native/upstream inputs and full E2E remain open."
+    "summary": "Reviewed SD2 dispatch endpoint implemented with current-context revalidation and sole durable submitter. Commit 2bc20f6 pushed; full regression 409 passed, Ruff/OpenAPI passed; CI 34066107435 pending. Eight mock flow cases include restart, concurrency and cancellation after intent. Evidence docs/qa/approved-shot-dispatch-2026-09-06.md. No real paid call; native/upstream inputs and full E2E remain open."
   },
   "next_action": {
     "sop": "SOP-04",
