@@ -216,6 +216,20 @@ actor RuntimeClient {
         return try decoder.decode(InteractiveStoryState.self, from: data)
     }
 
+    func prepareEpisodeProduction(episodeID: String, approvedRevision: Int) async throws -> ProductionRun {
+        var request = URLRequest(url: baseURL.appending(path: "v1/episodes/\(episodeID)/production-runs"))
+        request.httpMethod = "POST"
+        request.timeoutInterval = 120
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("native-preflight-\(episodeID)-r\(approvedRevision)", forHTTPHeaderField: "Idempotency-Key")
+        request.httpBody = try JSONSerialization.data(withJSONObject: [
+            "dry_run": true, "paid_generation_approved": false,
+        ])
+        let (data, response) = try await authorizedData(for: request)
+        try validate(response, data: data)
+        return try decoder.decode(ProductionRun.self, from: data)
+    }
+
     func createFeedback(_ draft: FeedbackDraft) async throws -> FeedbackItem {
         try await post("v1/feedback", body: draft)
     }

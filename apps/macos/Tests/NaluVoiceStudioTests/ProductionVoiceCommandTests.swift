@@ -2,6 +2,14 @@ import XCTest
 @testable import NaluVoiceStudio
 
 final class ProductionVoiceCommandTests: XCTestCase {
+    func testStartTargetsCurrentEpisodeWithoutCapturingNegationsOrQuestions() {
+        for phrase in ["开始本集制作", "请开始本集制作。", "开始制作这一集"] {
+            XCTAssertEqual(ProductionVoiceCommandParser.parse(phrase, awaitingPauseConfirmation: false), .requestStart)
+        }
+        for phrase in ["不要开始本集制作", "开始本集制作吗", "他说开始本集制作", "开始制作全部集"] {
+            XCTAssertNil(ProductionVoiceCommandParser.parse(phrase, awaitingPauseConfirmation: false))
+        }
+    }
     func testBarePauseStillBelongsToInterviewFlow() {
         XCTAssertNil(
             ProductionVoiceCommandParser.parse(

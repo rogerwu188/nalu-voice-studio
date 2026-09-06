@@ -1,6 +1,7 @@
 import Foundation
 
 enum ProductionVoiceCommand: Equatable {
+    case requestStart
     case requestPause
     case confirmPause
     case cancelPause
@@ -26,6 +27,11 @@ enum ProductionVoiceCommandParser {
                 return .confirmPause
             }
             return .clarifyPause
+        }
+
+        if ["开始本集制作", "开始这一集制作", "开始制作这一集", "请开始本集制作",
+            "帮我开始本集制作", "准备本集制作"].contains(normalized) {
+            return .requestStart
         }
 
         if containsAny(

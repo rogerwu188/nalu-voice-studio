@@ -2581,6 +2581,37 @@ final class VoiceInterviewViewModel {
         ) else { return nil }
 
         switch command {
+        case .requestStart:
+            guard let episodeID = selectedEpisodeID,
+                  let episode = episodes.first(where: { $0.id == episodeID }),
+                  let seasonID = episode.seasonID,
+                  let revision = episode.approvedScriptRevision else {
+                return "请先选择这一集并确认剧本，再说“开始本集制作”。您的故事和草稿都保留着。"
+            }
+            guard productionRunActionInProgress == nil else {
+                return "正在处理这次制作请求，请稍等，不会重复提交。"
+            }
+            productionRunActionInProgress = episodeID
+            let generation = projectSelectionGeneration
+            Task {
+                defer { productionRunActionInProgress = nil }
+                do {
+                    let run = try await runtime.prepareEpisodeProduction(
+                        episodeID: episodeID, approvedRevision: revision)
+                    guard generation == projectSelectionGeneration else { return }
+                    await refreshProductionProgress(seasonID: seasonID)
+                    let reply = run.error == nil
+                        ? "本集制作准备已有结果，请看制作进度。现在还没有生成视频或扣费；实际生成需要确认费用。"
+                        : "本集制作准备遇到问题，请看制作进度中的原因。剧本保留，没有扣费。"
+                    messages.append(.init(speaker: .nalu, text: reply))
+                    speechPlayback.speak(reply, rate: comfortPreferences.speechRate)
+                } catch {
+                    guard generation == projectSelectionGeneration else { return }
+                    errorMessage = error.localizedDescription
+                    messages.append(.init(speaker: .nalu, text: "这次制作准备尚未确认成功，剧本没有丢失，也没有提交付费生成。请查看错误提示。"))
+                }
+            }
+            return "开始检查本集剧本和制作素材，暂不扣费。"
         case .requestPause:
             guard let progress = selectedEpisodeProductionProgress else {
                 return "这一集还没有正在运行的制作任务。采访进度没有改变。"
