@@ -322,3 +322,16 @@ accessible; do not treat the prior artifact's badge as this artifact's evidence.
 The main-window screenshot also exposes a separate misleading status: a local
 dry-run preflight fixture says “Nalu 正在工作，没有停”. Inspect progress status
 semantics before claiming that preflight means an active production worker.
+
+### First-open retest after AX recovered
+
+The same exact 680256b native process 85349 subsequently exposed its controls.
+Opening credentials succeeded; the first read returned OpenAI “尚未配置” with
+HopsAPI unchanged. Thus Binding arguments alone did **not** fix the first-open
+defect. It remains unaccepted. AX access is intermittent: another diagnostic
+interaction later returned invalid index, so no new connection result is claimed.
+
+The next change moves the presence refresh from before presentation to the sheet's
+onAppear, after SwiftUI has established the sheet's state observation. It retains
+attribute-only presence lookup and does not read or modify secret values. Syntax
+and diff checks pass; its own CI and first-open native verification remain open.

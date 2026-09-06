@@ -1790,6 +1790,7 @@ struct ContentView: View {
         }
         .padding(28)
         .frame(minWidth: 600, idealWidth: 700, minHeight: 480, idealHeight: 680)
+        .onAppear { refreshCredentialStatus() }
         .onChange(of: openAIRealtimeSecretDraft) { _, _ in connectionCheckMessage = nil }
     }
 
@@ -2471,7 +2472,6 @@ struct ContentView: View {
         apiBaseURLDraft = UserDefaults.standard.string(forKey: AIServiceEndpoint.preferenceKey) ?? AIServiceEndpoint.official
         credentialSaveError = nil
         loadModelDraftForAddress()
-        refreshCredentialStatus()
         seedanceSecretDraft = ""
         minimaxSecretDraft = ""
         openAIRealtimeSecretDraft = ""

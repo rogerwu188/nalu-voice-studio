@@ -30,7 +30,7 @@
   "next_action": {
     "sop": "SOP-02",
     "id": "verify-async-deletion-isolation-and-first-open-credential-state",
-    "summary": "CI 34054002146 has no remaining live jobs; verify final result then push project-load isolation bdb83ce and truthful production-status follow-up with tests. Observe their CI and exact native artifact for project switching and preflight waiting UI. Existing 680256b native process 85349/Runtime 85365 renders but AX windows are empty, so badge-first-open remains unverified. Preserve tmp.gEDfvkaLEc/18769 and user-controlled Keychain authorization. Realtime, human QA and full signed release gates remain open.",
+    "summary": "CI 34054002146 passed. Pushed 4e03c16 CI 34054486473 is live; arm64 Swift tests passed for project-load isolation and truthful production status. Native 680256b process 85349 regained AX access: first-open badge still says unconfigured, so Binding-only fix failed. New onAppear presence-refresh change is local, needs commit/push after live CI and new exact native verification. Preserve tmp.gEDfvkaLEc/18769. Original Realtime, Keychain authorization, human QA and signed-release gates remain open.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
