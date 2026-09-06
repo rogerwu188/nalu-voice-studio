@@ -2,6 +2,29 @@ import XCTest
 @testable import NaluVoiceStudio
 
 final class RuntimeEnvironmentTests: XCTestCase {
+    func testAlternatePortRequiresIsolatedQA() throws {
+        XCTAssertEqual(try RuntimeEndpointConfiguration.port(inherited: [
+            "NALU_LOCAL_QA_PORT": "18766",
+        ]), 8765)
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        var env = [
+            "NALU_ENABLE_LOCAL_QA": "1",
+            "NALU_LOCAL_QA_APPLICATION_SUPPORT": root.path,
+            "NALU_LOCAL_QA_PORT": "18766",
+        ]
+        XCTAssertEqual(try RuntimeEndpointConfiguration.baseURL(inherited: env).absoluteString,
+                       "http://127.0.0.1:18766")
+        for invalid in ["8765", "80", "65536", "018766", " 18766", ""] {
+            env["NALU_LOCAL_QA_PORT"] = invalid
+            XCTAssertThrowsError(try RuntimeEndpointConfiguration.port(inherited: env))
+        }
+        env["NALU_LOCAL_QA_PORT"] = "18766"
+        env["NALU_LOCAL_QA_APPLICATION_SUPPORT"] = "/Users/example/data"
+        XCTAssertThrowsError(try RuntimeEndpointConfiguration.port(inherited: env))
+    }
+
     @MainActor
     func testApplicationTerminationStopsRuntimeSynchronously() {
         let notificationCenter = NotificationCenter()

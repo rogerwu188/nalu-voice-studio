@@ -2,6 +2,31 @@ import AppKit
 import Foundation
 import Observation
 
+enum RuntimeEndpointConfiguration {
+    static let qaPortKey = "NALU_LOCAL_QA_PORT"
+    static func port(inherited: [String: String]) throws -> Int {
+        guard inherited[RuntimeApplicationSupportResolver.localQAFlag] == "1",
+              let raw = inherited[qaPortKey] else { return 8765 }
+        _ = try RuntimeApplicationSupportResolver.resolve(
+            inherited: inherited, defaultURL: URL(fileURLWithPath: "/unused")
+        )
+        guard let port = Int(raw), String(port) == raw,
+              (1024...65535).contains(port), port != 8765 else {
+            throw RuntimeEndpointError.invalidQAPort
+        }
+        return port
+    }
+
+    static func baseURL(inherited: [String: String]) throws -> URL {
+        URL(string: "http://127.0.0.1:\(try port(inherited: inherited))")!
+    }
+}
+
+enum RuntimeEndpointError: LocalizedError {
+    case invalidQAPort
+    var errorDescription: String? { "隔离测试端口必须是 1024 至 65535 之间且不同于 8765 的整数。" }
+}
+
 enum RuntimeStartupPolicy {
     static let pollIntervalMilliseconds: Int64 = 100
     static let maximumWaitSeconds = 180
@@ -160,6 +185,7 @@ final class RuntimeSupervisor {
 
     func start() async throws {
         let inheritedEnvironment = ProcessInfo.processInfo.environment
+        _ = try RuntimeEndpointConfiguration.port(inherited: inheritedEnvironment)
         let localQAEnabled = inheritedEnvironment[
             RuntimeApplicationSupportResolver.localQAFlag
         ] == "1"
@@ -205,6 +231,9 @@ final class RuntimeSupervisor {
             applicationSupport: applicationSupport,
             resources: resources
         )
+        process.environment?["NALU_RUNTIME_PORT"] = String(
+            try RuntimeEndpointConfiguration.port(inherited: inheritedEnvironment)
+        )
         try process.run()
         self.process = process
 
@@ -226,7 +255,10 @@ final class RuntimeSupervisor {
     }
 
     private func runtimeIsHealthy() async -> Bool {
-        guard let url = URL(string: "http://127.0.0.1:8765/health") else { return false }
+        guard let baseURL = try? RuntimeEndpointConfiguration.baseURL(
+            inherited: ProcessInfo.processInfo.environment
+        ) else { return false }
+        let url = baseURL.appending(path: "health")
         var request = URLRequest(url: url)
         request.timeoutInterval = 0.5
         do {

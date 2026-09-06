@@ -9,13 +9,15 @@ actor RuntimeClient {
     private let encoder = JSONEncoder()
 
     init(
-        baseURL: URL = URL(string: "http://127.0.0.1:8765")!,
+        baseURL: URL? = nil,
         session: URLSession? = nil,
         accessCheck: @escaping @Sendable () async -> Bool = {
             await RuntimeSupervisor.shared.ownsReadyRuntime
         }
     ) {
-        self.baseURL = baseURL
+        self.baseURL = baseURL ?? (try? RuntimeEndpointConfiguration.baseURL(
+            inherited: ProcessInfo.processInfo.environment
+        )) ?? URL(string: "http://127.0.0.1:8765")!
         self.accessCheck = accessCheck
         if let session {
             self.session = session

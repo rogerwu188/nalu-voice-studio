@@ -30,7 +30,7 @@
   "next_action": {
     "sop": "SOP-02",
     "id": "critical-controls-native-visual-qa",
-    "summary": "Download the exact Universal artifact from CI run 34017000589 and verify the fixed create and microphone controls at the minimum supported window and enlarged text without disturbing active user data; retain live paid web-search and Realtime execution as authorization-bound evidence.",
+    "summary": "Finish CI for isolated QA port support, then launch its Universal artifact with NALU_ENABLE_LOCAL_QA=1, an existing system-temporary NALU_LOCAL_QA_APPLICATION_SUPPORT directory and NALU_LOCAL_QA_PORT=18766. Verify fixed create and microphone controls at minimum window and enlarged text alongside the existing recording app. Record evidence and continue the next unblocked SOP item.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

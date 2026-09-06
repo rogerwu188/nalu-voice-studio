@@ -87,6 +87,13 @@ Current evidence:
 
 ## SOP-02 · Voice interview and accessible conversation — IN_PROGRESS
 
+Active follow-up: the existing app is still recording on port 8765. The isolated
+native QA launch now accepts `NALU_LOCAL_QA_PORT` only with the local-QA flag and
+an existing system-temporary storage directory. The supervisor, client and bundled
+Runtime use that port consistently; normal launches retain 8765. This enables the
+remaining window checks without terminating the user's session. Targeted Python
+port validation tests pass; macOS compilation and native visual evidence are pending.
+
 Acceptance:
 
 - Push-to-talk and optional local speech recognition.
