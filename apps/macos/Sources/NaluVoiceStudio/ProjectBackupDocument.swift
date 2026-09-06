@@ -11,7 +11,7 @@ enum NativeFileExport {
         let compact = String(replaced)
             .split(whereSeparator: { $0.isWhitespace || $0 == "-" })
             .joined(separator: "-")
-            .trimmingCharacters(in: CharacterSet(charactersIn: ". "))
+            .trimmingCharacters(in: CharacterSet(charactersIn: ".- "))
         let base = compact.isEmpty ? "Nalu项目" : String(compact.prefix(80))
         return "\(base)-\(suffix)"
     }
