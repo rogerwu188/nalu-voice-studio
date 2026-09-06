@@ -8,6 +8,11 @@ enum AssistantActionRequest: Equatable {
 enum AssistantActionRouter {
     static let maximumQueryCharacters = 2_000
 
+    static func requestsSourceWriting(_ text: String) -> Bool {
+        guard !["不要", "先别", "暂不", "只查", "只找"].contains(where: text.contains) else { return false }
+        return ["作为剧本", "生成剧本", "改编成", "写成剧本", "做成短剧"].contains(where: text.contains)
+    }
+
     static func route(_ spoken: String) -> AssistantActionRequest? {
         let cleaned = spoken.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleaned.isEmpty else { return nil }

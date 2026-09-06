@@ -2447,6 +2447,12 @@ final class VoiceInterviewViewModel {
                     assistantActionStatus = nil
                     guard projectSelectionGeneration == generation else { return }
                     messages.append(.init(speaker: .nalu, text: response))
+                    if AssistantActionRouter.requestsSourceWriting(query) {
+                        // Continue the user's existing writing request with the persisted
+                        // source context, without routing it back through web search.
+                        handleInteractiveStoryInput(query)
+                        return
+                    }
                     speechPlayback.speak(
                         "我查到了。\(result.answer) 我们再接着刚才的创作。\(resumePrompt)",
                         rate: comfortPreferences.speechRate

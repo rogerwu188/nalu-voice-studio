@@ -11,7 +11,7 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "a016c80467fee5b474025d34f86c8f94e674c2e7",
+  "observed_head": "0ba42ec6f618371e919744b4935c500ed0b30e65",
   "last_advanced_at": "2026-09-06T20:21:42Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
@@ -30,7 +30,7 @@
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-interactive-story-writer-and-source-input",
-    "summary": "Native synthetic restoration and isolation now observed by activating actual row button. Packaged a016c80 source-text returns 422 for public GitHub despite source-interpreter success; certifi bundle roots and safe error classification implemented, cause not yet proven. Rebuild and repeat real packaged source read first, then real writer -> adoption -> review. Complete follow-up preservation, provider reconciliation, atomic adoption/season binding and production/release. Evidence docs/qa/native-interactive-story-2026-09-06.md; no full SOP completion.",
+    "summary": "Locally rebuilt one-file runtime now returns 200 and 17233 source characters with verified TLS. Download/verify latest CI arm64 app and repeat native source -> writer -> adoption -> review, including the explicit source-writing handoff. CI 34058954511 arm64/runtime passed at observation; full run still pending. Complete follow-up preservation, provider reconciliation, atomic adoption/season binding and production/release. Evidence docs/qa/native-interactive-story-2026-09-06.md; no full SOP completion.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

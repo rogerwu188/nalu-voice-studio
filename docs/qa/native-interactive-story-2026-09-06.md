@@ -49,3 +49,19 @@ not establish the cause. Interpreter-specific TLS root paths are a hypothesis.
 Follow-up explicitly packages certifi roots (verification stays enabled), adds
 safe TLS/DNS/timeout error codes and a trust-root regression test. A rebuilt
 runtime must repeat the actual request before source reading can be called fixed.
+
+Follow-up on `0ba42ec`: rebuilt one-file runtime locally using PyInstaller,
+explicit certifi data collection and unchanged certificate verification. With an
+isolated temporary SQLite store on port 18771 and repository resources, the same
+real public HTTPS read returned HTTP 200, 17,233 characters and
+`single_page_excerpt`. No model call or private source was involved. This is a
+packaged-runtime success, not yet the downloadable CI app's native source QA.
+CI 34058954511 arm64 and runtime jobs passed; remaining jobs were still running
+at this observation. Full runtime suite: 320 passed; subsequent diagnostic tests:
+7 source-reader tests passed, including failure preserving the project.
+
+Source-to-writer handoff now continues explicit requests such as “作为剧本” or
+“改编成” after source context is saved. Lookup-only/negative requests do not
+trigger writing. Swift parsing passed; compiled tests and native provider QA
+remain open. A source excerpt is not claimed to be a whole book or adaptation
+permission, and this change does not approve production or publication.

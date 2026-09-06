@@ -2,6 +2,14 @@ import XCTest
 @testable import NaluVoiceStudio
 
 final class AssistantActionExecutorTests: XCTestCase {
+    func testSourceWritingHandoffRequiresExplicitIntent() {
+        XCTAssertTrue(AssistantActionRouter.requestsSourceWriting("找这个网址，把它作为剧本"))
+        XCTAssertTrue(AssistantActionRouter.requestsSourceWriting("把我的文章改编成三集短剧"))
+        XCTAssertFalse(AssistantActionRouter.requestsSourceWriting("帮我找这个网站"))
+        XCTAssertFalse(AssistantActionRouter.requestsSourceWriting("只查一下，先别生成剧本"))
+        XCTAssertFalse(AssistantActionRouter.requestsSourceWriting("不要改编成短剧"))
+    }
+
     func testSuppliedSourceURLRoutesToReadingWithoutSearchKeywords() {
         XCTAssertEqual(AssistantActionRouter.sourceURL(in: "用 https://example.com/book，这是资料"), "https://example.com/book")
         XCTAssertEqual(AssistantActionRouter.route("https://example.com/book"), .webResearch(query: "https://example.com/book"))

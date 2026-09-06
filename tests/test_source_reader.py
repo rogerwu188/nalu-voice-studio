@@ -46,3 +46,23 @@ def test_source_endpoint_is_project_bound_and_handles_failure(tmp_path, monkeypa
         path = f"/v1/projects/{project}/source-text"
         assert client.get(path, params={"url": "https://example.com"}).json()["text"] == "海边童年"
         assert client.get(path, params={"url": "https://example.com/bad"}).status_code == 422
+
+
+@pytest.mark.parametrize("error,code", [
+    (ssl.SSLCertVerificationError("private diagnostic"), "source_tls_verification_failed"),
+    (socket.gaierror("private diagnostic"), "source_dns_failed"),
+    (TimeoutError("private diagnostic"), "source_timeout"),
+])
+def test_source_failure_is_diagnostic_without_leaking_details(tmp_path, monkeypatch, error, code):
+    def fail(_):
+        raise error
+    monkeypatch.setattr("nalu_runtime.app.read_public_source", fail)
+    with TestClient(create_app(tmp_path / "db", tmp_path / "data")) as client:
+        project = client.post("/v1/projects", json={"title": "原有故事"}).json()["id"]
+        before = client.get(f"/v1/projects/{project}").json()
+        result = client.get(f"/v1/projects/{project}/source-text",
+                            params={"url": "https://example.com"})
+        assert result.status_code == 422
+        assert result.json()["detail"]["code"] == code
+        assert "private diagnostic" not in result.text
+        assert client.get(f"/v1/projects/{project}").json() == before
