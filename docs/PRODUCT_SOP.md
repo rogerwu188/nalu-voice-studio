@@ -34,6 +34,8 @@ See [queue implementation and outstanding native QA](qa/interactive-supplements-
 This is not completed end-to-end writing or production acceptance.
 Spoken draft adoption now tolerates dictation punctuation and explicit polite
 review requests; [test cases and pending native evidence](qa/spoken-draft-adoption-2026-09-06.md).
+Packaged native restoration now has [bounded queue and two-episode evidence](qa/native-queue-restoration-2026-09-06.md);
+it does not establish live model or production success.
 
 2026-09-06 native checkpoints on `4e03c16`, CI
 [34054486473](https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34054486473):

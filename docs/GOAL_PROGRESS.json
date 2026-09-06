@@ -11,7 +11,7 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "3385b4a84b27bf8337f05ec3f81148fe915d8f20",
+  "observed_head": "d65787523caaec99fff41ce716e127ee8e59d2f3",
   "last_advanced_at": "2026-09-06T21:13:06Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Spoken draft-adoption commands now accept dictation punctuation, polite prefixes and explicit put-draft-into-review requests, without accepting negations/questions or approving production. Added XCTest cases; local Swift parse passed, compiled CI and native QA pending. Evidence docs/qa/spoken-draft-adoption-2026-09-06.md. Prior queue commit 3385b4a has 329 runtime tests and CI 34060409225 in progress. Hops 401 unresolved; no repeated live request."
+    "summary": "Packaged cf674a9 app restored four projects, displayed HTTP-inserted synthetic queued narration, and kept it isolated when selecting a two-episode fixture project. Both episodes correctly remain waiting for script review. Evidence docs/qa/native-queue-restoration-2026-09-06.md. This is not live microphone/adoption/provider acceptance; newer web-queue and spoken-command CI remain pending. Hops 401 unresolved; no repeated model request."
   },
   "next_action": {
     "sop": "SOP-04",
