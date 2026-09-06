@@ -23,14 +23,14 @@
     "result": "PASS"
   },
   "current_checkpoint": {
-    "sop": "SOP-02",
+    "sop": "SOP-11",
     "status": "IN_PROGRESS",
-    "summary": "c13082a broker/coordinator cancellation passed full CI 34055471880 including universal package gates. Browser guards 9eb628a and ten Node tests aec26a3 pass locally. Native WebKit simulated boundary tests 1c31dae are syntax-checked but not yet executed; next candidate CI must compile/run them. Real voice and packaged manual cancellation acceptance remain open."
+    "summary": "Voice cancellation candidate deb9cc0 passed complete CI 34055936631, including actual WebKit tests on both architectures. A concrete native replacement observation exposed orphan Runtime after app termination; owner-pipe EOF shutdown now implemented with passing two-instance source integration and port tests. Packaged crash/restart QA pending."
   },
   "next_action": {
-    "sop": "SOP-02",
-    "id": "verify-realtime-cancellation-same-candidate",
-    "summary": "CI 34055936631 on deb9cc01b4b54bb891ee73eadcf18258aae3a1e8 fully passed; both native logs explicitly prove WebKit test execution. Isolated native 90994 runs this candidate from /tmp/nalu-cancel.3RK4CU, data tmp.gEDfvkaLEc/18769, with saved badges and HopsAPI address retained. Single saved-key diagnostic timed out before provider HTTP: user must handle local Keychain authorization or secure draft input. Push evidence followup, verify its CI, then reassess unblocked SOP work; do not repeat the same credential diagnostic without user/system change. Real provider voice, human QA and signed-release gates remain open.",
+    "sop": "SOP-11",
+    "id": "verify-packaged-owner-pipe-crash-recovery",
+    "summary": "Commit owner lifetime implementation/tests, then push after live CI 34056282089 finishes. Verify full CI, download new arm64 package and test isolated app termination releases only its own Runtime and permits restart with preserved data. Current native 90994 is older deb9cc0, tmp.gEDfvkaLEc/18769. Do not repeat Keychain diagnostic absent user/system change; real provider voice, human QA and signed-release gates remain open.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

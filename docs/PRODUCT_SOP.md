@@ -2822,6 +2822,11 @@ Current evidence:
 
 ## SOP-11 · macOS packaging, updates and operations — IN_PROGRESS
 
+- New observed crash-lifetime gap: terminated isolated app left its Runtime
+  holding the port. Owner-pipe EOF shutdown is implemented with a passing
+  two-instance loopback test; packaged/native crash QA remains open. See
+  [owner lifetime checkpoint](qa/runtime-owner-lifetime-2026-09-06.md).
+
 Acceptance:
 
 - Runtime bundled and supervised by the macOS application.

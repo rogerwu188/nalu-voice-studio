@@ -168,6 +168,7 @@ final class RuntimeSupervisor {
 
     private(set) var isReady = false
     private var process: Process?
+    private var ownerPipe: Pipe?
     private var terminationSignal: RuntimeTerminationSignal?
     var ownsReadyRuntime: Bool { isReady && process?.isRunning == true }
 
@@ -178,6 +179,8 @@ final class RuntimeSupervisor {
     }
 
     func stop() {
+        try? ownerPipe?.fileHandleForWriting.close()
+        ownerPipe = nil
         if let process { RuntimeProcessTerminator.stop(process) }
         process = nil
         isReady = false
@@ -234,7 +237,13 @@ final class RuntimeSupervisor {
         process.environment?["NALU_RUNTIME_PORT"] = String(
             try RuntimeEndpointConfiguration.port(inherited: inheritedEnvironment)
         )
+        // Closing the writer on app exit (including a crash) tells only this
+        // Runtime to shut down. No PID discovery or unrelated-port killing.
+        let ownerPipe = Pipe()
+        process.standardInput = ownerPipe
+        process.environment?["NALU_RUNTIME_OWNER_PIPE"] = "1"
         try process.run()
+        self.ownerPipe = ownerPipe
         self.process = process
 
         // The universal one-file Runtime can take more than a minute to unpack and
