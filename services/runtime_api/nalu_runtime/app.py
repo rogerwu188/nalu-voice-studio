@@ -31,6 +31,7 @@ from .feedback_export import (
     IssueTrackerTransport,
 )
 from .giggle_task_query import GiggleTaskQuery, GiggleTaskQueryError
+from .image_observation import ImageObservationService
 from .image_preparation import ImagePreparationRequest, ImagePreparationService
 from .interactive_story import InteractiveStory, StoryAnswer, StoryInput
 from .interactive_writer_service import InteractiveWriterService, WriterGenerationRequest
@@ -1173,6 +1174,21 @@ def create_app(
             raise HTTPException(403, "native provider credential required")
         return VideoDispatchService(repository, remote_task_submitter, video_http_transport).dispatch(
             run_id, reservation_id, provider_key)
+
+    @app.post("/v1/production-runs/{run_id}/image-tasks/{submission_id}/refresh", response_model=RunEvent)
+    def refresh_saved_image_task(
+        run_id: str, submission_id: str,
+        provider_key: str | None = Header(default=None, alias="X-Nalu-Provider-Key"),
+        origin: str | None = Header(default=None),
+    ) -> RunEvent:
+        if (origin is not None or not provider_key or not provider_key.strip() or len(provider_key) > 1024
+                or "\r" in provider_key or "\n" in provider_key):
+            raise HTTPException(403, "native provider credential required")
+        try:
+            return ImageObservationService(repository).refresh(run_id, submission_id,
+                GiggleTaskQuery(lambda: provider_key, transport=task_query_http_transport))
+        except GiggleTaskQueryError as exc:
+            raise HTTPException(502, str(exc)) from None
 
     @app.post("/v1/production-runs/{run_id}/tasks/{binding_id}/refresh", response_model=RunEvent)
     def refresh_saved_task(

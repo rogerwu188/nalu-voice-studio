@@ -118,6 +118,9 @@ The [durable image submission service](qa/durable-image-submission-2026-09-06.md
 now preserves intents/receipts across restart and rejects automatic replay after
 uncertainty in mocked integration tests. Concrete image authority, native
 activation and actual generated frames remain incomplete.
+Accepted image tasks now have [saved-task read-only observation](qa/saved-image-task-observation-2026-09-06.md)
+with receipt/source binding and restart deduplication. This does not yet download
+or approve images, activate native polling or complete paid production.
 
 2026-09-06 native checkpoints on `4e03c16`, CI
 [34054486473](https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34054486473):

@@ -6,7 +6,7 @@ import re
 import ssl
 from collections.abc import Callable
 from dataclasses import dataclass
-from urllib.parse import urlsplit
+from urllib.parse import unquote, urlsplit
 
 import certifi
 import httpx
@@ -74,7 +74,7 @@ class GiggleTaskQuery:
             if not isinstance(urls, list) or len(urls) > 4:
                 raise ValueError("invalid task result list")
             for url in urls:
-                if not isinstance(url, str) or len(url) > 16000:
+                if not isinstance(url, str) or len(url) > 16000 or key in unquote(url):
                     raise ValueError("invalid result URL")
                 parsed = urlsplit(url)
                 if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password:
