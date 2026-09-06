@@ -65,5 +65,33 @@ final class NativeConversationQAScenarioTests: XCTestCase {
         )
         XCTAssertNotEqual(fixture.firstTranscript, fixture.finalTranscript)
         XCTAssertGreaterThan(fixture.confidence, 0.9)
+        XCTAssertTrue(fixture.simulateListening)
+    }
+
+    @MainActor
+    func testInstallSimulatesListeningOnlyForExplicitIsolatedScenario() throws {
+        let root = FileManager.default.temporaryDirectory.appending(
+            path: "nalu-conversation-install-tests-\(UUID().uuidString)",
+            directoryHint: .isDirectory
+        )
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let ordinaryModel = VoiceInterviewViewModel()
+        try NativeConversationQAScenario.installIfRequested(on: ordinaryModel, inherited: [:])
+        XCTAssertFalse(ordinaryModel.isListening)
+
+        let isolatedModel = VoiceInterviewViewModel()
+        try NativeConversationQAScenario.installIfRequested(
+            on: isolatedModel,
+            inherited: [
+                NativeConversationQAScenario.environmentKey:
+                    NativeConversationQAScenario.conversationScroll,
+                RuntimeApplicationSupportResolver.localQAFlag: "1",
+                RuntimeApplicationSupportResolver.localQAPath: root.path,
+            ]
+        )
+        XCTAssertTrue(isolatedModel.isListening)
+        XCTAssertEqual(isolatedModel.transcript, NativeConversationQAScenario.fixture().firstTranscript)
     }
 }

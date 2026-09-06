@@ -19,6 +19,7 @@ struct NativeConversationQAFixture {
     let firstTranscript: String
     let finalTranscript: String
     let confidence: Float
+    let simulateListening: Bool
 }
 
 enum NativeConversationQAScenario {
@@ -75,7 +76,8 @@ enum NativeConversationQAScenario {
             messages: turns.map { InterviewMessage(speaker: $0.0, text: $0.1) },
             firstTranscript: "我正在补充码头上的那场雨，请把这句话记在最下面。",
             finalTranscript: "\(finalTranscriptPrefix)外婆把雨衣披在我身上以后，还笑着说不用害怕。",
-            confidence: 0.94
+            confidence: 0.94,
+            simulateListening: true
         )
     }
 
@@ -89,6 +91,10 @@ enum NativeConversationQAScenario {
         model.messages = fixture.messages
         model.transcriptConfidence = fixture.confidence
         model.transcript = fixture.firstTranscript
+        // Presentation-only QA state. The scenario is already constrained to an
+        // existing system-temporary Application Support directory and never starts
+        // SpeechRecorder or requests microphone/speech-recognition permission.
+        model.isListening = fixture.simulateListening
 
         Task { @MainActor [weak model] in
             try? await Task.sleep(for: .milliseconds(800))
