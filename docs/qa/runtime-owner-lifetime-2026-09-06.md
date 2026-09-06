@@ -29,3 +29,11 @@ binary SHA-256, and runs in arm64, x86_64 and Universal CI. Packaged startup has
 the real supervisor does; an initial harness attempt without that registry
 failed during boot and is not cancellation evidence. Actual new-package results
 and native app crash testing remain open.
+
+The corrected harness against old `deb9cc0` arm64 package (ZIP SHA-256
+`0c71cbd76a667ba399937bdee99aad9e83ff2f0f42c8cb61396513a17ea2b6d4`)
+successfully started both instances, then failed specifically at the first
+`wait(timeout=12)` after closing its owner pipe. This is the expected negative
+control: old packaged Runtime does not react to EOF. The harness finally cleaned
+up only its owned subprocesses; it did not produce a PASS receipt. New packaged
+Runtime must pass the identical scenario before this checkpoint can close.
