@@ -23,7 +23,10 @@ Validation:
 - Previous checkpoint `ef7f78021433dce6bad60d1b7ffa17ff3e8c9172` full runtime
   regression: 373 passed. This is not the full suite result for this change.
 - Ruff passed before final documentation update.
-- Current change still needs pushed CI and native integration QA.
+- Commit `7da947bf77247bf97c57ec8efe042625c9227a2e` full runtime suite:
+  378 passed in 51.53 seconds; OpenAPI contract and Ruff passed.
+- Pushed CI [34065192790](https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34065192790)
+  was queued at inspection; native integration QA remains open.
 
 No live provider request, charge, download or publication occurred. Native query
 dispatch, approved frame/price-to-submit wiring, bounded result retrieval, media
