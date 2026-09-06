@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "5f2a1c8560a82fa6197fd29282dbd218e3263fb6",
-  "last_advanced_at": "2026-09-06T22:45:38Z",
+  "observed_head": "ef7f78021433dce6bad60d1b7ffa17ff3e8c9172",
+  "last_advanced_at": "2026-09-06T22:50:06Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Implemented bounded read-only Giggle task-query transport, distinct from billing verification and master acceptance. Eleven query plus ten image tests and Ruff passed; full regression running (session 1928). Evidence docs/qa/giggle-task-query-2026-09-06.md. Saved-binding endpoint, durable polling, frame preparation, price approval, H3/omni and actual generation remain open; no live provider call performed."
+    "summary": "Saved Giggle binding refresh endpoint now records durable observations and reports output pending QA or provider failure review without changing billing. 71 targeted tests passed; prior ef7f780 full regression passed 373. Evidence docs/qa/saved-task-observation-2026-09-06.md. Current CI and native query dispatch remain open; no live provider call performed."
   },
   "next_action": {
     "sop": "SOP-04",

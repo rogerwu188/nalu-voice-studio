@@ -2750,6 +2750,26 @@ class ProductionService:
                     "远端已接单，正在制作",
                     "远端任务编号已经安全记录；重新打开应用也不会重复提交。",
                 )
+                observations = {}
+                for event in self.repository.list_run_events(run.id):
+                    if event.event_type == "provider_task_observed":
+                        observations[event.payload.get("binding_id")] = event.payload
+                submitted = [item for item in bindings if item.state == RemoteTaskState.SUBMITTED]
+                states = [
+                    observations.get(item.id, {}).get("status")
+                    if observations.get(item.id, {}).get("task_id") == item.provider_task_id else None
+                    for item in submitted
+                ]
+                if any(state in {"failed", "error"} for state in states):
+                    stage, percent, action, explanation = (
+                        "provider_failure_review", 55, "服务商报告生成异常",
+                        "已保留原任务，等待核对结果与账单；不会自动重新生成或认为没有扣费。",
+                    )
+                elif states and all(state == "completed" for state in states):
+                    stage, percent, action, explanation = (
+                        "provider_output_pending_qa", 60, "服务商报告片段完成，等待取回核验",
+                        "视频链接已记录，但文件、账单和画面尚未验收，还不是最终成片。",
+                    )
             elif remote_states and remote_states == {RemoteTaskState.ZERO_CHARGE_FAILED}:
                 stage, percent, action, explanation = (
                     "safe_retry_review",

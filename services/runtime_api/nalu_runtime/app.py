@@ -30,6 +30,7 @@ from .feedback_export import (
     IssueTrackerReconciliationVerifier,
     IssueTrackerTransport,
 )
+from .giggle_task_query import GiggleTaskQuery, GiggleTaskQueryError
 from .interactive_story import InteractiveStory, StoryAnswer, StoryInput
 from .interactive_writer_service import InteractiveWriterService, WriterGenerationRequest
 from .models import (
@@ -163,6 +164,7 @@ from .repository import ConflictError, NotFoundError, Repository
 from .semantic_recognizer import LocalSemanticRecognizer
 from .source_reader import read_public_source, source_failure_code
 from .storage_diagnostics import inspect_storage
+from .task_observation_service import TaskObservationService
 from .writer_provider import (
     DisabledWriterProviderVerifier,
     WriterProviderVerifier,
@@ -187,6 +189,7 @@ def create_app(
     semantic_recognizer: LocalSemanticRecognizer | None = None,
     writer_provider_verifier: WriterProviderVerifier | None = None,
     writer_http_transport: httpx.BaseTransport | None = None,
+    task_query_http_transport: httpx.BaseTransport | None = None,
 ) -> FastAPI:
     repository_root = Path(
         os.environ.get("NALU_REPOSITORY_ROOT", Path(__file__).resolve().parents[3])
@@ -1113,6 +1116,20 @@ def create_app(
     @app.get("/v1/production-runs/{run_id}/events", response_model=list[RunEvent])
     def get_run_events(run_id: str) -> list[RunEvent]:
         return production.events(run_id)
+
+    @app.post("/v1/production-runs/{run_id}/tasks/{binding_id}/refresh", response_model=RunEvent)
+    def refresh_saved_task(
+        run_id: str, binding_id: str,
+        provider_key: str | None = Header(default=None, alias="X-Nalu-Provider-Key"),
+        origin: str | None = Header(default=None),
+    ) -> RunEvent:
+        if origin is not None or not provider_key or len(provider_key) > 1024:
+            raise HTTPException(403, "native provider credential required")
+        try:
+            return TaskObservationService(repository).refresh(run_id, binding_id,
+                GiggleTaskQuery(lambda: provider_key, transport=task_query_http_transport))
+        except GiggleTaskQueryError as exc:
+            raise HTTPException(502, str(exc)) from None
 
     @app.post(
         "/v1/production-runs/{run_id}/postproduction-materializations",

@@ -75,7 +75,8 @@ Concrete SD2 image HTTP transport and digest-bound frame projection now have
 [mock-network coverage](qa/giggle-sd2-image-transport-2026-09-06.md), not live
 generation acceptance; application wiring and other video modes remain open.
 The Giggle task-query transport now has [read-only mock coverage](qa/giggle-task-query-2026-09-06.md);
-saved-binding/polling integration, billing and actual output QA remain open.
+Saved bindings now have a [durable observation endpoint and status coverage](qa/saved-task-observation-2026-09-06.md).
+Native polling integration, billing and actual output QA remain open.
 
 2026-09-06 native checkpoints on `4e03c16`, CI
 [34054486473](https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34054486473):

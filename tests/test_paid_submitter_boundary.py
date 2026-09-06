@@ -3,6 +3,7 @@ import json
 from copy import deepcopy
 from pathlib import Path
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 from nalu_runtime.app import create_app
@@ -13,6 +14,52 @@ from nalu_runtime.remote_submitter import (
     PaidProviderAcceptance,
 )
 from nalu_runtime.repository import ConflictError, utc_now
+
+
+@pytest.mark.parametrize("status,stage,percent", [
+    ("completed", "provider_output_pending_qa", 60),
+    ("processing", "remote_generation", 55),
+    ("pending", "remote_generation", 55),
+    ("failed", "provider_failure_review", 55),
+    ("error", "provider_failure_review", 55),
+])
+def test_saved_task_refresh_uses_bound_id_and_preserves_charge_state(tmp_path, status, stage, percent):
+    calls = []
+    def serve(request):
+        calls.append(request)
+        assert request.method == "GET"
+        assert request.url.params["task_id"] == "fake-task-001"
+        return httpx.Response(200, json={"code": 200, "data": {
+            "status": status, "urls": ["https://example.org/fixture.mp4"]}})
+    database = tmp_path / "refresh.sqlite3"
+    api = TestClient(create_app(database, tmp_path / "data", task_query_http_transport=httpx.MockTransport(serve)))
+    run = paid_run(api, tmp_path, run_id="run_query_fixture")
+    binding = api.app.state.remote_task_submitter.submit_paid_task(run.id,
+        task_key="E01-U01", provider="giggle", model="MiniMax-H3",
+        request=paid_request("合成查询"), transport=IdempotentFakeTransport())
+    endpoint = f"/v1/production-runs/{run.id}/tasks/{binding.id}/refresh"
+    headers = {"X-Nalu-Provider-Key": "fixture-secret"}
+    assert api.post(endpoint).status_code == 403
+    assert api.post(endpoint, headers={**headers, "Origin": "https://untrusted.invalid"}).status_code == 403
+    other = paid_run(api, tmp_path, run_id="run_other_fixture")
+    assert api.post(f"/v1/production-runs/{other.id}/tasks/{binding.id}/refresh", headers=headers).status_code == 409
+    assert calls == []
+    first = api.post(endpoint, headers=headers)
+    assert first.status_code == 200, first.text
+    assert api.post(endpoint, headers=headers).json()["id"] == first.json()["id"]
+    payload = first.json()["payload"]
+    assert payload["status"] == status
+    assert payload["billing_verified"] is False
+    assert payload["master_accepted"] is False
+    assert "fixture-secret" not in first.text
+    assert api.app.state.repository.get_remote_task_binding(binding.id) == binding
+    progress = api.get(f"/v1/episodes/{run.episode_id}/production-progress").json()
+    assert progress["stage"] == stage
+    assert progress["progress_percent"] == percent
+    assert len(calls) == 2
+    restarted = TestClient(create_app(database, tmp_path / "data"))
+    events = restarted.get(f"/v1/production-runs/{run.id}/events").json()
+    assert any(event["id"] == first.json()["id"] for event in events)
 
 
 def canonical_sha256(value: object) -> str:
