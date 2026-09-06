@@ -37,6 +37,48 @@ private final class PreparationProtocol: URLProtocol, @unchecked Sendable {
 
 @Suite(.serialized)
 struct ProductionPreparationTests {
+    @MainActor @Test func dictatedStartUsesApprovedEpisodeAndRejectsDuplicateInFlight() async throws {
+        PreparationProtocol.requests = []
+        PreparationProtocol.bodies = []
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [PreparationProtocol.self]
+        let runtime = RuntimeClient(baseURL: URL(string: "http://127.0.0.1:8765")!,
+            session: URLSession(configuration: config), accessCheck: { true })
+        let model = VoiceInterviewViewModel(runtime: runtime)
+        model.setLocalVoiceEnabled(false)
+        model.episodes = [try JSONDecoder().decode(NaluEpisode.self, from: Data("""
+        {"id":"episode","season_id":"season","title":"One","episode_number":1,
+        "logline":"","outline":{},"target_seconds":60,"status":"script_approved","approved_script_revision":2}
+        """.utf8))]
+        model.selectedEpisodeID = "episode"
+        model.transcript = "开始本集制作"
+        model.commitTranscript()
+        #expect(model.productionRunActionInProgress == "episode")
+        model.transcript = "开始本集制作"
+        model.commitTranscript()
+        for _ in 0..<100 where model.productionRunActionInProgress != nil {
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        #expect(model.productionRunActionInProgress == nil)
+        #expect(PreparationProtocol.requests.filter { $0.httpMethod == "POST" }.count == 1)
+        #expect(model.messages.contains { $0.text.contains("不会重复提交") })
+        #expect(model.messages.contains { $0.text.contains("还没有生成视频或扣费") })
+    }
+
+    @MainActor @Test func dictatedStartWithoutApprovedEpisodeDoesNotCallRuntime() {
+        PreparationProtocol.requests = []
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [PreparationProtocol.self]
+        let runtime = RuntimeClient(baseURL: URL(string: "http://127.0.0.1:8765")!,
+            session: URLSession(configuration: config), accessCheck: { true })
+        let model = VoiceInterviewViewModel(runtime: runtime)
+        model.setLocalVoiceEnabled(false)
+        model.transcript = "开始本集制作"
+        model.commitTranscript()
+        #expect(PreparationProtocol.requests.isEmpty)
+        #expect(model.messages.last?.text.contains("确认剧本") == true)
+    }
+
     @Test func preparationReusesRevisionIdentityAndCannotApprovePayment() async throws {
         PreparationProtocol.requests = []
         PreparationProtocol.bodies = []

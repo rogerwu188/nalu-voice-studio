@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "7b9069fb3a90b01a9fda400c9ca13e1bb4feebaf",
-  "last_advanced_at": "2026-09-06T22:15:58Z",
+  "observed_head": "34db9e99c2d4ae925b044c7db0ca4fd56a6ce53b",
+  "last_advanced_at": "2026-09-06T22:23:29Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Prior CI 34063554684 ARM64 and Runtime passed, Intel pending at observation. Added explicit single-attempt paid transport mode: atomic claim and durable pre-network quarantine, no resend after uncertainty. 45 paid-boundary tests passed. Evidence docs/qa/single-attempt-dispatch-2026-09-06.md. Concrete video transport, price approval, native end-to-end QA and real generation remain open."
+    "summary": "CI 34063554684 all jobs passed. Downloaded 7b9069f ARM64 artifact 9998259459, inner SHA 6d6f29d8671929b3a82c7dcb622d9a74050e39775bb572a6d3997386239d70a1 and deep signature verified. New app launched in existing isolated QA directory/18769, restoration inspection pending. Added commitTranscript model tests, syntax passed; new tests pending CI. Evidence docs/qa/production-entry-package-2026-09-06.md."
   },
   "next_action": {
     "sop": "SOP-04",

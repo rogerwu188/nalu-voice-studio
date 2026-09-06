@@ -66,6 +66,9 @@ the approved script receipt matches a completed local invocation; see
 The current-episode voice production-preparation entry is implemented; compiled
 QA and a packaging dependency regression remain to verify. See
 [native production entry and CI failure](qa/native-production-entry-2026-09-06.md).
+CI `34063554684` subsequently passed all jobs for `7b9069f`; downloaded package
+checksum and signature verified. [Native restoration inspection](qa/production-entry-package-2026-09-06.md)
+remains distinct from live speech, real paid generation and release acceptance.
 The video submission boundary now also supports explicit single-attempt adapters
 without inventing server-side replay guarantees; [tests and remaining integration](qa/single-attempt-dispatch-2026-09-06.md).
 
