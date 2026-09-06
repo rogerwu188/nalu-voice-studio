@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "ae388fdfab54e50319bb4e4babdde3a1efd35148",
-  "last_advanced_at": "2026-09-06T13:51:53Z",
+  "observed_head": "aedcde869b2884191b21a45398fb06861140b05f",
+  "last_advanced_at": "2026-09-06T14:11:26Z",
   "last_closed_checkpoint": {
     "id": "native-isolated-project-restart-backup-restore-qa",
     "sop": "SOP-03",
@@ -30,7 +30,7 @@
   "next_action": {
     "sop": "SOP-02",
     "id": "critical-controls-native-visual-qa",
-    "summary": "Verify the Universal artifact from successful CI run 34037029775; preserve the completed arm64 native visibility evidence. Then verify idle-state fixed controls and font-size transition using isolated QA data before selecting the next unblocked SOP item. Do not execute paid providers without authorization.",
+    "summary": "Universal artifact 9990600793 is verified (digest, both binary architectures, adhoc signature). A QA preference-isolation gap was found and fixed with regression tests; finish its CI, then use the NEW artifact to verify idle controls and default-to-maximum font transition without modifying real user preferences. Preserve all prior evidence; no paid provider calls without authorization.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

@@ -87,6 +87,15 @@ Current evidence:
 
 ## SOP-02 · Voice interview and accessible conversation — IN_PROGRESS
 
+- Follow-up isolation gap: local QA previously shared normal-user comfort preferences.
+  QA now stores font/rate preferences under its validated temporary data directory;
+  invalid QA configuration cannot read or overwrite the real user's settings.
+  Regression tests cover persistence, default isolation and invalid-path fail-closed
+  behavior. Native font-transition QA must use the new artifact after CI passes.
+  The preceding Universal archive (artifact `9990600793`) has matching SHA-256,
+  arm64/x86_64 native and Runtime binaries and a valid ad-hoc signature; that is
+  not Developer ID signing, notarization or native acceptance of this follow-up.
+
 - 2026-09-06 native fixed-control evidence: product `ae388fdfab54e50319bb4e4babdde3a1efd35148`
   arm64 CI artifact passed fixture-only native checks at a 980x736-point window:
   create-project and stop-speaking controls remain fully visible with maximum font,

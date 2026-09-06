@@ -1,5 +1,45 @@
 import Foundation
 
+enum ComfortPreferencesStore {
+    static let key = "nalu.comfort-preferences.v1"
+
+    private static func qaURL(inherited: [String: String]) throws -> URL {
+        try RuntimeApplicationSupportResolver.resolve(
+            inherited: inherited, defaultURL: URL(fileURLWithPath: "/unused")
+        ).appending(path: "comfort-preferences.json")
+    }
+
+    static func load(
+        inherited: [String: String] = ProcessInfo.processInfo.environment,
+        defaults: UserDefaults = .standard
+    ) -> ComfortPreferences {
+        let data: Data?
+        if inherited[RuntimeApplicationSupportResolver.localQAFlag] == "1" {
+            // Invalid QA configuration must never fall back to real user preferences.
+            data = try? Data(contentsOf: qaURL(inherited: inherited))
+        } else {
+            data = defaults.data(forKey: key)
+        }
+        guard let data,
+              let preferences = try? JSONDecoder().decode(ComfortPreferences.self, from: data)
+        else { return ComfortPreferences() }
+        return preferences
+    }
+
+    static func save(
+        _ preferences: ComfortPreferences,
+        inherited: [String: String] = ProcessInfo.processInfo.environment,
+        defaults: UserDefaults = .standard
+    ) throws {
+        let data = try JSONEncoder().encode(preferences)
+        if inherited[RuntimeApplicationSupportResolver.localQAFlag] == "1" {
+            try data.write(to: qaURL(inherited: inherited), options: .atomic)
+        } else {
+            defaults.set(data, forKey: key)
+        }
+    }
+}
+
 struct ComfortPreferences: Codable, Equatable, Sendable {
     var textLevel = 1
     var speechRate: Float = 0.42
@@ -29,4 +69,3 @@ struct ComfortPreferences: Codable, Equatable, Sendable {
         return nil
     }
 }
-

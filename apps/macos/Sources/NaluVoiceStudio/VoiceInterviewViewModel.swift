@@ -2261,18 +2261,11 @@ final class VoiceInterviewViewModel {
     }
 
     private func persistComfortPreferences() {
-        guard let data = try? JSONEncoder().encode(comfortPreferences) else { return }
-        UserDefaults.standard.set(data, forKey: "nalu.comfort-preferences.v1")
+        try? ComfortPreferencesStore.save(comfortPreferences)
     }
 
     private static func loadComfortPreferences() -> ComfortPreferences {
-        guard let data = UserDefaults.standard.data(forKey: "nalu.comfort-preferences.v1"),
-              let preferences = try? JSONDecoder().decode(
-                ComfortPreferences.self, from: data
-              ) else {
-            return ComfortPreferences()
-        }
-        return preferences
+        ComfortPreferencesStore.load()
     }
 
     private var selectedProject: NaluProject? {

@@ -12,6 +12,17 @@
     "downloaded_zip_sha256": "a1face8aedb37e77e2be8a5aff8901977085164b82f8b2e85f2fd47775570ddb",
     "matches_declared_digest": true
   },
+  "universal_archive_verification": {
+    "artifact_id": 9990600793,
+    "product_commit": "ae388fdfab54e50319bb4e4babdde3a1efd35148",
+    "downloaded_zip_sha256": "d352a034dc3a224e1920d500c188cc45ed7e668c2131ecbfa733ea53d57b128b",
+    "matches_declared_digest": true,
+    "native_and_runtime_architectures": ["x86_64", "arm64"],
+    "codesign_deep_strict_verification": "passed",
+    "signature": "adhoc",
+    "team_identifier": null,
+    "notarization_verified": false
+  },
   "native_qa": {
     "app_pid": 60777,
     "window_id": 3927,
