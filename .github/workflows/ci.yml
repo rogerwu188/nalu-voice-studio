@@ -10,7 +10,9 @@ permissions:
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Continuous main-branch checkpoints must not starve full macOS/universal QA.
+  # PRs may discard superseded work, but a running main candidate finishes.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   runtime:

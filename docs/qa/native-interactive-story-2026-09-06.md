@@ -87,3 +87,9 @@ model generation, adaptation rights approval, paid video or publication occurred
 This artifact predates the receipt adapter in `7d9c490`; its overall CI was
 canceled by the following push, although its arm64/runtime jobs succeeded. Full
 same-candidate acceptance remains open.
+
+CI scheduling follow-up: main push workflows no longer cancel the currently
+running candidate when the next checkpoint is pushed. PR supersession still
+cancels old work. This prevents continuous checkpoint updates from starving
+macOS/universal acceptance; queued superseded candidates may still be coalesced
+by GitHub concurrency. No completed status is inferred from queue state.
