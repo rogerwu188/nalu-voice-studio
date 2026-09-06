@@ -335,3 +335,27 @@ The next change moves the presence refresh from before presentation to the sheet
 onAppear, after SwiftUI has established the sheet's state observation. It retains
 attribute-only presence lookup and does not read or modify secret values. Syntax
 and diff checks pass; its own CI and first-open native verification remain open.
+
+### onAppear exact-artifact native result
+
+Source `45f76ac801795fbbf217fb33f508aa39ea89c007`, CI `34054894231`, arm64
+artifact `9995681612`, ZIP SHA-256
+`7eec7044bdbe6f993e64c947446fc9e4d4221093ceec95b186ccb71fd90c1e38`:
+checksum, ad-hoc signature and speech entitlements passed. Isolated process 87085
+uses the existing QA data and port 18769.
+
+On the first successful opening, before any check/save/field interaction, all
+three saved credential badges appeared. HopsAPI address was unchanged. Escape
+dismissal followed by reopening retained the badges. Attribute-only exact
+service/account queries independently returned success for all three accounts;
+no values were returned or changed. A first JXA bridge attempt returned -50
+(invalid query parameters); corrected CFString bridging returned success. That
+failed helper invocation is not evidence about stored credentials.
+
+[Reopened window](images/native-credential-first-open-2026-09-06.png) corroborates
+the AX result. A subsequent Check showed the credential timeout message and an
+enabled button after the seven-second observation delay. Thus the first-open
+display and retained timeout behavior are natively observed; provider connection,
+real Realtime audio, human accessibility and complete SOP-02 are still unverified.
+Full CI must finish before closing the checkpoint. No API key or password was
+read into tool output, entered or changed, and no voice session was started.

@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "680256be3c25c6fee7ea667e257dfa499d858a47",
-  "last_advanced_at": "2026-09-06T19:04:08Z",
+  "observed_head": "45f76ac801795fbbf217fb33f508aa39ea89c007",
+  "last_advanced_at": "2026-09-06T19:26:56Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-02",
     "status": "IN_PROGRESS",
-    "summary": "Native 5a19945 artifact 9995343235 verifies timeout error with Check re-enabled by 7.348s observation, then pending-read response by 0.714s without queuing another lookup. CI 34053634282 all jobs passed; local runtime 312 tests passed. Screenshot and hash recorded. SecurityAgent requests login Keychain password; no approval entered. Initial badge freshness in ab3283d still requires exact native verification. Full SOP remains incomplete."
+    "summary": "45f76ac arm64 artifact 9995681612 native process 87085 shows saved badges on first open before interaction, retains them on reopen, keeps HopsAPI address, and returns credential timeout with Check enabled. Attribute-only queries corroborate all three present accounts. Full CI 34054894231 still pending; no provider or real voice acceptance. Full SOP remains incomplete."
   },
   "next_action": {
     "sop": "SOP-02",
     "id": "verify-async-deletion-isolation-and-first-open-credential-state",
-    "summary": "CI 34054486473 all passed. Exact 4e03c16 artifact 9995568082 native process 86544 verified preflight waiting copy and B-empty/A-asset/B-empty after five rapid selections; docs and screenshots recorded. Push onAppear credential-refresh commit 58055b2 plus evidence, then verify its CI and exact native first-open badge. Use tmp.gEDfvkaLEc/18769; B fixture prj_c23554a23adf4cdca88394196f7d3349. Realtime, user-controlled Keychain authorization, human QA and signed release gates remain open.",
+    "summary": "Finish CI 34054894231 and commit/push native first-open evidence plus SOP index. Current isolated 87085 runs 45f76ac, credentials sheet timeout message visible, data tmp.gEDfvkaLEc/18769. Next safe implementation: Realtime cancellation while awaiting Keychain must prevent a late client-secret POST (broker currently checks attempt only after POST returns); add cancellation-aware task ownership and injected synthetic-credential regression tests without provider calls. Real provider, user-controlled Keychain authorization, human QA and signed release gates remain open.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

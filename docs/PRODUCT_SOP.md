@@ -7,6 +7,14 @@ against the current main branch.
 
 ## Status vocabulary
 
+2026-09-06 native checkpoints on `4e03c16`, CI
+[34054486473](https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34054486473):
+[preflight waiting presentation](qa/production-status-truthfulness-2026-09-06.md)
+and [project-load isolation](qa/project-selection-generation-2026-09-06.md)
+have bounded native evidence and compiled regression tests. They do not complete
+SOP-03, SOP-05 or SOP-08. First-open credential status remains under verification;
+see [credential evidence](qa/gpt-voice-and-credential-save-2026-09-06.md).
+
 Latest SOP-05 checkpoint (2026-09-06): correction/restart provenance regression
 passes in the full 301-test local runtime suite. Native edit QA remains open due
 to macOS assistive-access denial; see
