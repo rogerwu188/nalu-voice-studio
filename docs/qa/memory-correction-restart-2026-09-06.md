@@ -73,3 +73,24 @@ it, and only explicit confirmation of the corrected revision archives the card.
 Reference-only material is deliberately exempt from narrative conflict blocking;
 the fixture explicitly permits its entirely synthetic text for story-development
 QA before asserting that boundary. No biometric permission was granted.
+
+Expanded CI run 34046986861 passed on
+`bcf3a5ca55142c53b96057c8be4adb9a7440368f`. Its Universal job log contains
+`conflict_resolution_requires_fresh_confirmation: true` and PASS, runtime digest
+`5f4e8d573350c27dd8c2fe8662d4c9ec22562411fba14da7b967678d0d7d628e`.
+GitHub Universal artifact is `9993484267`, archive digest
+`9200b02faf5d58bda6d5d73bd230663ab8e2cd97e11990b42d2636e9874ddb3b`.
+This follow-up inspected the CI log and artifact metadata, not a fresh download.
+
+Upstream check at 2026-09-06T17:13Z: latest Qingshan release remains
+`v2026.09.05.2`; the pinned commit is
+`401111636a2386c7f087d8dd2ff9df5c0cb98455`. The upstream checker verified the
+vendor tree, capability hashes and promoted registry/public-interface/registered
+test review. No release delta requires vendoring.
+
+Additional anti-false-PASS hardening: the packaged memory script now refuses
+optimized Python (which disables its assertions) before starting a runtime, and
+requires a full source commit in its report. Two subprocess regressions pass;
+Universal CI now supplies its exact GITHUB_SHA. This declared source identity
+must still be cross-checked against its producing CI artifact, not treated as
+independently authenticated evidence. New CI verification remains required.

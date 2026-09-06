@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import socket
 import subprocess
 import tempfile
@@ -14,10 +15,15 @@ from pathlib import Path
 
 
 def main():
+    if not __debug__:
+        raise RuntimeError("QA assertions must be enabled; do not use Python optimization")
     parser = argparse.ArgumentParser()
     parser.add_argument("--app", type=Path, required=True)
     parser.add_argument("--evidence", type=Path, required=True)
+    parser.add_argument("--source-commit", required=True)
     args = parser.parse_args()
+    if re.fullmatch(r"[0-9a-f]{40}", args.source_commit) is None:
+        raise RuntimeError("Source commit must be a full lowercase Git SHA")
     resources = args.app.resolve() / "Contents/Resources"
     binary = resources / "runtime/nalu-runtime"
     if not binary.is_file():
@@ -157,6 +163,7 @@ def main():
             stop(process)
     evidence = {
         "schema_version": "nalu.memory-provenance-qa/v1", "status": "PASS",
+        "source_commit": args.source_commit,
         "runtime_sha256": hashlib.sha256(binary.read_bytes()).hexdigest(),
         "runtime_mode": "packaged", "network_scope": "loopback only",
         "restored_revision": 2, "original_ocr_preserved": True,

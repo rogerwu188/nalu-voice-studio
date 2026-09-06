@@ -148,7 +148,7 @@ jobs:
       - run: NALU_REQUIRE_UNIVERSAL=true scripts/verify-macos-release.sh
       - run: NALU_PUBLICATION_FIXTURE_EVIDENCE=/tmp/nalu-publication-fixture-universal.json scripts/smoke-macos-bundle.sh
       - run: python scripts/qa-project-plan-isolation.py --app "dist/Nalu Voice Studio.app" --source-commit "$GITHUB_SHA" --evidence dist/nalu-project-plan-isolation-universal.json
-      - run: python scripts/qa-memory-provenance.py --app "dist/Nalu Voice Studio.app" --evidence dist/nalu-memory-provenance-universal.json
+      - run: python scripts/qa-memory-provenance.py --app "dist/Nalu Voice Studio.app" --source-commit "$GITHUB_SHA" --evidence dist/nalu-memory-provenance-universal.json
       - run: python scripts/qa-macos-staged-update.py --app "dist/Nalu Voice Studio.app" --evidence /tmp/nalu-staged-update-universal.json
       - run: python scripts/qa-macos-upgrade-rollback.py --app "dist/Nalu Voice Studio.app" --evidence /tmp/nalu-upgrade-rollback-universal.json
       - run: cp /tmp/nalu-upgrade-rollback-universal.json dist/nalu-upgrade-rollback-universal.json
