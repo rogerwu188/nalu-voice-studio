@@ -35,8 +35,8 @@ The response of an already-sent request may still exist remotely; this is not a
 claim to undo an external effect.
 
 `node --test tests/realtime-webrtc-cancellation.test.mjs` executes the embedded
-script with simulated media/transport: **6 tests pass** locally, covering Stop at
-five async boundaries and an old microphone result after a replacement connection.
+script with simulated media/transport: **10 tests pass** locally, covering Stop at
+five async boundaries and a late result at each boundary after a replacement connection.
 Mocks deliberately ignore abort to exercise late-result rejection. No browser
 microphone, key, network or provider is used. The test is added to runtime CI;
 full new CI and actual WKWebView/package cancellation QA remain open.

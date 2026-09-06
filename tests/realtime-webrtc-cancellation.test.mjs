@@ -66,14 +66,20 @@ for (const stage of ['microphone', 'offer', 'local', 'fetch', 'body']) {
   });
 }
 
-test('Late microphone from an old start cannot close the replacement connection', async () => {
-  const h = harness('microphone');
+for (const stage of ['microphone', 'offer', 'local', 'fetch', 'body']) {
+test(`Late ${stage} from an old start cannot close the replacement connection`, async () => {
+  const h = harness(stage);
   const old = h.api.start('old', 'https://synthetic.invalid/v1/realtime/calls');
   await h.waiting;
   await h.api.start('new', 'https://synthetic.invalid/v1/realtime/calls');
   h.release();
   await old;
-  assert.equal(h.records.requests.length, 1);
+  assert.equal(h.records.requests.length, ['fetch', 'body'].includes(stage) ? 2 : 1);
+  assert.equal(h.records.peers[0].closed, true);
+  assert.equal(h.records.peers[0].answers, 0);
+  if (['fetch', 'body'].includes(stage)) {
+    assert.equal(h.records.requests[0].options.signal.aborted, true);
+  }
   assert.equal(h.records.peers[1].closed, false);
   assert.equal(h.records.peers[1].answers, 1);
   assert.equal(h.records.tracks[0].stops, 1);
@@ -81,3 +87,4 @@ test('Late microphone from an old start cannot close the replacement connection'
   assert.equal(h.records.posts.filter(p => p.kind === 'error').length, 0);
   h.api.stop();
 });
+}

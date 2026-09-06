@@ -115,6 +115,11 @@ Current evidence:
 
 ## SOP-02 · Voice interview and accessible conversation — IN_PROGRESS
 
+- Realtime cancellation checkpoint: broker task cancellation and browser generation
+  guards prevent stale continuation; ten local simulated handshake/replacement tests
+  pass. Full candidate CI and packaged/real voice QA remain open. See
+  [bounded cancellation evidence](qa/realtime-connection-cancellation-2026-09-06.md).
+
 - Provider settings native checkpoint (`bcfc86a`, CI `34051937128`, all four
   jobs success): fixed blocking password reads during status refresh; verified
   responsive sheet, existing key presence, provider-scoped model save/reopen,
