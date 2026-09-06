@@ -87,6 +87,14 @@ Current evidence:
 
 ## SOP-02 · Voice interview and accessible conversation — IN_PROGRESS
 
+- Bounded native confirmation on exact Universal artifact `9991496944`, product
+  `93f962232a22f40c3e172e9b45949d162549e5c2`, CI `34040136383` (all jobs success):
+  all four toolbar labels and both bottom primary controls are fully visible at
+  980x736 points and maximum comfort font. The heading/action separation closes
+  the observed toolbar truncation checkpoint. See
+  [native evidence](qa/native-toolbar-and-import-2026-09-06.json). Whole-SOP real
+  voice, human accessibility and release-candidate acceptance remain open.
+
 - Native actual-growth verification for `785c0829346bd7a7fd33fc7a499731fcf1eba312`:
   all four CI jobs in run `34039752403` passed. At 980x736 points, the same greeting
   grew from 408x45 to 389x89 points as level changed from 1 to 3. Primary bottom
@@ -692,6 +700,14 @@ Current evidence:
   do not satisfy the human acceptance criterion.
 
 ## SOP-05 · Media assets, consent and privacy — IN_PROGRESS
+
+- Native direct-import checkpoint on product `93f962232a22f40c3e172e9b45949d162549e5c2`:
+  a fresh isolated project opened the system file picker directly and imported a
+  fictional text file without a metadata form. SQLite and matching file hashes
+  confirm a managed local copy, filename-derived name, reference-only draft memory,
+  and no biometric/guardian consent granted. Evidence and screenshot:
+  [native toolbar and import QA](qa/native-toolbar-and-import-2026-09-06.json).
+  This does not close photo OCR, spoken correction, confirmation or human privacy QA.
 
 Acceptance:
 

@@ -1,0 +1,48 @@
+{
+  "schema_version": "nalu.native-toolbar-and-import-qa/v1",
+  "recorded_at": "2026-09-06T15:08:29Z",
+  "product_commit": "93f962232a22f40c3e172e9b45949d162549e5c2",
+  "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34040136383",
+  "ci_conclusion": "success",
+  "artifact_id": 9991496944,
+  "artifact_architectures": ["arm64", "x86_64"],
+  "downloaded_zip_sha256": "bebf691b338a7dc450d1316a6954fc1de6d1643a1b4a21b3e60867a12e5fd47d",
+  "declared_zip_digest_matches": true,
+  "native_qa": {
+    "pid": 67158,
+    "window_id": 4299,
+    "window_size_points": [980, 736],
+    "comfort_text_level": 3,
+    "all_four_toolbar_labels_fully_visible": true,
+    "create_project_fully_visible": true,
+    "microphone_fully_visible": true,
+    "isolated_port": 18766,
+    "runtime_health": "ok",
+    "direct_import_opens_native_file_picker": true,
+    "professional_metadata_form_required_before_import": false,
+    "local_fixture_import_success": true,
+    "source_and_managed_copy_sha256": "8e9b3e88a3c535deba45541fd51c685de9df876e2f9440d648e506b7d75b1e32",
+    "project_id": "prj_fbb67a6c5c9d4e5ba85102ce8602c8b6",
+    "asset_id": "ast_05b1cf4b1e9e4e9c8db71debb36faaeb",
+    "inferred_asset_name": "家庭资料测试",
+    "asset_kind": "source_document",
+    "consent_granted": false,
+    "guardian_approved": false,
+    "memory_id": "mem_f308b92fa2024b299f15bdd21d606f1f",
+    "memory_allowed_use": "reference_only",
+    "memory_confirmation_status": "draft",
+    "memory_revision": 1,
+    "qa_application_terminated_by_exact_pid": true
+  },
+  "screenshots": [
+    "docs/qa/images/native-toolbar-maximum-confirmed-2026-09-06.png",
+    "docs/qa/images/native-family-import-confirmed-2026-09-06.png"
+  ],
+  "project_complete": false,
+  "boundaries": [
+    "Only a fictional local text fixture was imported; no personal photo or voice was used.",
+    "This verifies picker/import/draft defaults, not OCR accuracy, spoken correction or confirmation fidelity.",
+    "No microphone capture, paid provider, publication, signing or notarization was performed.",
+    "This is a bounded native control-layout confirmation, not complete accessibility or SOP acceptance."
+  ]
+}
