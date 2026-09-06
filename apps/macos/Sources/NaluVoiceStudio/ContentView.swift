@@ -42,6 +42,8 @@ struct ContentView: View {
     @State private var isPresentingAssetDependencies = false
     @State private var isPresentingProviderCredentials = false
     @State private var apiBaseURLDraft = AIServiceEndpoint.official
+    @State private var connectionCheckMessage: String?
+    @State private var connectionCheckAttempt: UUID?
     @State private var seedanceSecretDraft = ""
     @State private var minimaxSecretDraft = ""
     @State private var openAIRealtimeSecretDraft = ""
@@ -1705,6 +1707,8 @@ struct ContentView: View {
 
     private var providerCredentialsSheet: some View {
         VStack(alignment: .leading, spacing: 20) {
+            ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
             Label("模型服务密钥", systemImage: "key.fill")
                 .naluFont(.title2, weight: .bold)
             Text("密钥只保存在当前 Mac 用户的系统钥匙串中，不写入 SQLite、项目备份、隐私包或 Runtime 启动参数。")
@@ -1729,6 +1733,14 @@ struct ContentView: View {
             Text("API 访问地址").naluFont(.headline)
             TextField("https://服务商域名/v1", text: $apiBaseURLDraft)
                 .textFieldStyle(.roundedBorder)
+                .onChange(of: apiBaseURLDraft) { _, _ in connectionCheckMessage = nil }
+            Button(connectionCheckAttempt == nil ? "检查连接（不录音、不生成）" : "正在检查连接…") {
+                checkAIServiceConnection()
+            }
+            .disabled(connectionCheckAttempt != nil)
+            if let connectionCheckMessage {
+                Text(connectionCheckMessage).naluFont(.caption).textSelection(.enabled)
+            }
             Text("保存后，AI 请求将发送到此服务商。密钥保存成功不代表连接验证通过；兼容聊天接口也不代表支持实时语音。")
                 .naluFont(.caption).foregroundStyle(.secondary)
             Text("保存密钥不会触发付费调用。明确说“网上搜索”时会为该次查询使用 Responses API；自然语音仍在单独同意后才开启。下载、发布、付款和外部写入必须另行确认。")
@@ -1737,6 +1749,8 @@ struct ContentView: View {
             if let credentialSaveError {
                 Text(credentialSaveError).foregroundStyle(.red)
             }
+            }
+            }
             HStack {
                 Spacer()
                 Button("保存并完成") { savePendingCredentialsAndClose() }
@@ -1744,7 +1758,8 @@ struct ContentView: View {
             }
         }
         .padding(28)
-        .frame(minWidth: 600)
+        .frame(minWidth: 600, idealWidth: 700, minHeight: 480, idealHeight: 680)
+        .onChange(of: openAIRealtimeSecretDraft) { _, _ in connectionCheckMessage = nil }
     }
 
     private var feedbackSheet: some View {
@@ -2415,6 +2430,8 @@ struct ContentView: View {
     }
 
     private func presentProviderCredentials() {
+        connectionCheckAttempt = nil
+        connectionCheckMessage = nil
         apiBaseURLDraft = UserDefaults.standard.string(forKey: AIServiceEndpoint.preferenceKey) ?? AIServiceEndpoint.official
         credentialSaveError = nil
         refreshCredentialStatus()
@@ -2513,6 +2530,27 @@ struct ContentView: View {
         realtimeVoice.stop()
         UserDefaults.standard.set(endpoint.baseURL.absoluteString, forKey: AIServiceEndpoint.preferenceKey)
         isPresentingProviderCredentials = false
+    }
+
+    private func checkAIServiceConnection() {
+        let endpoint: AIServiceEndpoint
+        do { endpoint = try AIServiceEndpoint(apiBaseURLDraft) }
+        catch { connectionCheckMessage = error.localizedDescription; return }
+        let attempt = UUID()
+        let address = apiBaseURLDraft
+        let draft = openAIRealtimeSecretDraft
+        connectionCheckAttempt = attempt
+        connectionCheckMessage = nil
+        Task {
+            let message: String
+            do { message = try await AIServiceConnectionCheck().check(endpoint: endpoint, draft: draft) }
+            catch let error as AIServiceModelList.CheckError { message = error.localizedDescription }
+            catch { message = RealtimeVoiceError.publicDescription(for: error) }
+            guard connectionCheckAttempt == attempt else { return }
+            connectionCheckAttempt = nil
+            guard apiBaseURLDraft == address, openAIRealtimeSecretDraft == draft else { return }
+            connectionCheckMessage = message
+        }
     }
 
     private func removeCredential(_ credential: ProviderCredential) {

@@ -1,0 +1,57 @@
+import Foundation
+
+struct AIServiceModelList: Decodable {
+    struct Model: Decodable { let id: String }
+    let data: [Model]
+
+    static func summary(_ bytes: Data, secret: String) throws -> String {
+        guard bytes.count <= 1_000_000,
+              let list = try? JSONDecoder().decode(Self.self, from: bytes),
+              list.data.count <= 10_000 else { throw CheckError.invalidResponse }
+        // Model IDs are untrusted provider output, never instructions or markup.
+        let names = list.data.map(\.id).filter {
+            !$0.isEmpty && $0.count <= 128 && !$0.contains(secret)
+                && !$0.hasPrefix("sk-")
+                && $0.range(of: "^[A-Za-z0-9][A-Za-z0-9._:/-]*$", options: .regularExpression) != nil
+        }
+        let displayed = names.prefix(10).joined(separator: "、")
+        return "模型列表访问成功，返回 \(list.data.count) 个模型。"
+            + (displayed.isEmpty ? "" : "\n模型：\(displayed)")
+            + "\n这仅验证地址和模型列表访问，不代表聊天、联网搜索或实时语音已通过测试。"
+    }
+
+    enum CheckError: LocalizedError {
+        case invalidResponse
+        var errorDescription: String? { "服务商返回的模型列表格式不受支持；尚未验证连接能力。" }
+    }
+}
+
+actor AIServiceConnectionCheck {
+    func check(endpoint: AIServiceEndpoint, draft: String) async throws -> String {
+        let entered = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let key = try entered.isEmpty
+                ? KeychainSecretStore().secret(for: .openAIRealtime) : entered,
+              !key.isEmpty else { throw RealtimeVoiceError.missingCredential }
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.timeoutIntervalForRequest = 20
+        configuration.timeoutIntervalForResource = 25
+        let session = URLSession(configuration: configuration,
+                                 delegate: AIServiceRedirectGuard(), delegateQueue: nil)
+        defer { session.invalidateAndCancel() }
+        var request = URLRequest(url: endpoint.url("models"))
+        request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        let (stream, response) = try await session.bytes(for: request)
+        guard let http = response as? HTTPURLResponse else {
+            throw AIServiceModelList.CheckError.invalidResponse
+        }
+        if let failure = RealtimeVoiceError.forHTTPStatus(http.statusCode) { throw failure }
+        var data = Data()
+        for try await byte in stream {
+            guard data.count < 1_000_000 else { throw AIServiceModelList.CheckError.invalidResponse }
+            data.append(byte)
+        }
+        return try AIServiceModelList.summary(data, secret: key)
+    }
+}

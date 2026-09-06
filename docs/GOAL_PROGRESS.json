@@ -11,7 +11,7 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "7879bd23ef93a481779f650c06ad88ff5da6776b",
+  "observed_head": "3b9dfddb3ae4a38b6cf378189d68f752fd5a9106",
   "last_advanced_at": "2026-09-06T18:00:54Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
@@ -29,7 +29,7 @@
   },
   "next_action": {
     "sop": "SOP-02",
-    "id": "verify-gpt-entry-and-save-completion-ci",
+    "id": "verify-provider-connection-check-and-native-settings",
     "summary": "Verify configurable-provider CI, deploy exact artifact and set user-requested https://hopsapi.com/v1 in native settings. QA address persistence, GPT-primary entry and credential completion. Confirm provider Realtime/model support before audio test; models-list success alone is insufficient. Do not request replacement key: intended provider authentication passed. Evidence: docs/qa/gpt-voice-and-credential-save-2026-09-06.md.",
     "requires_user_authorization": false
   },

@@ -57,3 +57,19 @@ Redirects are refused to avoid forwarding credentials to another destination.
 The microphone consent sheet discloses the selected provider address and usage.
 Provider Realtime support, CORS, model availability and native packaged QA remain
 unverified. Endpoint routing/invalid URL tests added; syntax parsing passes.
+
+## Connection-check follow-up
+
+The native settings sheet adds an explicit read-only model-list check against
+the entered address, using the entered key or the saved key. It never starts
+recording, requests generation, or saves an entered draft implicitly. Results
+are discarded if the address/key changes while the request is in flight.
+Provider model IDs are bounded and rendered as text, with credential echoes and
+markup excluded. The response stream is capped at 1 MB with request/resource
+timeouts; redirects remain refused. The result explicitly does not certify
+Responses, web-search tools or Realtime compatibility. The settings body scrolls
+independently of the fixed Save and Done action.
+
+Regression cases cover malformed/oversized lists, credential/markup filtering,
+and avoiding false Realtime acceptance. Swift syntax and diff checks pass;
+full build and native interaction QA are still required.
