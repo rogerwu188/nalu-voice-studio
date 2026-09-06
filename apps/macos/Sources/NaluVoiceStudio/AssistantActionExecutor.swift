@@ -99,6 +99,17 @@ actor OpenAIWebResearchClient {
         let apiKey = try fixedAPIKey ?? KeychainSecretStore().secret(for: .openAIRealtime)
         guard let apiKey, !apiKey.isEmpty else { throw WebResearchError.missingCredential }
 
+        let request = try Self.makeRequest(query: query, apiKey: apiKey)
+        let (data, response) = try await session.data(for: request)
+        guard data.count <= Self.maximumResponseBytes,
+              let http = response as? HTTPURLResponse,
+              (200..<300).contains(http.statusCode) else {
+            throw WebResearchError.requestFailed
+        }
+        return try Self.parseResponse(data)
+    }
+
+    static func makeRequest(query: String, apiKey: String) throws -> URLRequest {
         var request = URLRequest(url: Self.endpoint)
         request.httpMethod = "POST"
         request.cachePolicy = .reloadIgnoringLocalCacheData
@@ -119,14 +130,7 @@ actor OpenAIWebResearchClient {
             "max_output_tokens": 800,
             "store": false,
         ])
-
-        let (data, response) = try await session.data(for: request)
-        guard data.count <= Self.maximumResponseBytes,
-              let http = response as? HTTPURLResponse,
-              (200..<300).contains(http.statusCode) else {
-            throw WebResearchError.requestFailed
-        }
-        return try Self.parseResponse(data)
+        return request
     }
 
     static func parseResponse(_ data: Data) throws -> WebResearchResult {

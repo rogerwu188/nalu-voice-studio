@@ -17,9 +17,9 @@
     "id": "native-isolated-project-restart-backup-restore-qa",
     "sop": "SOP-03",
     "product_commit": "2e1a4e5ceebf6226b52c94cfd178bfc07344bb7f",
-    "evidence_commit": "pending-current-checkpoint-commit",
+    "evidence_commit": "7195cfe148c72a82cc4df12a3be2a02d2ebdaee7",
     "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34015343605",
-    "qa_evidence": "docs/qa/native-project-persistence-2026-09-06.json",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34015343605/artifacts/9983831769",
     "result": "PASS"
   },
   "current_checkpoint": {

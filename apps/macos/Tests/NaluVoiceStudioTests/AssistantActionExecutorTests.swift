@@ -81,7 +81,9 @@ final class AssistantActionExecutorTests: XCTestCase {
         let client = OpenAIWebResearchClient(session: session, fixedAPIKey: "sk-test")
         _ = try await client.research("测试查询")
 
-        let request = try XCTUnwrap(AssistantActionURLProtocol.lastRequest)
+        let request = try OpenAIWebResearchClient.makeRequest(
+            query: "测试查询", apiKey: "sk-test"
+        )
         XCTAssertEqual(request.url, OpenAIWebResearchClient.endpoint)
         XCTAssertEqual(request.httpMethod, "POST")
         let body = try XCTUnwrap(request.httpBody)
