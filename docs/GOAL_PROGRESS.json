@@ -30,7 +30,7 @@
   "next_action": {
     "sop": "SOP-02",
     "id": "verify-async-deletion-isolation-and-first-open-credential-state",
-    "summary": "Finish live CI 34054894231, then push c96b78f first-open evidence and Realtime cancellation follow-up. Cancellation task ownership, broker checks after late credentials, and synthetic no-transport tests are implemented; syntax/diff passed, compiled CI/package QA pending. See qa/realtime-connection-cancellation-2026-09-06.md. Current isolated 87085 runs 45f76ac with tmp.gEDfvkaLEc/18769. Provider capability, Keychain user authorization, human QA and signed-release gates remain open.",
+    "summary": "CI 34054894231 passed; pushed c13082a CI 34055471880 is live with arm64 Swift tests passed. Browser-side cancellation was also missing at media/SDP await boundaries; generation guards, track cleanup and handshake abort now implemented with six passing Node VM tests, added to CI. Commit locally then push after current CI finishes; verify new compiled tests and packaged cancellation behavior. Current isolated 87085 runs older 45f76ac, data tmp.gEDfvkaLEc/18769. Real provider, Keychain user authorization, human QA and signed-release gates remain open.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

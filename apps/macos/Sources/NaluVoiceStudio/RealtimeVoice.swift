@@ -886,6 +886,7 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
       let responseActive = false, responseRequestPending = false;
       let cancellationRequested = false, awaitingToolResult = false;
       let stopping = false, failurePosted = false;
+      let connectionGeneration = 0, handshakeAbort = null;
       const post = (kind, value) => window.webkit.messageHandlers.naluRealtime.postMessage({kind, value});
       function fail(message) {
         if (stopping || failurePosted) return;
@@ -894,14 +895,17 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
         stop(false, false);
       }
       async function start(token, callsURL) {
+        stop(false);
+        const generation = connectionGeneration;
+        const current = () => generation === connectionGeneration && !stopping;
         try {
-          stop(false);
           stopping = false;
           failurePosted = false;
           post("status", "connecting");
           pc = new RTCPeerConnection();
+          const peer = pc;
           pc.onconnectionstatechange = () => {
-            if (!pc || stopping) return;
+            if (!current() || pc !== peer) return;
             if (pc.connectionState === "connected") {
               if (disconnectTimer) clearTimeout(disconnectTimer);
               disconnectTimer = null;
@@ -910,7 +914,7 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
               post("status", "reconnecting");
               if (disconnectTimer) clearTimeout(disconnectTimer);
               disconnectTimer = setTimeout(() => {
-                if (pc && pc.connectionState === "disconnected") {
+                if (current() && pc === peer && peer.connectionState === "disconnected") {
                   fail("网络连接中断，请检查网络后重新连接");
                 }
               }, 3000);
@@ -921,9 +925,14 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
           audio = document.createElement("audio");
           audio.autoplay = true;
           document.body.appendChild(audio);
-          pc.ontrack = event => { audio.srcObject = event.streams[0]; };
-          stream = await navigator.mediaDevices.getUserMedia({audio: true});
-          pc.addTrack(stream.getTracks()[0]);
+          pc.ontrack = event => { if (current() && audio) audio.srcObject = event.streams[0]; };
+          const acquiredStream = await navigator.mediaDevices.getUserMedia({audio: true});
+          if (!current()) {
+            acquiredStream.getTracks().forEach(track => track.stop());
+            return;
+          }
+          stream = acquiredStream;
+          peer.addTrack(stream.getTracks()[0]);
           dc = pc.createDataChannel("\#(RealtimeAPIContract.dataChannelLabel)");
           const channel = dc;
           dc.addEventListener("open", () => {
@@ -936,6 +945,7 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
             if (dc === channel) fail("实时语音通道已断开，请重新连接");
           });
           dc.addEventListener("message", event => {
+            if (!current() || dc !== channel) return;
             if (typeof event.data !== "string" || event.data.length > 1048576) {
               fail("实时语音消息过大或格式不正确，请重新连接");
               return;
@@ -1026,15 +1036,24 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
             }
             if (value.type === "error") fail("实时语音服务报告错误，请重新连接");
           });
-          const offer = await pc.createOffer();
-          await pc.setLocalDescription(offer);
+          const offer = await peer.createOffer();
+          if (!current()) return;
+          await peer.setLocalDescription(offer);
+          if (!current()) return;
+          const abort = new AbortController();
+          handshakeAbort = abort;
           const response = await fetch(callsURL, {
-            method: "POST", body: offer.sdp, redirect: "error",
+            method: "POST", body: offer.sdp, redirect: "error", signal: abort.signal,
             headers: {Authorization: `Bearer ${token}`, "Content-Type": "application/sdp"}
           });
+          if (!current()) return;
           if (!response.ok) throw new Error("实时语音连接失败（" + response.status + "）");
-          await pc.setRemoteDescription({type: "answer", sdp: await response.text()});
+          const sdp = await response.text();
+          if (!current()) return;
+          await peer.setRemoteDescription({type: "answer", sdp});
+          if (current()) handshakeAbort = null;
         } catch (error) {
+          if (!current()) return;
           if (error && error.name === "NotAllowedError") {
             fail("需要麦克风权限才能开始自然语音");
           } else {
@@ -1043,6 +1062,9 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
         }
       }
       function stop(notify = true, intentional = true) {
+        connectionGeneration += 1;
+        if (handshakeAbort) handshakeAbort.abort();
+        handshakeAbort = null;
         if (intentional) stopping = true;
         if (disconnectTimer) clearTimeout(disconnectTimer);
         disconnectTimer = null;

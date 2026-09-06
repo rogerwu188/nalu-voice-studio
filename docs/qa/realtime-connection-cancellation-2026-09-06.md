@@ -23,3 +23,20 @@ URLProtocol fails if any request reaches transport; WKWebView loads local HTML
 only, with no token available to begin audio. No actual keys, microphones or
 provider calls are used. Local syntax/diff checks pass; compiled CI, packaged
 cancellation QA and real authorized Realtime acceptance remain pending.
+
+## Browser handshake continuation
+
+Inspection also found that the embedded page continued after getUserMedia,
+createOffer, local SDP, fetch and response text without checking which connection
+owned the result. Stop now increments a connection generation and aborts an active
+handshake; each async boundary checks ownership. Late microphone tracks are
+stopped, and old peer/data-channel callbacks cannot affect a replacement session.
+The response of an already-sent request may still exist remotely; this is not a
+claim to undo an external effect.
+
+`node --test tests/realtime-webrtc-cancellation.test.mjs` executes the embedded
+script with simulated media/transport: **6 tests pass** locally, covering Stop at
+five async boundaries and an old microphone result after a replacement connection.
+Mocks deliberately ignore abort to exercise late-result rejection. No browser
+microphone, key, network or provider is used. The test is added to runtime CI;
+full new CI and actual WKWebView/package cancellation QA remain open.
