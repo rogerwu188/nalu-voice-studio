@@ -303,3 +303,22 @@ Native process 84742 reused the isolated QA database at port 18769.
   in `ab3283d` is not included and needs a separate first-open native check.
 
 This closes only the bounded timeout UI observation, not SOP-02 or the product.
+
+### First-open Binding artifact: native check remains open
+
+Source `680256be3c25c6fee7ea667e257dfa499d858a47`, CI `34054002146`, arm64
+artifact `9995431149`, ZIP SHA-256
+`3460c80c87a41c8d49628d6fbfb91998e02a53ec2dca6810f89ee79da1842f61`:
+checksum and ad-hoc signature/entitlements passed. Isolated native process 85349
+and Runtime listener 85365 started using the existing QA data/port 18769.
+CoreGraphics window 5587 and its screenshot show the main window and online
+Runtime. However System Events returned an empty windows list for this exact
+process even after startup. Opening the credentials sheet through the recorded AX
+path therefore failed with invalid index. This is **not** first-open badge PASS,
+and the cause of the AX discrepancy is not established. No security authorization
+was approved or modified. Retry native first-open verification when controls are
+accessible; do not treat the prior artifact's badge as this artifact's evidence.
+
+The main-window screenshot also exposes a separate misleading status: a local
+dry-run preflight fixture says “Nalu 正在工作，没有停”. Inspect progress status
+semantics before claiming that preflight means an active production worker.

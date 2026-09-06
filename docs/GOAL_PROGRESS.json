@@ -30,7 +30,7 @@
   "next_action": {
     "sop": "SOP-02",
     "id": "verify-async-deletion-isolation-and-first-open-credential-state",
-    "summary": "CI 34054002146 is live for pushed 680256b (first-open badge Bindings). Obtain exact arm64 artifact and verify first-open saved badge without interaction plus retained timeout behavior. Current isolated process 84742 runs 5a19945, data tmp.gEDfvkaLEc/port 18769. While waiting, project-load generation isolation and regression tests were implemented; commit locally, push after current CI finishes, then compiled/native rapid-switch QA required. See qa/project-selection-generation-2026-09-06.md. Keychain authorization stays user-controlled. Realtime capability and signed-candidate/human QA remain open.",
+    "summary": "CI 34054002146 remains live for 680256b; exact arm64 artifact 9995431149 verified and launched as 85349, Runtime 85365, data tmp.gEDfvkaLEc/18769. Main window renders but System Events windows list is empty, so first-open badge QA remains unverified (not PASS). Project-load isolation commit bdb83ce awaits push after current CI finishes and its own tests/native QA. Safe next implementation: inspect misleading working reassurance on dry-run preflight screenshot. Keep original badge/Realtime/user authorization and full release gates open.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
