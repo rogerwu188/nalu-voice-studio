@@ -447,15 +447,9 @@ final class VoiceInterviewViewModel {
                     draft: .init(title: "第一季", seasonNumber: 1,
                                  plannedEpisodeCount: max(number, state.episode_drafts.count)))
             } else { throw InteractiveStoryWriter.WriterError.invalidResponse }
-            let existing = try await runtime.listEpisodes(seasonID: season.id)
-            let episode: NaluEpisode
-            if let matching = existing.first(where: { $0.episodeNumber == number }) {
-                episode = matching
-            } else {
-                episode = try await runtime.createEpisode(seasonID: season.id,
-                    draft: .init(title: draft.title, episodeNumber: number, logline: draft.outline,
-                                 targetSeconds: 60))
-            }
+            let episode = try await runtime.resolveReviewEpisode(seasonID: season.id,
+                draft: .init(title: draft.title, episodeNumber: number, logline: draft.outline,
+                             targetSeconds: 60))
             let revisions = try await runtime.listScripts(episodeID: episode.id)
             let script: ScriptRevision
             if let existing = revisions.first(where: { $0.content == draft.script &&

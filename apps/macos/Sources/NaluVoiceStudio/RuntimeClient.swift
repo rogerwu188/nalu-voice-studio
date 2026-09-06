@@ -365,6 +365,24 @@ actor RuntimeClient {
         try await post("v1/seasons/\(seasonID)/episodes", body: draft)
     }
 
+    func resolveReviewEpisode(seasonID: String, draft: EpisodeDraft) async throws -> NaluEpisode {
+        if let existing = try await listEpisodes(seasonID: seasonID).first(where: {
+            $0.seasonID == seasonID && $0.episodeNumber == draft.episodeNumber
+        }) { return existing }
+        do {
+            return try await createEpisode(seasonID: seasonID, draft: draft)
+        } catch {
+            let creationError = error
+            try Task.checkCancellation()
+            // A lost response or another window may have created this numbered
+            // episode. Reconcile using reads only; never repeat the POST here.
+            if let recovered = try? await listEpisodes(seasonID: seasonID).first(where: {
+                $0.seasonID == seasonID && $0.episodeNumber == draft.episodeNumber
+            }) { return recovered }
+            throw creationError
+        }
+    }
+
     func updateEpisodePlan(
         episodeID: String, logline: String, outlineSummary: String,
         sourceTranscript: String = ""

@@ -11,7 +11,7 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "d65787523caaec99fff41ce716e127ee8e59d2f3",
+  "observed_head": "04da804",
   "last_advanced_at": "2026-09-06T21:13:06Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Packaged cf674a9 app restored four projects, displayed HTTP-inserted synthetic queued narration, and kept it isolated when selecting a two-episode fixture project. Both episodes correctly remain waiting for script review. Evidence docs/qa/native-queue-restoration-2026-09-06.md. This is not live microphone/adoption/provider acceptance; newer web-queue and spoken-command CI remain pending. Hops 401 unresolved; no repeated model request."
+    "summary": "Added read-only reconciliation after lost episode-create responses during interactive draft adoption; no second create POST or plan overwrite, season identity required. Swift parse passed; new transport-fixture tests await compiled CI/native QA. Evidence docs/qa/review-episode-recovery-2026-09-06.md. Runtime and arm64 jobs for queue commit 3385b4a succeeded; Intel/universal and newer candidate remain pending. No full SOP closure."
   },
   "next_action": {
     "sop": "SOP-04",
