@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "c02c8ad",
-  "last_advanced_at": "2026-09-06T21:13:06Z",
+  "observed_head": "51e35d047f635fe1004bf592e50ac5a6c21faebd",
+  "last_advanced_at": "2026-09-06T21:23:31Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Native synthetic double-episode project: season plan and episode-one revision approved via AXPress; episode two remained unapproved. SQL verified both and zero production runs. Evidence docs/qa/native-single-episode-approval-2026-09-06.md. No speech/provider/production acceptance claimed. Newer recovery and command CI remains pending."
+    "summary": "Synthetic approved episode reached packaged QingShan dry-run preflight run_ef4b8488a736470885d58e91e40b90af. Package inspection found interview working cache inclusion; new packages exclude that namespace without erasing local drafts. Six targeted tests and Ruff passed; full suite caught abbreviated observed_head in progress file, corrected to full commit. Evidence docs/qa/interactive-production-preflight-2026-09-06.md. Full suite revalidation/packaged fix acceptance and CI pending."
   },
   "next_action": {
     "sop": "SOP-04",

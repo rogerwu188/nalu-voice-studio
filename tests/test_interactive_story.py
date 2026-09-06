@@ -1,5 +1,6 @@
 import hashlib
 import json
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -41,7 +42,8 @@ def test_supplements_persist_without_superseding_inflight_answer(tmp_path, sourc
 def test_two_episode_writer_drafts_enter_review_with_distinct_bound_receipts(tmp_path):
     with TestClient(create_app(tmp_path / "db", tmp_path / "data")) as client:
         plan = client.post("/v1/project-plans", json={"project": {
-            "title": "合成两集故事", "planned_episode_count": 2}}).json()
+            "title": "合成两集故事", "planned_episode_count": 2,
+            "project_bible": {"setting": "海边"}}}).json()
         path = f"/v1/projects/{plan['project']['id']}/interactive-story"
         client.post(path + "/turns", json={"turn_id": "story", "expected_revision": 0,
             "text": "合成故事写两集", "source_mode": "narrated_story"})
@@ -71,6 +73,21 @@ def test_two_episode_writer_drafts_enter_review_with_distinct_bound_receipts(tmp
                 assert bound.json()["artifact_binding_verified"] is True
                 assert bound.json()["provider_execution_verified"] is False
             assert script["approved_at"] is None
+
+        first = plan["episodes"][0]["id"]
+        assert client.post(f"/v1/episodes/{first}/scripts/1/approve",
+                           json={"approved_by": "synthetic QA"}).status_code == 200
+        run = client.post(f"/v1/episodes/{first}/production-runs",
+                          json={"dry_run": True})
+        assert run.status_code == 201, run.text
+        package = json.loads(Path(run.json()["package_path"]).read_text())
+        assert package["project"]["project_bible"] == {"setting": "海边"}
+        assert package["approved_script"]["content"] == drafts[0]["script"]
+        assert "合成第2集：海边，相认。" not in json.dumps(package, ensure_ascii=False)
+        # Excluding working state from production must not erase it locally.
+        restored = client.get(path).json()
+        assert len(restored["episode_drafts"]) == 2
+        assert restored["turns"][0]["answer"]["writer_response_json"] == raw
 
 
 def test_writer_declaration_tracks_revised_episode_and_retains_response(tmp_path):

@@ -41,6 +41,9 @@ Episode creation response loss now has a read-only recovery path; see
 Native synthetic episode-one approval now has
 [isolated approval evidence](qa/native-single-episode-approval-2026-09-06.md);
 episode two remained unapproved. Real production gates remain open.
+The approved synthetic episode reaches QingShan local preflight; package
+inspection exposed interview-cache inclusion, now excluded for new packages.
+See [preflight evidence and cache-boundary regression](qa/interactive-production-preflight-2026-09-06.md).
 
 2026-09-06 native checkpoints on `4e03c16`, CI
 [34054486473](https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34054486473):

@@ -2513,8 +2513,13 @@ class ProductionService:
             )
             raise ConflictError(f"episode in {episode.status} cannot start a new production run")
 
+        production_project = project.model_dump(mode="json")
+        # Interview history is local working state, not an approved project bible.
+        # It includes unapproved episodes, queued corrections and raw model output.
+        # Keep it in SQLite/export, outside the professional production package.
+        production_project["project_bible"].pop("nalu_interactive_story_v1", None)
         package = ProductionPackage(
-            project=project.model_dump(mode="json"),
+            project=production_project,
             season=season.model_dump(mode="json"),
             episode=episode.model_dump(mode="json"),
             approved_script=script.model_dump(mode="json"),
