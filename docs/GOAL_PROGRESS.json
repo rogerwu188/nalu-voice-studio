@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-02",
     "status": "IN_PROGRESS",
-    "summary": "Native db83812 artifact 9995218616 checksum/signature checks passed, but process 83373 still stalls inside SecItemCopyMatching on Check despite noninteractive policy. Address is HopsAPI and badge becomes saved after interaction. Diagnostic timeout/single-worker guard and regression tests now implemented, syntax/diff checked, awaiting new CI/native QA. No paid calls or secret changes. Full SOP remains incomplete."
+    "summary": "Native 5a19945 artifact 9995343235 verifies timeout error with Check re-enabled by 7.348s observation, then pending-read response by 0.714s without queuing another lookup. CI 34053634282 all jobs passed; local runtime 312 tests passed. Screenshot and hash recorded. SecurityAgent requests login Keychain password; no approval entered. Initial badge freshness in ab3283d still requires exact native verification. Full SOP remains incomplete."
   },
   "next_action": {
     "sop": "SOP-02",
     "id": "verify-async-deletion-isolation-and-first-open-credential-state",
-    "summary": "CI 34053223425 passed. CI 34053634282 is live for pushed 5a19945; arm64 Swift tests passed, artifact pending. Local runtime 312 tests passed. Obtain exact artifact for five-second timeout/re-enabled button/duplicate suppression native QA, replacing only owned process 83373 and preserving tmp.gEDfvkaLEc data/port 18769. Follow-up live badge Bindings and success-reader gate ordering are locally implemented, require commit/push after current CI completes and their own verification. Provider Realtime capability and full signed-candidate/human QA remain open; no model substitution.",
+    "summary": "Push ab3283d plus native-timeout evidence now CI 34053634282 passed. Observe new CI, obtain its exact arm64 artifact and verify first-open saved badge without interaction, retaining timeout behavior. Current isolated native process 84742 runs 5a19945 with tmp.gEDfvkaLEc data/port 18769. macOS Keychain authorization is user-controlled, never enter passwords or approve automatically. Provider Realtime capability and full signed-candidate/human QA remain open; no model substitution.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

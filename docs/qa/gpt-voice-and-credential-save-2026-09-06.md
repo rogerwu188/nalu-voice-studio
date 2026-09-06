@@ -279,3 +279,27 @@ remains open. The diagnostic worker also releases its occupied flag before
 resuming a successful caller, so an immediate subsequent check does not receive
 a false busy result; the success test reuses one reader for consecutive calls.
 These follow-ups require their own CI and exact-artifact native verification.
+
+### Native timeout and duplicate-suppression evidence
+
+Source `5a1994551e2c237a20d6b37e52959a2c65ce7ce0`, CI `34053634282`, arm64
+artifact `9995343235`, ZIP SHA-256
+`29a42b5d9277d0f51c1a6bacd1705e86f781684ad107a104bef5f4f73c2447d8`.
+Checksum matched its manifest; ad-hoc signature and speech entitlements passed.
+Native process 84742 reused the isolated QA database at port 18769.
+
+- macOS SecurityAgent independently displayed a Nalu Keychain access request
+  requiring the login Keychain password. No password was read, entered or approved.
+- First Check: after a seven-second observation delay (7.348s including AX calls),
+  the sheet displayed the credential timeout message and Check was enabled.
+  This observation proves return by that point, not an exact five-second UI SLA.
+- Second Check: after a half-second observation delay (0.714s including AX calls),
+  the sheet displayed the previous-read-pending message and Check remained enabled.
+- [Native screenshot](images/native-keychain-timeout-2026-09-06.png) shows the
+  HopsAPI address, saved-key badge, pending message and enabled Check control.
+- No provider response or real voice session was obtained. The control-flow
+  error occurs before networking; no paid generation or credential changes occurred.
+- This artifact still exhibits the initial stale badge; the later Binding change
+  in `ab3283d` is not included and needs a separate first-open native check.
+
+This closes only the bounded timeout UI observation, not SOP-02 or the product.
