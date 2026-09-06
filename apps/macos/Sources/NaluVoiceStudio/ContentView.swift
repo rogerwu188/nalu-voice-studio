@@ -10,7 +10,6 @@ struct ContentView: View {
     @Environment(VoiceInterviewViewModel.self) private var model
     @State private var isRenamingProject = false
     @State private var renameTitle = ""
-    @State private var isImportingProject = false
     @State private var isSavingProject = false
     @State private var fileOperationNotice: String?
     @State private var isScriptEditorExpanded = false
@@ -111,12 +110,6 @@ struct ContentView: View {
                 }
             }
         }
-        .fileImporter(
-            isPresented: $isImportingProject,
-            allowedContentTypes: [.json],
-            allowsMultipleSelection: false,
-            onCompletion: importProject
-        )
         .fileImporter(
             isPresented: $isImportingAsset,
             allowedContentTypes: allowedAssetContentTypes,
@@ -223,7 +216,7 @@ struct ContentView: View {
                     .disabled(selectedProject == nil || isSavingProject)
                     .accessibilityIdentifier(NaluPrimaryAccessibilityID.projectBackup)
                 Button("恢复", systemImage: "square.and.arrow.down") {
-                    isImportingProject = true
+                    presentProjectRestore()
                 }
                 .accessibilityIdentifier(NaluPrimaryAccessibilityID.projectRestore)
             }
@@ -2442,19 +2435,21 @@ struct ContentView: View {
         }
     }
 
-    private func importProject(_ result: Result<[URL], Error>) {
-        do {
-            guard let url = try result.get().first else { return }
-            let accessing = url.startAccessingSecurityScopedResource()
-            defer { if accessing { url.stopAccessingSecurityScopedResource() } }
-            let data = try Data(contentsOf: url)
-            Task { @MainActor in
+    private func presentProjectRestore() {
+        Task { @MainActor in
+            do {
+                guard let data = try await NativeFileImport.read(
+                    contentTypes: [.json],
+                    title: "恢复 Nalu 项目",
+                    message: "请选择以前保存的 Nalu 项目备份。恢复后仍只保存在这台 Mac 上。",
+                    prompt: "恢复项目"
+                ) else { return }
                 if await model.restoreProject(from: data) {
                     fileOperationNotice = "项目已经恢复，可以继续讲故事了。"
                 }
+            } catch {
+                model.errorMessage = error.localizedDescription
             }
-        } catch {
-            model.errorMessage = error.localizedDescription
         }
     }
 

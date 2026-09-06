@@ -50,3 +50,39 @@ enum NativeFileExport {
         return url
     }
 }
+
+enum NativeFileImport {
+    @MainActor
+    static func read(
+        contentTypes: [UTType],
+        title: String,
+        message: String,
+        prompt: String
+    ) async throws -> Data? {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = contentTypes
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        panel.resolvesAliases = true
+        panel.title = title
+        panel.message = message
+        panel.prompt = prompt
+
+        let response: NSApplication.ModalResponse
+        if let window = NSApp.keyWindow ?? NSApp.mainWindow {
+            response = await withCheckedContinuation { continuation in
+                panel.beginSheetModal(for: window) { result in
+                    continuation.resume(returning: result)
+                }
+            }
+        } else {
+            response = panel.runModal()
+        }
+
+        guard response == .OK, let url = panel.url else { return nil }
+        let accessing = url.startAccessingSecurityScopedResource()
+        defer { if accessing { url.stopAccessingSecurityScopedResource() } }
+        return try Data(contentsOf: url, options: [.mappedIfSafe])
+    }
+}
