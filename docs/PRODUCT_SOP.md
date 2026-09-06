@@ -23,6 +23,10 @@ text correction/save was verified; see
 [native correction evidence](qa/native-memory-correction-2026-09-06.md).
 Real voice, human privacy and same signed-candidate acceptance remain open.
 
+User-reported GPT voice / unsaved credential fixes are tracked in
+[implementation and pending QA](qa/gpt-voice-and-credential-save-2026-09-06.md).
+These are not live Realtime acceptance or a completed SOP.
+
 - `TODO`: not started.
 - `IN_PROGRESS`: implementation or QA is incomplete.
 - `WAITING_AUTHORIZATION`: blocked only on an explicit user-controlled action.

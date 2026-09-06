@@ -33,7 +33,10 @@ struct KeychainSecretStore {
             query as CFDictionary,
             [kSecValueData as String: encoded] as CFDictionary
         )
-        if updateStatus == errSecSuccess { return }
+        if updateStatus == errSecSuccess {
+            try verifySaved(encoded, for: credential)
+            return
+        }
         guard updateStatus == errSecItemNotFound else {
             throw KeychainSecretError.operationFailed(updateStatus)
         }
@@ -43,6 +46,13 @@ struct KeychainSecretStore {
         let addStatus = SecItemAdd(create as CFDictionary, nil)
         guard addStatus == errSecSuccess else {
             throw KeychainSecretError.operationFailed(addStatus)
+        }
+        try verifySaved(encoded, for: credential)
+    }
+
+    private func verifySaved(_ expected: Data, for credential: ProviderCredential) throws {
+        guard try read(credential) == expected else {
+            throw KeychainSecretError.verificationFailed
         }
     }
 
@@ -82,12 +92,15 @@ struct KeychainSecretStore {
 
 enum KeychainSecretError: LocalizedError {
     case emptySecret
+    case verificationFailed
     case operationFailed(OSStatus)
 
     var errorDescription: String? {
         switch self {
         case .emptySecret:
             "密钥不能为空。"
+        case .verificationFailed:
+            "钥匙串写入后未能核对成功，请重试。"
         case .operationFailed(let status):
             SecCopyErrorMessageString(status, nil) as String? ?? "macOS 钥匙串操作失败。"
         }

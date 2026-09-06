@@ -44,6 +44,7 @@ struct ContentView: View {
     @State private var seedanceSecretDraft = ""
     @State private var minimaxSecretDraft = ""
     @State private var openAIRealtimeSecretDraft = ""
+    @State private var credentialSaveError: String?
     @State private var seedanceIsConfigured = false
     @State private var minimaxIsConfigured = false
     @State private var openAIRealtimeIsConfigured = false
@@ -64,7 +65,8 @@ struct ContentView: View {
     @State private var realtimeCloudConsent = false
     @State private var realtimeGuardianConsent = false
     @State private var realtimeCredentialIsConfigured = false
-    @State private var realtimeSessionLimitMinutes = 10
+    @State private var realtimeSessionLimitMinutes = 5
+    @State private var voiceInteractionMode: VoiceInteractionMode = .gptRealtime
     @State private var runPendingCancelID: String?
     private let keychain = KeychainSecretStore()
 
@@ -75,6 +77,11 @@ struct ContentView: View {
         }
         .naluFont(.body)
         .environment(\.naluComfortTextLevel, model.comfortPreferences.textLevel)
+        .onChange(of: voiceInteractionMode) {
+            if voiceInteractionMode == .localDictation { realtimeVoice.stop() }
+            updateLocalVoicePolicy()
+        }
+        .onChange(of: realtimeVoice.state) { updateLocalVoicePolicy() }
         .task {
             do {
                 try await RuntimeSupervisor.shared.start()
@@ -292,7 +299,7 @@ struct ContentView: View {
                 .controlSize(.large)
                 .disabled(selectedProject == nil)
                 Button(
-                    realtimeVoice.state.isActive ? "结束自然语音" : "自然语音对话",
+                    realtimeVoice.state.isActive ? "结束 GPT 语音" : "GPT 实时语音",
                     systemImage: realtimeVoice.state.isActive
                         ? "phone.down.fill" : "waveform.and.mic"
                 ) {
@@ -525,11 +532,31 @@ struct ContentView: View {
                     .padding(.horizontal, 24)
                     .padding(.top, 12)
             }
-            VoiceActivityStatus(isListening: model.isListening)
-            Button(action: toggleMicrophone) {
+            Picker("对话方式", selection: $voiceInteractionMode) {
+                ForEach(VoiceInteractionMode.allCases) { mode in
+                    Text(mode.label).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal, 24)
+            .padding(.top, 12)
+            if voiceInteractionMode == .localDictation {
+                VoiceActivityStatus(isListening: model.isListening)
+            } else {
+                Text(realtimeVoice.state.isActive
+                     ? "GPT 直接用语音回答，您可以插话"
+                     : "连接后由 GPT 直接听和说；不会自动切换为系统朗读")
+                    .naluFont(.body)
+                    .padding(.horizontal, 24)
+                    .padding(.top, 8)
+            }
+            Button(action: primaryVoiceAction) {
                 Label(
-                    model.isListening ? "说完了" : "按一下，然后开始说",
-                    systemImage: model.isListening ? "stop.circle.fill" : "mic.circle.fill"
+                    voiceInteractionMode == .gptRealtime
+                        ? (realtimeVoice.state.isActive ? "结束 GPT 语音对话" : "和 GPT 开始语音聊天")
+                        : (model.isListening ? "说完了" : "开始本机听写"),
+                    systemImage: (model.isListening || realtimeVoice.state.isActive)
+                        ? "stop.circle.fill" : "mic.circle.fill"
                 )
                 .naluFont(.title2, weight: .bold)
                 .frame(maxWidth: .infinity, minHeight: 58)
@@ -539,7 +566,6 @@ struct ContentView: View {
             .padding(.horizontal, 24)
             .padding(.bottom, 24)
             .padding(.top, 12)
-            .disabled(realtimeVoice.state.isActive)
             .accessibilityIdentifier(NaluPrimaryAccessibilityID.microphoneToggle)
         }
         .alert("Nalu 需要您的帮助", isPresented: errorBinding) {
@@ -1701,9 +1727,12 @@ struct ContentView: View {
             Text("保存密钥不会触发付费调用。明确说“网上搜索”时会为该次查询使用 Responses API；自然语音仍在单独同意后才开启。下载、发布、付款和外部写入必须另行确认。")
                 .naluFont(.caption)
                 .foregroundStyle(.secondary)
+            if let credentialSaveError {
+                Text(credentialSaveError).foregroundStyle(.red)
+            }
             HStack {
                 Spacer()
-                Button("完成") { isPresentingProviderCredentials = false }
+                Button("保存并完成") { savePendingCredentialsAndClose() }
                     .keyboardShortcut(.defaultAction)
             }
         }
@@ -2379,6 +2408,7 @@ struct ContentView: View {
     }
 
     private func presentProviderCredentials() {
+        credentialSaveError = nil
         refreshCredentialStatus()
         seedanceSecretDraft = ""
         minimaxSecretDraft = ""
@@ -2387,6 +2417,8 @@ struct ContentView: View {
     }
 
     private func presentRealtimeConsent() {
+        voiceInteractionMode = .gptRealtime
+        model.setLocalVoiceEnabled(false)
         do {
             realtimeCredentialIsConfigured = try keychain.contains(.openAIRealtime)
         } catch {
@@ -2442,16 +2474,32 @@ struct ContentView: View {
         }
     }
 
-    private func saveCredential(_ credential: ProviderCredential, secret: String) {
+    @discardableResult
+    private func saveCredential(_ credential: ProviderCredential, secret: String) -> Bool {
         do {
             try keychain.set(secret, for: credential)
             if credential == .seedance { seedanceSecretDraft = "" }
             if credential == .minimax { minimaxSecretDraft = "" }
             if credential == .openAIRealtime { openAIRealtimeSecretDraft = "" }
             refreshCredentialStatus()
+            credentialSaveError = nil
+            return true
         } catch {
-            model.errorMessage = error.localizedDescription
+            credentialSaveError = "未能保存密钥：\(error.localizedDescription) 输入内容已保留，请重试。"
+            return false
         }
+    }
+
+    private func savePendingCredentialsAndClose() {
+        let drafts: [(ProviderCredential, String)] = [
+            (.seedance, seedanceSecretDraft),
+            (.minimax, minimaxSecretDraft),
+            (.openAIRealtime, openAIRealtimeSecretDraft),
+        ]
+        guard CredentialDraftSave.save(drafts, using: { credential, secret in
+            saveCredential(credential, secret: secret)
+        }) else { return }
+        isPresentingProviderCredentials = false
     }
 
     private func removeCredential(_ credential: ProviderCredential) {
@@ -2604,7 +2652,30 @@ struct ContentView: View {
     }
 
     private func repeatQuestion() {
-        model.repeatCurrentQuestion()
+        if voiceInteractionMode == .gptRealtime {
+            if realtimeVoice.state.isActive {
+                realtimeVoice.speakPrompt(model.currentInterviewPrompt)
+            } else {
+                presentRealtimeConsent()
+            }
+        } else {
+            model.repeatCurrentQuestion()
+        }
+    }
+
+    private func updateLocalVoicePolicy() {
+        model.setLocalVoiceEnabled(voiceInteractionMode.allowsLocalSpeech(
+            realtimeActive: realtimeVoice.state.isActive
+        ))
+    }
+
+    private func primaryVoiceAction() {
+        if voiceInteractionMode == .gptRealtime {
+            if realtimeVoice.state.isActive { realtimeVoice.stop() }
+            else { presentRealtimeConsent() }
+        } else {
+            toggleMicrophone()
+        }
     }
 
     private func toggleMicrophone() {

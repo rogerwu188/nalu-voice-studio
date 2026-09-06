@@ -5,6 +5,11 @@ final class SpeechPlayback: NSObject, @preconcurrency AVSpeechSynthesizerDelegat
     private let synthesizer = AVSpeechSynthesizer()
     private var activeUtterance: AVSpeechUtterance?
     private var completion: ((Bool) -> Void)?
+    var isEnabled = false {
+        didSet {
+            if !isEnabled { stop() }
+        }
+    }
 
     override init() {
         super.init()
@@ -16,6 +21,10 @@ final class SpeechPlayback: NSObject, @preconcurrency AVSpeechSynthesizerDelegat
         rate: Float = 0.42,
         completion: ((Bool) -> Void)? = nil
     ) {
+        guard isEnabled else {
+            completion?(false)
+            return
+        }
         let cleaned = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleaned.isEmpty else {
             completion?(false)

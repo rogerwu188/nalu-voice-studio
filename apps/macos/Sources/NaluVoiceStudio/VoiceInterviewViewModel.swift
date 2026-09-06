@@ -121,6 +121,16 @@ final class VoiceInterviewViewModel {
     private let runtime = RuntimeClient()
     private let speech = SpeechRecorder()
     private let speechPlayback = SpeechPlayback()
+    private var localVoiceEnabled = false
+
+    func setLocalVoiceEnabled(_ enabled: Bool) {
+        localVoiceEnabled = enabled
+        speechPlayback.isEnabled = enabled
+        if !enabled && isListening {
+            speech.stop()
+            isListening = false
+        }
+    }
     private let webResearch = OpenAIWebResearchClient()
     private let finalMasterSpeechRecognizer = FinalMasterSpeechRecognizer()
     private var interviewFlow = InterviewFlow()
@@ -154,6 +164,10 @@ final class VoiceInterviewViewModel {
             speech.stop()
             isListening = false
             commitTranscript()
+            return
+        }
+        guard localVoiceEnabled else {
+            errorMessage = "当前使用 GPT 实时语音。请通过底部按钮连接，或明确切换到本机听写与朗读。"
             return
         }
         guard await speech.requestAuthorization() else {
