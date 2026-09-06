@@ -1,9 +1,19 @@
 import socket
+import ssl
 
 import pytest
 from fastapi.testclient import TestClient
 from nalu_runtime import source_reader
 from nalu_runtime.app import create_app
+
+
+def test_source_tls_keeps_verification_with_bundled_trust_roots():
+    context = source_reader.source_tls_context()
+    assert context.verify_mode == ssl.CERT_REQUIRED
+    assert context.check_hostname is True
+    assert context.cert_store_stats()["x509_ca"] > 0
+    assert source_reader.source_failure_code(ssl.SSLCertVerificationError()) == "source_tls_verification_failed"
+    assert source_reader.source_failure_code(socket.gaierror()) == "source_dns_failed"
 
 
 def test_public_target_blocks_internal_dns_and_credentials(monkeypatch):

@@ -159,7 +159,7 @@ from .release_evidence import (
 from .remote_submitter import DurableRemoteTaskSubmitter
 from .repository import ConflictError, NotFoundError, Repository
 from .semantic_recognizer import LocalSemanticRecognizer
-from .source_reader import read_public_source
+from .source_reader import read_public_source, source_failure_code
 from .storage_diagnostics import inspect_storage
 from .writer_provider import (
     DisabledWriterProviderVerifier,
@@ -312,7 +312,10 @@ def create_app(
         try:
             return read_public_source(url)
         except (ValueError, OSError, LookupError) as exc:
-            raise HTTPException(status_code=422, detail="无法读取公开文字来源；请提供可访问的 HTTPS 网页或直接提供文字。") from exc
+            raise HTTPException(status_code=422, detail={
+                "code": source_failure_code(exc),
+                "message": "无法读取公开文字来源；请提供可访问的 HTTPS 网页或直接提供文字。",
+            }) from exc
 
     @app.post("/v1/projects/{project_id}/interactive-story/turns")
     def append_story_input(project_id: str, request: StoryInput) -> dict:

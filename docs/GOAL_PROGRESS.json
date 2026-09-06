@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "a016c80 completed full CI 34058107081; 319 runtime tests. Arm64 artifact 9996631576 installed in /tmp/nalu-story.msvEac/app using existing isolated support tmp.gEDfvkaLEc/18769; previous projects preserved, source reader included. Native synthetic project row survives restart, but row activation/draft display not yet verified. Local dictation/TTS selected manually; initial-mode default fix pending its own CI. Evidence docs/qa/native-interactive-story-2026-09-06.md."
+    "summary": "Native restoration and cross-project isolation verified on a016c80 artifact 9996631576. Real packaged public-source read reproducibly returns 422 while development reader succeeds. Explicit bundled certifi roots, packaging collection and safe error classification added; 320 runtime tests pass. Fresh packaged source QA and CI remain required; neither source-to-script nor full SOP is complete. Evidence docs/qa/native-interactive-story-2026-09-06.md."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-interactive-story-writer-and-source-input",
-    "summary": "Check compiled CI and run native narration -> draft -> adoption -> review. Supplied HTTPS URL text reader now works on a real public page and is connected to saved story context; verify named-book search provider and source selection/rights. Complete in-flight follow-up preservation, provider receipt reconciliation, atomic adoption and season numbering, then real production/QA/release. No SOP is complete from these checkpoints.",
+    "summary": "Native synthetic restoration and isolation now observed by activating actual row button. Packaged a016c80 source-text returns 422 for public GitHub despite source-interpreter success; certifi bundle roots and safe error classification implemented, cause not yet proven. Rebuild and repeat real packaged source read first, then real writer -> adoption -> review. Complete follow-up preservation, provider reconciliation, atomic adoption/season binding and production/release. Evidence docs/qa/native-interactive-story-2026-09-06.md; no full SOP completion.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

@@ -31,3 +31,21 @@ and final release. No paid model/video call or publication was executed in this 
 Separate follow-up changes the initial mode to local dictation/TTS per the user;
 Realtime remains optional. It has a regression test and local parse evidence but
 must pass its own compiled CI; it is not included in the installed candidate above.
+
+## Follow-up native verification
+
+Using the actual button inside the outline row's cell (not selecting the outer
+row) opened `[QA] 故事恢复验证` on the same installed candidate after restart.
+Native accessibility output showed the synthetic user story plus episode 1
+`海边的星星`, its outline and full synthetic scene. Switching to `Synthetic QA B —
+no assets` cleared those contents and displayed its empty-story prompt. This
+provides bounded native restoration/isolation evidence; it does not prove an AI
+writer call, approval, video generation or publication.
+
+Important regression: a real GET to the packaged runtime's project source-text
+endpoint for the public QingShan repository returned HTTP 422. The same URL read
+successfully in the development interpreter. Existing generic error details do
+not establish the cause. Interpreter-specific TLS root paths are a hypothesis.
+Follow-up explicitly packages certifi roots (verification stays enabled), adds
+safe TLS/DNS/timeout error codes and a trust-root regression test. A rebuilt
+runtime must repeat the actual request before source reading can be called fixed.

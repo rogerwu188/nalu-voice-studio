@@ -7,9 +7,27 @@ import ssl
 from html.parser import HTMLParser
 from urllib.parse import urljoin, urlsplit
 
+import certifi
+
 
 class SourceReadError(ValueError):
     pass
+
+
+def source_tls_context():
+    # Bundle roots explicitly: a CI interpreter's compiled CA path need not
+    # exist on the recipient Mac. Never disable certificate/hostname checks.
+    return ssl.create_default_context(cafile=certifi.where())
+
+
+def source_failure_code(error):
+    if isinstance(error, ssl.SSLCertVerificationError):
+        return "source_tls_verification_failed"
+    if isinstance(error, socket.gaierror):
+        return "source_dns_failed"
+    if isinstance(error, TimeoutError):
+        return "source_timeout"
+    return "source_unavailable"
 
 
 class SourceTextParser(HTMLParser):
@@ -53,7 +71,7 @@ def read_public_source(url):
             # A second DNS resolution must not enable a rebinding to localhost.
             raw_socket = socket.create_connection((ip, 443), timeout=12)
             try:
-                connection.sock = ssl.create_default_context().wrap_socket(
+                connection.sock = source_tls_context().wrap_socket(
                     raw_socket, server_hostname=parsed.hostname
                 )
             except Exception:
