@@ -92,7 +92,8 @@ Current evidence:
   create-project and stop-speaking controls remain fully visible with maximum font,
   and the current fixture transcript is visible after automatic scrolling.
   See [qualified evidence](qa/native-fixed-controls-2026-09-06.json) and its checked-in
-  screenshots. QA used an isolated temporary database and port 18766. Universal CI,
+  screenshots. QA used an isolated temporary database and port 18766. CI run
+  `34037029775` passed Runtime, arm64, x86_64 and Universal jobs. Universal native QA,
   idle-state/font-transition checks and real speech/human acceptance remain open;
   this does not mark SOP-02 PASS.
 

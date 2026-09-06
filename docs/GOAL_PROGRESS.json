@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-02",
     "status": "IN_PROGRESS",
-    "summary": "Isolated QA port support is implemented and tested. Exact ae388fd arm64 artifact passed native fixed-control visibility at 980x736 points with maximum font and long fixture conversation. Screenshots and qualified evidence are recorded in docs/qa/native-fixed-controls-2026-09-06.json. Universal CI is still pending; no whole-SOP completion is claimed."
+    "summary": "Isolated QA port support is implemented and tested. Exact ae388fd arm64 artifact passed native fixed-control visibility at 980x736 points with maximum font and long fixture conversation. Evidence is committed in d33effd. CI run 34037029775 passed Runtime, arm64, x86_64 and Universal jobs. No whole-SOP completion is claimed."
   },
   "next_action": {
     "sop": "SOP-02",
     "id": "critical-controls-native-visual-qa",
-    "summary": "Finish CI run 34037029775 and verify its Universal artifact; preserve the completed arm64 native visibility evidence. Then verify idle-state fixed controls and font-size transition using isolated QA data before selecting the next unblocked SOP item. Do not execute paid providers without authorization.",
+    "summary": "Verify the Universal artifact from successful CI run 34037029775; preserve the completed arm64 native visibility evidence. Then verify idle-state fixed controls and font-size transition using isolated QA data before selecting the next unblocked SOP item. Do not execute paid providers without authorization.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

@@ -4,6 +4,8 @@
   "product_commit": "ae388fdfab54e50319bb4e4babdde3a1efd35148",
   "project_complete": false,
   "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34037029775",
+  "ci_conclusion": "success",
+  "ci_jobs": {"runtime": "success", "macos_arm64": "success", "macos_x86_64": "success", "macos_universal": "success"},
   "artifact": {
     "id": 9990515799,
     "architecture": "arm64",
