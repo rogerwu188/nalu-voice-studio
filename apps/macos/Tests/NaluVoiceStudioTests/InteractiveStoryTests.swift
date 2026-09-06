@@ -2,6 +2,14 @@ import XCTest
 @testable import NaluVoiceStudio
 
 final class InteractiveStoryTests: XCTestCase {
+    @MainActor
+    func testAdoptionRequiresExplicitEpisodeSelectionNotVagueAgreement() {
+        XCTAssertEqual(VoiceInterviewViewModel.interactiveDraftSelection("采用第一集草稿"), 1)
+        XCTAssertEqual(VoiceInterviewViewModel.interactiveDraftSelection("采用第12集草稿"), 12)
+        XCTAssertNil(VoiceInterviewViewModel.interactiveDraftSelection("不要采用第1集草稿"))
+        XCTAssertNil(VoiceInterviewViewModel.interactiveDraftSelection("好的"))
+    }
+
     func testRuntimeStateDecodesPendingAndAnsweredTurns() throws {
         let data = Data(#"{"revision":3,"summary":"童年","episode_drafts":[{"episode_number":1,"title":"海边","outline":"遇见外婆","script":"外景 海边"}],"turns":[{"turn_id":"a","text":"我小时候住海边","source_mode":"narrated_story","status":"answered","answer":{"reply":"后来呢？","summary":"童年","episode_drafts":[],"outcome":"answered"}},{"turn_id":"b","text":"网上找资料","source_mode":"web_source","status":"pending"}]}"#.utf8)
         let state = try JSONDecoder().decode(InteractiveStoryState.self, from: data)

@@ -2,6 +2,19 @@ import XCTest
 @testable import NaluVoiceStudio
 
 final class InteractiveStoryWriterTests: XCTestCase {
+    func testDeclarationUsesActualReturnedModelAndTaskNotInventedIdentifiers() throws {
+        let response = Data(#"{"id":"chatcmpl-real-fixture","model":"returned-model-snapshot"}"#.utf8)
+        let result = try InteractiveStoryWriter.declaration(response: response,
+            requestBody: Data("fixture request".utf8), provider: "hopsapi.com",
+            started: Date(timeIntervalSince1970: 1000), completed: Date(timeIntervalSince1970: 1001))
+        XCTAssertEqual(result.modelID, "returned-model-snapshot")
+        XCTAssertEqual(result.sessionOrTaskID, "chatcmpl-real-fixture")
+        XCTAssertEqual(result.receiptSHA256.count, 64)
+        XCTAssertNotEqual(result.receiptSHA256, result.inputBundleSHA256)
+        XCTAssertThrowsError(try InteractiveStoryWriter.declaration(response: Data("{}".utf8),
+            requestBody: Data(), provider: "hopsapi.com", started: Date(), completed: Date()))
+    }
+
     func testRequestUsesConfiguredHostAndCarriesPreviousSourceContext() throws {
         let state = InteractiveStoryState(revision: 2, turns: [
             .init(turn_id: "source", text: "查找老照片", source_mode: "web_source", status: "answered",

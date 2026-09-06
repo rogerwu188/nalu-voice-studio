@@ -464,6 +464,7 @@ struct ScriptAuthoringProvenance: Codable, Equatable, Sendable {
 
 struct ScriptAuthoringDraft: Codable, Sendable {
     let origin: String
+    var external_writer: ExternalWriterDeclaration? = nil
 }
 
 struct ScriptRevisionDraft: Codable, Sendable {

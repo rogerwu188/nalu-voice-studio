@@ -8303,6 +8303,16 @@
             "title": "Expected Revision",
             "type": "integer"
           },
+          "external_writer": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExternalWriterDeclaration"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "outcome": {
             "default": "answered",
             "enum": [
@@ -8324,6 +8334,18 @@
             "maxLength": 24000,
             "title": "Summary",
             "type": "string"
+          },
+          "writer_response_json": {
+            "anyOf": [
+              {
+                "maxLength": 2000000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Writer Response Json"
           }
         },
         "required": [

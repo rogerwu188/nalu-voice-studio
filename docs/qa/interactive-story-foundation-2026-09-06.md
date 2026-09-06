@@ -47,3 +47,25 @@ Still open: genuine writer receipt/provenance capture and script-revision handof
 native draft review/restart display, source content acquisition and source rights,
 multi-season numbering, in-flight follow-up handling, and both real end-to-end
 user journeys. Draft conversation output alone is not a completed writing flow.
+
+## Draft adoption implementation (pending compiled/native QA)
+
+The client now captures the actual returned model/task identifier, request/rules/
+response digests and the raw response body (not authentication headers). These
+remain unverified client declarations, not proof of provider execution. SQLite
+retains them with each answer, and tracks the writer of the current episode draft.
+A new correction does not inherit the old draft's writer declaration.
+
+An explicit `采用第1集草稿` command creates/selects the season and episode and
+submits the draft as `external_ai_generated` into the existing script-review API.
+It does not approve the script or start production. A matching content/receipt
+revision is reused on ordinary retry; concurrent-client atomic idempotency is
+not yet established. Multiple seasons without an identified current season are
+not silently guessed. Source episode numbering still needs full season binding.
+
+Local: full runtime suite **316 passed**, including three interactive tests;
+Ruff/Swift parse/OpenAPI compatibility pass. Added Swift declaration and
+explicit-adoption parser tests. Compiled CI for this change, native adoption and
+provider receipt reconciliation remain pending. Prior writer candidate `def710d`
+has arm64 and runtime success in CI `34057559900`; Intel was still running at
+20:22 UTC. That result does not validate this later adoption change.

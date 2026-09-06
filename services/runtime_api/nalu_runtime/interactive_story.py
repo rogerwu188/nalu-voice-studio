@@ -6,6 +6,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from .database import Database
+from .models import ExternalWriterDeclaration
 from .repository import ConflictError, NotFoundError, utc_now
 
 
@@ -32,6 +33,8 @@ class StoryAnswer(BaseModel):
     summary: str = Field(default="", max_length=24000)
     episode_drafts: list[EpisodeWritingDraft] = Field(default_factory=list, max_length=50)
     outcome: Literal["answered", "lookup_failed", "writer_failed"] = "answered"
+    external_writer: ExternalWriterDeclaration | None = None
+    writer_response_json: str | None = Field(default=None, max_length=2000000)
 
 
 class InteractiveStory:
@@ -119,5 +122,12 @@ class InteractiveStory:
                     existing = {item["episode_number"]: item for item in state["episode_drafts"]}
                     existing.update({draft.episode_number: draft.model_dump() for draft in request.episode_drafts})
                     state["episode_drafts"] = [existing[number] for number in sorted(existing)]
+                    writers = state.setdefault("draft_writers", {})
+                    for draft in request.episode_drafts:
+                        # Corrections cannot inherit an older run's receipt.
+                        writers[str(draft.episode_number)] = (
+                            request.external_writer.model_dump(mode="json")
+                            if request.external_writer else None
+                        )
             state["revision"] += 1
             return self._save(connection, project_id, bible, state)

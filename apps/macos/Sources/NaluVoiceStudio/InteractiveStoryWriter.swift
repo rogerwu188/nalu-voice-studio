@@ -1,4 +1,11 @@
 import Foundation
+import CryptoKit
+
+struct InteractiveWriterResult: Sendable {
+    let answer: InteractiveStoryAnswer
+    let declaration: ExternalWriterDeclaration
+    let responseJSON: String
+}
 
 /// Produces unapproved writing drafts, never production commands or fake search results.
 actor InteractiveStoryWriter {
@@ -50,16 +57,37 @@ actor InteractiveStoryWriter {
         return request
     }
 
-    func write(state: InteractiveStoryState) async throws -> InteractiveStoryAnswer {
+    func write(state: InteractiveStoryState) async throws -> InteractiveWriterResult {
         let endpoint = try AIServiceEndpoint.current()
         let model = try AIServiceModels.load(for: endpoint).research
         let key = try fixedAPIKey ?? KeychainSecretStore().secret(for: .openAIRealtime)
         guard let key, !key.isEmpty else { throw WriterError.unavailable }
         let request = try Self.makeRequest(state: state, apiKey: key, endpoint: endpoint, model: model)
+        let started = Date()
         let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode)
         else { throw WriterError.unavailable }
-        return try Self.parseResponse(data)
+        let answer = try Self.parseResponse(data)
+        let declaration = try Self.declaration(response: data, requestBody: request.httpBody ?? Data(),
+            provider: endpoint.baseURL.host ?? "unknown", started: started, completed: Date())
+        return InteractiveWriterResult(answer: answer, declaration: declaration,
+            responseJSON: String(decoding: data, as: UTF8.self))
+    }
+
+    static func declaration(response: Data, requestBody: Data, provider: String,
+                            started: Date, completed: Date) throws -> ExternalWriterDeclaration {
+        guard let root = try JSONSerialization.jsonObject(with: response) as? [String: Any],
+              let id = root["id"] as? String, (3...240).contains(id.count),
+              let model = root["model"] as? String, (3...160).contains(model.count)
+        else { throw WriterError.invalidResponse }
+        func digest(_ data: Data) -> String {
+            SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+        }
+        let dates = ISO8601DateFormatter()
+        return ExternalWriterDeclaration(provider: provider, modelID: model, sessionOrTaskID: id,
+            inputBundleSHA256: digest(requestBody), writerRulesSHA256: digest(Data(instructions.utf8)),
+            receiptSHA256: digest(response), startedAt: dates.string(from: started),
+            completedAt: dates.string(from: completed))
     }
 
     static func parseResponse(_ data: Data) throws -> InteractiveStoryAnswer {

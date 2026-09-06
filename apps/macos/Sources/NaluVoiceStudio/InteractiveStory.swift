@@ -27,6 +27,7 @@ struct InteractiveStoryState: Codable, Sendable {
     let turns: [InteractiveStoryTurn]
     let summary: String
     let episode_drafts: [InteractiveEpisodeDraft]
+    var draft_writers: [String: ExternalWriterDeclaration?]? = nil
 }
 
 struct InteractiveStoryInput: Encodable {
@@ -42,4 +43,6 @@ struct InteractiveStoryAnswerRequest: Encodable {
     let summary: String
     let episode_drafts: [InteractiveEpisodeDraft]
     let outcome: String
+    var external_writer: ExternalWriterDeclaration? = nil
+    var writer_response_json: String? = nil
 }

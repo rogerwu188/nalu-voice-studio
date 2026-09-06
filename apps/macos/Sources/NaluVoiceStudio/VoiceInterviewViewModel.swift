@@ -211,6 +211,10 @@ final class VoiceInterviewViewModel {
         transcript = ""
         transcriptConfidence = 0
         if applyComfortCommand(spoken) { return }
+        if let number = Self.interactiveDraftSelection(spoken) {
+            Task { await adoptInteractiveDraft(number: number) }
+            return
+        }
         if let request = AssistantActionRouter.route(spoken) {
             handleAssistantAction(request)
             return
@@ -287,8 +291,9 @@ final class VoiceInterviewViewModel {
         }
         assistantActionStatus = "正在理解您的故事、整理分集…"
         let initialGeneration = projectSelectionGeneration
+        let initialProjectID = selectedProjectID
         Task {
-            var projectID = selectedProjectID
+            var projectID = initialProjectID
             var generation = initialGeneration
             var revision: Int?
             let turnID = UUID().uuidString
@@ -312,17 +317,19 @@ final class VoiceInterviewViewModel {
                     input: .init(turn_id: turnID, expected_revision: existing.revision,
                                  text: spoken, source_mode: "narrated_story"))
                 revision = state.revision
-                let answer = try await storyWriter.write(state: state)
+                let result = try await storyWriter.write(state: state)
+                let answer = result.answer
                 _ = try await runtime.saveStoryAnswer(projectID: projectID, turnID: turnID,
                     answer: .init(expected_revision: state.revision, reply: answer.reply,
                                   summary: answer.summary, episode_drafts: answer.episode_drafts,
-                                  outcome: "answered"))
+                                  outcome: "answered", external_writer: result.declaration,
+                                  writer_response_json: result.responseJSON))
                 assistantActionStatus = nil
                 guard projectSelectionGeneration == generation else { return }
                 let drafts = answer.episode_drafts.map {
                     "第\($0.episode_number)集《\($0.title)》草稿\n\($0.outline)\n\n\($0.script)"
                 }.joined(separator: "\n\n")
-                messages.append(.init(speaker: .nalu, text: answer.reply + (drafts.isEmpty ? "" : "\n\n" + drafts)))
+                messages.append(.init(speaker: .nalu, text: answer.reply + (drafts.isEmpty ? "" : "\n\n" + drafts + "\n\n您可以继续说哪里要改；要放进分集审阅，请说“采用第1集草稿”（换成对应集数）。")))
                 speechPlayback.speak(answer.reply, rate: comfortPreferences.speechRate)
             } catch {
                 if let projectID, let revision {
@@ -337,6 +344,66 @@ final class VoiceInterviewViewModel {
                 messages.append(.init(speaker: .nalu, text: reply))
                 speechPlayback.speak(reply, rate: comfortPreferences.speechRate)
             }
+        }
+    }
+
+    static func interactiveDraftSelection(_ text: String) -> Int? {
+        let cleaned = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let digits = ["一": "1", "二": "2", "三": "3", "四": "4", "五": "5", "六": "6", "七": "7", "八": "8", "九": "9", "十": "10"]
+        let normalized = digits[cleaned.replacingOccurrences(of: "采用第", with: "").replacingOccurrences(of: "集草稿", with: "")]
+        let value = normalized.map { "采用第\($0)集草稿" } ?? cleaned
+        guard value.range(of: "^采用第[0-9]{1,3}集草稿$", options: .regularExpression) != nil else { return nil }
+        return Int(value.replacingOccurrences(of: "采用第", with: "").replacingOccurrences(of: "集草稿", with: ""))
+    }
+
+    private func adoptInteractiveDraft(number: Int) async {
+        guard let projectID = selectedProjectID, assistantActionStatus == nil else { return }
+        let generation = projectSelectionGeneration
+        let requestedSeason = episodes.first(where: { $0.id == selectedEpisodeID })?.seasonID
+        assistantActionStatus = "正在把草稿放入本集剧本审阅…"
+        defer { assistantActionStatus = nil }
+        do {
+            let state = try await runtime.interactiveStory(projectID: projectID)
+            guard let draft = state.episode_drafts.first(where: { $0.episode_number == number }),
+                  let writer = state.draft_writers?[String(number)] ?? nil else {
+                throw InteractiveStoryWriter.WriterError.invalidResponse
+            }
+            let available = try await runtime.listSeasons(projectID: projectID)
+            let season: NaluSeason
+            if let matching = available.first(where: { $0.id == requestedSeason }) {
+                season = matching
+            } else if available.count == 1, let only = available.first {
+                season = only
+            } else if available.isEmpty {
+                season = try await runtime.createSeason(projectID: projectID,
+                    draft: .init(title: "第一季", seasonNumber: 1,
+                                 plannedEpisodeCount: max(number, state.episode_drafts.count)))
+            } else { throw InteractiveStoryWriter.WriterError.invalidResponse }
+            let existing = try await runtime.listEpisodes(seasonID: season.id)
+            let episode: NaluEpisode
+            if let matching = existing.first(where: { $0.episodeNumber == number }) {
+                episode = matching
+            } else {
+                episode = try await runtime.createEpisode(seasonID: season.id,
+                    draft: .init(title: draft.title, episodeNumber: number, logline: draft.outline,
+                                 targetSeconds: 60))
+            }
+            let revisions = try await runtime.listScripts(episodeID: episode.id)
+            if !revisions.contains(where: { $0.content == draft.script &&
+                $0.authoringProvenance?.externalWriter?.receiptSHA256 == writer.receiptSHA256 }) {
+                _ = try await runtime.createScript(episodeID: episode.id, content: draft.script,
+                    summary: draft.outline, sourceTranscript: state.summary,
+                    authoringOrigin: "external_ai_generated", externalWriter: writer)
+            }
+            guard projectSelectionGeneration == generation else { return }
+            await selectProject(projectID)
+            selectEpisode(episode.id)
+            let reply = "第\(number)集草稿已放进剧本审阅，尚未批准或启动付费制作。请核对内容，您也可以继续告诉我哪里要改。"
+            messages.append(.init(speaker: .nalu, text: reply))
+            speechPlayback.speak(reply, rate: comfortPreferences.speechRate)
+        } catch {
+            guard projectSelectionGeneration == generation else { return }
+            messages.append(.init(speaker: .nalu, text: "这份草稿还没有成功放进分集审阅。原草稿保留，没有启动制作。请确认已选择季和对应的草稿。"))
         }
     }
 

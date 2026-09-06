@@ -376,7 +376,8 @@ actor RuntimeClient {
 
     func createScript(
         episodeID: String, content: String, summary: String, sourceTranscript: String = "",
-        narrativeMetadata: [String: JSONValue] = [:], authoringOrigin: String
+        narrativeMetadata: [String: JSONValue] = [:], authoringOrigin: String,
+        externalWriter: ExternalWriterDeclaration? = nil
     ) async throws -> ScriptRevision {
         try await post(
             "v1/episodes/\(episodeID)/scripts",
@@ -385,7 +386,7 @@ actor RuntimeClient {
                 summaryForVoiceReview: summary,
                 sourceTranscript: sourceTranscript,
                 narrativeMetadata: narrativeMetadata,
-                authoring: ScriptAuthoringDraft(origin: authoringOrigin)
+                authoring: ScriptAuthoringDraft(origin: authoringOrigin, external_writer: externalWriter)
             )
         )
     }
