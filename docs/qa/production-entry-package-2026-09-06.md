@@ -14,7 +14,15 @@ App extracted to `/tmp/nalu-production-qa.tPCeEA/app/Nalu Voice Studio.app`.
 
 Isolated database was backed up to `/tmp/nalu-production-qa.tPCeEA/pre-upgrade.sqlite3`
 before launching the new package with the existing temporary QA directory and
-port 18769. Startup/restoration inspection is in progress, not yet reported PASS.
+port 18769. LaunchServices startup completed: `/health` returned status ok and
+schema version 28. Native accessibility inspection showed the four existing
+projects and local factory online. Selecting the synthetic two-episode project
+restored its story/drafts, episode-one preflight at 30% and episode-two review at
+15%. Read-only SQLite confirmed episode `ep_7b911d1b2d7041e1b3267be741c5aa2c`
+approved revision 1, and `ep_2059c8fc397b48119046f9964b619c20` still unapproved.
+The UI explicitly states no video is being generated. No microphone capture,
+new script approval, paid request or publication was performed in this inspection.
+This is bounded package startup/restoration QA, not live dictated-start QA.
 
 Added two further native model tests through `commitTranscript`: missing approved
 episode makes no request; duplicate in-flight start makes one POST and reports

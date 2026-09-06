@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "CI 34063554684 all jobs passed. Downloaded 7b9069f ARM64 artifact 9998259459, inner SHA 6d6f29d8671929b3a82c7dcb622d9a74050e39775bb572a6d3997386239d70a1 and deep signature verified. New app launched in existing isolated QA directory/18769, restoration inspection pending. Added commitTranscript model tests, syntax passed; new tests pending CI. Evidence docs/qa/production-entry-package-2026-09-06.md."
+    "summary": "CI 34063554684 all jobs passed. 7b9069f ARM64 package checksum/signature verified; native startup and four-project restoration inspected in isolated QA directory/18769, schema 28. Synthetic episode one retains approved revision 1/preflight; episode two remains unapproved. Added commitTranscript model tests, syntax passed, new tests pending CI. No microphone, paid generation or publication performed. Evidence docs/qa/production-entry-package-2026-09-06.md."
   },
   "next_action": {
     "sop": "SOP-04",
