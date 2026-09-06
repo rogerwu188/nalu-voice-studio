@@ -11,7 +11,7 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "bcfc86ae27dd0d940378aa14467ba4b182a1b8aa",
+  "observed_head": "8af99ac0223b0e0efa60b0942f32a7a4631abf44",
   "last_advanced_at": "2026-09-06T18:37:44Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
@@ -29,8 +29,8 @@
   },
   "next_action": {
     "sop": "SOP-02",
-    "id": "verify-native-asset-confirmation-and-capability-advisory",
-    "summary": "Native settings evidence is committed as e4c4632 and product CI 34051937128 is fully successful. Verify new saved-model membership advisory tests/CI/native result; it must not equate membership with Realtime support. HopsAPI public docs do not establish its Realtime contract; obtain provider-authoritative details, without silently substituting models or repeated paid probes. If details block that gate, continue native synthetic asset dependency preview/cancel QA without deleting user data. Full SOP unchanged. Evidence: docs/qa/gpt-voice-and-credential-save-2026-09-06.md.",
+    "id": "resolve-first-open-status-and-async-asset-project-isolation",
+    "summary": "CI 34052638609 all four jobs pass; native 8af99ac confirmation/cancel and referenced-asset no-delete checks pass with unchanged fixture hash (docs/qa/native-asset-dependency-2026-09-06.md). Resolve first-open credentials status freshness and finish native model-advisory result check on running isolated process 82280, port 18769. Inspect asynchronous asset deletion for project-switch contamination and add regression tests before claiming whole flow complete. Provider Realtime details requested asynchronously; no silent model replacement. Full SOP unchanged.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

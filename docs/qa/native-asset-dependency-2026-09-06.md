@@ -28,3 +28,39 @@ destructive-action copy, preserving the existing interface.
 Separately, two Runtime regression tests pass: referenced assets cannot be
 deleted, and stale preflight cannot bypass the transactional dependency recheck.
 These do not substitute for native or human acceptance. SOP-05 remains open.
+
+## Native retest on 8af99ac
+
+Exact arm64 artifact 9995048952 from CI 34052638609, archive SHA-256
+`7772c6517b069255016d6799ed573dfa33a2ddb56a982b437ab986e331b15c36`
+matches its checksum. Bundle/entitlement verification passes (ad hoc only).
+Native process 82280 reopened the same isolated database on port 18769; health
+reports schema 27. No user data was involved.
+
+- Unreferenced fixture: Check Deletion now presents a nested native alert above
+  the material sheet, with Chinese copy, Cancel and Delete Local Material.
+  [Screenshot](images/native-asset-dependency-confirmation-2026-09-06.png).
+- Escape invokes cancellation, closes the nested alert, and preserves the exact
+  fixture hash listed above. No DELETE request was issued.
+- Created a synthetic season/episode/script and explicitly synthetic approval,
+  then one local dry-run snapshot `run_794d652e8dea459a923f8bc27a34df28` using
+  idempotency key `native-asset-dependency-8af99ac-once`. This is not human
+  approval, paid video production or true production acceptance.
+- A fresh dependency report returns can_delete false and that snapshot ID.
+  Native Check Deletion displays the one-snapshot Chinese restriction and
+  exactly one button (Cancel), with no destructive action. Cancelling preserves
+  the same file hash again.
+
+These native paths pass on the stated binary. Full CI conclusion is still
+pending at recording time; model-list advisory, asynchronous project-switch
+isolation and whole-SOP acceptance are not closed by this test.
+
+Follow-up settings observation on this binary: initial native settings snapshot
+showed OpenAI unconfigured, later changed to stored without a key write. First-open
+status freshness needs its own regression. A model-check action was attempted, but
+no result was visible at observation; native capability-advisory acceptance remains
+open. No microphone session or paid generation was initiated.
+
+Final CI observation: 34052638609 completed success, Runtime, both architecture
+jobs and Universal all passed. Only the documented fixture-backed native
+confirmation/cancel checkpoint is closed, not SOP-05 or the full product.

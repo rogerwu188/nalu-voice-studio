@@ -728,6 +728,12 @@ Current evidence:
 
 ## SOP-05 · Media assets, consent and privacy — IN_PROGRESS
 
+- Native dependency confirmation/cancel on `8af99ac`, arm64 artifact 9995048952,
+  CI 34052638609 all jobs success: alert now appears above the material sheet,
+  cancellation preserves the synthetic file hash, and a dry-run snapshot reference
+  yields only Cancel (no Delete). See [qualified native evidence](qa/native-asset-dependency-2026-09-06.md).
+  This does not prove human voice acceptance or asynchronous project-switch safety.
+
 - Native local-OCR evidence on exact Universal `93f9622` / artifact `9991496944`:
   a fresh QA project imported a synthetic printed Chinese text image through the
   native picker. Vision recognized all six fixture lines and SQLite retained them
