@@ -11,6 +11,12 @@ enum NaluPrimaryAccessibilityID {
     static let microphoneToggle = "nalu.voice.microphone.toggle"
 }
 
+enum VoiceActivityAnimation {
+    static func level(at tick: TimeInterval, offset: Double) -> Double {
+        (sin(tick * 6 + offset) + 1) / 2
+    }
+}
+
 struct RuntimeStatusBadge: View {
     let status: String
 
@@ -45,14 +51,21 @@ struct VoiceActivityStatus: View {
                         Circle()
                             .fill(.red)
                             .frame(width: 14, height: 14)
-                            .scaleEffect(0.85 + 0.2 * wave(tick, offset: 0))
-                            .opacity(0.65 + 0.35 * wave(tick, offset: 0))
+                            .scaleEffect(
+                                0.85 + 0.2 * VoiceActivityAnimation.level(at: tick, offset: 0)
+                            )
+                            .opacity(
+                                0.65 + 0.35 * VoiceActivityAnimation.level(at: tick, offset: 0)
+                            )
                         ForEach(0..<5, id: \.self) { index in
                             Capsule()
                                 .fill(.red)
                                 .frame(
                                     width: 5,
-                                    height: 12 + 18 * wave(tick, offset: Double(index) * 0.7)
+                                    height: 12 + 18 * VoiceActivityAnimation.level(
+                                        at: tick,
+                                        offset: Double(index) * 0.7
+                                    )
                                 )
                         }
                     }
@@ -85,9 +98,5 @@ struct VoiceActivityStatus: View {
             isListening ? "正在录音，Nalu 正在听" : "尚未录音，请按蓝色按钮开始"
         )
         .accessibilityIdentifier(NaluPrimaryAccessibilityID.voiceActivity)
-    }
-
-    private func wave(_ tick: TimeInterval, offset: Double) -> Double {
-        (sin(tick * 6 + offset) + 1) / 2
     }
 }
