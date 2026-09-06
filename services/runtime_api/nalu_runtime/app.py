@@ -128,6 +128,7 @@ from .models import (
     PublicationReconciliationRecord,
     ReleasePackage,
     ReleasePackageCreate,
+    RemoteTaskBinding,
     RenderedOutputIntegrityReport,
     RenderedOutputSeal,
     RenderedOutputSealCreate,
@@ -166,6 +167,7 @@ from .source_reader import read_public_source, source_failure_code
 from .storage_diagnostics import inspect_storage
 from .task_observation_service import TaskObservationService
 from .video_budget import VideoBudgetApproval, VideoBudgetService
+from .video_dispatch import VideoDispatchService
 from .video_preparation import VideoPreparationRequest, VideoPreparationService
 from .video_pricing import VideoPricingService
 from .writer_provider import (
@@ -194,6 +196,7 @@ def create_app(
     writer_http_transport: httpx.BaseTransport | None = None,
     task_query_http_transport: httpx.BaseTransport | None = None,
     pricing_http_transport: httpx.BaseTransport | None = None,
+    video_http_transport: httpx.BaseTransport | None = None,
 ) -> FastAPI:
     repository_root = Path(
         os.environ.get("NALU_REPOSITORY_ROOT", Path(__file__).resolve().parents[3])
@@ -1132,6 +1135,16 @@ def create_app(
     @app.post("/v1/production-runs/{run_id}/video-task-preparations/{preparation_id}/price-observations", response_model=RunEvent)
     def observe_video_price(run_id: str, preparation_id: str) -> RunEvent:
         return VideoPricingService(repository, pricing_http_transport).quote(run_id, preparation_id)
+
+    @app.post("/v1/production-runs/{run_id}/video-reservations/{reservation_id}/submit", response_model=RemoteTaskBinding)
+    def submit_reserved_video(run_id: str, reservation_id: str,
+                             provider_key: str | None = Header(default=None, alias="X-Nalu-Provider-Key"),
+                             origin: str | None = Header(default=None)):
+        if (origin is not None or not provider_key or not provider_key.strip() or len(provider_key) > 1024
+                or "\r" in provider_key or "\n" in provider_key):
+            raise HTTPException(403, "native provider credential required")
+        return VideoDispatchService(repository, remote_task_submitter, video_http_transport).dispatch(
+            run_id, reservation_id, provider_key)
 
     @app.post("/v1/production-runs/{run_id}/tasks/{binding_id}/refresh", response_model=RunEvent)
     def refresh_saved_task(

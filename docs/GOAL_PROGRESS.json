@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "7ea32094b595d7261c94c822bc977c42aaf9a86f",
-  "last_advanced_at": "2026-09-06T23:02:54Z",
+  "observed_head": "a394be8bf1a917ff25ef46b0b3ddb0c53dd20e35",
+  "last_advanced_at": "2026-09-06T23:09:25Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Automatic shot price observations bind published rates, request/source hashes and 24-hour expiry to approval. Commit 7ea3209 pushed; full regression 401 passed, Ruff/OpenAPI passed; CI 34065785277 pending. Real credential-free official page parsed successfully. Evidence docs/qa/automatic-video-pricing-2026-09-06.md. No generation/account access performed; actual dispatch and native/E2E remain open."
+    "summary": "Reviewed reservation now dispatches the exact SD2 request through the sole durable submitter, with current script/package/consent/price checks. Eight mock HTTP flow cases passed, including restart, concurrency and cancellation after intent. Source single-invoker regression fixed without weakening its test. Evidence docs/qa/approved-shot-dispatch-2026-09-06.md. No real paid call; native/upstream inputs and full E2E remain open."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Wire reserved exact shot request plus unexpired observed-price approval into concrete SD2 single-attempt dispatch, revalidating current script, package, consent and run state immediately before I/O. Published prices do not guarantee final billing. Then connect actual AI/upstream shot plans and first-frame inputs, native confirmation/polling; H3/omni remain open. Keep Hops 401 quarantined. Complete real source/story-to-video QA.",
+    "summary": "Connect actual AI/upstream shot planning and entry-frame inputs to preparation, observed-price approval and dispatch; add native confirmation and saved-task polling. Current dispatch has mock integration only, not real video/master acceptance. H3/omni remain open. Investigate Hops access safely without repeating quarantined failed paid writer invocation; complete real source/story-to-video and release QA.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

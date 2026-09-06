@@ -2656,8 +2656,8 @@ class ProductionService:
         finally:
             harden_tree(run_dir)
 
-        # Paid execution remains deliberately disabled until the imported durable
-        # submitter is bound to this versioned package contract.
+        # Run creation stops before provider writes. The separate reviewed-shot
+        # reservation dispatch endpoint binds this package to the durable submitter.
         status = RunStatus.PREFLIGHT if request.dry_run else RunStatus.WAITING_FOR_APPROVAL
         run = ProductionRun(
             id=run_id,

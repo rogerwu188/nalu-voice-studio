@@ -105,6 +105,8 @@ class VideoBudgetService:
                     raise ConflictError("shot already reserves a different request or estimate")
                 if prior[1].get("pricing_quote_id") != approval.pricing_quote_id:
                     raise ConflictError("existing reservation requires explicit price-review reconciliation")
+                if prior[1].get("quote_sha256") != quote_sha:
+                    raise ConflictError("reserved price evidence changed; review again")
                 event_id = prior[0]
             else:
                 total = sum(record["estimated_credits"] for _, record in reservations) + approval.estimated_credits

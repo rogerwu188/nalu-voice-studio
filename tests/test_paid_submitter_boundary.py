@@ -21,6 +21,114 @@ from nalu_runtime.remote_submitter import (
 from nalu_runtime.repository import ConflictError, utc_now
 
 
+@pytest.mark.parametrize("case", ["accepted", "uncertain", "cancelled", "script_changed", "price_changed", "package_changed", "cancel_during_dispatch", "concurrent"])
+def test_reserved_shot_dispatch_revalidates_and_posts_once(tmp_path, case, monkeypatch):
+    posts = []
+    def provider(request):
+        posts.append(request)
+        assert request.headers["x-auth"] == "fixture-video-key"
+        assert request.method == "POST"
+        return httpx.Response(503 if case == "uncertain" else 200,
+                              json={"code": 200, "data": {"task_id": "dispatch-fixture"}})
+    def pricing(_request):
+        return httpx.Response(200, text='<table><tr><td>seedance-2.0-pro</td><td>$0.26 / sec</td><td>26 Credits / sec</td></tr>'
+                              '<tr><td>seedance-2.0-fast</td><td>$0.22 / sec</td><td>22 Credits / sec</td></tr></table>')
+    db_path = tmp_path / "dispatch.sqlite3"
+    api = TestClient(create_app(db_path, tmp_path / "data", pricing_http_transport=httpx.MockTransport(pricing),
+                                video_http_transport=httpx.MockTransport(provider)))
+    run = paid_run(api, tmp_path, run_id="run_dispatch", model="seedance-2.0-pro")
+    created = api.post(f"/v1/episodes/{run.episode_id}/scripts", json={
+        "content": "合成测试：空房间里光影移动。", "source_transcript": "合成测试：空房间里光影移动。",
+        "summary_for_voice_review": "空房间光影"})
+    assert created.status_code == 201, created.text
+    approved = api.post(f"/v1/episodes/{run.episode_id}/scripts/1/approve", json={"approved_by": "QA"})
+    assert approved.status_code == 200, approved.text
+    package = json.loads(Path(run.package_path).read_text())
+    package.update(project={"id": run.project_id}, season={"id": run.season_id},
+                   episode={"id": run.episode_id}, approved_script=approved.json(), inherited_assets=[])
+    package["production_policy"]["estimated_budget_credits"] = 300
+    package["package_sha256"] = canonical_sha256({k: v for k, v in package.items() if k != "package_sha256"})
+    Path(run.package_path).write_text(json.dumps(package))
+    with api.app.state.repository.db.connect() as db:
+        db.execute("UPDATE production_runs SET estimated_budget_credits = 300 WHERE id = ?", (run.id,))
+    output = io.BytesIO()
+    with av.open(output, mode="w", format="image2pipe") as container:
+        stream = container.add_stream("png", rate=1)
+        stream.width, stream.height, stream.pix_fmt = 16, 16, "rgb24"
+        for packet in stream.encode(av.VideoFrame.from_ndarray(np.zeros((16, 16, 3), dtype=np.uint8), format="rgb24")):
+            container.mux(packet)
+        for packet in stream.encode():
+            container.mux(packet)
+    frame = output.getvalue()
+    request = paid_request("合成空房间光影镜头")
+    request.update(model="seedance-2.0-pro", provider_model_id="seedance-2.0-pro",
+                   adapter_id="nalu.qingshan.seedance2-pro", profile_id="SEEDANCE_2_STANDARD_GIGGLE",
+                   native_resolution_contract="720p", delivery_resolution_contract="720p",
+                   video_transport={"mode": "image_to_video_start_frame", "aspect_ratio": "1:1",
+                                    "start_frame": {"base64": base64.b64encode(frame).decode()}})
+    request["opening_anchor"]["frame_sha256"] = hashlib.sha256(frame).hexdigest()
+    request["provider_scope_projection"]["production_package_sha256"] = package["package_sha256"]
+    base = f"/v1/production-runs/{run.id}"
+    prepared = api.post(base + "/video-task-preparations", json={"task_key": "E01-U01", "request": request})
+    assert prepared.status_code == 200, prepared.text
+    prep_url = base + "/video-task-preparations/" + prepared.json()["id"]
+    quote = api.post(prep_url + "/price-observations")
+    assert quote.status_code == 200, quote.text
+    reservation = api.post(prep_url + "/estimate-approvals", json={
+        "preparation_sha256": prepared.json()["payload"]["preparation_sha256"], "estimated_credits": 156,
+        "confirmed_run_budget_credits": 300, "approved_by": "QA", "confirmation": "合成测试，确认这个镜头与预估费用",
+        "pricing_quote_id": quote.json()["id"]})
+    assert reservation.status_code == 200, reservation.text
+    submit_url = base + "/video-reservations/" + reservation.json()["id"] + "/submit"
+    headers = {"X-Nalu-Provider-Key": "fixture-video-key"}
+    assert api.post(submit_url).status_code == 403
+    assert api.post(submit_url, headers={**headers, "Origin": "https://untrusted.invalid"}).status_code == 403
+    if case == "cancelled":
+        api.post(base + "/cancel", json={"requested_by": "QA", "reason": "cancel fixture"})
+    if case == "script_changed":
+        api.post(f"/v1/episodes/{run.episode_id}/scripts", json={
+            "content": "新的合成剧本", "source_transcript": "新的合成剧本", "summary_for_voice_review": "新版本"})
+    if case == "price_changed":
+        changed_price = quote.json()["payload"]
+        changed_price["source_sha256"] = "f" * 64
+        changed_price["quote_sha256"] = canonical_sha256({k: v for k, v in changed_price.items() if k != "quote_sha256"})
+        with api.app.state.repository.db.connect() as db:
+            db.execute("UPDATE run_events SET payload_json = ? WHERE id = ?", (json.dumps(changed_price), quote.json()["id"]))
+    if case == "package_changed":
+        package["project"]["title"] = "changed fixture"
+        Path(run.package_path).write_text(json.dumps(package))
+    if case == "cancel_during_dispatch":
+        submitter = api.app.state.remote_task_submitter
+        record_response = submitter.record_response
+        def cancel_after_intent(*args, **kwargs):
+            result = record_response(*args, **kwargs)
+            if kwargs.get("target_state") == RemoteTaskState.AMBIGUOUS_CHARGE:
+                with api.app.state.repository.db.connect() as db:
+                    db.execute("UPDATE production_runs SET status = 'cancelled' WHERE id = ?", (run.id,))
+            return result
+        monkeypatch.setattr(submitter, "record_response", cancel_after_intent)
+    if case == "concurrent":
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            results = list(pool.map(lambda _: api.post(submit_url, headers=headers), range(2)))
+        assert all(item.status_code in {200, 409} for item in results)
+        result = next(item for item in results if item.status_code == 200)
+    else:
+        result = api.post(submit_url, headers=headers)
+    if case in {"cancelled", "script_changed", "price_changed", "package_changed", "cancel_during_dispatch"}:
+        assert result.status_code == 409, result.text
+        assert posts == []
+        if case == "cancel_during_dispatch":
+            assert api.post(submit_url, headers=headers).json()["state"] == "ambiguous_charge"
+            assert posts == []
+        return
+    assert result.status_code == 200, result.text
+    assert result.json()["state"] == ("ambiguous_charge" if case == "uncertain" else "submitted")
+    assert "fixture-video-key" not in result.text
+    restarted = TestClient(create_app(db_path, tmp_path / "data", video_http_transport=httpx.MockTransport(provider)))
+    assert restarted.post(submit_url, headers=headers).json() == result.json()
+    assert len(posts) == 1
+
+
 @pytest.mark.parametrize("reason", ["dry_run", "cancelled", "archived", "child", "newer", "corrupt"])
 def test_budget_reservation_rejects_ineligible_or_changed_local_state(tmp_path, reason):
     api = TestClient(create_app(tmp_path / "budget.sqlite3", tmp_path / "data"))

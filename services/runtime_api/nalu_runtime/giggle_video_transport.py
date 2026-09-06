@@ -63,14 +63,18 @@ class GiggleSeedanceImageTransport:
     requires_single_attempt = True
     endpoint = "https://giggle.pro/api/v1/generation/image-to-video"
 
-    def __init__(self, secret: Callable[[], str], *, transport: httpx.BaseTransport | None = None):
+    def __init__(self, secret: Callable[[], str], *, transport: httpx.BaseTransport | None = None,
+                 before_submit: Callable[[], None] | None = None):
         self.secret = secret
         self.transport = transport
+        self.before_submit = before_submit
 
     def post_paid_task(self, *, request: dict, idempotency_key: str) -> PaidProviderAcceptance:
         payload = seedance_image_payload(request)
         if re.fullmatch(r"[a-f0-9]{64}", idempotency_key) is None:
             raise ConflictError("missing durable SD2 submission identity")
+        if self.before_submit is not None:
+            self.before_submit()
         try:
             key = self.secret()
             if not isinstance(key, str) or not key.strip() or len(key) > 1024 or "\n" in key or "\r" in key:

@@ -86,6 +86,10 @@ remaining dispatch, billing, native and end-to-end gates.
 Saved shots can now obtain [automatic official-page price estimates](qa/automatic-video-pricing-2026-09-06.md),
 with exact-request and expiry checks during confirmation. This is not a provider
 charge cap or completed paid-dispatch integration.
+The [reviewed-shot SD2 dispatch endpoint](qa/approved-shot-dispatch-2026-09-06.md)
+now connects exact saved approvals to the durable HTTP submitter in mock-network
+tests. Native orchestration, actual upstream shot inputs and live generation/
+master/release acceptance remain incomplete.
 
 2026-09-06 native checkpoints on `4e03c16`, CI
 [34054486473](https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34054486473):

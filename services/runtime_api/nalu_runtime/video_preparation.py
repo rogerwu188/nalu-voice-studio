@@ -32,6 +32,14 @@ class VideoPreparationService:
         self.repository = repository
 
     def prepare(self, run_id: str, incoming: VideoPreparationRequest):
+        record = self.validate(run_id, incoming)
+        return self.repository.append_run_event_once(
+            run_id, "video_task_prepared", dedupe_key="preparation_sha256",
+            dedupe_value=record["preparation_sha256"],
+            message="Exact shot and opening image saved for review; no provider submission.", payload=record,
+        )
+
+    def validate(self, run_id: str, incoming: VideoPreparationRequest):
         run = self.repository.get_run(run_id)
         if self.repository.get_project(run.project_id).archived_at:
             raise ConflictError("archived project is read-only")
@@ -82,8 +90,4 @@ class VideoPreparationService:
                   "paid_approved": False, "generation_performed": False,
                   "visual_semantics_verified": False}
         record["preparation_sha256"] = digest(record)
-        return self.repository.append_run_event_once(
-            run_id, "video_task_prepared", dedupe_key="preparation_sha256",
-            dedupe_value=record["preparation_sha256"],
-            message="Exact shot and opening image saved for review; no provider submission.", payload=record,
-        )
+        return record

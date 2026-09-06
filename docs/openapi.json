@@ -7126,6 +7126,133 @@
         "title": "ReleasePackageCreate",
         "type": "object"
       },
+      "RemoteTaskBinding": {
+        "properties": {
+          "actual_charged_credits": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actual Charged Credits"
+          },
+          "charge_classification": {
+            "default": "",
+            "title": "Charge Classification",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          },
+          "provider_task_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Task Id"
+          },
+          "receipt": {
+            "additionalProperties": true,
+            "title": "Receipt",
+            "type": "object"
+          },
+          "request_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Request Sha256",
+            "type": "string"
+          },
+          "response_sha256": {
+            "anyOf": [
+              {
+                "pattern": "^[a-f0-9]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Response Sha256"
+          },
+          "result_uri": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result Uri"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/RemoteTaskState"
+          },
+          "submission_fingerprint": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Submission Fingerprint",
+            "type": "string"
+          },
+          "task_key": {
+            "title": "Task Key",
+            "type": "string"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "run_id",
+          "task_key",
+          "provider",
+          "model",
+          "submission_fingerprint",
+          "request_sha256",
+          "state",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "RemoteTaskBinding",
+        "type": "object"
+      },
+      "RemoteTaskState": {
+        "enum": [
+          "prepared",
+          "submitted",
+          "ambiguous_charge",
+          "zero_charge_failed",
+          "completed",
+          "cancelled"
+        ],
+        "title": "RemoteTaskState",
+        "type": "string"
+      },
       "RenderedOutputArtifact": {
         "additionalProperties": false,
         "properties": {
@@ -12928,6 +13055,86 @@
           }
         },
         "summary": "Refresh Saved Task"
+      }
+    },
+    "/v1/production-runs/{run_id}/video-reservations/{reservation_id}/submit": {
+      "post": {
+        "operationId": "submit_reserved_video_v1_production_runs__run_id__video_reservations__reservation_id__submit_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "reservation_id",
+            "required": true,
+            "schema": {
+              "title": "Reservation Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Nalu-Provider-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Nalu-Provider-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "origin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Origin"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RemoteTaskBinding"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Submit Reserved Video"
       }
     },
     "/v1/production-runs/{run_id}/video-task-preparations": {
