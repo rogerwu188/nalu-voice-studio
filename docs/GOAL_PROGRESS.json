@@ -11,7 +11,7 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "04da804",
+  "observed_head": "c02c8ad",
   "last_advanced_at": "2026-09-06T21:13:06Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Added read-only reconciliation after lost episode-create responses during interactive draft adoption; no second create POST or plan overwrite, season identity required. Swift parse passed; new transport-fixture tests await compiled CI/native QA. Evidence docs/qa/review-episode-recovery-2026-09-06.md. Runtime and arm64 jobs for queue commit 3385b4a succeeded; Intel/universal and newer candidate remain pending. No full SOP closure."
+    "summary": "Native synthetic double-episode project: season plan and episode-one revision approved via AXPress; episode two remained unapproved. SQL verified both and zero production runs. Evidence docs/qa/native-single-episode-approval-2026-09-06.md. No speech/provider/production acceptance claimed. Newer recovery and command CI remains pending."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-interactive-story-writer-and-source-input",
-    "summary": "Await Hops HTTP 401 resolution for live writing; do not repeat the recorded attempt automatically. Meanwhile verify queued-supplement CI/native behavior and atomic adoption/season binding. Receipt-enabled app at /tmp/nalu-receipt-app.KpcDF6/app uses tmp.gEDfvkaLEc/18769, with synthetic two-episode receipt QA project prj_5cbd6dab0cec4e7ca756d5f1ddc275ca. Full production/provider reconciliation and release remain open.",
+    "summary": "Await Hops HTTP 401 resolution for live writing; do not repeat recorded attempt automatically. Continue production-preflight validation and newer recovery/command CI. Running cf674a9 app is /tmp/nalu-queue-app.9CBYTS/app using tmp.gEDfvkaLEc/18769. Synthetic project prj_5cbd6dab0cec4e7ca756d5f1ddc275ca has episode one approved, episode two unapproved, zero production runs. Full provider reconciliation and release remain open.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

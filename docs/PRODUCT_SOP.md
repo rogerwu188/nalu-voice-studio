@@ -38,6 +38,9 @@ Packaged native restoration now has [bounded queue and two-episode evidence](qa/
 it does not establish live model or production success.
 Episode creation response loss now has a read-only recovery path; see
 [implementation and pending QA](qa/review-episode-recovery-2026-09-06.md).
+Native synthetic episode-one approval now has
+[isolated approval evidence](qa/native-single-episode-approval-2026-09-06.md);
+episode two remained unapproved. Real production gates remain open.
 
 2026-09-06 native checkpoints on `4e03c16`, CI
 [34054486473](https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34054486473):
