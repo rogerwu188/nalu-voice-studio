@@ -11,7 +11,7 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "bd87c9c5c439b401b895bd3eda89e38936e19002",
+  "observed_head": "7b9069fb3a90b01a9fda400c9ca13e1bb4feebaf",
   "last_advanced_at": "2026-09-06T22:15:58Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Writer observation checkpoint passed full 350-test regression. Added native current-episode preparation command with approved-revision identity and no paid approval. Native tests added, syntax passed, compilation pending. CI 34063086327 exposed missing packaged httpx dependency; moved to production dependencies, repaired bundle still unverified. Evidence docs/qa/native-production-entry-2026-09-06.md."
+    "summary": "Prior CI 34063554684 ARM64 and Runtime passed, Intel pending at observation. Added explicit single-attempt paid transport mode: atomic claim and durable pre-network quarantine, no resend after uncertainty. 45 paid-boundary tests passed. Evidence docs/qa/single-attempt-dispatch-2026-09-06.md. Concrete video transport, price approval, native end-to-end QA and real generation remain open."
   },
   "next_action": {
     "sop": "SOP-04",

@@ -118,7 +118,10 @@ class DurableRemoteTaskSubmitter:
         package_sha256, package = self._authorized_package(run_id, model)
         if transport.provider_name != provider:
             raise ConflictError("paid transport does not match the requested provider")
-        if not transport.supports_idempotency:
+        single_attempt = not transport.supports_idempotency and getattr(
+            transport, "requires_single_attempt", False
+        ) is True
+        if not transport.supports_idempotency and not single_attempt:
             raise ConflictError("paid transport must guarantee provider idempotency")
         boundary_failures = ModelCompilerRegistry().validate_paid_boundary_request(
             model,
@@ -149,12 +152,28 @@ class DurableRemoteTaskSubmitter:
         )
         if binding.state != RemoteTaskState.PREPARED:
             return binding
+        if single_attempt:
+            # Claim atomically, then quarantine BEFORE network I/O. This marker
+            # survives project backups; a crash at any later point cannot resend.
+            _, claim = self._repository.claim_operation(
+                "paid-single-attempt", submission_fingerprint, request_sha256, binding.id,
+            )
+            if claim != "claimed":
+                raise ConflictError("single-attempt dispatch already claimed; reconcile without resubmitting")
+            intent = {"dispatch": "single_attempt", "request_sha256": request_sha256}
+            binding = self.record_response(
+                binding.id, target_state=RemoteTaskState.AMBIGUOUS_CHARGE,
+                response_sha256=_canonical_sha256(intent), receipt=intent,
+                charge_classification="DISPATCH_INTENT_REQUIRES_RECONCILIATION",
+            )
         try:
             accepted = transport.post_paid_task(
                 request=request,
                 idempotency_key=submission_fingerprint,
             )
         except AmbiguousPaidProviderResponse as exc:
+            if single_attempt:
+                return binding
             evidence = {
                 "classification": exc.classification,
                 "evidence": exc.evidence,

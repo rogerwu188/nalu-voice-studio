@@ -22,6 +22,39 @@ def canonical_sha256(value: object) -> str:
     return hashlib.sha256(encoded.encode()).hexdigest()
 
 
+@pytest.mark.parametrize("crash", [False, True])
+def test_single_attempt_transport_records_before_io_and_never_resends(tmp_path, monkeypatch, crash):
+    api = TestClient(create_app(tmp_path / "single.sqlite3", tmp_path / "data"))
+    run = paid_run(api, tmp_path, run_id="run_single_attempt")
+    submitter = api.app.state.remote_task_submitter
+
+    class SingleAttemptTransport:
+        provider_name = "giggle"
+        supports_idempotency = False
+        requires_single_attempt = True
+        calls = 0
+
+        def post_paid_task(self, *, request, idempotency_key):
+            self.calls += 1
+            observed = api.app.state.repository.list_remote_task_bindings(run.id)[0]
+            assert observed.state == RemoteTaskState.AMBIGUOUS_CHARGE
+            if crash:
+                raise SystemExit("synthetic interruption after dispatch")
+            return PaidProviderAcceptance(provider_task_id="single-fixture", receipt={"fixture": True})
+
+    transport = SingleAttemptTransport()
+    kwargs = {"task_key": "E01-U01", "provider": "giggle", "model": "MiniMax-H3",
+              "request": paid_request("单次提交合成测试"), "transport": transport}
+    if crash:
+        with pytest.raises(SystemExit):
+            submitter.submit_paid_task(run.id, **kwargs)
+    else:
+        assert submitter.submit_paid_task(run.id, **kwargs).state == RemoteTaskState.SUBMITTED
+    recovered = submitter.submit_paid_task(run.id, **kwargs)
+    assert recovered.state == (RemoteTaskState.AMBIGUOUS_CHARGE if crash else RemoteTaskState.SUBMITTED)
+    assert transport.calls == 1
+
+
 H3_ZERO_POPULATION_SCOPE = (
     "\npopulation_scope: render exactly 0 living entity instances in total; "
     "background population count=0; unbound living entity count=0"
