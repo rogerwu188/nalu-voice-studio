@@ -1,0 +1,39 @@
+{
+  "schema_version": "nalu.native-local-ocr-qa/v1",
+  "recorded_at": "2026-09-06T15:31:44Z",
+  "product_commit": "93f962232a22f40c3e172e9b45949d162549e5c2",
+  "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34040136383",
+  "ci_conclusion": "success",
+  "artifact_id": 9991496944,
+  "artifact_zip_sha256": "bebf691b338a7dc450d1316a6954fc1de6d1643a1b4a21b3e60867a12e5fd47d",
+  "fixture": {
+    "path": "docs/qa/images/native-ocr-printed-fixture-2026-09-06.png",
+    "sha256": "ff264f2e358667a3c7872770e5d2ac9b4bbeb772eea6bed5398148d7918bc56d",
+    "type": "synthetic printed text, not handwriting or personal media"
+  },
+  "native_import": {
+    "pid": 67864,
+    "window_id": 4468,
+    "isolated_port": 18766,
+    "fresh_data_directory": "/var/folders/y4/k84st0yj7fz043tnxkfrjn1w0000gn/T/nalu-ocr-native.d9zi2lwJG8/data",
+    "native_file_picker_used": true,
+    "professional_form_required": false,
+    "asset_id": "ast_559d91fdbab3441493aaeaab9dfa6730",
+    "memory_id": "mem_2ea6a0f6376f478dacfc80d354437665",
+    "ocr_text": "Nalu 本地 OCR测试：以下内容完全虚构\n故事人物：林奶奶\n故事地点：青湾码头\n故事时间：1982年夏天\n下雨时，林奶奶把雨衣披在孩子身上。\n仅供理解和核对，不授权生成肖像或克隆声音。",
+    "allowed_use": "reference_only",
+    "confirmation_status": "draft",
+    "current_revision": 1,
+    "consent_granted": false,
+    "guardian_approved": false,
+    "exact_pid_terminated": true
+  },
+  "screenshot": "docs/qa/images/native-ocr-import-2026-09-06.png",
+  "new_automated_tests": "LocalTextRecognizerTests adds printed-fixture recognition and malformed-data regressions; its new CI is pending when this evidence is written.",
+  "project_complete": false,
+  "non_claims": [
+    "This is not handwriting accuracy, user-photo identity or human voice correction acceptance.",
+    "Recognized text is not confirmed narrative authority.",
+    "No microphone, paid provider, publication, Developer ID signing or notarization was used."
+  ]
+}

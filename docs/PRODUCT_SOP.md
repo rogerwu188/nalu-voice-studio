@@ -701,6 +701,14 @@ Current evidence:
 
 ## SOP-05 · Media assets, consent and privacy — IN_PROGRESS
 
+- Native local-OCR evidence on exact Universal `93f9622` / artifact `9991496944`:
+  a fresh QA project imported a synthetic printed Chinese text image through the
+  native picker. Vision recognized all six fixture lines and SQLite retained them
+  in an unconfirmed, reference-only memory draft with both consent flags false.
+  See [fixture, OCR text and screenshot](qa/native-local-ocr-2026-09-06.json).
+  New native tests cover printed recognition and malformed image data; their CI
+  must pass separately. This is not handwriting or human spoken-confirmation QA.
+
 - Native direct-import checkpoint on product `93f962232a22f40c3e172e9b45949d162549e5c2`:
   a fresh isolated project opened the system file picker directly and imported a
   fictional text file without a metadata form. SQLite and matching file hashes
