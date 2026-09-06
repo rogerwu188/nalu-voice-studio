@@ -888,6 +888,10 @@ final class VoiceInterviewViewModel {
         }
     }
 
+    func readShotPlanText(_ text: String) {
+        speechPlayback.speak(text, rate: comfortPreferences.speechRate)
+    }
+
     func speakLatestPublicationLearning() {
         guard let latest = publicationLearning.last else { return }
         messages.append(.init(speaker: .nalu, text: latest.spokenSummary))

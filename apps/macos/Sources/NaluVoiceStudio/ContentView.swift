@@ -389,6 +389,13 @@ struct ContentView: View {
                 .padding(.vertical, 12)
                             Divider()
                         }
+                        if let runID = selectedEpisodeProgress?.runID {
+                            EpisodeShotPlanView(runID: runID, onRead: model.readShotPlanText)
+                                .id(runID)
+                                .padding(.horizontal, 24)
+                                .padding(.vertical, 12)
+                            Divider()
+                        }
                         if selectedProject != nil {
                 PublicationLearningView(
                     items: model.publicationLearning,

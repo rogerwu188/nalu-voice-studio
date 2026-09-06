@@ -97,6 +97,10 @@ open, and no SOP status is promoted by this checkpoint.
 Saved plans now support [version-bound local modification and confirmation](qa/shot-plan-review-2026-09-06.md).
 These backend records do not yet establish native interaction or entry-frame/
 video production; confirmation is not spending authorization.
+The [native episode shot-review integration](qa/native-episode-shot-review-2026-09-06.md)
+now calls these endpoints and supports local readback, description edits and
+version confirmation. Compiled tests, packaged UI QA and actual production are
+still pending; this checkpoint does not promote any SOP to PASS.
 
 2026-09-06 native checkpoints on `4e03c16`, CI
 [34054486473](https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34054486473):

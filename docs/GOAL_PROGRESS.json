@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "746c56bf1721042cf5d7e6e9d19a3a0427a06dd4",
-  "last_advanced_at": "2026-09-06T23:21:21Z",
+  "observed_head": "b0f70dbf4d3e2503393c9e6fb5f93b0819e461aa",
+  "last_advanced_at": "2026-09-06T23:26:55Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Local shot-plan read/revise/approve endpoints implemented with atomic version binding, shared source/timing/continuity validation and downstream preparation locks. Evidence docs/qa/shot-plan-review-2026-09-06.md. Full regression 419 passed in 53.61s after fixing an observer-order assumption in the concurrent-dispatch test; production safety unchanged. Ruff/OpenAPI passed. Planning commit 746c56b pushed, CI 34066540063 observed in progress; preceding evidence commit CI 34066172804 passed. Current review checkpoint CI/native QA pending; live generation/master/release remain incomplete."
+    "summary": "Native selected-run shot panel now loads plans, invokes Hops planning after confirmation, reads via local TTS, edits descriptions and saves/confirms exact versions. Swift syntax check and 85 related Python regressions passed; compiled native tests/packaged QA pending. Evidence docs/qa/native-episode-shot-review-2026-09-06.md. CI 34066540063 failed on the observer-order test assumption already fixed in b0f70db; its three macOS jobs passed. CI 34066744041 in progress. No real model/video/publication invoked."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Wire native selected-episode production view to shot-plan generation/current/review endpoints, using existing local TTS. Add user review/edit/confirmation without JSON forms; bind approved plan to concrete entry-frame generation and structured preparation, price review, dispatch and polling. Commit and verify current review regression first. Real source/story-to-video/master/release QA remains open; do not repeat quarantined Hops writer attempt.",
+    "summary": "Verify native shot panel compilation and model tests in CI, install isolated candidate and capture actual interaction/large-type QA; then connect approved/revised plan to entry-frame generation and full structured request compilation, price review/dispatch/polling. Spoken free-form shot edits remain open. Real story/source-to-master/release QA remains open; do not repeat quarantined Hops writer attempt.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

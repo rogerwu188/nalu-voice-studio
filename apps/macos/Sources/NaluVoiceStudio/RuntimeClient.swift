@@ -216,6 +216,26 @@ actor RuntimeClient {
         return try decoder.decode(InteractiveStoryState.self, from: data)
     }
 
+    func currentShotPlan(runID: String) async throws -> EpisodeShotPlanEvent? {
+        try await get("v1/production-runs/\(runID)/shot-plans/current")
+    }
+
+    func reviewShotPlan(runID: String, eventID: String, request: EpisodeShotReview) async throws -> EpisodeShotPlanEvent {
+        try await post("v1/production-runs/\(runID)/shot-plans/\(eventID)/review", body: request)
+    }
+
+    func generateShotPlan(runID: String, model: String, apiKey: String) async throws -> EpisodeShotPlanEvent {
+        var request = URLRequest(url: baseURL.appending(path: "v1/production-runs/\(runID)/shot-plans"))
+        request.httpMethod = "POST"
+        request.timeoutInterval = 120
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(apiKey, forHTTPHeaderField: "X-Nalu-Writer-Key")
+        request.httpBody = try JSONSerialization.data(withJSONObject: ["model": model])
+        let (data, response) = try await authorizedData(for: request)
+        try validate(response, data: data)
+        return try decoder.decode(EpisodeShotPlanEvent.self, from: data)
+    }
+
     func prepareEpisodeProduction(episodeID: String, approvedRevision: Int) async throws -> ProductionRun {
         var request = URLRequest(url: baseURL.appending(path: "v1/episodes/\(episodeID)/production-runs"))
         request.httpMethod = "POST"
