@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "4eb32165c6e57c401f10e9c010a01b22fa8a2f66",
-  "last_advanced_at": "2026-09-06T22:23:29Z",
+  "observed_head": "5f2a1c8560a82fa6197fd29282dbd218e3263fb6",
+  "last_advanced_at": "2026-09-06T22:45:38Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "CI 34063989507 for 4eb3216 passed, including dictated-entry model tests. Implemented concrete single-attempt SD2 image HTTP transport and approved-frame hash projection; ten fake-network/projection tests and Ruff passed. Evidence docs/qa/giggle-sd2-image-transport-2026-09-06.md. Not registered for live submission; frame preparation, price approval, polling, H3/omni and real generation remain open."
+    "summary": "Implemented bounded read-only Giggle task-query transport, distinct from billing verification and master acceptance. Eleven query plus ten image tests and Ruff passed; full regression running (session 1928). Evidence docs/qa/giggle-task-query-2026-09-06.md. Saved-binding endpoint, durable polling, frame preparation, price approval, H3/omni and actual generation remain open; no live provider call performed."
   },
   "next_action": {
     "sop": "SOP-04",
