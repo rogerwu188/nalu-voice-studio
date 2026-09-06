@@ -25,6 +25,11 @@ package binding, cancellation and ratio mismatch. Valid cases check exact saved
 payload, duplicate calls, no remote task creation and restart. Ruff passed;
 OpenAPI regenerated. No real family media or provider credentials used.
 
+Full regression on `cab966fae03e8c3dad214a0b1492b88a12e18caa`: 385 passed in
+51.72 seconds; OpenAPI freshness check passed. GitHub
+[CI 34065405217](https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34065405217)
+was pending at inspection; native QA and current-candidate CI are not yet proven.
+
 Remaining: actual AI/upstream shot-plan and generated first-frame inputs; budget
 review/reservation; approval tied to this exact saved record; concrete transport
 dispatch; native orchestration, media retrieval/QA, billing and release. This
