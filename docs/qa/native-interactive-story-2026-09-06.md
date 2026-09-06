@@ -65,3 +65,25 @@ Source-to-writer handoff now continues explicit requests such as “作为剧本
 trigger writing. Swift parsing passed; compiled tests and native provider QA
 remain open. A source excerpt is not claimed to be a whole book or adaptation
 permission, and this change does not approve production or publication.
+
+## Downloaded app verification: 70a9b06
+
+Downloaded arm64 artifact `9996950015` from CI `34059147341` into
+`/tmp/nalu-source-app.RoV03u`. ZIP SHA-256:
+`13f338982bb9a9c26d477d07636591d71fa4986e16d137b48b959ea5917e60c3`.
+It matches the supplied checksum; deep/strict ad-hoc signature verification
+passed. SQLite was backed up to `pre-upgrade.sqlite3` before restarting through
+Launch Services with the existing isolated support directory and port 18769.
+
+The downloaded application's own runtime returned HTTP 200 and 17,233 characters
+from the same QingShan public GitHub URL previously failing with 422. The result
+still declares `single_page_excerpt`. This verifies the source-reader fix in the
+CI-built app, not only the locally rebuilt Python runtime.
+
+Native accessibility inspection confirmed default local dictation/TTS, the
+visible bottom microphone button, all three existing QA projects, and the saved
+synthetic story plus first-episode script after activating project row 3. No live
+model generation, adaptation rights approval, paid video or publication occurred.
+This artifact predates the receipt adapter in `7d9c490`; its overall CI was
+canceled by the following push, although its arm64/runtime jobs succeeded. Full
+same-candidate acceptance remains open.

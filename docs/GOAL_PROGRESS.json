@@ -11,7 +11,7 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "0ba42ec6f618371e919744b4935c500ed0b30e65",
+  "observed_head": "7d9c490eb88cd364ef3b47173bf622611d2fa06a",
   "last_advanced_at": "2026-09-06T20:53:28Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Source TLS succeeded in rebuilt one-file runtime. Added per-episode interactive writer receipt adapter and native adoption reconciliation; 325 runtime tests pass, Swift parse and OpenAPI checks pass. Native source/writer QA and CI for receipt changes remain open. Download of 70a9b06 arm64 artifact is live session 53982 to /tmp/nalu-source-app.RoV03u; this older artifact includes source handoff but not receipt adapter. Evidence docs/qa/interactive-writer-receipts-2026-09-06.md."
+    "summary": "Downloaded 70a9b06 arm64 artifact 9996950015 verified and running at /tmp/nalu-source-app.RoV03u/app with existing isolated support/18769. Its actual source reader returned 200 and 17233 characters. Native local TTS default, bottom microphone and synthetic story restoration verified. 7d9c490 adds per-episode receipts, 325 runtime tests pass; CI 34059397691 in progress and its native adoption QA remains open. Evidence docs/qa/native-interactive-story-2026-09-06.md and docs/qa/interactive-writer-receipts-2026-09-06.md."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-interactive-story-writer-and-source-input",
-    "summary": "Locally rebuilt one-file runtime now returns 200 and 17233 source characters with verified TLS. Download/verify latest CI arm64 app and repeat native source -> writer -> adoption -> review, including the explicit source-writing handoff. CI 34058954511 arm64/runtime passed at observation; full run still pending. Complete follow-up preservation, provider reconciliation, atomic adoption/season binding and production/release. Evidence docs/qa/native-interactive-story-2026-09-06.md; no full SOP completion.",
+    "summary": "Source read is verified in downloaded 70a9b06 app. Finish CI 34059397691 receipt adapter, then verify actual configured writer -> adoption -> review. Complete follow-up preservation, provider execution reconciliation, atomic adoption/season binding and production/release. Existing app QA support is tmp.gEDfvkaLEc on 18769. No full SOP completion; do not treat canceled older runs as full CI success.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
