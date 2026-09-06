@@ -32,6 +32,8 @@ Core-input follow-up: narration and web-source requests now share a durable
 supplement queue while the assistant works, retaining source mode and turn ID.
 See [queue implementation and outstanding native QA](qa/interactive-supplements-2026-09-06.md).
 This is not completed end-to-end writing or production acceptance.
+Spoken draft adoption now tolerates dictation punctuation and explicit polite
+review requests; [test cases and pending native evidence](qa/spoken-draft-adoption-2026-09-06.md).
 
 2026-09-06 native checkpoints on `4e03c16`, CI
 [34054486473](https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34054486473):

@@ -28,6 +28,17 @@ final class InteractiveStoryTests: XCTestCase {
         XCTAssertEqual(VoiceInterviewViewModel.interactiveDraftSelection("采用第12集草稿"), 12)
         XCTAssertNil(VoiceInterviewViewModel.interactiveDraftSelection("不要采用第1集草稿"))
         XCTAssertNil(VoiceInterviewViewModel.interactiveDraftSelection("好的"))
+        for (text, number) in [("请采用第一集草稿。", 1), ("采用第 12 集草稿！", 12),
+                               ("请把第十一集草稿放进审阅。", 11),
+                               ("帮我把第二十三集草稿放入分集审阅", 23),
+                               ("采用第十集草稿", 10)] {
+            XCTAssertEqual(VoiceInterviewViewModel.interactiveDraftSelection(text), number, text)
+        }
+        for text in ["先别采用第一集草稿", "采用第一集草稿吗？", "采用第零集草稿",
+                     "采用第0集草稿", "采用第1集草稿然后发布", "把第一集草稿放进审阅之前再改一下",
+                     "我说过采用第1集草稿", "采用第一二集草稿"] {
+            XCTAssertNil(VoiceInterviewViewModel.interactiveDraftSelection(text), text)
+        }
     }
 
     func testRuntimeStateDecodesPendingAndAnsweredTurns() throws {

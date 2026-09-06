@@ -11,7 +11,7 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "b76594bcff07b7b7b2071f0fb4e83c469dd0ee4a",
+  "observed_head": "3385b4a84b27bf8337f05ec3f81148fe915d8f20",
   "last_advanced_at": "2026-09-06T21:13:06Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Extended durable busy-input queue to web-source requests; dispatch preserves source mode and turn ID instead of treating URLs as narrated story text. Restart/promotion regression covers both modes. 329 runtime tests, Swift parse and Ruff passed; native timing/CI acceptance remain open. Evidence docs/qa/interactive-supplements-2026-09-06.md. Previous script retry-key checkpoint is b76594b; Hops 401 remains unresolved with no repeated live request."
+    "summary": "Spoken draft-adoption commands now accept dictation punctuation, polite prefixes and explicit put-draft-into-review requests, without accepting negations/questions or approving production. Added XCTest cases; local Swift parse passed, compiled CI and native QA pending. Evidence docs/qa/spoken-draft-adoption-2026-09-06.md. Prior queue commit 3385b4a has 329 runtime tests and CI 34060409225 in progress. Hops 401 unresolved; no repeated live request."
   },
   "next_action": {
     "sop": "SOP-04",

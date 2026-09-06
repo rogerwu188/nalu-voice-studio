@@ -398,12 +398,30 @@ final class VoiceInterviewViewModel {
     }
 
     static func interactiveDraftSelection(_ text: String) -> Int? {
-        let cleaned = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        let digits = ["一": "1", "二": "2", "三": "3", "四": "4", "五": "5", "六": "6", "七": "7", "八": "8", "九": "9", "十": "10"]
-        let normalized = digits[cleaned.replacingOccurrences(of: "采用第", with: "").replacingOccurrences(of: "集草稿", with: "")]
-        let value = normalized.map { "采用第\($0)集草稿" } ?? cleaned
-        guard value.range(of: "^采用第[0-9]{1,3}集草稿$", options: .regularExpression) != nil else { return nil }
-        return Int(value.replacingOccurrences(of: "采用第", with: "").replacingOccurrences(of: "集草稿", with: ""))
+        // Dictation routinely adds spaces and terminal punctuation. Match a whole
+        // explicit review request, never a substring of a negation or question.
+        let cleaned = text.filter { !$0.isWhitespace }
+            .trimmingCharacters(in: CharacterSet(charactersIn: "。.!！"))
+        let patterns = [
+            "^(?:请|请帮我|帮我)?采用第([0-9]{1,3}|[一二三四五六七八九十两]{1,3})集草稿$",
+            "^(?:请|请帮我|帮我)?把第([0-9]{1,3}|[一二三四五六七八九十两]{1,3})集草稿(?:放进|放入|送去|送交)(?:分集|剧本)?审阅$",
+        ]
+        let digits: [String: Int] = ["一": 1, "二": 2, "两": 2, "三": 3, "四": 4,
+                                   "五": 5, "六": 6, "七": 7, "八": 8, "九": 9]
+        for pattern in patterns {
+            guard let expression = try? NSRegularExpression(pattern: pattern),
+                  let match = expression.firstMatch(in: cleaned, range: NSRange(cleaned.startIndex..., in: cleaned)),
+                  let range = Range(match.range(at: 1), in: cleaned) else { continue }
+            let number = String(cleaned[range])
+            if let value = Int(number) { return (1...999).contains(value) ? value : nil }
+            if let value = digits[number] { return value }
+            let parts = number.components(separatedBy: "十")
+            guard parts.count == 2,
+                  let tens = parts[0].isEmpty ? 1 : digits[parts[0]],
+                  let units = parts[1].isEmpty ? 0 : digits[parts[1]] else { return nil }
+            return tens * 10 + units
+        }
+        return nil
     }
 
     private func adoptInteractiveDraft(number: Int) async {
