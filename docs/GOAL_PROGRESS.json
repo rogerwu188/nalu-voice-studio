@@ -11,7 +11,7 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "1e6777390616c328bdf838545753309b462173f7",
+  "observed_head": "a11baf9acd9c02631c5c9606827fa1f6d0feec37",
   "last_advanced_at": "2026-09-06T15:31:44Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-05",
     "status": "IN_PROGRESS",
-    "summary": "Exact Universal 93f9622 imported a synthetic printed Chinese image through the native picker; local Vision output preserved all six lines in SQLite, draft/reference_only, no consent inferred. Evidence: docs/qa/native-local-ocr-2026-09-06.json. Native automated printed/malformed OCR tests are added and require CI. Human handwriting and spoken correction/confirmation remain open."
+    "summary": "Exact Universal 93f9622 imported a synthetic printed Chinese image and retained local OCR in a reference-only unconfirmed draft. Evidence in a11baf9; its printed/malformed native OCR regressions passed all four CI jobs in 34042647560. Ten targeted authority/conflict regressions passed locally. Human handwriting and spoken confirmation remain open."
   },
   "next_action": {
     "sop": "SOP-05",
-    "id": "native-local-ocr-memory-draft-qa",
-    "summary": "Finish CI for LocalTextRecognizerTests (printed recognition and malformed image). Preserve native OCR evidence, then verify the existing memory correction/confirmation path with synthetic data, or choose another unblocked SOP task if real microphone/human authority is required. No paid providers or inferred consent.",
+    "id": "native-memory-review-correction-qa",
+    "summary": "Use the isolated synthetic OCR project (nalu-ocr-native.d9zi2lwJG8) and the verified packaged app to inspect native memory review/edit UI, make an explicit fictional metadata correction, and verify revision/provenance preservation. Do not treat typed/native test input as human voice acceptance; do not grant biometric rights or use paid providers.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

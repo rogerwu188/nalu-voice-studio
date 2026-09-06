@@ -706,8 +706,10 @@ Current evidence:
   native picker. Vision recognized all six fixture lines and SQLite retained them
   in an unconfirmed, reference-only memory draft with both consent flags false.
   See [fixture, OCR text and screenshot](qa/native-local-ocr-2026-09-06.json).
-  New native tests cover printed recognition and malformed image data; their CI
-  must pass separately. This is not handwriting or human spoken-confirmation QA.
+  New native tests cover printed recognition and malformed image data; commit
+  `a11baf9acd9c02631c5c9606827fa1f6d0feec37` passed all four jobs in CI `34042647560`.
+  Five authority/concurrency and five memory-graph-conflict local regressions also
+  passed. This is not handwriting or human spoken-confirmation QA.
 
 - Native direct-import checkpoint on product `93f962232a22f40c3e172e9b45949d162549e5c2`:
   a fresh isolated project opened the system file picker directly and imported a

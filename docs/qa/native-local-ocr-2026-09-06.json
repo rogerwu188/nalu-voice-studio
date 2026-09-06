@@ -29,7 +29,14 @@
     "exact_pid_terminated": true
   },
   "screenshot": "docs/qa/images/native-ocr-import-2026-09-06.png",
-  "new_automated_tests": "LocalTextRecognizerTests adds printed-fixture recognition and malformed-data regressions; its new CI is pending when this evidence is written.",
+  "new_automated_tests": {
+    "commit": "a11baf9acd9c02631c5c9606827fa1f6d0feec37",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34042647560",
+    "ci_conclusion": "success",
+    "all_four_jobs_passed": true,
+    "coverage": "LocalTextRecognizerTests: actual printed-fixture recognition and malformed-data regressions on both Mac architectures",
+    "additional_local_regressions": "5 memory-card authority/concurrency tests and 5 memory-graph-conflict tests passed"
+  },
   "project_complete": false,
   "non_claims": [
     "This is not handwriting accuracy, user-photo identity or human voice correction acceptance.",
