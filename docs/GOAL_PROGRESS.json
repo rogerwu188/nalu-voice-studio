@@ -11,7 +11,7 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "14b4ed11b7778e4efd72dc163fc0231817a74e58",
+  "observed_head": "a016c80467fee5b474025d34f86c8f94e674c2e7",
   "last_advanced_at": "2026-09-06T20:21:42Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Core story writer and explicit draft adoption implemented; 316 local runtime tests pass. CI 34057785241 exposed missing NaluEpisode.seasonID; decoding fix and regression test added. Conversation restoration and project-owned first-use source lookup added. Current changes need compiled CI and real native/provider journey QA; existing TTS remains baseline."
+    "summary": "a016c80 completed full CI 34058107081; 319 runtime tests. Arm64 artifact 9996631576 installed in /tmp/nalu-story.msvEac/app using existing isolated support tmp.gEDfvkaLEc/18769; previous projects preserved, source reader included. Native synthetic project row survives restart, but row activation/draft display not yet verified. Local dictation/TTS selected manually; initial-mode default fix pending its own CI. Evidence docs/qa/native-interactive-story-2026-09-06.md."
   },
   "next_action": {
     "sop": "SOP-04",

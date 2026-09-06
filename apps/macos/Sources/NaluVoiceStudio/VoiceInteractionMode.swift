@@ -4,6 +4,8 @@ enum VoiceInteractionMode: String, CaseIterable, Identifiable {
     case gptRealtime
     case localDictation
 
+    static let defaultMode: VoiceInteractionMode = .localDictation
+
     var id: String { rawValue }
     var label: String {
         switch self {

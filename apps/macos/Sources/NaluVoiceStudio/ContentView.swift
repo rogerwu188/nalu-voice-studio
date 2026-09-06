@@ -70,7 +70,7 @@ struct ContentView: View {
     @State private var realtimeGuardianConsent = false
     @State private var realtimeCredentialIsConfigured = false
     @State private var realtimeSessionLimitMinutes = 5
-    @State private var voiceInteractionMode: VoiceInteractionMode = .gptRealtime
+    @State private var voiceInteractionMode: VoiceInteractionMode = .defaultMode
     @State private var runPendingCancelID: String?
     private let keychain = KeychainSecretStore()
 
