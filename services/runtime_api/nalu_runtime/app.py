@@ -31,6 +31,7 @@ from .feedback_export import (
     IssueTrackerTransport,
 )
 from .giggle_task_query import GiggleTaskQuery, GiggleTaskQueryError
+from .image_preparation import ImagePreparationRequest, ImagePreparationService
 from .interactive_story import InteractiveStory, StoryAnswer, StoryInput
 from .interactive_writer_service import InteractiveWriterService, WriterGenerationRequest
 from .models import (
@@ -1129,6 +1130,10 @@ def create_app(
     @app.post("/v1/production-runs/{run_id}/video-task-preparations", response_model=RunEvent)
     def prepare_video_task(run_id: str, request: VideoPreparationRequest) -> RunEvent:
         return VideoPreparationService(repository).prepare(run_id, request)
+
+    @app.post("/v1/production-runs/{run_id}/image-task-preparations", response_model=RunEvent)
+    def prepare_image_task(run_id: str, request: ImagePreparationRequest) -> RunEvent:
+        return ImagePreparationService(repository, asset_service).prepare(run_id, request)
 
     @app.get("/v1/production-runs/{run_id}/shot-plans/current", response_model=RunEvent | None)
     def current_shot_plan(run_id: str):

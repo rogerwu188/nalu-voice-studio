@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "afe54533e998edc33fe06fcb10f96d1de53a1402",
-  "last_advanced_at": "2026-09-06T23:47:39Z",
+  "observed_head": "3ebc510c178568e9fbb25a22f207edd46ea9ee5f",
+  "last_advanced_at": "2026-09-06T23:55:20Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Durable image submission records intent before HTTP and reuses observations after restart; downstream image intents also lock shot-plan edits. Full local regression 451 passed; affected image/shot suite 19 passed after lock change, Ruff passed. Evidence docs/qa/durable-image-submission-2026-09-06.md. Mandatory concrete authority/native integration and current checkpoint CI remain pending. Prior image transport afe5453 CI 34067785303 in progress at observation; native QA evidence commit 66e7433 CI 34067607241 succeeded. No actual provider image generation or billing verified."
+    "summary": "Confirmed shots now compile opening-image requests using reviewed scene/entry/camera/style and unchanged, authorized inherited references. Local endpoint persists source/request hashes without image bytes and reuses records after restart. Full suite 466 passed; 15 affected tests passed after final additions; Ruff and backward-compatible OpenAPI passed. Evidence docs/qa/reviewed-opening-image-preparation-2026-09-06.md. Previous image transport CI 34067785303 succeeded; durable ledger 3ebc510 CI 34068055510 in progress. No actual image generation, native activation or billing verified."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Wire concrete reviewed image requests/cost approval and QingShan scope/entry-state/reference consent checks into the now-durable image submission service. Then add saved image task polling, safe result retrieval, visual frame lock and native activation. Do not expose synthetic or caller-supplied approval callbacks. Continue full video compilation and real story/source-to-master/release; preserve existing isolated QA app and quarantined Hops attempt.",
+    "summary": "Connect the concrete confirmed-shot image preparer to exact cost approval and complete QingShan paid image contracts, then the durable image submitter. Add saved image polling/retrieval and native first-frame review, plus reviewed previous-final-frame handoff for continuous shots. Do not silently drop references or use synthetic approval callbacks. Continue full video compilation and real story/source-to-master/release; preserve isolated QA app and quarantined Hops attempt.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

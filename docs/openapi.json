@@ -3808,6 +3808,32 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
+      "ImagePreparationRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "approved_plan_event_id": {
+            "title": "Approved Plan Event Id",
+            "type": "string"
+          },
+          "approved_plan_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Approved Plan Sha256",
+            "type": "string"
+          },
+          "task_key": {
+            "pattern": "^[A-Za-z0-9_.:-]{1,120}$",
+            "title": "Task Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "task_key",
+          "approved_plan_event_id",
+          "approved_plan_sha256"
+        ],
+        "title": "ImagePreparationRequest",
+        "type": "object"
+      },
       "InheritedContinuityResult": {
         "properties": {
           "snapshot": {
@@ -12335,6 +12361,55 @@
           }
         },
         "summary": "Get Run Events"
+      }
+    },
+    "/v1/production-runs/{run_id}/image-task-preparations": {
+      "post": {
+        "operationId": "prepare_image_task_v1_production_runs__run_id__image_task_preparations_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImagePreparationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunEvent"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Prepare Image Task"
       }
     },
     "/v1/production-runs/{run_id}/local-visual-analysis": {

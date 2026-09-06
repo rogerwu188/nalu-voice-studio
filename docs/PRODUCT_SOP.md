@@ -28,6 +28,10 @@ completed user journey. Real writer/provider integration, native interaction,
 script revision handoff and the complete production demonstration remain open.
 The authoritative next action is in `docs/GOAL_PROGRESS.json`.
 
+Confirmed shots now support [automatic local opening-image preparation](qa/reviewed-opening-image-preparation-2026-09-06.md)
+with exact source bindings, inherited reference checks and restart reuse. This is
+not paid image activation, native QA, continuous-frame handoff or finished production.
+
 Core-input follow-up: narration and web-source requests now share a durable
 supplement queue while the assistant works, retaining source mode and turn ID.
 See [queue implementation and outstanding native QA](qa/interactive-supplements-2026-09-06.md).
