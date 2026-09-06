@@ -29,6 +29,12 @@ struct InteractiveStoryTurn: Codable, Sendable {
     let answer: InteractiveStoryAnswer?
 }
 
+struct QueuedStoryInput: Codable, Sendable {
+    let turn_id: String
+    let text: String
+    let source_mode: String
+}
+
 struct InteractiveStoryState: Codable, Sendable {
     let revision: Int
     let turns: [InteractiveStoryTurn]
@@ -36,6 +42,7 @@ struct InteractiveStoryState: Codable, Sendable {
     let episode_drafts: [InteractiveEpisodeDraft]
     var draft_writers: [String: ExternalWriterDeclaration?]? = nil
     var draft_receipts: [String: String?]? = nil
+    var queued_inputs: [QueuedStoryInput]? = nil
 
     func conversationMessages() -> [InterviewMessage] {
         var messages: [InterviewMessage] = []
@@ -52,6 +59,10 @@ struct InteractiveStoryState: Codable, Sendable {
                     text: "这句话已保存，但上次请求没有记录到完整结果。我没有自动重复调用；您可以继续补充。"))
             }
         }
+        for input in queued_inputs ?? [] {
+            messages.append(.init(speaker: .user, text: input.text))
+            messages.append(.init(speaker: .nalu, text: "这条补充已保存在本机，等待编剧处理。"))
+        }
         return messages
     }
 }
@@ -61,6 +72,7 @@ struct InteractiveStoryInput: Encodable {
     let expected_revision: Int
     let text: String
     let source_mode: String
+    var queue_only = false
 }
 
 struct InteractiveStoryAnswerRequest: Encodable {

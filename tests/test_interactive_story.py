@@ -5,6 +5,36 @@ from fastapi.testclient import TestClient
 from nalu_runtime.app import create_app
 
 
+def test_supplements_persist_without_superseding_inflight_answer(tmp_path):
+    database, data = tmp_path / "db", tmp_path / "data"
+    with TestClient(create_app(database, data)) as client:
+        project = client.post("/v1/projects", json={"title": "连续讲述"}).json()["id"]
+        path = f"/v1/projects/{project}/interactive-story"
+        client.post(path + "/turns", json={"turn_id": "first", "expected_revision": 0,
+            "text": "外婆带我看海", "source_mode": "narrated_story"})
+        supplement = {"turn_id": "supplement", "expected_revision": 0,
+            "text": "还有，我当时六岁", "source_mode": "narrated_story", "queue_only": True}
+        for _ in range(2):
+            queued = client.post(path + "/turns", json=supplement).json()
+            assert queued["revision"] == 1
+            assert queued["turns"][-1]["status"] == "pending"
+            assert len(queued["queued_inputs"]) == 1
+        assert client.post(path + "/turns", json={**supplement, "text": "错的补充"}).status_code == 409
+        result = client.post(path + "/turns/first/answer", json={
+            "expected_revision": 1, "reply": "第一句已处理"})
+        assert result.status_code == 200
+        assert result.json()["queued_inputs"][0]["text"] == supplement["text"]
+    with TestClient(create_app(database, data)) as client:
+        state = client.get(path).json()
+        assert len(state["queued_inputs"]) == 1
+        promoted = {**supplement, "expected_revision": state["revision"], "queue_only": False}
+        for _ in range(2):
+            state = client.post(path + "/turns", json=promoted).json()
+            assert len(state["turns"]) == 2
+            assert state["queued_inputs"] == []
+            assert state["turns"][-1]["text"] == supplement["text"]
+
+
 def test_two_episode_writer_drafts_enter_review_with_distinct_bound_receipts(tmp_path):
     with TestClient(create_app(tmp_path / "db", tmp_path / "data")) as client:
         plan = client.post("/v1/project-plans", json={"project": {

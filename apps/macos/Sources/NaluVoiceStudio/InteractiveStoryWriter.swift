@@ -42,6 +42,7 @@ actor InteractiveStoryWriter {
         var context = state
         context.draft_receipts = nil
         context.draft_writers = nil
+        context.queued_inputs = nil
         let encoded = try JSONEncoder().encode(context)
         guard encoded.count <= 1_000_000 else { throw WriterError.contextTooLarge }
         var request = URLRequest(url: endpoint.url("chat/completions"))

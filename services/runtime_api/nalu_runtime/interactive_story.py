@@ -17,6 +17,7 @@ class StoryInput(BaseModel):
     expected_revision: int = Field(ge=0)
     text: str = Field(min_length=1, max_length=12000)
     source_mode: Literal["narrated_story", "web_source"]
+    queue_only: bool = False
 
 
 class EpisodeWritingDraft(BaseModel):
@@ -82,10 +83,26 @@ class InteractiveStory:
                     if turn["text"] != request.text or turn["source_mode"] != request.source_mode:
                         raise ConflictError("turn ID already belongs to another input")
                     return state
+            queued = state.setdefault("queued_inputs", [])
+            matching = next((item for item in queued if item["turn_id"] == request.turn_id), None)
+            if matching and (matching["text"] != request.text or matching["source_mode"] != request.source_mode):
+                raise ConflictError("queued turn ID already belongs to another input")
+            if request.queue_only:
+                if matching:
+                    return state
+                if len(queued) >= 50:
+                    raise ConflictError("too many queued story inputs")
+                queued.append({"turn_id": request.turn_id, "text": request.text,
+                               "source_mode": request.source_mode, "created_at": utc_now()})
+                # Do not invalidate the response currently in flight. The answer
+                # transaction reloads this queue and preserves later additions.
+                return self._save(connection, project_id, bible, state)
             if state["revision"] != request.expected_revision:
                 raise ConflictError("story changed; reload before adding this input")
             if len(state["turns"]) >= 500:
                 raise ConflictError("story conversation limit reached")
+            if matching:
+                queued.remove(matching)
             if state["turns"] and state["turns"][-1]["status"] == "pending":
                 state["turns"][-1]["status"] = "superseded"
             state["revision"] += 1

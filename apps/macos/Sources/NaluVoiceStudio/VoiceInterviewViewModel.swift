@@ -284,9 +284,43 @@ final class VoiceInterviewViewModel {
         }
     }
 
-    private func handleInteractiveStoryInput(_ spoken: String) {
+    private func queueStorySupplement(_ spoken: String, turnID: String) {
+        guard let projectID = selectedProjectID else {
+            transcript = spoken
+            messages.append(.init(speaker: .nalu, text: "项目正在建立，这句补充留在输入区，还没有发送。"))
+            return
+        }
+        let generation = projectSelectionGeneration
+        Task {
+            do {
+                var input = InteractiveStoryInput(turn_id: turnID, expected_revision: 0,
+                    text: spoken, source_mode: "narrated_story")
+                input.queue_only = true
+                _ = try await runtime.appendStoryInput(projectID: projectID, input: input)
+                guard projectSelectionGeneration == generation else { return }
+                messages.append(.init(speaker: .nalu, text: "这句补充已记在本机，我会接着处理。"))
+                await drainStorySupplements(projectID: projectID, generation: generation)
+            } catch {
+                guard projectSelectionGeneration == generation else { return }
+                transcript = spoken
+                messages.append(.init(speaker: .nalu, text: "这句补充还没存好，已留在输入区，没有丢弃。"))
+            }
+        }
+    }
+
+    private func drainStorySupplements(projectID: String?, generation: UUID) async {
+        guard let projectID, selectedProjectID == projectID,
+              projectSelectionGeneration == generation, assistantActionStatus == nil else { return }
+        guard let state = try? await runtime.interactiveStory(projectID: projectID),
+              let next = state.queued_inputs?.first,
+              selectedProjectID == projectID, projectSelectionGeneration == generation,
+              assistantActionStatus == nil else { return }
+        handleInteractiveStoryInput(next.text, turnID: next.turn_id)
+    }
+
+    private func handleInteractiveStoryInput(_ spoken: String, turnID: String = UUID().uuidString) {
         guard assistantActionStatus == nil else {
-            messages.append(.init(speaker: .nalu, text: "我正在整理上一句话，请等这次回复后再继续。"))
+            queueStorySupplement(spoken, turnID: turnID)
             return
         }
         assistantActionStatus = "正在理解您的故事、整理分集…"
@@ -296,7 +330,9 @@ final class VoiceInterviewViewModel {
             var projectID = initialProjectID
             var generation = initialGeneration
             var revision: Int?
-            let turnID = UUID().uuidString
+            defer {
+                Task { await drainStorySupplements(projectID: projectID, generation: generation) }
+            }
             do {
                 if projectID == nil {
                     var draft = ProjectDraft()
@@ -314,6 +350,15 @@ final class VoiceInterviewViewModel {
                 }
                 guard let projectID else { throw InteractiveStoryWriter.WriterError.unavailable }
                 let existing = try await runtime.interactiveStory(projectID: projectID)
+                if let waiting = existing.queued_inputs, !waiting.isEmpty,
+                   !waiting.contains(where: { $0.turn_id == turnID }) {
+                    var input = InteractiveStoryInput(turn_id: turnID, expected_revision: existing.revision,
+                        text: spoken, source_mode: "narrated_story")
+                    input.queue_only = true
+                    _ = try await runtime.appendStoryInput(projectID: projectID, input: input)
+                    assistantActionStatus = nil
+                    return // defer drains saved supplements before this newer input
+                }
                 let state = try await runtime.appendStoryInput(projectID: projectID,
                     input: .init(turn_id: turnID, expected_revision: existing.revision,
                                  text: spoken, source_mode: "narrated_story"))
@@ -2405,6 +2450,9 @@ final class VoiceInterviewViewModel {
                 var projectID = originalProjectID
                 var generation = originalGeneration
                 var savedRevision: Int?
+                defer {
+                    Task { await drainStorySupplements(projectID: projectID, generation: generation) }
+                }
                 do {
                     if projectID == nil {
                         var draft = ProjectDraft()

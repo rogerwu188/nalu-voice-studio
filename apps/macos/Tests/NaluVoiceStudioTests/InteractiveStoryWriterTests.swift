@@ -21,6 +21,7 @@ final class InteractiveStoryWriterTests: XCTestCase {
                   answer: .init(reply: "来源 https://example.com/archive", summary: "", episode_drafts: [], outcome: "answered")),
         ], summary: "外婆住在海边", episode_drafts: [])
         state.draft_receipts = ["1": "local-only-receipt"]
+        state.queued_inputs = [.init(turn_id: "queued", text: "not-yet-processed", source_mode: "narrated_story")]
         let request = try InteractiveStoryWriter.makeRequest(state: state, apiKey: "fixture-key",
             endpoint: AIServiceEndpoint("https://hopsapi.com/v1"), model: "fixture-model")
         XCTAssertEqual(request.url?.absoluteString, "https://hopsapi.com/v1/chat/completions")
@@ -31,6 +32,8 @@ final class InteractiveStoryWriterTests: XCTestCase {
         XCTAssertTrue(messages.last?["content"]?.contains("外婆住在海边") == true)
         XCTAssertTrue(messages.last?["content"]?.contains("example.com") == true)
         XCTAssertFalse(messages.last?["content"]?.contains("local-only-receipt") == true)
+        XCTAssertFalse(messages.last?["content"]?.contains("not-yet-processed") == true)
+        XCTAssertTrue(state.conversationMessages().contains(where: { $0.text == "not-yet-processed" }))
     }
 
     func testParsesConcreteEpisodeDraftAndRejectsTruncation() throws {

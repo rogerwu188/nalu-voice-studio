@@ -8363,6 +8363,11 @@
             "title": "Expected Revision",
             "type": "integer"
           },
+          "queue_only": {
+            "default": false,
+            "title": "Queue Only",
+            "type": "boolean"
+          },
           "source_mode": {
             "enum": [
               "narrated_story",

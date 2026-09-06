@@ -12,7 +12,7 @@
     "WAITING_AUTHORIZATION": 0
   },
   "observed_head": "7d9c490eb88cd364ef3b47173bf622611d2fa06a",
-  "last_advanced_at": "2026-09-06T20:53:28Z",
+  "last_advanced_at": "2026-09-06T20:59:48Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Downloaded 70a9b06 arm64 artifact 9996950015 verified and running at /tmp/nalu-source-app.RoV03u/app with existing isolated support/18769. Its actual source reader returned 200 and 17233 characters. Native local TTS default, bottom microphone and synthetic story restoration verified. 7d9c490 adds per-episode receipts, 325 runtime tests pass; CI 34059397691 in progress and its native adoption QA remains open. Evidence docs/qa/native-interactive-story-2026-09-06.md and docs/qa/interactive-writer-receipts-2026-09-06.md."
+    "summary": "Narrated supplements now queue in SQLite without superseding active answers; native drain honors project generation and FIFO restart ordering. 326 runtime tests pass, Swift parse and API compatibility pass; native concurrent-input QA and compiled tests remain pending. 7d9c490 receipt adapter arm64/runtime CI jobs passed; full run 34059397691 still live. Receipt app artifact 9997030619 downloading via session 96733 to /tmp/nalu-receipt-app.KpcDF6. Currently running app remains 70a9b06 on isolated port 18769. Evidence docs/qa/interactive-supplements-2026-09-06.md."
   },
   "next_action": {
     "sop": "SOP-04",
