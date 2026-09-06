@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "3fdc8c664a6b5425755a528441f4847a1cd7489b",
-  "last_advanced_at": "2026-09-06T18:14:28Z",
+  "observed_head": "6070dee27ad5757b329a61ebfb2000f3616a7e9c",
+  "last_advanced_at": "2026-09-06T18:31:00Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,11 +25,11 @@
   "current_checkpoint": {
     "sop": "SOP-02",
     "status": "IN_PROGRESS",
-    "summary": "Native arm64 artifact 9994490351 (source 3fdc8c6) verified address Save-and-Done/reopen persistence and real in-app model-list check returning 15 models. Isolated Runtime health passes; no audio/generation, key unchanged. CI 34050705052 completed success, all four jobs. Release verifier dotted-key extraction warns despite present codesign entitlements: fix verifier separately. Full SOP objective unchanged; no whole-SOP completion claimed."
+    "summary": "CI 34051394664 passes for 6070dee, exact arm64 artifact checksum and corrected entitlement verifier pass. Native settings click hangs: main-thread sample identifies contains() decrypting Keychain content during presence refresh. Attributes-only noninteractive presence fix and regression tests added; new CI and native retest pending. No keys/model choices changed or paid calls made. Full SOP remains incomplete."
   },
   "next_action": {
     "sop": "SOP-02",
-    "id": "complete-provider-model-settings-native-entry",
+    "id": "verify-keychain-presence-hang-fix-and-model-entry",
     "summary": "Verify full CI and exact native artifact for provider-scoped model settings UI, Save-and-Done, invalid-input preservation and consent model disclosure. UI and request-layer implementation are present; syntax checks pass, native editing QA remains pending. Do not silently pick replacements or equate model-list access with Realtime/web-search support. CI must also cover exact speech-entitlement verifier. Full SOP goal unchanged. Evidence: docs/qa/gpt-voice-and-credential-save-2026-09-06.md.",
     "requires_user_authorization": false
   },

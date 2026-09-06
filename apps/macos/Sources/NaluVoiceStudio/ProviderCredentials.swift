@@ -20,8 +20,22 @@ enum ProviderCredential: String, CaseIterable, Identifiable {
 struct KeychainSecretStore {
     private let service = "studio.nalu.voice.provider-credentials"
 
-    func contains(_ credential: ProviderCredential) throws -> Bool {
-        try read(credential) != nil
+    /// Presence is not proof of readability or provider validity. Do not decrypt
+    /// a password (and potentially block on authorization) to draw a status badge.
+    func contains(
+        _ credential: ProviderCredential,
+        lookup: (CFDictionary) -> OSStatus = { SecItemCopyMatching($0, nil) }
+    ) throws -> Bool {
+        var query = baseQuery(credential)
+        query[kSecMatchLimit as String] = kSecMatchLimitOne
+        query[kSecReturnAttributes as String] = true
+        query[kSecUseAuthenticationUI as String] = kSecUseAuthenticationUIFail
+        let status = lookup(query as CFDictionary)
+        if status == errSecItemNotFound { return false }
+        guard status == errSecSuccess else {
+            throw KeychainSecretError.operationFailed(status)
+        }
+        return true
     }
 
     func set(_ secret: String, for credential: ProviderCredential) throws {

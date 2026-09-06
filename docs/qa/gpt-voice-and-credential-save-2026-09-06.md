@@ -146,3 +146,28 @@ voice/transcription models and no longer promises automatic local-TTS fallback.
 Whitespace/newline model IDs are rejected. Syntax/diff checks pass, while full
 CI and exact-binary native model-edit/save QA remain pending. No paid request
 or actual user model selection was made by this implementation.
+
+## Exact-binary model-settings QA and discovered hang — 2026-09-06
+
+CI [34051394664](https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34051394664)
+completed success for `6070dee27ad5757b329a61ebfb2000f3616a7e9c` (all jobs).
+Arm64 artifact 9994687079 ZIP SHA-256 is
+`ae9c0a4aae91c499f30b892d78f31240c9e6a2ff29b1774b7b7b184d868c6bc1`.
+Its checksum and revised speech-entitlement verifier pass; signature remains
+ad hoc, not signed/notarized release acceptance. Isolated runtime port 18768
+returns healthy/schema 27.
+
+Native model-entry acceptance did **not** pass: pressing the credentials button
+left the window unresponsive. A one-second process sample of PID 79727 shows
+the main thread in `presentProviderCredentials → refreshCredentialStatus →
+KeychainSecretStore.contains → read → SecItemCopyMatching`, waiting in the
+security service while decrypting item content. This is not proof of a bad key
+or a failed runtime. No user credential or provider model selection was changed.
+
+Follow-up replaces status-only secret reads with an exact-service/account
+attributes-only query, forbids interactive authentication for this presence
+check, and preserves failures as errors (not missing/configured). Actual secret
+reads and save/readback validation retain their authorization behavior. Added
+injected-query regression tests for no password return, no interaction, missing
+items and access failures. Syntax/diff checks pass; new CI and native retest
+remain required. Presence does not certify readability or Realtime support.
