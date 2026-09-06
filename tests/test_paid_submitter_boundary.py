@@ -21,7 +21,7 @@ from nalu_runtime.remote_submitter import (
 from nalu_runtime.repository import ConflictError, utc_now
 
 
-@pytest.mark.parametrize("case", ["accepted", "uncertain", "cancelled", "script_changed", "price_changed", "package_changed", "cancel_during_dispatch", "concurrent"])
+@pytest.mark.parametrize("case", ["accepted", "uncertain", "cancelled", "script_changed", "price_changed", "package_changed", "cancel_during_dispatch", "concurrent", "plan_bound"])
 def test_reserved_shot_dispatch_revalidates_and_posts_once(tmp_path, case, monkeypatch):
     posts = []
     def provider(request):
@@ -69,7 +69,15 @@ def test_reserved_shot_dispatch_revalidates_and_posts_once(tmp_path, case, monke
     request["opening_anchor"]["frame_sha256"] = hashlib.sha256(frame).hexdigest()
     request["provider_scope_projection"]["production_package_sha256"] = package["package_sha256"]
     base = f"/v1/production-runs/{run.id}"
-    prepared = api.post(base + "/video-task-preparations", json={"task_key": "E01-U01", "request": request})
+    preparation = {"task_key": "E01-U01", "request": request}
+    if case == "plan_bound":
+        record = {"approved": True, "production_package_sha256": package["package_sha256"],
+                  "tasks": [{"task_key": "E01-U01", "shot_index": 0}],
+                  "plan": {"shots": [{"video_prompt": "合成空房间光影镜头", "duration_seconds": 6}]}}
+        record["plan_sha256"] = canonical_sha256(record)
+        event = api.app.state.repository.append_run_event(run.id, "shot_plan_approved", payload=record)
+        preparation.update(approved_plan_event_id=event.id, approved_plan_sha256=record["plan_sha256"])
+    prepared = api.post(base + "/video-task-preparations", json=preparation)
     assert prepared.status_code == 200, prepared.text
     prep_url = base + "/video-task-preparations/" + prepared.json()["id"]
     quote = api.post(prep_url + "/price-observations")
@@ -172,7 +180,8 @@ def test_budget_reservation_rejects_ineligible_or_changed_local_state(tmp_path, 
         assert api.post(endpoint, json={**approval, "guardian_approval": True}).status_code == 200
 
 
-@pytest.mark.parametrize("invalid", [None, "bytes", "hash", "extra_reference", "package", "cancelled", "ratio"])
+@pytest.mark.parametrize("invalid", [None, "bytes", "hash", "extra_reference", "package", "cancelled", "ratio",
+    "plan_ok", "plan_unconfirmed", "plan_unbound", "plan_wrong_prompt", "plan_wrong_duration", "plan_stale"])
 def test_prepare_concrete_shot_and_image_without_network(tmp_path, invalid):
     api = TestClient(create_app(tmp_path / "prepare.sqlite3", tmp_path / "data"))
     run = paid_run(api, tmp_path, run_id="run_frame_fixture", model="seedance-2.0-pro")
@@ -205,8 +214,23 @@ def test_prepare_concrete_shot_and_image_without_network(tmp_path, invalid):
     if invalid == "cancelled":
         api.post(f"/v1/production-runs/{run.id}/cancel", json={"requested_by": "qa", "reason": "fixture"})
     endpoint = f"/v1/production-runs/{run.id}/video-task-preparations"
-    response = api.post(endpoint, json={"task_key": "E01-U01", "request": request})
-    if invalid:
+    incoming = {"task_key": "E01-U01", "request": request}
+    if invalid and invalid.startswith("plan_"):
+        # Synthetic saved approval isolates downstream binding, not AI quality or user QA.
+        plan = {"approved": invalid != "plan_unconfirmed", "production_package_sha256":
+                request["provider_scope_projection"]["production_package_sha256"],
+                "tasks": [{"task_key": "E01-U01", "shot_index": 0}],
+                "plan": {"shots": [{"video_prompt": "different" if invalid == "plan_wrong_prompt" else "合成空房间镜头",
+                                    "duration_seconds": 12 if invalid == "plan_wrong_duration" else 6}]}}
+        plan["plan_sha256"] = canonical_sha256(plan)
+        event = api.app.state.repository.append_run_event(run.id,
+            "shot_plan_drafted" if invalid == "plan_unconfirmed" else "shot_plan_approved", payload=plan)
+        if invalid != "plan_unbound":
+            incoming.update(approved_plan_event_id=event.id, approved_plan_sha256=plan["plan_sha256"])
+        if invalid == "plan_stale":
+            api.app.state.repository.append_run_event(run.id, "shot_plan_revised", payload=plan)
+    response = api.post(endpoint, json=incoming)
+    if invalid and invalid != "plan_ok":
         assert response.status_code == 409, response.text
         assert not any(e.event_type == "video_task_prepared" for e in api.app.state.repository.list_run_events(run.id))
         return
@@ -217,7 +241,10 @@ def test_prepare_concrete_shot_and_image_without_network(tmp_path, invalid):
     assert record["paid_approved"] is False
     assert record["generation_performed"] is False
     assert record["visual_semantics_verified"] is False
-    assert api.post(endpoint, json={"task_key": "E01-U01", "request": request}).json()["id"] == response.json()["id"]
+    if invalid == "plan_ok":
+        assert record["approved_plan_event_id"] == event.id
+        assert record["approved_shot_index"] == 0
+    assert api.post(endpoint, json=incoming).json()["id"] == response.json()["id"]
     assert api.app.state.repository.list_remote_task_bindings(run.id) == []
     restarted = TestClient(create_app(tmp_path / "prepare.sqlite3", tmp_path / "data"))
     assert restarted.get(f"/v1/production-runs/{run.id}/events").json()[-1]["payload"] == record
@@ -234,6 +261,10 @@ def test_prepare_concrete_shot_and_image_without_network(tmp_path, invalid):
     assert api.post(approval_url, json=approval).json()["id"] == reserved.json()["id"]
     assert reserved.json()["payload"]["provider_price_verified"] is False
     assert api.post(approval_url, json={**approval, "estimated_credits": 61}).status_code == 409
+    if invalid == "plan_ok":
+        assert api.post(endpoint, json={**incoming, "task_key": "E01-U02"}).status_code == 409
+        assert api.app.state.repository.list_remote_task_bindings(run.id) == []
+        return
     prepared_others = [api.post(endpoint, json={"task_key": key, "request": request}).json()
                        for key in ("E01-U02", "E01-U03")]
     def approve_other(item):

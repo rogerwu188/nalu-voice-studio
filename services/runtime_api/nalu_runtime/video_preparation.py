@@ -25,6 +25,8 @@ class VideoPreparationRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     task_key: str = Field(pattern=r"^[A-Za-z0-9_.:-]{1,120}$")
     request: dict[str, Any]
+    approved_plan_event_id: str | None = None
+    approved_plan_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
 
 
 class VideoPreparationService:
@@ -57,6 +59,7 @@ class VideoPreparationService:
             raise ConflictError("production package integrity failed") from None
         if package.get("production_policy", {}).get("requested_model") != run.requested_model:
             raise ConflictError("run model differs from production package")
+        plan_binding = self._plan_binding(run_id, incoming, package_sha)
         failures = ModelCompilerRegistry().validate_paid_boundary_request(
             run.requested_model, incoming.request,
             production_package=package, package_sha256=package_sha,
@@ -89,5 +92,40 @@ class VideoPreparationService:
                   "provider": "giggle", "model": run.requested_model,
                   "paid_approved": False, "generation_performed": False,
                   "visual_semantics_verified": False}
+        record.update(plan_binding)
         record["preparation_sha256"] = digest(record)
         return record
+
+    def _plan_binding(self, run_id, incoming, package_sha):
+        plans = [event for event in self.repository.list_run_events(run_id)
+                 if event.event_type in {"shot_plan_drafted", "shot_plan_revised", "shot_plan_approved"}]
+        if not plans:
+            if incoming.approved_plan_event_id or incoming.approved_plan_sha256:
+                raise ConflictError("named shot approval does not exist in this run")
+            return {}  # Existing professional imports without the interactive planner remain supported.
+        current = plans[-1]
+        record = current.payload
+        expected = digest({k: v for k, v in record.items() if k != "plan_sha256"})
+        if (current.event_type != "shot_plan_approved" or record.get("approved") is not True
+                or incoming.approved_plan_event_id != current.id
+                or incoming.approved_plan_sha256 != expected or record.get("plan_sha256") != expected
+                or record.get("production_package_sha256") != package_sha):
+            raise ConflictError("current shot plan must be confirmed and bound to this request")
+        try:
+            tasks = record["tasks"]
+            matches = [task for task in tasks if task["task_key"] == incoming.task_key]
+            if len(matches) != 1:
+                raise ValueError("unknown task")
+            index = matches[0]["shot_index"]
+            if type(index) is not int or index < 0:
+                raise ValueError("invalid index")
+            shot = record["plan"]["shots"][index]
+            prompt = shot["video_prompt"]
+            if (not isinstance(prompt, str) or not prompt.strip()
+                    or prompt not in incoming.request.get("prompt", "")
+                    or incoming.request.get("duration_seconds") != shot["duration_seconds"]):
+                raise ValueError("request differs from reviewed shot")
+        except (ValueError, TypeError, KeyError, IndexError):
+            raise ConflictError("video request does not preserve the reviewed shot and duration") from None
+        return {"approved_plan_event_id": current.id, "approved_plan_sha256": expected,
+                "approved_shot_index": index}

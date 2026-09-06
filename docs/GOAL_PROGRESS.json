@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "b0f70dbf4d3e2503393c9e6fb5f93b0819e461aa",
-  "last_advanced_at": "2026-09-06T23:26:55Z",
+  "observed_head": "6240fdb4634136642155f34743b9eefd13992cb3",
+  "last_advanced_at": "2026-09-06T23:29:06Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Native selected-run shot panel now loads plans, invokes Hops planning after confirmation, reads via local TTS, edits descriptions and saves/confirms exact versions. Swift syntax check and 85 related Python regressions passed; compiled native tests/packaged QA pending. Evidence docs/qa/native-episode-shot-review-2026-09-06.md. CI 34066540063 failed on the observer-order test assumption already fixed in b0f70db; its three macOS jobs passed. CI 34066744041 in progress. No real model/video/publication invoked."
+    "summary": "Approved plan event/hash and shot identity now bind concrete video preparation and are rechecked before dispatch. Existing plans cannot bypass review via professional import path. Evidence docs/qa/approved-plan-video-binding-2026-09-06.md. Full regression 426 passed in 58.65s; Ruff/OpenAPI/diff passed. Native commit 6240fdb pushed; CI 34066939882 pending, previous 34066744041 in progress with ARM job passed. Current native UI/compiled tests still unverified. No real paid call or publication."
   },
   "next_action": {
     "sop": "SOP-04",

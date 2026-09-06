@@ -101,6 +101,9 @@ The [native episode shot-review integration](qa/native-episode-shot-review-2026-
 now calls these endpoints and supports local readback, description edits and
 version confirmation. Compiled tests, packaged UI QA and actual production are
 still pending; this checkpoint does not promote any SOP to PASS.
+Concrete video preparation and dispatch now preserve the
+[approved plan/shot binding](qa/approved-plan-video-binding-2026-09-06.md).
+This closes a version handoff gap, not actual frame generation or full production.
 
 2026-09-06 native checkpoints on `4e03c16`, CI
 [34054486473](https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34054486473):
