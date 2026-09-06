@@ -259,3 +259,31 @@ Machine-readable evidence is
 `docs/qa/native-accessibility-selectors-2026-09-06.json`. No microphone permission,
 live Realtime, VoiceOver human traversal or paid call was exercised, so those acceptance
 items remain open.
+
+## 2026-09-06 · Recording-waveform motion contract
+
+Product commit `b8d2bc50802918e467fc99e7488d98285df53a90` moves the listening
+wave calculation into a testable presentation primitive. Its regression suite samples
+all five bars across 201 time positions, requires every level to remain in the renderable
+zero-to-one range, and requires two frames 0.12 seconds apart to differ visibly rather
+than silently degrading to a static red icon. The isolated long-conversation fixture also
+enters the listening presentation without starting `SpeechRecorder` or requesting a
+microphone or Speech permission.
+
+GitHub CI run `34009992117` passed 81 XCTest tests on each architecture, including both
+waveform tests, as well as the complete Runtime, arm64, Intel and Universal jobs.
+Universal artifact `9982225088` has GitHub archive SHA-256
+`3d3ae54199a9be6c41ae221debd81cb5279ee216f57a73a76a299d87efbc02d6`;
+a repository-external download reproduced that digest and its declared inner ZIP
+SHA-256 `1c1610af6001e9e0c74f6a3dac8c0ace825473884466eece3db878a98e0acc67`.
+The extracted `studio.nalu.voice` application and bundled Runtime contain both `arm64`
+and `x86_64`; the application remains ad-hoc signed with no Team ID.
+
+The exact artifact launched against the isolated system-temporary directory
+`nalu-active-current.QCWNCJ`, and its loopback Runtime returned version 0.1.0 and SQLite
+schema 27. The macOS login session remained locked, so neither the native accessibility
+state nor two visible waveform frames could be observed. That limitation is recorded as
+`BLOCKED_BY_LOCKED_MAC` in
+`docs/qa/recording-waveform-contract-2026-09-06.json`. This closes the deterministic
+motion-regression and artifact-integrity checkpoint only; native visual motion, real
+microphone use, VoiceOver, Accessibility Inspector and human acceptance remain open.

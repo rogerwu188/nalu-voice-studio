@@ -373,6 +373,21 @@ Current evidence:
   `docs/qa/native-accessibility-selectors-2026-09-06.json`. This closes the repeatable
   selector/native-window checkpoint, not real microphone, paid Realtime, VoiceOver human
   traversal or the complete accessibility matrix.
+- Product commit `b8d2bc50802918e467fc99e7488d98285df53a90`, GitHub CI run
+  `34009992117`, Universal artifact `9982225088` (artifact digest
+  `sha256:3d3ae54199a9be6c41ae221debd81cb5279ee216f57a73a76a299d87efbc02d6`):
+  the five-bar recording indicator now has a directly tested time-varying contract.
+  Samples remain in the renderable zero-to-one range and frames 0.12 seconds apart must
+  differ, while the isolated listening fixture cannot start the recorder or request
+  permissions. Both architecture suites ran 81 XCTest tests and every Runtime, arm64,
+  Intel and Universal job passed. A repository-external download reproduced the outer
+  digest and inner ZIP SHA-256
+  `1c1610af6001e9e0c74f6a3dac8c0ace825473884466eece3db878a98e0acc67`;
+  the exact dual-architecture artifact launched with Runtime schema 27 in isolated local
+  storage. The Mac remained locked, so visible two-frame motion was not claimed. Evidence:
+  `docs/qa/recording-waveform-contract-2026-09-06.json`. This closes only the deterministic
+  motion and artifact-integrity checkpoint; SOP-02 remains `IN_PROGRESS` pending native
+  visual motion, real speech, paid Realtime and human accessibility acceptance.
 
 ## SOP-03 · Multi-project, season and episode planning — IN_PROGRESS
 

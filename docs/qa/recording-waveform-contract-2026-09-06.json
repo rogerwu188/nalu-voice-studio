@@ -1,0 +1,77 @@
+{
+  "schema_version": "nalu.native-recording-presentation-qa/v1",
+  "recorded_at": "2026-09-06T04:02:41Z",
+  "product_commit": "b8d2bc50802918e467fc99e7488d98285df53a90",
+  "ci": {
+    "run_id": 34009992117,
+    "url": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34009992117",
+    "conclusion": "success",
+    "jobs": {
+      "runtime": "success",
+      "macos_arm64": "success",
+      "macos_x86_64": "success",
+      "macos_universal": "success"
+    },
+    "swift_test_count_per_architecture": 81,
+    "waveform_tests": [
+      "testLevelsStayWithinRenderableRange",
+      "testSuccessiveAnimationFramesChangeTheVisibleWaveform"
+    ]
+  },
+  "artifact": {
+    "id": 9982225088,
+    "url": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34009992117/artifacts/9982225088",
+    "github_archive_sha256": "3d3ae54199a9be6c41ae221debd81cb5279ee216f57a73a76a299d87efbc02d6",
+    "downloaded_archive_sha256": "3d3ae54199a9be6c41ae221debd81cb5279ee216f57a73a76a299d87efbc02d6",
+    "declared_inner_zip_sha256": "1c1610af6001e9e0c74f6a3dac8c0ace825473884466eece3db878a98e0acc67",
+    "downloaded_inner_zip_sha256": "1c1610af6001e9e0c74f6a3dac8c0ace825473884466eece3db878a98e0acc67",
+    "bundle_identifier": "studio.nalu.voice",
+    "architectures": [
+      "arm64",
+      "x86_64"
+    ],
+    "signature": "adhoc",
+    "team_identifier": null
+  },
+  "isolated_launch": {
+    "application_support": "/var/folders/y4/k84st0yj7fz043tnxkfrjn1w0000gn/T/nalu-active-current.QCWNCJ",
+    "runtime_health": {
+      "status": "ok",
+      "service": "nalu-runtime",
+      "version": "0.1.0",
+      "schema_version": 27
+    },
+    "native_application_pid": 35590,
+    "runtime_parent_pid": 35616,
+    "runtime_listener_pid": 35618,
+    "listener": "127.0.0.1:8765"
+  },
+  "deterministic_contract": {
+    "presentation_only_fixture_simulates_listening": true,
+    "starts_speech_recorder": false,
+    "requests_microphone_permission": false,
+    "waveform_level_range": [
+      0,
+      1
+    ],
+    "successive_frame_interval_seconds": 0.12,
+    "successive_frames_differ": true
+  },
+  "native_visible_qa": {
+    "status": "BLOCKED_BY_LOCKED_MAC",
+    "accessibility_tree_observed": false,
+    "two_frame_visual_motion_observed": false,
+    "reason": "The current macOS login session remained locked; no visible-window claim was made."
+  },
+  "external_effects": {
+    "microphone_used": false,
+    "speech_permission_requested": false,
+    "credential_used": false,
+    "provider_call_performed": false,
+    "paid_call_performed": false,
+    "publication_performed": false
+  },
+  "checkpoint_result": "PASS",
+  "checkpoint_scope": "Deterministic waveform-motion contract, dual-architecture tests, exact-artifact integrity and isolated Runtime launch only.",
+  "sop_02_status_after_checkpoint": "IN_PROGRESS"
+}
