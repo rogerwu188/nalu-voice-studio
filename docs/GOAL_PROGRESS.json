@@ -28,9 +28,9 @@
     "summary": "Native Accessibility actions worked again. Verified synthetic OCR card correction via native paste/save on Universal 75adedc: revision 3 draft/reference-only with original OCR retained in all revisions, no consent granted. Evidence: docs/qa/native-memory-correction-2026-09-06.md. Latest baseline CI 34049134925 succeeded. This is not real voice or signed-candidate acceptance."
   },
   "next_action": {
-    "sop": "SOP-05",
-    "id": "native-synthetic-privacy-preview-qa",
-    "summary": "Using the isolated synthetic OCR project and verified 75adedc app, inspect the native asset dependency/deletion preview and cancel path. Verify cancel preserves original media, memory revisions and local consent flags. Do not touch user projects or treat this as human privacy/voice acceptance. Check evidence-commit CI first.",
+    "sop": "SOP-02",
+    "id": "gpt-native-voice-primary-entry",
+    "summary": "User explicitly rejects system TTS as the primary voice experience. Inspect and implement GPT Realtime as the clearly identified main conversational voice path, keep local dictation/read-aloud explicitly optional, prevent silent local-TTS fallback and duplicate voices. Existing Realtime config uses gpt-realtime-2.1/marin, but many model actions still call AVSpeechSynthesizer. Preserve microphone/cloud/guardian/budget consent; no paid live session without bounded authorization. Native synthetic privacy-preview QA remains deferred, not completed.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
