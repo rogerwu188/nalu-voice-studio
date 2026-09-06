@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "6fb578e22bc75539eac5259ee0f55657f19284fe",
-  "last_advanced_at": "2026-09-06T17:42:08Z",
+  "observed_head": "7879bd23ef93a481779f650c06ad88ff5da6776b",
+  "last_advanced_at": "2026-09-06T18:00:54Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-02",
     "status": "IN_PROGRESS",
-    "summary": "Native Accessibility actions worked again. Verified synthetic OCR card correction via native paste/save on Universal 75adedc: revision 3 draft/reference-only with original OCR retained in all revisions, no consent granted. Evidence: docs/qa/native-memory-correction-2026-09-06.md. Latest baseline CI 34049134925 succeeded. This is not real voice or signed-candidate acceptance."
+    "summary": "GPT-primary and credential Save-and-Done product 7879bd2 passed all four CI jobs in run 34050040349. User saved OpenAI key in old native app; scoped read succeeded, but a single read-only model request returned HTTP 401. No audio or generation occurred. Follow-up actionable HTTP error mapping added with syntax checks; full follow-up CI and native deployment remain pending."
   },
   "next_action": {
     "sop": "SOP-02",
     "id": "verify-gpt-entry-and-save-completion-ci",
-    "summary": "Verify CI and native QA for GPT-primary entry and Save-and-Done credential fix. User entered OpenAI key then Done, but old Done only dismissed; native status and scoped Keychain lookup found no item. Nonblank drafts now persist/readback before close; empty SD2/H3 remain optional. Once key is actually saved, user authorized at most five minutes of Realtime testing; announce microphone use first. Task2-1 Giggle credentials authorized for SD2/H3, configuration location unresolved. Evidence: docs/qa/gpt-voice-and-credential-save-2026-09-06.md.",
+    "summary": "Verify follow-up HTTP error mapping CI, deploy verified native artifact and QA GPT-primary entry, credential completion, and local-mode separation without paid calls. Saved OpenAI key currently returns HTTP 401; user must resolve valid credential before the authorized at-most-five-minute Realtime test. Do not repeat generation attempts. Continue native synthetic QA while authentication is blocked. Evidence: docs/qa/gpt-voice-and-credential-save-2026-09-06.md.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

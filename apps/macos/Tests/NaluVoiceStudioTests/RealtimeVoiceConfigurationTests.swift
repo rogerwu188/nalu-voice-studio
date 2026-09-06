@@ -240,6 +240,20 @@ final class RealtimeVoiceConfigurationTests: XCTestCase {
         )
     }
 
+    func testHTTPFailuresGiveSafeActionableMessagesWithoutResponseBodies() {
+        XCTAssertNil(RealtimeVoiceError.forHTTPStatus(200))
+        XCTAssertNil(RealtimeVoiceError.forHTTPStatus(201))
+        for (status, expected) in [
+            (401, RealtimeVoiceError.authenticationFailed),
+            (403, .accessDenied), (429, .rateOrQuotaLimited),
+            (500, .sessionRequestFailed), (302, .sessionRequestFailed)
+        ] {
+            XCTAssertEqual(RealtimeVoiceError.forHTTPStatus(status)?.localizedDescription,
+                           expected.localizedDescription)
+        }
+        XCTAssertTrue(RealtimeVoiceError.authenticationFailed.localizedDescription.contains("已保存不代表验证通过"))
+    }
+
     func testVisibleStatesDescribeConnectionAndInterruption() {
         XCTAssertEqual(RealtimeVoiceState.listening.label, "正在听您说话")
         XCTAssertTrue(RealtimeVoiceState.speaking.label.contains("随时插话"))

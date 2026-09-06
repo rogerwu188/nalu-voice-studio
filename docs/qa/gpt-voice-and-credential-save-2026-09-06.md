@@ -25,3 +25,19 @@ Actual Realtime speech, interruption and cost acceptance remain open. A user
 authorized one at-most-five-minute session, but the key must first be saved.
 SD2/H3 credential use from Task2-1 is separately authorized; its configuration
 location is not yet resolved and no video generation has been submitted.
+
+## Follow-up 2026-09-06T18:00Z
+
+- User re-entered and explicitly saved OpenAI credentials in the running old
+  application. A scoped Keychain existence check passed. No credential value
+  was printed or stored in the repository.
+- One read-only request to `GET /v1/models/gpt-realtime-2.1`, using the saved
+  credential in memory, returned HTTP 401. This establishes an authentication
+  blocker, not its exact cause. No audio was captured/uploaded and no generation
+  or Realtime session was started. Do not retry paid sessions until resolved.
+- Product commit `7879bd23ef93a481779f650c06ad88ff5da6776b` passed all four jobs
+  in [CI 34050040349](https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34050040349).
+  Native deployment and interaction acceptance of that artifact remain pending.
+- Follow-up code distinguishes HTTP 401, 403 and 429 with actionable fixed
+  messages, without rendering provider response bodies. Regression assertions
+  and Swift syntax parsing pass; this follow-up still needs full CI/native QA.

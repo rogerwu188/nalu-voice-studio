@@ -491,9 +491,11 @@ actor RealtimeSessionBroker {
             instructions: instructions
         )
         let (data, response) = try await session.data(for: request)
-        guard let http = response as? HTTPURLResponse,
-              (200..<300).contains(http.statusCode) else {
+        guard let http = response as? HTTPURLResponse else {
             throw RealtimeVoiceError.sessionRequestFailed
+        }
+        if let failure = RealtimeVoiceError.forHTTPStatus(http.statusCode) {
+            throw failure
         }
         return try RealtimeAPIContract.validatedClientSecret(from: data)
     }
@@ -501,6 +503,9 @@ actor RealtimeSessionBroker {
 
 enum RealtimeVoiceError: LocalizedError {
     case missingCredential
+    case authenticationFailed
+    case accessDenied
+    case rateOrQuotaLimited
     case sessionRequestFailed
     case invalidSessionResponse
     case webViewNotReady
@@ -508,9 +513,22 @@ enum RealtimeVoiceError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .missingCredential: "请先在“模型密钥”中保存 OpenAI Realtime API 密钥。"
+        case .authenticationFailed: "OpenAI 未接受这把密钥。请在“模型密钥”中重新保存有效的 OpenAI API 密钥；已保存不代表验证通过。"
+        case .accessDenied: "OpenAI 拒绝了这次访问。请检查 API 项目的访问权限和服务可用范围。"
+        case .rateOrQuotaLimited: "OpenAI 暂时限制了这次请求。请检查 API 配额和用量限制，再手动重试。"
         case .sessionRequestFailed: "OpenAI 没有建立实时语音会话。请检查网络、密钥和账户余额。"
         case .invalidSessionResponse: "实时语音会话凭证格式不正确。"
         case .webViewNotReady: "实时语音组件尚未准备好，请稍后再试。"
+        }
+    }
+
+    static func forHTTPStatus(_ status: Int) -> RealtimeVoiceError? {
+        switch status {
+        case 200..<300: nil
+        case 401: .authenticationFailed
+        case 403: .accessDenied
+        case 429: .rateOrQuotaLimited
+        default: .sessionRequestFailed
         }
     }
 
