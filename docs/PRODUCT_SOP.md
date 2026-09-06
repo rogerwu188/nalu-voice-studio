@@ -77,6 +77,9 @@ generation acceptance; application wiring and other video modes remain open.
 The Giggle task-query transport now has [read-only mock coverage](qa/giggle-task-query-2026-09-06.md);
 Saved bindings now have a [durable observation endpoint and status coverage](qa/saved-task-observation-2026-09-06.md).
 Native polling integration, billing and actual output QA remain open.
+Concrete shot/image requests now have a [persisted preparation endpoint](qa/video-request-preparation-2026-09-06.md)
+with decoded-image and package-binding checks. AI shot planning, budget review,
+approval-to-dispatch wiring and actual generation remain incomplete.
 
 2026-09-06 native checkpoints on `4e03c16`, CI
 [34054486473](https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34054486473):

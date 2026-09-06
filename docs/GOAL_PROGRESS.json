@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "7da947bf77247bf97c57ec8efe042625c9227a2e",
-  "last_advanced_at": "2026-09-06T22:50:06Z",
+  "observed_head": "b32a68c37f60af6bae467a658f5f148937fb9c1f",
+  "last_advanced_at": "2026-09-06T22:55:00Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Saved Giggle binding refresh endpoint records durable observations and truthful pending-QA progress. Commit 7da947b pushed; full regression 378 passed, OpenAPI and Ruff passed. CI 34065192790 queued at inspection. Evidence docs/qa/saved-task-observation-2026-09-06.md. Native dispatch and real generation remain open; no live provider call performed."
+    "summary": "Concrete shot preparation endpoint persists exact request and digest-bound, decoded PNG/JPEG first frame; seven preparation cases and 67 combined boundary/SD2 tests passed, Ruff passed. Evidence docs/qa/video-request-preparation-2026-09-06.md. This is preparation, not approved paid dispatch; actual AI shot planning, budget reservation and native integration remain open. No live provider call performed."
   },
   "next_action": {
     "sop": "SOP-04",

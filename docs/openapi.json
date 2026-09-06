@@ -8492,6 +8492,27 @@
         "title": "ValidationError",
         "type": "object"
       },
+      "VideoPreparationRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "request": {
+            "additionalProperties": true,
+            "title": "Request",
+            "type": "object"
+          },
+          "task_key": {
+            "pattern": "^[A-Za-z0-9_.:-]{1,120}$",
+            "title": "Task Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "task_key",
+          "request"
+        ],
+        "title": "VideoPreparationRequest",
+        "type": "object"
+      },
       "VisualContinuityQAReport": {
         "properties": {
           "analyzer": {
@@ -12848,6 +12869,55 @@
           }
         },
         "summary": "Refresh Saved Task"
+      }
+    },
+    "/v1/production-runs/{run_id}/video-task-preparations": {
+      "post": {
+        "operationId": "prepare_video_task_v1_production_runs__run_id__video_task_preparations_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VideoPreparationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunEvent"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Prepare Video Task"
       }
     },
     "/v1/production-runs/{run_id}/visual-continuity-qa": {

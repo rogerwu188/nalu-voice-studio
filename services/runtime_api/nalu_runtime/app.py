@@ -165,6 +165,7 @@ from .semantic_recognizer import LocalSemanticRecognizer
 from .source_reader import read_public_source, source_failure_code
 from .storage_diagnostics import inspect_storage
 from .task_observation_service import TaskObservationService
+from .video_preparation import VideoPreparationRequest, VideoPreparationService
 from .writer_provider import (
     DisabledWriterProviderVerifier,
     WriterProviderVerifier,
@@ -1116,6 +1117,10 @@ def create_app(
     @app.get("/v1/production-runs/{run_id}/events", response_model=list[RunEvent])
     def get_run_events(run_id: str) -> list[RunEvent]:
         return production.events(run_id)
+
+    @app.post("/v1/production-runs/{run_id}/video-task-preparations", response_model=RunEvent)
+    def prepare_video_task(run_id: str, request: VideoPreparationRequest) -> RunEvent:
+        return VideoPreparationService(repository).prepare(run_id, request)
 
     @app.post("/v1/production-runs/{run_id}/tasks/{binding_id}/refresh", response_model=RunEvent)
     def refresh_saved_task(

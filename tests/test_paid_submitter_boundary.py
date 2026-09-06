@@ -1,9 +1,13 @@
+import base64
 import hashlib
+import io
 import json
 from copy import deepcopy
 from pathlib import Path
 
+import av
 import httpx
+import numpy as np
 import pytest
 from fastapi.testclient import TestClient
 from nalu_runtime.app import create_app
@@ -14,6 +18,57 @@ from nalu_runtime.remote_submitter import (
     PaidProviderAcceptance,
 )
 from nalu_runtime.repository import ConflictError, utc_now
+
+
+@pytest.mark.parametrize("invalid", [None, "bytes", "hash", "extra_reference", "package", "cancelled", "ratio"])
+def test_prepare_concrete_shot_and_image_without_network(tmp_path, invalid):
+    api = TestClient(create_app(tmp_path / "prepare.sqlite3", tmp_path / "data"))
+    run = paid_run(api, tmp_path, run_id="run_frame_fixture", model="seedance-2.0-pro")
+    output = io.BytesIO()
+    with av.open(output, mode="w", format="image2pipe") as container:
+        stream = container.add_stream("png", rate=1)
+        stream.width, stream.height, stream.pix_fmt = 16, 16, "rgb24"
+        for packet in stream.encode(av.VideoFrame.from_ndarray(np.zeros((16, 16, 3), dtype=np.uint8), format="rgb24")):
+            container.mux(packet)
+        for packet in stream.encode():
+            container.mux(packet)
+    frame = output.getvalue() if invalid != "bytes" else b"not-an-image"
+    request = paid_request("合成空房间镜头")
+    request.update({"model": "seedance-2.0-pro", "provider_model_id": "seedance-2.0-pro",
+                    "adapter_id": "nalu.qingshan.seedance2-pro", "profile_id": "SEEDANCE_2_STANDARD_GIGGLE",
+                    "native_resolution_contract": "720p", "delivery_resolution_contract": "720p",
+                    "video_transport": {"mode": "image_to_video_start_frame", "aspect_ratio": "1:1",
+                                        "start_frame": {"base64": base64.b64encode(frame).decode()}}})
+    request["opening_anchor"]["frame_sha256"] = hashlib.sha256(frame).hexdigest()
+    request["provider_scope_projection"]["production_package_sha256"] = json.loads(
+        Path(run.package_path).read_text())["package_sha256"]
+    if invalid == "hash":
+        request["opening_anchor"]["frame_sha256"] = "0" * 64
+    if invalid == "ratio":
+        request["video_transport"]["aspect_ratio"] = "16:9"
+    if invalid == "extra_reference":
+        request["images"] = [{"url": "https://example.org/reference.png"}]
+    if invalid == "package":
+        request["provider_scope_projection"]["production_package_sha256"] = "0" * 64
+    if invalid == "cancelled":
+        api.post(f"/v1/production-runs/{run.id}/cancel", json={"requested_by": "qa", "reason": "fixture"})
+    endpoint = f"/v1/production-runs/{run.id}/video-task-preparations"
+    response = api.post(endpoint, json={"task_key": "E01-U01", "request": request})
+    if invalid:
+        assert response.status_code == 409, response.text
+        assert not any(e.event_type == "video_task_prepared" for e in api.app.state.repository.list_run_events(run.id))
+        return
+    assert response.status_code == 200, response.text
+    record = response.json()["payload"]
+    assert record["request"] == request
+    assert record["frame"]["width"] == 16
+    assert record["paid_approved"] is False
+    assert record["generation_performed"] is False
+    assert record["visual_semantics_verified"] is False
+    assert api.post(endpoint, json={"task_key": "E01-U01", "request": request}).json()["id"] == response.json()["id"]
+    assert api.app.state.repository.list_remote_task_bindings(run.id) == []
+    restarted = TestClient(create_app(tmp_path / "prepare.sqlite3", tmp_path / "data"))
+    assert restarted.get(f"/v1/production-runs/{run.id}/events").json()[-1]["payload"] == record
 
 
 @pytest.mark.parametrize("status,stage,percent", [
@@ -202,6 +257,7 @@ def paid_run(
     *,
     run_id: str,
     approved: bool = True,
+    model: str = "MiniMax-H3",
     resolved_library: list[dict] | None = None,
 ) -> ProductionRun:
     project = api.post("/v1/projects", json={"title": "付费边界测试"}).json()
@@ -217,7 +273,7 @@ def paid_run(
         **PAID_PACKAGE_BODY,
         "resolved_library": list(resolved_library or []),
         "production_policy": {
-            "requested_model": "MiniMax-H3",
+            "requested_model": model,
             "paid_generation_approved": approved,
             "approved_by": "QA 授权人" if approved else None,
         },
@@ -235,7 +291,7 @@ def paid_run(
         episode_id=episode["id"],
         status=RunStatus.WAITING_FOR_APPROVAL,
         dry_run=False,
-        requested_model="MiniMax-H3",
+        requested_model=model,
         estimated_budget_credits=100,
         package_path=str(package_path),
         created_at=now,
