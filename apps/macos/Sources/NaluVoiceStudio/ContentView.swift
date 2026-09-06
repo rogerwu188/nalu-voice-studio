@@ -228,6 +228,7 @@ struct ContentView: View {
                 .buttonStyle(.plain)
                 .padding(.vertical, 5)
             }
+            .accessibilityIdentifier(NaluPrimaryAccessibilityID.projectList)
             Toggle("显示已归档项目", isOn: archivedProjectsBinding)
                 .toggleStyle(.switch)
                 .padding(.horizontal, 18)
@@ -288,6 +289,7 @@ struct ContentView: View {
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
             .padding(18)
+            .accessibilityIdentifier(NaluPrimaryAccessibilityID.createProject)
         }
     }
 
@@ -309,6 +311,7 @@ struct ContentView: View {
                 .controlSize(.large)
                 .disabled(selectedProject == nil)
                 .accessibilityHint("直接打开文件选择器，资料名称和归档草稿由 Nalu 整理")
+                .accessibilityIdentifier(NaluPrimaryAccessibilityID.assetImportToolbar)
                 Button("管理资料", systemImage: "tray.full") {
                     assetKind = "source_document"
                     isAdvancedAssetEditorExpanded = false
@@ -330,6 +333,7 @@ struct ContentView: View {
                 .buttonStyle(.borderedProminent)
                 .tint(realtimeVoice.state.isActive ? .red : .purple)
                 .controlSize(.large)
+                .accessibilityIdentifier(NaluPrimaryAccessibilityID.realtimeVoice)
                 Button("再说一遍", action: repeatQuestion).controlSize(.large)
             }
             .padding(24)
@@ -434,6 +438,7 @@ struct ContentView: View {
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
                 .accessibilityHint("直接打开文件选择器，选择后 Nalu 会用语音逐项确认")
+                .accessibilityIdentifier(NaluPrimaryAccessibilityID.assetImportCard)
                 .padding(.horizontal, 24)
                 .padding(.vertical, 12)
                 Divider()
@@ -545,6 +550,7 @@ struct ContentView: View {
             .tint(model.isListening ? .red : .blue)
             .padding(24)
             .disabled(realtimeVoice.state.isActive)
+            .accessibilityIdentifier(NaluPrimaryAccessibilityID.microphoneToggle)
         }
         .alert("Nalu 需要您的帮助", isPresented: errorBinding) {
             Button("知道了", role: .cancel) { model.errorMessage = nil }

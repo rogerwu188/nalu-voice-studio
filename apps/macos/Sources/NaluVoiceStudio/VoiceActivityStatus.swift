@@ -1,5 +1,16 @@
 import SwiftUI
 
+enum NaluPrimaryAccessibilityID {
+    static let projectList = "nalu.projects.list"
+    static let createProject = "nalu.projects.create"
+    static let runtimeStatus = "nalu.status.runtime"
+    static let realtimeVoice = "nalu.voice.realtime"
+    static let assetImportToolbar = "nalu.assets.import.toolbar"
+    static let assetImportCard = "nalu.assets.import.card"
+    static let voiceActivity = "nalu.voice.activity"
+    static let microphoneToggle = "nalu.voice.microphone.toggle"
+}
+
 struct RuntimeStatusBadge: View {
     let status: String
 
@@ -18,6 +29,7 @@ struct RuntimeStatusBadge: View {
             .font(.headline)
             .foregroundStyle(state.color)
             .accessibilityLabel("系统状态：\(state.text)")
+            .accessibilityIdentifier(NaluPrimaryAccessibilityID.runtimeStatus)
     }
 }
 
@@ -72,6 +84,7 @@ struct VoiceActivityStatus: View {
         .accessibilityLabel(
             isListening ? "正在录音，Nalu 正在听" : "尚未录音，请按蓝色按钮开始"
         )
+        .accessibilityIdentifier(NaluPrimaryAccessibilityID.voiceActivity)
     }
 
     private func wave(_ tick: TimeInterval, offset: Double) -> Double {
