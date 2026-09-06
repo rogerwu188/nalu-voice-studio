@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from .database import Database
 from .models import ExternalWriterDeclaration
 from .repository import ConflictError, NotFoundError, utc_now
+from .writer_receipt import WriterReceiptVerificationError, interactive_receipt
 
 
 class StoryInput(BaseModel):
@@ -123,11 +124,24 @@ class InteractiveStory:
                     existing.update({draft.episode_number: draft.model_dump() for draft in request.episode_drafts})
                     state["episode_drafts"] = [existing[number] for number in sorted(existing)]
                     writers = state.setdefault("draft_writers", {})
+                    receipts = state.setdefault("draft_receipts", {})
                     for draft in request.episode_drafts:
                         # Corrections cannot inherit an older run's receipt.
                         writers[str(draft.episode_number)] = (
                             request.external_writer.model_dump(mode="json")
                             if request.external_writer else None
                         )
+                        receipts[str(draft.episode_number)] = None
+                        if request.external_writer and request.writer_response_json:
+                            try:
+                                writer, receipt = interactive_receipt(
+                                    request.writer_response_json,
+                                    request.external_writer.model_dump(mode="json"),
+                                    draft.episode_number, state["revision"] + 1, draft.script,
+                                )
+                            except WriterReceiptVerificationError as exc:
+                                raise ConflictError(str(exc)) from exc
+                            writers[str(draft.episode_number)] = writer
+                            receipts[str(draft.episode_number)] = receipt
             state["revision"] += 1
             return self._save(connection, project_id, bible, state)

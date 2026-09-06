@@ -8738,7 +8738,8 @@
           "agent_id": {
             "enum": [
               "qingshan-claude-writer-agent",
-              "qingshan-claude-writer"
+              "qingshan-claude-writer",
+              "nalu-interactive-writer"
             ],
             "title": "Agent Id",
             "type": "string"

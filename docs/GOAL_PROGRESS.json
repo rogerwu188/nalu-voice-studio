@@ -12,7 +12,7 @@
     "WAITING_AUTHORIZATION": 0
   },
   "observed_head": "0ba42ec6f618371e919744b4935c500ed0b30e65",
-  "last_advanced_at": "2026-09-06T20:21:42Z",
+  "last_advanced_at": "2026-09-06T20:53:28Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Native restoration and cross-project isolation verified on a016c80 artifact 9996631576. Real packaged public-source read reproducibly returns 422 while development reader succeeds. Explicit bundled certifi roots, packaging collection and safe error classification added; 320 runtime tests pass. Fresh packaged source QA and CI remain required; neither source-to-script nor full SOP is complete. Evidence docs/qa/native-interactive-story-2026-09-06.md."
+    "summary": "Source TLS succeeded in rebuilt one-file runtime. Added per-episode interactive writer receipt adapter and native adoption reconciliation; 325 runtime tests pass, Swift parse and OpenAPI checks pass. Native source/writer QA and CI for receipt changes remain open. Download of 70a9b06 arm64 artifact is live session 53982 to /tmp/nalu-source-app.RoV03u; this older artifact includes source handoff but not receipt adapter. Evidence docs/qa/interactive-writer-receipts-2026-09-06.md."
   },
   "next_action": {
     "sop": "SOP-04",

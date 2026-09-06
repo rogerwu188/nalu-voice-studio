@@ -1025,7 +1025,7 @@ class WriterReceiptReconciliation(BaseModel):
     writer_run_id: str
     writer_episode: str
     writer_version: int = Field(ge=1)
-    agent_id: Literal["qingshan-claude-writer-agent", "qingshan-claude-writer"]
+    agent_id: Literal["qingshan-claude-writer-agent", "qingshan-claude-writer", "nalu-interactive-writer"]
     provider: str
     model_id: str
     session_or_task_id: str

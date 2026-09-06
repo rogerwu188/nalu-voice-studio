@@ -16,10 +16,11 @@ final class InteractiveStoryWriterTests: XCTestCase {
     }
 
     func testRequestUsesConfiguredHostAndCarriesPreviousSourceContext() throws {
-        let state = InteractiveStoryState(revision: 2, turns: [
+        var state = InteractiveStoryState(revision: 2, turns: [
             .init(turn_id: "source", text: "查找老照片", source_mode: "web_source", status: "answered",
                   answer: .init(reply: "来源 https://example.com/archive", summary: "", episode_drafts: [], outcome: "answered")),
         ], summary: "外婆住在海边", episode_drafts: [])
+        state.draft_receipts = ["1": "local-only-receipt"]
         let request = try InteractiveStoryWriter.makeRequest(state: state, apiKey: "fixture-key",
             endpoint: AIServiceEndpoint("https://hopsapi.com/v1"), model: "fixture-model")
         XCTAssertEqual(request.url?.absoluteString, "https://hopsapi.com/v1/chat/completions")
@@ -29,6 +30,7 @@ final class InteractiveStoryWriterTests: XCTestCase {
         let messages = try XCTUnwrap(body["messages"] as? [[String: String]])
         XCTAssertTrue(messages.last?["content"]?.contains("外婆住在海边") == true)
         XCTAssertTrue(messages.last?["content"]?.contains("example.com") == true)
+        XCTAssertFalse(messages.last?["content"]?.contains("local-only-receipt") == true)
     }
 
     func testParsesConcreteEpisodeDraftAndRejectsTruncation() throws {

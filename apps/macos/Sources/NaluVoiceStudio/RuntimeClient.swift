@@ -401,6 +401,18 @@ actor RuntimeClient {
         )
     }
 
+    func reconcileInteractiveReceipt(episodeID: String, revision: Int, receipt: String) async throws {
+        var components = URLComponents(url: baseURL.appending(path:
+            "v1/episodes/\(episodeID)/scripts/\(revision)/writer-receipt-reconciliations"), resolvingAgainstBaseURL: false)!
+        components.queryItems = [.init(name: "reconciled_by", value: "nalu-interactive-writer-adapter")]
+        var request = URLRequest(url: components.url!)
+        request.httpMethod = "POST"
+        request.setValue("application/octet-stream", forHTTPHeaderField: "Content-Type")
+        request.httpBody = Data(receipt.utf8)
+        let (data, response) = try await authorizedData(for: request)
+        try validate(response, data: data)
+    }
+
     func listContinuitySnapshots(episodeID: String) async throws -> [ContinuitySnapshot] {
         try await get("v1/episodes/\(episodeID)/continuity-snapshots")
     }

@@ -1,5 +1,43 @@
+import hashlib
+import json
+
 from fastapi.testclient import TestClient
 from nalu_runtime.app import create_app
+
+
+def test_two_episode_writer_drafts_enter_review_with_distinct_bound_receipts(tmp_path):
+    with TestClient(create_app(tmp_path / "db", tmp_path / "data")) as client:
+        plan = client.post("/v1/project-plans", json={"project": {
+            "title": "合成两集故事", "planned_episode_count": 2}}).json()
+        path = f"/v1/projects/{plan['project']['id']}/interactive-story"
+        client.post(path + "/turns", json={"turn_id": "story", "expected_revision": 0,
+            "text": "合成故事写两集", "source_mode": "narrated_story"})
+        drafts = [{"episode_number": n, "title": f"第{n}集", "outline": "合成场景",
+                   "script": f"合成第{n}集：海边，相认。"} for n in (1, 2)]
+        raw = json.dumps({"id": "fixture-multiple", "model": "fixture-writer-1", "choices": [{
+            "finish_reason": "stop", "message": {"content": json.dumps({"episode_drafts": drafts})}}]})
+        declaration = {"provider": "fixture-provider", "model_id": "fixture-writer-1",
+            "session_or_task_id": "fixture-multiple", "input_bundle_sha256": "a" * 64,
+            "writer_rules_sha256": "b" * 64, "receipt_sha256": hashlib.sha256(raw.encode()).hexdigest(),
+            "started_at": "2026-09-06T20:00:00Z", "completed_at": "2026-09-06T20:00:01Z"}
+        response = client.post(path + "/turns/story/answer", json={"expected_revision": 1,
+            "reply": "请审阅两集", "episode_drafts": drafts,
+            "external_writer": declaration, "writer_response_json": raw})
+        assert response.status_code == 200
+        state = response.json()
+        for number, episode in enumerate(plan["episodes"], 1):
+            script = client.post(f"/v1/episodes/{episode['id']}/scripts", json={
+                "content": drafts[number - 1]["script"], "summary_for_voice_review": "合成审阅",
+                "authoring": {"origin": "external_ai_generated",
+                              "external_writer": state["draft_writers"][str(number)]}}).json()
+            url = f"/v1/episodes/{episode['id']}/scripts/{script['revision']}/writer-receipt-reconciliations"
+            for _ in range(2):
+                bound = client.post(url, content=state["draft_receipts"][str(number)].encode(),
+                    headers={"Content-Type": "application/octet-stream"}, params={"reconciled_by": "synthetic QA"})
+                assert bound.status_code == 201, bound.text
+                assert bound.json()["artifact_binding_verified"] is True
+                assert bound.json()["provider_execution_verified"] is False
+            assert script["approved_at"] is None
 
 
 def test_writer_declaration_tracks_revised_episode_and_retains_response(tmp_path):
@@ -19,14 +57,25 @@ def test_writer_declaration_tracks_revised_episode_and_retains_response(tmp_path
                 "episode_drafts": [{"episode_number": 1, "title": "童年", "outline": "海边",
                                     "script": f"第{index}版"}]}
             if index == 0:
-                payload.update(external_writer=declaration, writer_response_json='{"fixture":true}')
+                raw = json.dumps({"id": "fixture-task", "model": "fixture-model", "choices": [{
+                    "finish_reason": "stop", "message": {"content": json.dumps({
+                        "episode_drafts": payload["episode_drafts"]})}}]})
+                declaration["receipt_sha256"] = hashlib.sha256(raw.encode()).hexdigest()
+                payload.update(external_writer=declaration, writer_response_json=raw)
+                rejected = client.post(path + f"/turns/{index}/answer",
+                    json={**payload, "writer_response_json": raw + " "})
+                assert rejected.status_code == 409
+                assert client.get(path).json()["turns"][-1]["status"] == "pending"
             saved = client.post(path + f"/turns/{index}/answer", json=payload)
             assert saved.status_code == 200
             if index == 0:
-                assert saved.json()["draft_writers"]["1"] == declaration
+                assert saved.json()["draft_writers"]["1"]["session_or_task_id"] == "fixture-task"
+                assert saved.json()["draft_writers"]["1"]["receipt_sha256"] != declaration["receipt_sha256"]
+                assert saved.json()["draft_receipts"]["1"]
         state = client.get(path).json()
         assert state["draft_writers"]["1"] is None  # never inherit old writer identity
-        assert state["turns"][0]["answer"]["writer_response_json"] == '{"fixture":true}'
+        assert state["turns"][0]["answer"]["writer_response_json"] == raw
+        assert state["draft_receipts"]["1"] is None
         assert state["turns"][0]["answer"]["episode_drafts"][0]["script"] == "第0版"
         assert state["episode_drafts"][0]["script"] == "第1版"
 

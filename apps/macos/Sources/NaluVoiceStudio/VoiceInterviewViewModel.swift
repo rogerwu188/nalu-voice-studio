@@ -390,11 +390,18 @@ final class VoiceInterviewViewModel {
                                  targetSeconds: 60))
             }
             let revisions = try await runtime.listScripts(episodeID: episode.id)
-            if !revisions.contains(where: { $0.content == draft.script &&
+            let script: ScriptRevision
+            if let existing = revisions.first(where: { $0.content == draft.script &&
                 $0.authoringProvenance?.externalWriter?.receiptSHA256 == writer.receiptSHA256 }) {
-                _ = try await runtime.createScript(episodeID: episode.id, content: draft.script,
+                script = existing
+            } else {
+                script = try await runtime.createScript(episodeID: episode.id, content: draft.script,
                     summary: draft.outline, sourceTranscript: state.summary,
                     authoringOrigin: "external_ai_generated", externalWriter: writer)
+            }
+            if let receipt = state.draft_receipts?[String(number)] ?? nil {
+                try await runtime.reconcileInteractiveReceipt(episodeID: episode.id,
+                    revision: script.revision, receipt: receipt)
             }
             guard projectSelectionGeneration == generation else { return }
             await selectProject(projectID)

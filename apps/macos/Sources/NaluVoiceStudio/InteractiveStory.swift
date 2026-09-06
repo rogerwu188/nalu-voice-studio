@@ -35,6 +35,7 @@ struct InteractiveStoryState: Codable, Sendable {
     let summary: String
     let episode_drafts: [InteractiveEpisodeDraft]
     var draft_writers: [String: ExternalWriterDeclaration?]? = nil
+    var draft_receipts: [String: String?]? = nil
 
     func conversationMessages() -> [InterviewMessage] {
         var messages: [InterviewMessage] = []

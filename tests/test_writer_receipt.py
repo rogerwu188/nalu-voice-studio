@@ -5,10 +5,43 @@ from copy import deepcopy
 import pytest
 from nalu_runtime.writer_receipt import (
     WriterReceiptVerificationError,
+    interactive_receipt,
     verify_writer_receipt,
 )
 
 CONTENT = "Writer 权威输出"
+
+
+def test_interactive_receipts_bind_each_episode_and_reject_changed_output():
+    raw = json.dumps({"id": "test-task-123", "model": "test-model-123", "choices": [{
+        "finish_reason": "stop", "message": {"content": json.dumps({"episode_drafts": [
+            {"episode_number": 1, "script": "海边第一场"},
+            {"episode_number": 2, "script": "山村第二场"},
+        ]})}}]})
+    declaration = {"provider": "fixture-provider", "model_id": "test-model-123",
+        "session_or_task_id": "test-task-123", "input_bundle_sha256": "a" * 64,
+        "writer_rules_sha256": "b" * 64, "receipt_sha256": hashlib.sha256(raw.encode()).hexdigest(),
+        "started_at": "2026-09-06T20:00:00Z", "completed_at": "2026-09-06T20:00:01Z"}
+    receipts = []
+    for episode, script in [(1, "海边第一场"), (2, "山村第二场")]:
+        declared, receipt = interactive_receipt(raw, declaration, episode, 2, script)
+        result = verify_writer_receipt(receipt.encode(),
+            **{f"declared_{k}": v for k, v in declared.items()},
+            script_content_sha256=hashlib.sha256(script.encode()).hexdigest())
+        assert result["episode"] == f"E{episode}"
+        assert result["agent_id"] == "nalu-interactive-writer"
+        receipts.append(declared["receipt_sha256"])
+        changed = json.loads(receipt)
+        changed["raw_response_json"] = raw.replace("test-task-123", "wrong-task")
+        tampered = json.dumps(changed).encode()
+        with pytest.raises(WriterReceiptVerificationError):
+            verify_writer_receipt(tampered,
+                **{f"declared_{k}": v for k, v in declared.items() if k != "receipt_sha256"},
+                declared_receipt_sha256=hashlib.sha256(tampered).hexdigest(),
+                script_content_sha256=hashlib.sha256(script.encode()).hexdigest())
+    assert receipts[0] != receipts[1]
+    with pytest.raises(WriterReceiptVerificationError):
+        interactive_receipt(raw, declaration, 1, 2, "凭空改写的剧本")
 
 
 def receipt_fixture() -> tuple[dict, dict]:

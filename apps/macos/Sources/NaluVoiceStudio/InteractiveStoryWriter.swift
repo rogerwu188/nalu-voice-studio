@@ -39,7 +39,10 @@ actor InteractiveStoryWriter {
 
     static func makeRequest(state: InteractiveStoryState, apiKey: String,
                             endpoint: AIServiceEndpoint, model: String) throws -> URLRequest {
-        let encoded = try JSONEncoder().encode(state)
+        var context = state
+        context.draft_receipts = nil
+        context.draft_writers = nil
+        let encoded = try JSONEncoder().encode(context)
         guard encoded.count <= 1_000_000 else { throw WriterError.contextTooLarge }
         var request = URLRequest(url: endpoint.url("chat/completions"))
         request.httpMethod = "POST"
