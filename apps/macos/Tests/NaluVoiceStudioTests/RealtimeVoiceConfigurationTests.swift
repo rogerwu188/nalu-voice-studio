@@ -29,11 +29,14 @@ final class RealtimeVoiceConfigurationTests: XCTestCase {
         XCTAssertEqual((audio["output"] as? [String: Any])?["voice"] as? String, "marin")
 
         let tools = try XCTUnwrap(session["tools"] as? [[String: Any]])
-        XCTAssertEqual(tools.count, 1)
+        XCTAssertEqual(tools.count, 2)
         XCTAssertEqual(tools[0]["name"] as? String, "record_interview_answer")
+        XCTAssertEqual(tools[1]["name"] as? String, "research_web_read_only")
         XCTAssertEqual(session["tool_choice"] as? String, "auto")
         let parameters = try XCTUnwrap(tools[0]["parameters"] as? [String: Any])
         XCTAssertEqual(parameters["additionalProperties"] as? Bool, false)
+        let researchParameters = try XCTUnwrap(tools[1]["parameters"] as? [String: Any])
+        XCTAssertEqual(researchParameters["additionalProperties"] as? Bool, false)
     }
 
     func testCurrentWebRTCContractUsesOfficialEndpointsAndChannel() {
@@ -399,39 +402,52 @@ final class RealtimeVoiceConfigurationTests: XCTestCase {
     }
 
     func testInterviewToolCallAllowsOnlyExactNarrowSchema() throws {
-        let valid = RealtimeInterviewToolCall.parse([
+        let valid = RealtimeAssistantToolCall.parse([
             "kind": "tool",
             "name": "record_interview_answer",
             "callID": "call_123",
             "arguments": #"{"answer":"  我自己使用  "}"#,
         ])
-        XCTAssertEqual(valid, RealtimeInterviewToolCall(callID: "call_123", answer: "我自己使用"))
+        XCTAssertEqual(
+            valid,
+            RealtimeAssistantToolCall(kind: .interview, callID: "call_123", value: "我自己使用")
+        )
+        let research = RealtimeAssistantToolCall.parse([
+            "kind": "tool",
+            "name": "research_web_read_only",
+            "callID": "call_web",
+            "arguments": #"{"query":"查找项目主页"}"#,
+        ])
+        XCTAssertEqual(
+            research,
+            RealtimeAssistantToolCall(kind: .webResearch, callID: "call_web", value: "查找项目主页")
+        )
 
-        XCTAssertNil(RealtimeInterviewToolCall.parse([
+        XCTAssertNil(RealtimeAssistantToolCall.parse([
             "kind": "tool",
             "name": "delete_project",
             "callID": "call_456",
             "arguments": #"{"answer":"删除"}"#,
         ]))
-        XCTAssertNil(RealtimeInterviewToolCall.parse([
+        XCTAssertNil(RealtimeAssistantToolCall.parse([
             "kind": "tool",
             "name": "record_interview_answer",
             "callID": "call_789",
             "arguments": #"{"answer":"同意","publish":true}"#,
         ]))
-        XCTAssertNil(RealtimeInterviewToolCall.parse([
+        XCTAssertNil(RealtimeAssistantToolCall.parse([
             "kind": "tool",
             "name": "record_interview_answer",
             "callID": String(repeating: "x", count: 513),
             "arguments": #"{"answer":"我自己使用"}"#,
         ]))
-        XCTAssertNil(RealtimeInterviewToolCall.parse([
+        XCTAssertNil(RealtimeAssistantToolCall.parse([
             "kind": "tool",
             "name": "record_interview_answer",
             "callID": " call_123 ",
             "arguments": #"{"answer":"我自己使用"}"#,
         ]))
-        XCTAssertNil(RealtimeInterviewToolCall.parse([
+        XCTAssertNil(RealtimeAssistantToolCall.parse([
             "kind": "tool",
             "name": "record_interview_answer",
             "callID": "call_123",
@@ -462,7 +478,8 @@ final class RealtimeVoiceConfigurationTests: XCTestCase {
         XCTAssertTrue(page.contains("if (!Array.isArray(output))"))
         XCTAssertTrue(page.contains("const calls = output.filter"))
         XCTAssertTrue(page.contains("if (calls.length > 1"))
-        XCTAssertTrue(page.contains("call.name !== \"record_interview_answer\""))
+        XCTAssertTrue(page.contains("research_web_read_only"))
+        XCTAssertTrue(page.contains(".includes(call.name)"))
         XCTAssertTrue(page.contains("call.call_id.length > 512"))
         XCTAssertTrue(page.contains("call.arguments.length > 8192"))
         XCTAssertFalse(page.contains("value.response?.output?.filter"))

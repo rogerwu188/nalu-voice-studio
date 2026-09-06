@@ -100,6 +100,7 @@ final class VoiceInterviewViewModel {
     var feedbackReleaseReadiness: FeedbackGovernedReleaseReadiness?
     var comfortPreferences = VoiceInterviewViewModel.loadComfortPreferences()
     var planningVoiceLabel: String? { planningVoiceFlow.mode?.prompt }
+    var assistantActionStatus: String?
 
     var continuityExtractionWasEdited: Bool {
         guard let proposal = continuityExtractionProposal else { return false }
@@ -120,6 +121,7 @@ final class VoiceInterviewViewModel {
     private let runtime = RuntimeClient()
     private let speech = SpeechRecorder()
     private let speechPlayback = SpeechPlayback()
+    private let webResearch = OpenAIWebResearchClient()
     private let finalMasterSpeechRecognizer = FinalMasterSpeechRecognizer()
     private var interviewFlow = InterviewFlow()
     private var planningVoiceFlow = PlanningVoiceFlow()
@@ -185,6 +187,10 @@ final class VoiceInterviewViewModel {
         transcript = ""
         transcriptConfidence = 0
         if applyComfortCommand(spoken) { return }
+        if let request = AssistantActionRouter.route(spoken) {
+            handleAssistantAction(request)
+            return
+        }
         if let response = handleProductionVoiceCommand(spoken) {
             messages.append(.init(speaker: .nalu, text: response))
             speechPlayback.speak(response, rate: comfortPreferences.speechRate)
@@ -2013,6 +2019,35 @@ final class VoiceInterviewViewModel {
         }
     }
 
+    func performRealtimeWebResearch(_ query: String) async -> RealtimeInterviewToolResult {
+        guard !AssistantActionRouter.requiresConfirmation(query) else {
+            return .init(
+                accepted: false,
+                message: "这个要求包含下载、登录、付款、发布或其他外部改变，我没有执行。请回到可见界面确认具体操作。",
+                nextPrompt: currentInterviewPrompt,
+                requiresVisibleConfirmation: true
+            )
+        }
+        assistantActionStatus = "正在替您上网查找…"
+        defer { assistantActionStatus = nil }
+        do {
+            let result = try await webResearch.research(query)
+            return .init(
+                accepted: true,
+                message: result.conversationText(resumePrompt: currentInterviewPrompt),
+                nextPrompt: currentInterviewPrompt,
+                requiresVisibleConfirmation: false
+            )
+        } catch {
+            return .init(
+                accepted: false,
+                message: WebResearchError.publicDescription(for: error),
+                nextPrompt: currentInterviewPrompt,
+                requiresVisibleConfirmation: error is WebResearchError
+            )
+        }
+    }
+
     private func recordRealtimePlanningAnswer(_ answer: String) -> RealtimeInterviewToolResult {
         let guardianConfirmed = planningVoiceFlow.mode == .scriptApproval
             || planningVoiceFlow.mode == .continuityConfirmation
@@ -2098,6 +2133,38 @@ final class VoiceInterviewViewModel {
 
     var currentInterviewPrompt: String {
         planningVoiceFlow.mode?.prompt ?? interviewFlow.prompt
+    }
+
+    private func handleAssistantAction(_ request: AssistantActionRequest) {
+        switch request {
+        case .requiresConfirmation:
+            let response = "我听见了，但这个要求可能会下载、登录、付款、发布或改变外部内容。为了防止误操作，我现在没有执行。请在可见界面确认具体对象和操作后再继续。\n\n我们仍停在这里：\(currentInterviewPrompt)"
+            messages.append(.init(speaker: .nalu, text: response))
+            speechPlayback.speak(response, rate: comfortPreferences.speechRate)
+        case .webResearch(let query):
+            assistantActionStatus = "正在替您上网查找…"
+            let startMessage = "好的，我现在替您上网查找。查找期间不会改变您的故事，也不会自动下载或发布任何内容。"
+            messages.append(.init(speaker: .nalu, text: startMessage))
+            speechPlayback.speak(startMessage, rate: comfortPreferences.speechRate)
+            let resumePrompt = currentInterviewPrompt
+            Task {
+                do {
+                    let result = try await webResearch.research(query)
+                    let response = result.conversationText(resumePrompt: resumePrompt)
+                    assistantActionStatus = nil
+                    messages.append(.init(speaker: .nalu, text: response))
+                    speechPlayback.speak(
+                        "我查到了。\(result.answer) 我们再接着刚才的创作。\(resumePrompt)",
+                        rate: comfortPreferences.speechRate
+                    )
+                } catch {
+                    assistantActionStatus = nil
+                    let response = "\(WebResearchError.publicDescription(for: error))\n\n我们仍停在这里：\(resumePrompt)"
+                    messages.append(.init(speaker: .nalu, text: response))
+                    speechPlayback.speak(response, rate: comfortPreferences.speechRate)
+                }
+            }
+        }
     }
 
     private func handleProductionVoiceCommand(_ spoken: String) -> String? {

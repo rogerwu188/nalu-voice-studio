@@ -12,7 +12,7 @@ enum ProviderCredential: String, CaseIterable, Identifiable {
         switch self {
         case .seedance: "Seedance / SD2 Pro"
         case .minimax: "MiniMax H3"
-        case .openAIRealtime: "OpenAI Realtime 自然语音"
+        case .openAIRealtime: "OpenAI API（自然语音与联网查找）"
         }
     }
 }

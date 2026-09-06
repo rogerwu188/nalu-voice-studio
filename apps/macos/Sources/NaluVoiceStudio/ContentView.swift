@@ -464,6 +464,18 @@ struct ContentView: View {
                             planningEditor
                             Divider()
                         }
+                        if let assistantActionStatus = model.assistantActionStatus {
+                            HStack(spacing: 12) {
+                                ProgressView()
+                                Text(assistantActionStatus).font(.headline)
+                                Spacer()
+                            }
+                            .foregroundStyle(.blue)
+                            .padding(.horizontal, 28)
+                            .padding(.top, 20)
+                            .accessibilityElement(children: .combine)
+                            .accessibilityIdentifier("nalu.assistant-action.status")
+                        }
                         LazyVStack(spacing: 18) {
                         ForEach(model.messages) { message in
                             bubble(message)
@@ -1684,7 +1696,7 @@ struct ContentView: View {
                 draft: $openAIRealtimeSecretDraft,
                 configured: openAIRealtimeIsConfigured
             )
-            Text("保存密钥不会触发付费调用。模型适配器和付费事务还需要独立授权。")
+            Text("保存密钥不会触发付费调用。明确说“网上搜索”时会为该次查询使用 Responses API；自然语音仍在单独同意后才开启。下载、发布、付款和外部写入必须另行确认。")
                 .font(.caption)
                 .foregroundStyle(.secondary)
             HStack {
@@ -1896,7 +1908,7 @@ struct ContentView: View {
                     .font(.title)
                     .foregroundStyle(.blue)
             }
-            Text(message.text)
+            Text((try? AttributedString(markdown: message.text)) ?? AttributedString(message.text))
                 .font(.title3)
                 .lineSpacing(7)
                 .padding(18)
@@ -2408,6 +2420,9 @@ struct ContentView: View {
         }
         realtimeVoice.onInterviewAnswer = { answer in
             model.recordRealtimeFlowAnswer(answer)
+        }
+        realtimeVoice.onWebResearch = { query in
+            await model.performRealtimeWebResearch(query)
         }
         let projectName = selectedProject?.title ?? "尚未命名的故事"
         let currentPrompt = model.currentInterviewPrompt

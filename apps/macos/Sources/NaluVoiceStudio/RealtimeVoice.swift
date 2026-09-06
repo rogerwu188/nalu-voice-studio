@@ -109,6 +109,10 @@ enum RealtimeInterviewInstructions {
         “不暂停”“恢复本集制作”时，才调用 record_interview_answer；调用后等本地结果
         返回，再简短复述结果并询问 nextPrompt。
         用户只是提问、抱怨、闲聊或纠正你的回答时不要调用工具。
+        用户明确要求“网上搜索、上网查找、找网站或核对最新资料”时，必须调用
+        research_web_read_only，等本地联网结果返回后再回答，并在回答后自然回到 nextPrompt。
+        如果要求还包含下载、登录、购买、付款、发布、上传、发送或删除，不得调用联网工具；
+        要说明必须在可见界面另行确认，且不能声称已经执行。
         一次只问一个问题，句子简短，语速舒缓。允许用户停顿和随时插话。
         只有本地工具结果 accepted=true 才能说已经开始保存或批准。不得声称已经付费生成、删除、
         使用生物特征素材或发布任何内容；这些操作必须回到可见界面另行确认。
@@ -129,6 +133,7 @@ enum RealtimeSpokenPrompt {
 struct RealtimeSessionConfiguration {
     static let model = "gpt-realtime-2.1"
     static let interviewToolName = "record_interview_answer"
+    static let webResearchToolName = "research_web_read_only"
     static let clientSecretLifetimeSeconds = 60
 
     static var interviewTool: [String: Any] {
@@ -158,6 +163,29 @@ struct RealtimeSessionConfiguration {
         ]
     }
 
+    static var webResearchTool: [String: Any] {
+        [
+            "type": "function",
+            "name": webResearchToolName,
+            "description": """
+            Run one read-only web search when the user explicitly asks Nalu to search online,
+            find a website, or verify current public information. Do not call this for downloads,
+            login, purchase, payment, publishing, upload, sending, deletion or any external write.
+            """,
+            "parameters": [
+                "type": "object",
+                "properties": [
+                    "query": [
+                        "type": "string",
+                        "description": "The user's exact read-only research request.",
+                    ]
+                ],
+                "required": ["query"],
+                "additionalProperties": false,
+            ],
+        ]
+    }
+
     static func requestBody(instructions: String) throws -> Data {
         try JSONSerialization.data(
             withJSONObject: [
@@ -171,7 +199,7 @@ struct RealtimeSessionConfiguration {
                     "instructions": instructions,
                     "output_modalities": ["audio"],
                     "max_output_tokens": 512,
-                    "tools": [interviewTool],
+                    "tools": [interviewTool, webResearchTool],
                     "tool_choice": "auto",
                     "audio": [
                         "input": [
@@ -334,14 +362,17 @@ struct RealtimeBridgeEvent: Equatable {
     }
 }
 
-struct RealtimeInterviewToolCall: Equatable {
-    let callID: String
-    let answer: String
+struct RealtimeAssistantToolCall: Equatable {
+    enum Kind: Equatable { case interview, webResearch }
 
-    static func parse(_ payload: [String: Any]) -> RealtimeInterviewToolCall? {
+    let kind: Kind
+    let callID: String
+    let value: String
+
+    static func parse(_ payload: [String: Any]) -> RealtimeAssistantToolCall? {
         guard Set(payload.keys) == Set(["kind", "name", "callID", "arguments"]),
               payload["kind"] as? String == "tool",
-              payload["name"] as? String == RealtimeSessionConfiguration.interviewToolName,
+              let name = payload["name"] as? String,
               let callID = payload["callID"] as? String,
               !callID.isEmpty,
               callID.trimmingCharacters(in: .whitespacesAndNewlines) == callID,
@@ -350,11 +381,24 @@ struct RealtimeInterviewToolCall: Equatable {
               arguments.utf8.count <= 8_192,
               let data = arguments.data(using: .utf8),
               let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              object.keys.allSatisfy({ $0 == "answer" }),
-              let rawAnswer = object["answer"] as? String else { return nil }
-        let answer = rawAnswer.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !answer.isEmpty, answer.count <= 2_000 else { return nil }
-        return RealtimeInterviewToolCall(callID: callID, answer: answer)
+              object.count == 1 else { return nil }
+        let kind: Kind
+        let rawValue: String
+        switch name {
+        case RealtimeSessionConfiguration.interviewToolName:
+            guard let answer = object["answer"] as? String else { return nil }
+            kind = .interview
+            rawValue = answer
+        case RealtimeSessionConfiguration.webResearchToolName:
+            guard let query = object["query"] as? String else { return nil }
+            kind = .webResearch
+            rawValue = query
+        default:
+            return nil
+        }
+        let value = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.isEmpty, value.count <= 2_000 else { return nil }
+        return RealtimeAssistantToolCall(kind: kind, callID: callID, value: value)
     }
 }
 
@@ -490,6 +534,7 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
     var onUserTranscript: ((String) -> Void)?
     var onAssistantTranscript: ((String) -> Void)?
     var onInterviewAnswer: ((String) -> RealtimeInterviewToolResult)?
+    var onWebResearch: ((String) async -> RealtimeInterviewToolResult)?
 
     private let broker = RealtimeSessionBroker()
     private weak var webView: WKWebView?
@@ -693,7 +738,7 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
     }
 
     private func handleToolCall(_ payload: [String: Any]) {
-        guard let call = RealtimeInterviewToolCall.parse(payload) else {
+        guard let call = RealtimeAssistantToolCall.parse(payload) else {
             failSession(
                 reason: "收到无法验证的实时语音操作，请重新连接。",
                 allowRetry: true
@@ -716,11 +761,23 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
             nextPrompt: "",
             requiresVisibleConfirmation: true
         )
-        guard let onInterviewAnswer else {
-            completeToolCall(callID: call.callID, result: rejected)
-            return
+        switch call.kind {
+        case .interview:
+            guard let onInterviewAnswer else {
+                completeToolCall(callID: call.callID, result: rejected)
+                return
+            }
+            completeToolCall(callID: call.callID, result: onInterviewAnswer(call.value))
+        case .webResearch:
+            guard let onWebResearch else {
+                completeToolCall(callID: call.callID, result: rejected)
+                return
+            }
+            Task { @MainActor in
+                let result = await onWebResearch(call.value)
+                completeToolCall(callID: call.callID, result: result)
+            }
         }
-        completeToolCall(callID: call.callID, result: onInterviewAnswer(call.answer))
     }
 
     private func completeToolCall(callID: String, result: RealtimeInterviewToolResult) {
@@ -888,7 +945,8 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
               }
               const calls = output.filter(item => item && item.type === "function_call");
               if (calls.length > 1 || calls.some(call =>
-                  call.name !== "\#(RealtimeSessionConfiguration.interviewToolName)" ||
+                  !["\#(RealtimeSessionConfiguration.interviewToolName)",
+                    "\#(RealtimeSessionConfiguration.webResearchToolName)"].includes(call.name) ||
                   typeof call.call_id !== "string" || call.call_id.length === 0 ||
                   call.call_id.length > 512 || call.call_id.trim() !== call.call_id ||
                   typeof call.arguments !== "string" || call.arguments.length > 8192)) {
