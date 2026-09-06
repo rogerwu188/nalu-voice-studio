@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-02",
     "status": "IN_PROGRESS",
-    "summary": "GPT-primary and credential Save-and-Done product 7879bd2 passed all four CI jobs in run 34050040349. User saved OpenAI key in old native app; scoped read succeeded, but a single read-only model request returned HTTP 401. No audio or generation occurred. Follow-up actionable HTTP error mapping added with syntax checks; full follow-up CI and native deployment remain pending."
+    "summary": "User identified intended provider https://hopsapi.com/v1. Saved key authenticates there: read-only models returned 200, three models, none labelled realtime. Earlier official-host 401 was wrong-endpoint evidence, not invalid-provider-key evidence. Added configurable base address for Responses and both Realtime stages, redirect refusal, provider disclosure and routing tests. Syntax passes; CI and native verification pending."
   },
   "next_action": {
     "sop": "SOP-02",
     "id": "verify-gpt-entry-and-save-completion-ci",
-    "summary": "Verify follow-up HTTP error mapping CI, deploy verified native artifact and QA GPT-primary entry, credential completion, and local-mode separation without paid calls. Saved OpenAI key currently returns HTTP 401; user must resolve valid credential before the authorized at-most-five-minute Realtime test. Do not repeat generation attempts. Continue native synthetic QA while authentication is blocked. Evidence: docs/qa/gpt-voice-and-credential-save-2026-09-06.md.",
+    "summary": "Verify configurable-provider CI, deploy exact artifact and set user-requested https://hopsapi.com/v1 in native settings. QA address persistence, GPT-primary entry and credential completion. Confirm provider Realtime/model support before audio test; models-list success alone is insufficient. Do not request replacement key: intended provider authentication passed. Evidence: docs/qa/gpt-voice-and-credential-save-2026-09-06.md.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

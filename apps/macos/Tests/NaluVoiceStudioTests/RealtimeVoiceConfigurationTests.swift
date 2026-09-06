@@ -56,9 +56,25 @@ final class RealtimeVoiceConfigurationTests: XCTestCase {
         )
         XCTAssertTrue(
             RealtimeVoiceCoordinator.webRTCPage.contains(
-                #"fetch("https://api.openai.com/v1/realtime/calls""#
+                "fetch(callsURL,"
             )
         )
+    }
+
+    func testConfiguredEndpointRoutesBothRealtimeStagesAndResearch() throws {
+        let endpoint = try AIServiceEndpoint("https://hopsapi.com/v1/")
+        XCTAssertEqual(endpoint.url("realtime/client_secrets").absoluteString,
+                       "https://hopsapi.com/v1/realtime/client_secrets")
+        XCTAssertEqual(endpoint.url("realtime/calls").absoluteString,
+                       "https://hopsapi.com/v1/realtime/calls")
+        XCTAssertEqual(endpoint.url("responses").absoluteString,
+                       "https://hopsapi.com/v1/responses")
+        for invalid in ["http://hopsapi.com/v1", "https://user:secret@hopsapi.com/v1",
+                        "https://hopsapi.com/v1?key=secret", "https://hopsapi.com/v1#secret",
+                        "https://hopsapi.com:8443/v1", "https://hopsapi.com/not-v1"] {
+            XCTAssertThrowsError(try AIServiceEndpoint(invalid))
+        }
+        XCTAssertTrue(RealtimeVoiceCoordinator.webRTCPage.contains("redirect: \"error\""))
     }
 
     func testInterviewInstructionsTreatEditableContextAsBoundedUntrustedData() throws {

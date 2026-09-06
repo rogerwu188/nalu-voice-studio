@@ -41,6 +41,7 @@ struct ContentView: View {
     @State private var assetDependencyReport: AssetDependencyReport?
     @State private var isPresentingAssetDependencies = false
     @State private var isPresentingProviderCredentials = false
+    @State private var apiBaseURLDraft = AIServiceEndpoint.official
     @State private var seedanceSecretDraft = ""
     @State private var minimaxSecretDraft = ""
     @State private var openAIRealtimeSecretDraft = ""
@@ -1607,8 +1608,9 @@ struct ContentView: View {
                 .naluFont(.title3)
             GroupBox("开启前请您知道") {
                 VStack(alignment: .leading, spacing: 10) {
-                    Label("麦克风声音会发送给 OpenAI Realtime 处理", systemImage: "icloud.and.arrow.up")
-                    Label("这会使用您的 OpenAI API 额度并可能产生费用", systemImage: "creditcard")
+                    Label("麦克风声音会发送给所配置的实时语音服务商", systemImage: "icloud.and.arrow.up")
+                    Text(UserDefaults.standard.string(forKey: AIServiceEndpoint.preferenceKey) ?? AIServiceEndpoint.official)
+                    Label("这会使用您的 API 额度并可能产生费用", systemImage: "creditcard")
                     Label("音频不写入项目 SQLite、备份或反馈记录", systemImage: "externaldrive.badge.checkmark")
                     Label("随时点“结束自然语音”即可断开，并回到本机按键模式", systemImage: "phone.down")
                 }
@@ -1622,7 +1624,7 @@ struct ContentView: View {
                 }
             }
             .pickerStyle(.segmented)
-            Text("到达上限会自动断开，避免忘记关闭。实际费用由您的 OpenAI 账户用量决定。")
+            Text("到达上限会自动断开，避免忘记关闭。实际费用由所配置服务商的账户用量决定。")
                 .naluFont(.caption)
                 .foregroundStyle(.secondary)
             if selectedProject?.audienceMode == "child" {
@@ -1724,6 +1726,11 @@ struct ContentView: View {
                 draft: $openAIRealtimeSecretDraft,
                 configured: openAIRealtimeIsConfigured
             )
+            Text("API 访问地址").naluFont(.headline)
+            TextField("https://服务商域名/v1", text: $apiBaseURLDraft)
+                .textFieldStyle(.roundedBorder)
+            Text("保存后，AI 请求将发送到此服务商。密钥保存成功不代表连接验证通过；兼容聊天接口也不代表支持实时语音。")
+                .naluFont(.caption).foregroundStyle(.secondary)
             Text("保存密钥不会触发付费调用。明确说“网上搜索”时会为该次查询使用 Responses API；自然语音仍在单独同意后才开启。下载、发布、付款和外部写入必须另行确认。")
                 .naluFont(.caption)
                 .foregroundStyle(.secondary)
@@ -2408,6 +2415,7 @@ struct ContentView: View {
     }
 
     private func presentProviderCredentials() {
+        apiBaseURLDraft = UserDefaults.standard.string(forKey: AIServiceEndpoint.preferenceKey) ?? AIServiceEndpoint.official
         credentialSaveError = nil
         refreshCredentialStatus()
         seedanceSecretDraft = ""
@@ -2491,6 +2499,9 @@ struct ContentView: View {
     }
 
     private func savePendingCredentialsAndClose() {
+        let endpoint: AIServiceEndpoint
+        do { endpoint = try AIServiceEndpoint(apiBaseURLDraft) }
+        catch { credentialSaveError = error.localizedDescription; return }
         let drafts: [(ProviderCredential, String)] = [
             (.seedance, seedanceSecretDraft),
             (.minimax, minimaxSecretDraft),
@@ -2499,6 +2510,8 @@ struct ContentView: View {
         guard CredentialDraftSave.save(drafts, using: { credential, secret in
             saveCredential(credential, secret: secret)
         }) else { return }
+        realtimeVoice.stop()
+        UserDefaults.standard.set(endpoint.baseURL.absoluteString, forKey: AIServiceEndpoint.preferenceKey)
         isPresentingProviderCredentials = false
     }
 

@@ -95,7 +95,7 @@ actor OpenAIWebResearchClient {
             let configuration = URLSessionConfiguration.ephemeral
             configuration.timeoutIntervalForRequest = 45
             configuration.waitsForConnectivity = false
-            self.session = URLSession(configuration: configuration)
+            self.session = URLSession(configuration: configuration, delegate: AIServiceRedirectGuard(), delegateQueue: nil)
         }
         self.fixedAPIKey = fixedAPIKey
     }
@@ -115,7 +115,7 @@ actor OpenAIWebResearchClient {
     }
 
     static func makeRequest(query: String, apiKey: String) throws -> URLRequest {
-        var request = URLRequest(url: Self.endpoint)
+        var request = URLRequest(url: try AIServiceEndpoint.current().url("responses"))
         request.httpMethod = "POST"
         request.cachePolicy = .reloadIgnoringLocalCacheData
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")

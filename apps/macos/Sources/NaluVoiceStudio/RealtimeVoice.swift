@@ -473,15 +473,15 @@ actor RealtimeSessionBroker {
             let configuration = URLSessionConfiguration.ephemeral
             configuration.timeoutIntervalForRequest = 20
             configuration.waitsForConnectivity = false
-            self.session = URLSession(configuration: configuration)
+            self.session = URLSession(configuration: configuration, delegate: AIServiceRedirectGuard(), delegateQueue: nil)
         }
     }
 
-    func createClientSecret(instructions: String) async throws -> String {
+    func createClientSecret(instructions: String, endpoint: AIServiceEndpoint) async throws -> String {
         guard let apiKey = try keychain.secret(for: .openAIRealtime) else {
             throw RealtimeVoiceError.missingCredential
         }
-        var request = URLRequest(url: RealtimeAPIContract.clientSecretsURL)
+        var request = URLRequest(url: endpoint.url("realtime/client_secrets"))
         request.httpMethod = "POST"
         request.cachePolicy = .reloadIgnoringLocalCacheData
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
@@ -555,6 +555,7 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
     var onWebResearch: ((String) async -> RealtimeInterviewToolResult)?
 
     private let broker = RealtimeSessionBroker()
+    private var activeCallsURL = RealtimeAPIContract.callsURL
     private weak var webView: WKWebView?
     private var isPageReady = false
     private var pendingToken: String?
@@ -593,7 +594,9 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
         state = .connecting
         let attempt = connectionAttempts.begin()
         do {
-            let token = try await broker.createClientSecret(instructions: instructions)
+            let endpoint = try AIServiceEndpoint.current()
+            activeCallsURL = endpoint.url("realtime/calls").absoluteString
+            let token = try await broker.createClientSecret(instructions: instructions, endpoint: endpoint)
             guard connectionAttempts.accepts(attempt), state == .connecting else { return }
             pendingToken = token
             startWebRTCIfReady()
@@ -824,7 +827,8 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
             state = .unavailable(RealtimeVoiceError.invalidSessionResponse.localizedDescription)
             return
         }
-        webView.evaluateJavaScript("window.naluRealtime.start(\(tokenJSON))") { _, error in
+        guard let callsJSON = RealtimeJavaScriptBridge.stringLiteral(activeCallsURL) else { return }
+        webView.evaluateJavaScript("window.naluRealtime.start(\(tokenJSON), \(callsJSON))") { _, error in
             if error != nil {
                 Task { @MainActor in
                     self.failSession(
@@ -851,7 +855,7 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
         post("error", message);
         stop(false, false);
       }
-      async function start(token) {
+      async function start(token, callsURL) {
         try {
           stop(false);
           stopping = false;
@@ -986,8 +990,8 @@ final class RealtimeVoiceCoordinator: NSObject, WKScriptMessageHandler,
           });
           const offer = await pc.createOffer();
           await pc.setLocalDescription(offer);
-          const response = await fetch("\#(RealtimeAPIContract.callsURL)", {
-            method: "POST", body: offer.sdp,
+          const response = await fetch(callsURL, {
+            method: "POST", body: offer.sdp, redirect: "error",
             headers: {Authorization: `Bearer ${token}`, "Content-Type": "application/sdp"}
           });
           if (!response.ok) throw new Error("实时语音连接失败（" + response.status + "）");

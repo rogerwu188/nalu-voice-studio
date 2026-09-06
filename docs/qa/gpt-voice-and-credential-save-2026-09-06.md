@@ -41,3 +41,19 @@ location is not yet resolved and no video generation has been submitted.
 - Follow-up code distinguishes HTTP 401, 403 and 429 with actionable fixed
   messages, without rendering provider response bodies. Regression assertions
   and Swift syntax parsing pass; this follow-up still needs full CI/native QA.
+
+## Provider address correction
+
+User then specified `https://hopsapi.com/v1`. A single read-only `/models`
+request to that exact host with redirects refused returned HTTP 200 and three
+models, none with `realtime` in its ID. The earlier official-host 401 is **not**
+evidence that this credential is invalid at the intended provider. No key change
+is requested and no generation/audio request was made to either provider.
+
+The credential sheet now includes a validated HTTPS `/v1` address. Responses,
+Realtime client-secret creation and WebRTC calls route to the selected address;
+the two Realtime stages use a captured endpoint for the connection attempt.
+Redirects are refused to avoid forwarding credentials to another destination.
+The microphone consent sheet discloses the selected provider address and usage.
+Provider Realtime support, CORS, model availability and native packaged QA remain
+unverified. Endpoint routing/invalid URL tests added; syntax parsing passes.
