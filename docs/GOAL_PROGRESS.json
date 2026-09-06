@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "2e1a4e5ceebf6226b52c94cfd178bfc07344bb7f",
-  "last_advanced_at": "2026-09-06T07:24:00Z",
+  "observed_head": "8de6a8a0ef1b457c98bfb64924bc464d6776cdf4",
+  "last_advanced_at": "2026-09-06T06:52:00Z",
   "last_closed_checkpoint": {
     "id": "native-isolated-project-restart-backup-restore-qa",
     "sop": "SOP-03",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-02",
     "status": "IN_PROGRESS",
-    "summary": "Native isolated project restart, backup and clean restore now have exact Universal artifact evidence. User QA found that critical bottom actions can be clipped and that recognized online research requests are recorded but not executed; both are active SOP-02 interaction defects."
+    "summary": "Spoken read-only search now has deterministic local and Realtime routing, visible progress, clickable HTTPS sources, protected-operation confirmation gates and successful dual-architecture/Universal CI evidence. The exact artifact still needs minimum-window and enlarged-text native visual QA, and live provider execution remains authorization-bound."
   },
   "next_action": {
     "sop": "SOP-02",
-    "id": "critical-controls-and-ai-action-routing",
-    "summary": "Keep sidebar and interview bottom actions visible at the minimum supported window and enlarged text, then route spoken read-only research requests to a real AI web executor with visible progress, sources and return-to-interview behavior; confirmation-gate downloads and all external writes.",
+    "id": "critical-controls-native-visual-qa",
+    "summary": "Download the exact Universal artifact from CI run 34017000589 and verify the fixed create and microphone controls at the minimum supported window and enlarged text without disturbing active user data; retain live paid web-search and Realtime execution as authorization-bound evidence.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
