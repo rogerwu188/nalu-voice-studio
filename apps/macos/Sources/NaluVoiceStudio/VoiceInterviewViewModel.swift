@@ -24,7 +24,12 @@ private enum HookReviewVoiceStep {
 @Observable
 final class VoiceInterviewViewModel {
     var projects: [NaluProject] = []
-    var selectedProjectID: String?
+    var selectedProjectID: String? {
+        didSet {
+            if selectedProjectID != oldValue { projectSelectionGeneration = UUID() }
+        }
+    }
+    private var projectSelectionGeneration = UUID()
     var seasons: [NaluSeason] = []
     var episodes: [NaluEpisode] = []
     var episodeProgressByID: [String: EpisodeProductionProgress] = [:]
@@ -118,7 +123,11 @@ final class VoiceInterviewViewModel {
                 ).isEmpty)
     }
 
-    private let runtime = RuntimeClient()
+    private let runtime: RuntimeClient
+
+    init(runtime: RuntimeClient = RuntimeClient()) {
+        self.runtime = runtime
+    }
     private let speech = SpeechRecorder()
     private let speechPlayback = SpeechPlayback()
     private var localVoiceEnabled = false
@@ -1676,16 +1685,20 @@ final class VoiceInterviewViewModel {
     }
 
     private func refreshDocumentaryReadiness() async {
+        let generation = projectSelectionGeneration
         guard let projectID = selectedProjectID,
               selectedProject?.creativeFormat == "documentary_series" else {
             documentaryReadiness = nil
             return
         }
         do {
-            documentaryReadiness = try await runtime.documentaryReadiness(
+            let readiness = try await runtime.documentaryReadiness(
                 projectID: projectID
             )
+            guard projectSelectionGeneration == generation else { return }
+            documentaryReadiness = readiness
         } catch {
+            guard projectSelectionGeneration == generation else { return }
             errorMessage = error.localizedDescription
         }
     }
@@ -1843,14 +1856,23 @@ final class VoiceInterviewViewModel {
     }
 
     func deleteAsset(_ assetID: String) async {
-        guard let projectID = selectedProjectID else { return }
+        guard let projectID = selectedProjectID,
+              assets.contains(where: { $0.id == assetID && $0.projectID == projectID }) else { return }
+        let generation = projectSelectionGeneration
         do {
             try await runtime.deleteAsset(assetID: assetID)
-            assets = try await runtime.listAssets(projectID: projectID)
-            memoryCards = try await runtime.listMemoryCards(projectID: projectID)
+            guard projectSelectionGeneration == generation else { return }
+            let refreshedAssets = try await runtime.listAssets(projectID: projectID)
+            guard projectSelectionGeneration == generation else { return }
+            let refreshedCards = try await runtime.listMemoryCards(projectID: projectID)
+            guard projectSelectionGeneration == generation else { return }
+            assets = refreshedAssets
+            memoryCards = refreshedCards
             await refreshDocumentaryReadiness()
+            guard projectSelectionGeneration == generation else { return }
             messages.append(.init(speaker: .nalu, text: "本地素材和素材记录已经删除。"))
         } catch {
+            guard projectSelectionGeneration == generation else { return }
             errorMessage = error.localizedDescription
         }
     }

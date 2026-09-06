@@ -64,3 +64,19 @@ open. No microphone session or paid generation was initiated.
 Final CI observation: 34052638609 completed success, Runtime, both architecture
 jobs and Universal all passed. Only the documented fixture-backed native
 confirmation/cancel checkpoint is closed, not SOP-05 or the full product.
+
+## Asynchronous project selection correction
+
+Code review found deletion completion assigned asset/memory lists and appended
+messages after awaits without rechecking the current selection. Added a selection
+generation (including A→B→A changes), asset ownership check before DELETE, and
+generation guards before applying each returned list, success message or error.
+Documentary-readiness refresh also rejects stale results. No already-issued delete
+is retried or claimed undone; returning to a project reloads authoritative state.
+
+Injected RuntimeClient tests exercise switching at DELETE, assets and memory-card
+response boundaries; A→B→A stale error suppression; foreign asset no-request; and
+unchanged-selection success. These use URLProtocol fixtures, never real deletion.
+Syntax and diff checks pass; full Swift tests/CI and native regression for this
+follow-up remain pending. This does not claim all other project-loading methods
+are race-free.

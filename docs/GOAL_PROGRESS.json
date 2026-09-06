@@ -29,7 +29,7 @@
   },
   "next_action": {
     "sop": "SOP-02",
-    "id": "resolve-first-open-status-and-async-asset-project-isolation",
+    "id": "verify-async-deletion-isolation-and-first-open-credential-state",
     "summary": "CI 34052638609 all four jobs pass; native 8af99ac confirmation/cancel and referenced-asset no-delete checks pass with unchanged fixture hash (docs/qa/native-asset-dependency-2026-09-06.md). Resolve first-open credentials status freshness and finish native model-advisory result check on running isolated process 82280, port 18769. Inspect asynchronous asset deletion for project-switch contamination and add regression tests before claiming whole flow complete. Provider Realtime details requested asynchronously; no silent model replacement. Full SOP unchanged.",
     "requires_user_authorization": false
   },
