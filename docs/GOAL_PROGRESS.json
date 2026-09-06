@@ -11,36 +11,30 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "2fade72a8b8843a28c2fbcb7d1b920e1a4c732a9",
-  "last_advanced_at": "2026-09-05T06:24:31Z",
+  "observed_head": "683e8b3224d82cf5a3f88566c5521b89a0e45a8a",
+  "last_advanced_at": "2026-09-06T03:02:00Z",
   "last_closed_checkpoint": {
-    "id": "native-registry-owned-routing",
+    "id": "qingshan-v2026-09-05-2-promotion",
     "sop": "SOP-07",
-    "product_commit": "f876a3e2219f877bc00ca201c81a0ac38acdc35a",
-    "evidence_commit": "2fade72a8b8843a28c2fbcb7d1b920e1a4c732a9",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33949359214",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/33949359214/artifacts/9964382754",
+    "product_commit": "ca6e56eb4993f8a3947601a2d47ee464f2862f04",
+    "evidence_commit": "683e8b3224d82cf5a3f88566c5521b89a0e45a8a",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34007661410",
+    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34007661410/artifacts/9981535248",
     "result": "PASS"
   },
   "current_checkpoint": {
-    "sop": "SOP-07",
+    "sop": "SOP-02",
     "status": "IN_PROGRESS",
-    "summary": "Capability routing and its persisted, digest-bound decision receipt are complete. The latest reviewed Qingshan candidate v2026.09.04.6 remains quarantined because its public package and CLI version disagree with its portable manifest; paid-provider acceptance also remains authorization-gated."
+    "summary": "Qingshan v2026.09.05.2 is promoted with complete Runtime, arm64, x86_64 and Universal CI evidence. Native Universal application window QA and real Apple speech/realtime-provider acceptance remain incomplete."
   },
   "next_action": {
-    "sop": "SOP-07",
-    "id": "qingshan-corrected-release-discovery",
-    "summary": "Recheck the upstream latest release against the reviewed candidate; if the version mismatch is corrected, quarantine the exact release, reproduce its integrity and registered tests, adapt safe deltas behind Nalu contracts, and promote only after complete CI. Continue keeping real provider execution fail-closed pending explicit authorization.",
+    "sop": "SOP-02",
+    "id": "downloaded-universal-native-window-qa",
+    "summary": "Download the exact Universal artifact from CI run 34007661410, verify its outer and inner digests, launch the native application, and exercise the visible interview, scrolling, activity-state and attachment flows without provider credentials or paid calls.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
   "blocking_conditions": [
-    {
-      "id": "downloaded-native-app-window-qa",
-      "sops": ["SOP-02", "SOP-10"],
-      "requires_user_authorization": true,
-      "continue_other_work": true
-    },
     {
       "id": "paid-realtime-and-provider-qa",
       "sops": ["SOP-02", "SOP-08"],
@@ -69,12 +63,6 @@
       "id": "real-apple-speech-permission-and-master-qa",
       "sops": ["SOP-09", "SOP-12"],
       "requires_user_authorization": true,
-      "continue_other_work": true
-    },
-    {
-      "id": "corrected-qingshan-upstream",
-      "sops": ["SOP-07", "SOP-12"],
-      "requires_user_authorization": false,
       "continue_other_work": true
     }
   ],
