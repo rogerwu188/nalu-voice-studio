@@ -1,11 +1,13 @@
 import hashlib
 import json
 
+import pytest
 from fastapi.testclient import TestClient
 from nalu_runtime.app import create_app
 
 
-def test_supplements_persist_without_superseding_inflight_answer(tmp_path):
+@pytest.mark.parametrize("source_mode", ["narrated_story", "web_source"])
+def test_supplements_persist_without_superseding_inflight_answer(tmp_path, source_mode):
     database, data = tmp_path / "db", tmp_path / "data"
     with TestClient(create_app(database, data)) as client:
         project = client.post("/v1/projects", json={"title": "连续讲述"}).json()["id"]
@@ -13,7 +15,7 @@ def test_supplements_persist_without_superseding_inflight_answer(tmp_path):
         client.post(path + "/turns", json={"turn_id": "first", "expected_revision": 0,
             "text": "外婆带我看海", "source_mode": "narrated_story"})
         supplement = {"turn_id": "supplement", "expected_revision": 0,
-            "text": "还有，我当时六岁", "source_mode": "narrated_story", "queue_only": True}
+            "text": "还有，我当时六岁", "source_mode": source_mode, "queue_only": True}
         for _ in range(2):
             queued = client.post(path + "/turns", json=supplement).json()
             assert queued["revision"] == 1
@@ -33,6 +35,7 @@ def test_supplements_persist_without_superseding_inflight_answer(tmp_path):
             assert len(state["turns"]) == 2
             assert state["queued_inputs"] == []
             assert state["turns"][-1]["text"] == supplement["text"]
+            assert state["turns"][-1]["source_mode"] == source_mode
 
 
 def test_two_episode_writer_drafts_enter_review_with_distinct_bound_receipts(tmp_path):

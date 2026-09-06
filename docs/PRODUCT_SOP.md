@@ -28,6 +28,11 @@ completed user journey. Real writer/provider integration, native interaction,
 script revision handoff and the complete production demonstration remain open.
 The authoritative next action is in `docs/GOAL_PROGRESS.json`.
 
+Core-input follow-up: narration and web-source requests now share a durable
+supplement queue while the assistant works, retaining source mode and turn ID.
+See [queue implementation and outstanding native QA](qa/interactive-supplements-2026-09-06.md).
+This is not completed end-to-end writing or production acceptance.
+
 2026-09-06 native checkpoints on `4e03c16`, CI
 [34054486473](https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34054486473):
 [preflight waiting presentation](qa/production-status-truthfulness-2026-09-06.md)

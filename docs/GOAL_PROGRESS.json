@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "7d9c490eb88cd364ef3b47173bf622611d2fa06a",
-  "last_advanced_at": "2026-09-06T20:59:48Z",
+  "observed_head": "b76594bcff07b7b7b2071f0fb4e83c469dd0ee4a",
+  "last_advanced_at": "2026-09-06T21:13:06Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Added optional script revision retry keys sealed atomically with revision creation. Native draft adoption uses receipt-derived keys; concurrent/restarted retries do not duplicate versions or change later approvals, and project deletion clears retry records. 328 runtime tests, Ruff, Swift parse and API compatibility passed; CI/native validation pending. Evidence docs/qa/script-adoption-idempotency-2026-09-06.md. Hops 401 remains unresolved; no repeated live request."
+    "summary": "Extended durable busy-input queue to web-source requests; dispatch preserves source mode and turn ID instead of treating URLs as narrated story text. Restart/promotion regression covers both modes. 329 runtime tests, Swift parse and Ruff passed; native timing/CI acceptance remain open. Evidence docs/qa/interactive-supplements-2026-09-06.md. Previous script retry-key checkpoint is b76594b; Hops 401 remains unresolved with no repeated live request."
   },
   "next_action": {
     "sop": "SOP-04",

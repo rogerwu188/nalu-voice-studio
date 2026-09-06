@@ -284,7 +284,7 @@ final class VoiceInterviewViewModel {
         }
     }
 
-    private func queueStorySupplement(_ spoken: String, turnID: String) {
+    private func queueStorySupplement(_ spoken: String, turnID: String, sourceMode: String = "narrated_story") {
         guard let projectID = selectedProjectID else {
             transcript = spoken
             messages.append(.init(speaker: .nalu, text: "项目正在建立，这句补充留在输入区，还没有发送。"))
@@ -294,7 +294,7 @@ final class VoiceInterviewViewModel {
         Task {
             do {
                 var input = InteractiveStoryInput(turn_id: turnID, expected_revision: 0,
-                    text: spoken, source_mode: "narrated_story")
+                    text: spoken, source_mode: sourceMode)
                 input.queue_only = true
                 _ = try await runtime.appendStoryInput(projectID: projectID, input: input)
                 guard projectSelectionGeneration == generation else { return }
@@ -315,7 +315,11 @@ final class VoiceInterviewViewModel {
               let next = state.queued_inputs?.first,
               selectedProjectID == projectID, projectSelectionGeneration == generation,
               assistantActionStatus == nil else { return }
-        handleInteractiveStoryInput(next.text, turnID: next.turn_id)
+        if next.source_mode == "web_source" {
+            handleAssistantAction(.webResearch(query: next.text), turnID: next.turn_id)
+        } else {
+            handleInteractiveStoryInput(next.text, turnID: next.turn_id)
+        }
     }
 
     private func handleInteractiveStoryInput(_ spoken: String, turnID: String = UUID().uuidString) {
@@ -2424,17 +2428,15 @@ final class VoiceInterviewViewModel {
         return interviewFlow.prompt
     }
 
-    private func handleAssistantAction(_ request: AssistantActionRequest) {
+    private func handleAssistantAction(_ request: AssistantActionRequest, turnID: String = UUID().uuidString) {
         switch request {
         case .requiresConfirmation(let description):
             let response = "我先帮您查找公开来源。下载整份资料、登录、购买或发布会另行确认，不影响现在先查找。"
             messages.append(.init(speaker: .nalu, text: response))
-            handleAssistantAction(.webResearch(query: description))
+            handleAssistantAction(.webResearch(query: description), turnID: turnID)
         case .webResearch(let query):
             guard assistantActionStatus == nil else {
-                let response = "我还在完成上一项联网查找。请等结果出现后再说下一项；您的创作进度没有改变。"
-                messages.append(.init(speaker: .nalu, text: response))
-                speechPlayback.speak(response, rate: comfortPreferences.speechRate)
+                queueStorySupplement(query, turnID: turnID, sourceMode: "web_source")
                 return
             }
             assistantActionStatus = "正在替您上网查找…"
@@ -2446,7 +2448,6 @@ final class VoiceInterviewViewModel {
                 : currentInterviewPrompt
             let originalProjectID = selectedProjectID
             let originalGeneration = projectSelectionGeneration
-            let turnID = UUID().uuidString
             Task {
                 var projectID = originalProjectID
                 var generation = originalGeneration
@@ -2471,6 +2472,15 @@ final class VoiceInterviewViewModel {
                     }
                     if let projectID {
                         let state = try await runtime.interactiveStory(projectID: projectID)
+                        if let waiting = state.queued_inputs, !waiting.isEmpty,
+                           !waiting.contains(where: { $0.turn_id == turnID }) {
+                            var input = InteractiveStoryInput(turn_id: turnID, expected_revision: state.revision,
+                                text: query, source_mode: "web_source")
+                            input.queue_only = true
+                            _ = try await runtime.appendStoryInput(projectID: projectID, input: input)
+                            assistantActionStatus = nil
+                            return
+                        }
                         let saved = try await runtime.appendStoryInput(
                             projectID: projectID,
                             input: InteractiveStoryInput(
