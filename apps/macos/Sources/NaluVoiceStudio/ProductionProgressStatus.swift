@@ -32,8 +32,23 @@ struct ProductionProgressPresentation: Equatable {
             attention = .finished
             reassurance = "本集制作已经完成"
             nextStep = progress.episodeStatus == "published" ? "成片已经发布" : "请检查成片并决定是否发行"
-        } else if let runStatus = progress.runStatus,
-                  ["created", "preflight", "queued", "running", "qa_review"].contains(runStatus) {
+        } else if progress.runStatus == "preflight" {
+            attention = .waiting
+            reassurance = "本地预检已完成，当前未在生成视频"
+            nextStep = "检查制作方案；需要付费的步骤仍须明确授权"
+        } else if progress.runStatus == "queued" {
+            attention = .waiting
+            reassurance = "任务正在排队，尚未开始生成"
+            nextStep = progress.canCancel ? "开始处理后会更新进度；现在可以安全暂停" : "开始处理后会更新进度"
+        } else if progress.runStatus == "created" {
+            attention = .waiting
+            reassurance = "生产记录已建立，等待后续处理"
+            nextStep = "准备和授权通过后才能进入生成"
+        } else if progress.runStatus == "qa_review" {
+            attention = .needsConfirmation
+            reassurance = "本集已进入成片检查阶段"
+            nextStep = "请核对声音、字幕和画面；检查通过后再决定发行"
+        } else if progress.runStatus == "running" {
             attention = .working
             reassurance = "Nalu 正在工作，没有停"
             nextStep = progress.canCancel ? "需要时可以安全暂停" : "正在完成不可中断的安全步骤"

@@ -19,8 +19,30 @@ final class ProductionProgressPresentationTests: XCTestCase {
             progress: progress(runStatus: "qa_review", stage: "qa_review", canCancel: true)
         )
 
-        XCTAssertEqual(presentation.attention, .working)
+        XCTAssertEqual(presentation.attention, .needsConfirmation)
+        XCTAssertFalse(presentation.moves)
         XCTAssertTrue(presentation.canVerifyFinalMedia)
+    }
+
+    func testPreflightIsNotPresentedAsActiveVideoGeneration() {
+        let presentation = ProductionProgressPresentation(
+            progress: progress(runStatus: "preflight", stage: "preflight", canCancel: true)
+        )
+        XCTAssertEqual(presentation.attention, .waiting)
+        XCTAssertFalse(presentation.moves)
+        XCTAssertTrue(presentation.reassurance.contains("当前未在生成视频"))
+        XCTAssertFalse(presentation.canVerifyFinalMedia)
+    }
+
+    func testCreatedAndQueuedRecordsDoNotAnimateAsActiveWorkers() {
+        for status in ["created", "queued"] {
+            let presentation = ProductionProgressPresentation(
+                progress: progress(runStatus: status, stage: status, canCancel: true)
+            )
+            XCTAssertEqual(presentation.attention, .waiting)
+            XCTAssertFalse(presentation.moves)
+            XCTAssertFalse(presentation.reassurance.contains("正在工作"))
+        }
     }
 
     func testAmbiguousChargeNeverLooksLikeOrdinaryActiveWork() {
