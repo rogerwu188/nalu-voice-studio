@@ -1,0 +1,110 @@
+{
+  "schema_version": "nalu.native-project-persistence-qa/v1",
+  "recorded_at": "2026-09-06T06:16:18Z",
+  "checkpoint": "native-isolated-project-restart-backup-restore-qa",
+  "product_commits": {
+    "native_backup": "10cc1df2172b9d3dc6d3aef70d64975e0147d142",
+    "native_restore_fix_and_final_artifact": "2e1a4e5ceebf6226b52c94cfd178bfc07344bb7f"
+  },
+  "ci": {
+    "run_id": 34015343605,
+    "url": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34015343605",
+    "conclusion": "success",
+    "runtime_test_count": 291,
+    "xctest_count_per_architecture": 84,
+    "swift_testing_count_per_architecture": 29,
+    "jobs": {
+      "runtime": "success",
+      "macos_arm64": "success",
+      "macos_x86_64": "success",
+      "macos_universal": "success"
+    }
+  },
+  "final_artifact": {
+    "id": 9983831769,
+    "url": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34015343605/artifacts/9983831769",
+    "github_archive_sha256": "b817bd048053c7efb6f164fcdfbf6958d2bda472042e8aaa0fe132f653afe920",
+    "declared_inner_zip_sha256": "adf0d524466c41b5458ab6dc117ab6fd9c7d7abfa3045cc201cd6ee12dcc6d86",
+    "downloaded_inner_zip_sha256": "adf0d524466c41b5458ab6dc117ab6fd9c7d7abfa3045cc201cd6ee12dcc6d86",
+    "bundle_identifier": "studio.nalu.voice",
+    "architectures": [
+      "arm64",
+      "x86_64"
+    ],
+    "signature": "adhoc",
+    "team_identifier": null
+  },
+  "project": {
+    "id": "prj_e45f6c75eb284703b709a066f5bd92bd",
+    "title": "海边的外婆（原生重启 QA）",
+    "creative_format": "short_drama_series",
+    "production_pipeline": "qingshan-short-drama",
+    "planned_episode_count": 6,
+    "source_project_count": 1,
+    "source_season_count": 0,
+    "source_episode_count": 0,
+    "scope_note": "This native checkpoint covers project-row persistence and transfer. The packaged CI rehearsal separately covers three isolated ten-episode plans."
+  },
+  "source_restart_and_backup": {
+    "artifact_product_commit": "10cc1df2172b9d3dc6d3aef70d64975e0147d142",
+    "isolated_application_support": "/var/folders/y4/k84st0yj7fz043tnxkfrjn1w0000gn/T/nalu-project-native-source.wsf0BS",
+    "runtime_schema_version": 27,
+    "project_visible_after_normal_restart": true,
+    "project_identifier_preserved_after_restart": true,
+    "backup_accessibility_identifier": "nalu.projects.backup",
+    "native_save_panel_title": "保存项目备份",
+    "native_save_panel_prompt": "保存备份",
+    "success_notice": "项目已经安全备份为“Nalu-QA-project-backup-10cc1df.json”。",
+    "backup_filename": "Nalu-QA-project-backup-10cc1df.json",
+    "backup_file_sha256": "656f8914ca1480c8e86092248026855ff996f3b3b0cec8e5e5d650b05070aea2",
+    "backup_schema_version": "nalu.project-export/v23",
+    "backup_payload_sha256": "c561c199d31fd4b3aeefd7a2d39fa61143edac69d4638d736c0b21da728c6081",
+    "source_database_sha256_before_restore": "7a4d80d5b8a3392742bbe5a6f02eff13db6b75f0e44994260d2e5e480199be3c",
+    "source_database_sha256_after_restore": "7a4d80d5b8a3392742bbe5a6f02eff13db6b75f0e44994260d2e5e480199be3c",
+    "normal_quit_removed_application_and_runtime_processes": true,
+    "normal_quit_closed_loopback_listener": true
+  },
+  "clean_restore": {
+    "artifact_product_commit": "2e1a4e5ceebf6226b52c94cfd178bfc07344bb7f",
+    "isolated_application_support": "/var/folders/y4/k84st0yj7fz043tnxkfrjn1w0000gn/T/nalu-project-native-2e1a4e5.gAITPN/restore-data",
+    "initial_project_list_empty": true,
+    "runtime_schema_version": 27,
+    "restore_accessibility_identifier": "nalu.projects.restore",
+    "native_open_panel_title": "恢复 Nalu 项目",
+    "native_open_panel_prompt": "恢复项目",
+    "native_open_panel_json_filter_observed": true,
+    "success_notice": "项目已经恢复，可以继续讲故事了。",
+    "restored_project_identifier_matches": true,
+    "restored_project_title_matches": true,
+    "restored_planned_episode_count_matches": true,
+    "restored_database_sha256": "a2dc523b18cea4cd4248c513fa1645063e81fd49c52290bac1b15b51e0a11e7d",
+    "native_application_pid": 53368,
+    "runtime_parent_pid": 53418,
+    "runtime_listener_pid": 53423,
+    "normal_command_q_removed_all_exact_processes": true,
+    "normal_command_q_closed_loopback_listener": true,
+    "normal_command_q_health_unreachable": true,
+    "same_artifact_restart_api_preserved_project": true
+  },
+  "defect_closed": {
+    "symptom": "The SwiftUI project file importer did not present a native panel from the packaged application.",
+    "resolution": "Project restore now uses a directly owned AppKit NSOpenPanel and reads the selected JSON while its security-scoped resource is active.",
+    "regression_observed_on_final_artifact": false
+  },
+  "human_interaction_boundary": {
+    "concurrent_user_interaction_detected_during_later_relaunch": true,
+    "concurrent_transcript_retained_in_evidence": false,
+    "later_relaunch_microphone_state_used_as_acceptance_evidence": false,
+    "no_microphone_activity_claimed_for_entire_checkpoint": false
+  },
+  "external_effects": {
+    "credential_used": false,
+    "provider_call_performed": false,
+    "paid_call_performed": false,
+    "production_started": false,
+    "publication_performed": false
+  },
+  "checkpoint_result": "PASS",
+  "checkpoint_scope": "Exact-artifact native project-row restart, backup, clean-SQLite restore, integrity and process-cleanup evidence only.",
+  "sop_03_status_after_checkpoint": "IN_PROGRESS"
+}

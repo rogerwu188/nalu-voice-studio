@@ -511,6 +511,22 @@ Current evidence:
   architecture builds, Universal merge, bundled smoke, packaged project-isolation,
   staged-update and rollback QA. This closes the deterministic hierarchy-creation
   transaction checkpoint, not the remaining clean-account human acceptance.
+- Commits `7e23928`, `1a1fb55`, `10cc1df` and `2e1a4e5`, GitHub CI run
+  `34015343605`, Universal artifact `9983831769` (artifact digest
+  `sha256:b817bd048053c7efb6f164fcdfbf6958d2bda472042e8aaa0fe132f653afe920`):
+  packaged native QA exposed two real file-transfer defects rather than accepting the
+  older implementation at face value. Backup now uses an AppKit save panel and atomic
+  write; restore now uses an AppKit open panel and reads JSON while its security scope
+  is active. A renamed project survived normal application restart, exported as
+  `nalu.project-export/v23`, restored into a second initially empty SQLite directory,
+  retained the exact ID, title and six-episode plan, and left the source database hash
+  unchanged. Normal Command-Q removed the exact application and Runtime parent/child
+  processes and closed port 8765. CI passed 291 Runtime tests, 84 XCTest tests plus 29
+  Swift Testing tests on both architectures, both builds, Universal merge and all
+  packaged rehearsals. Machine-readable native evidence is in
+  `docs/qa/native-project-persistence-2026-09-06.json`. This closes the isolated native
+  project-row restart/backup/restore checkpoint, not the separate ten-episode human
+  voice/accessibility acceptance; SOP-03 therefore remains `IN_PROGRESS`.
 - Still required before `PASS`: clean-account voice-only, accessibility and restart/import
   QA evidence on the same release candidate. Implementation alone is not acceptance.
 

@@ -296,3 +296,46 @@ pixel comparison and process facts are recorded in
 `docs/qa/recording-waveform-contract-2026-09-06.json`. This closes deterministic and
 native visible motion for this fixture, not real microphone input, VoiceOver,
 Accessibility Inspector or older-adult/child human acceptance.
+
+## 2026-09-06 · Native project restart, backup and clean restore
+
+Packaged native QA first reproduced a real failure: the existing SwiftUI project exporter
+and importer controls did not reliably present their macOS panels. Commits `7e23928`,
+`1a1fb55` and `10cc1df` replaced backup with an AppKit `NSSavePanel`, atomic file write
+and a plain-language completion alert. Commit
+`2e1a4e5ceebf6226b52c94cfd178bfc07344bb7f` replaced project restore with an AppKit
+`NSOpenPanel` and security-scoped JSON read.
+
+GitHub CI run `34015343605` passed 291 Runtime tests, 84 XCTest tests and 29 Swift
+Testing tests on each architecture, both application builds, the Universal merge and all
+packaged isolation/update/rollback rehearsals. Universal artifact `9983831769` has GitHub
+artifact digest
+`sha256:b817bd048053c7efb6f164fcdfbf6958d2bda472042e8aaa0fe132f653afe920`.
+The downloaded inner ZIP reproduced its declared SHA-256
+`adf0d524466c41b5458ab6dc117ab6fd9c7d7abfa3045cc201cd6ee12dcc6d86`;
+the application contained both `arm64` and `x86_64`, remained ad-hoc signed and had no
+Team ID.
+
+Against an isolated system-temporary SQLite directory, the renamed project “海边的外婆
+（原生重启 QA）” survived a normal application restart. `nalu.projects.backup` opened
+“保存项目备份”, saved an atomic `nalu.project-export/v23` JSON file and showed a
+plain-language success alert. The backup SHA-256 is
+`656f8914ca1480c8e86092248026855ff996f3b3b0cec8e5e5d650b05070aea2` and its
+payload digest is `c561c199d31fd4b3aeefd7a2d39fa61143edac69d4638d736c0b21da728c6081`.
+
+The exact final Universal artifact then started against a second, initially empty SQLite
+directory. `nalu.projects.restore` opened “恢复 Nalu 项目”, limited selection to JSON,
+and restored the backup with the success message “项目已经恢复，可以继续讲故事了。”
+The native project row and Runtime API both retained project ID
+`prj_e45f6c75eb284703b709a066f5bd92bd`, title and six-episode plan. The source database
+SHA-256 remained
+`7a4d80d5b8a3392742bbe5a6f02eff13db6b75f0e44994260d2e5e480199be3c`.
+Normal Command-Q removed native PID 53368 and Runtime PIDs 53418/53423, closed the
+loopback listener and made `/health` unreachable.
+
+A later persistence recheck overlapped with the user's live foreground interaction. No
+transcript from that interaction is retained as evidence, and this pass makes no blanket
+claim that the microphone was unused. No credential, paid provider, production or
+publication operation was performed. Exact facts are in
+`docs/qa/native-project-persistence-2026-09-06.json`. This is native project-transfer
+evidence, not a clean-account VoiceOver or older-adult/guardian-and-child human pass.

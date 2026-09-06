@@ -11,26 +11,26 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "0e19213ea0f8bfe9fa2d539efce6ac9a519ae09e",
-  "last_advanced_at": "2026-09-06T05:08:04Z",
+  "observed_head": "2e1a4e5ceebf6226b52c94cfd178bfc07344bb7f",
+  "last_advanced_at": "2026-09-06T07:24:00Z",
   "last_closed_checkpoint": {
-    "id": "native-active-recording-two-frame-qa",
-    "sop": "SOP-02",
-    "product_commit": "b8d2bc50802918e467fc99e7488d98285df53a90",
-    "evidence_commit": "0e19213ea0f8bfe9fa2d539efce6ac9a519ae09e",
-    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34009992117",
-    "qa_evidence": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34009992117/artifacts/9982225088",
+    "id": "native-isolated-project-restart-backup-restore-qa",
+    "sop": "SOP-03",
+    "product_commit": "2e1a4e5ceebf6226b52c94cfd178bfc07344bb7f",
+    "evidence_commit": "pending-current-checkpoint-commit",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34015343605",
+    "qa_evidence": "docs/qa/native-project-persistence-2026-09-06.json",
     "result": "PASS"
   },
   "current_checkpoint": {
-    "sop": "SOP-03",
+    "sop": "SOP-02",
     "status": "IN_PROGRESS",
-    "summary": "SOP-02 native automatic-scroll, stable-selector and animated-recording fixture checkpoints now have exact Universal artifact evidence. SOP-02 remains open for real Apple speech, paid Realtime and human VoiceOver acceptance. The highest safe work has moved to native isolated project persistence and backup/restore QA under SOP-03."
+    "summary": "Native isolated project restart, backup and clean restore now have exact Universal artifact evidence. User QA found that critical bottom actions can be clipped and that recognized online research requests are recorded but not executed; both are active SOP-02 interaction defects."
   },
   "next_action": {
-    "sop": "SOP-03",
-    "id": "native-isolated-project-restart-backup-restore-qa",
-    "summary": "On the exact Universal artifact, use a fresh isolated SQLite directory to create and rename a project in the native UI, verify it survives normal application restart, exercise native backup and restore into a separate clean isolated database, and bind visible project state plus process cleanup to evidence without microphone, provider or paid calls.",
+    "sop": "SOP-02",
+    "id": "critical-controls-and-ai-action-routing",
+    "summary": "Keep sidebar and interview bottom actions visible at the minimum supported window and enlarged text, then route spoken read-only research requests to a real AI web executor with visible progress, sources and return-to-interview behavior; confirmation-gate downloads and all external writes.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
