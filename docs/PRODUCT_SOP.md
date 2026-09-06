@@ -384,10 +384,14 @@ Current evidence:
   digest and inner ZIP SHA-256
   `1c1610af6001e9e0c74f6a3dac8c0ace825473884466eece3db878a98e0acc67`;
   the exact dual-architecture artifact launched with Runtime schema 27 in isolated local
-  storage. The Mac remained locked, so visible two-frame motion was not claimed. Evidence:
-  `docs/qa/recording-waveform-contract-2026-09-06.json`. This closes only the deterministic
-  motion and artifact-integrity checkpoint; SOP-02 remains `IN_PROGRESS` pending native
-  visual motion, real speech, paid Realtime and human accessibility acceptance.
+  storage. After unlock, its native tree exposed “正在录音，Nalu 正在听”, the final transcript
+  at scrollbar position `0.9316275167785235`, and the “说完了” action. Two native frames
+  0.6 seconds apart changed 1,827 pixels inside the waveform-only crop; the five bar heights
+  visibly differed, and the user independently confirmed seeing the red animation. Normal
+  Quit removed the application and Runtime process tree and closed port 8765. Evidence:
+  `docs/qa/recording-waveform-contract-2026-09-06.json`. This closes deterministic and
+  fixture-backed native visible motion only; SOP-02 remains `IN_PROGRESS` pending real
+  speech, paid Realtime, VoiceOver and older-adult/child human accessibility acceptance.
 
 ## SOP-03 · Multi-project, season and episode planning — IN_PROGRESS
 

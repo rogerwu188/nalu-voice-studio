@@ -279,11 +279,20 @@ SHA-256 `1c1610af6001e9e0c74f6a3dac8c0ace825473884466eece3db878a98e0acc67`.
 The extracted `studio.nalu.voice` application and bundled Runtime contain both `arm64`
 and `x86_64`; the application remains ad-hoc signed with no Team ID.
 
-The exact artifact launched against the isolated system-temporary directory
+The exact artifact first launched against the isolated system-temporary directory
 `nalu-active-current.QCWNCJ`, and its loopback Runtime returned version 0.1.0 and SQLite
-schema 27. The macOS login session remained locked, so neither the native accessibility
-state nor two visible waveform frames could be observed. That limitation is recorded as
-`BLOCKED_BY_LOCKED_MAC` in
-`docs/qa/recording-waveform-contract-2026-09-06.json`. This closes the deterministic
-motion-regression and artifact-integrity checkpoint only; native visual motion, real
-microphone use, VoiceOver, Accessibility Inspector and human acceptance remain open.
+schema 27. After the macOS session was unlocked, the same artifact was replayed against
+the separate isolated directory `nalu-active-current-replay.X7qoXI`. Its native tree
+reported `nalu.voice.activity` as “正在录音，Nalu 正在听”, exposed the microphone action as
+“说完了”, kept the final live transcript visible and reported scrollbar position
+`0.9316275167785235`.
+
+Two native frames 0.6 seconds apart visibly changed all five waveform bars. A crop limited
+to the status area contained 85,800 pixels; 1,827 pixels changed, with the changed region
+bounded to the waveform rather than the surrounding copy. The user independently reported
+seeing the red animation. Normal application Quit removed native PID 43873 and Runtime
+PIDs 43902/43910, closed port 8765 and made `/health` unreachable. Exact frame/crop hashes,
+pixel comparison and process facts are recorded in
+`docs/qa/recording-waveform-contract-2026-09-06.json`. This closes deterministic and
+native visible motion for this fixture, not real microphone input, VoiceOver,
+Accessibility Inspector or older-adult/child human acceptance.

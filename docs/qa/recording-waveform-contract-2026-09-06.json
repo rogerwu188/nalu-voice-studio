@@ -1,6 +1,7 @@
 {
   "schema_version": "nalu.native-recording-presentation-qa/v1",
   "recorded_at": "2026-09-06T04:02:41Z",
+  "native_visible_qa_completed_at": "2026-09-06T05:06:49Z",
   "product_commit": "b8d2bc50802918e467fc99e7488d98285df53a90",
   "ci": {
     "run_id": 34009992117,
@@ -58,10 +59,47 @@
     "successive_frames_differ": true
   },
   "native_visible_qa": {
-    "status": "BLOCKED_BY_LOCKED_MAC",
-    "accessibility_tree_observed": false,
-    "two_frame_visual_motion_observed": false,
-    "reason": "The current macOS login session remained locked; no visible-window claim was made."
+    "status": "PASS",
+    "replay_application_support": "/var/folders/y4/k84st0yj7fz043tnxkfrjn1w0000gn/T/nalu-active-current-replay.X7qoXI",
+    "replay_native_application_pid": 43873,
+    "replay_runtime_parent_pid": 43902,
+    "replay_runtime_listener_pid": 43910,
+    "runtime_schema_version": 27,
+    "accessibility_tree_observed": true,
+    "voice_activity_identifier": "nalu.voice.activity",
+    "voice_activity_value": "正在录音，Nalu 正在听",
+    "microphone_toggle_identifier": "nalu.voice.microphone.toggle",
+    "microphone_toggle_description": "说完了",
+    "final_transcript_visible": "【QA 当前实时转写】外婆把雨衣披在我身上以后，还笑着说不用害怕。",
+    "scrollbar_value": 0.9316275167785235,
+    "two_frame_interval_seconds": 0.6,
+    "two_frame_visual_motion_observed": true,
+    "frame_sha256": [
+      "0d1e6269162ce619163307c1b3b26533c5a16396be69f900a6aee1026ccfbb63",
+      "509411d4878181490f6ced53bab66d0e0a945d41aac247c71d8e038ce260e41f"
+    ],
+    "waveform_crop_box_pixels": [
+      800,
+      1160,
+      1320,
+      1325
+    ],
+    "waveform_crop_sha256": [
+      "29c2df01d77401febbfdf56be8bba2c011a70767df0a8263e97e75217d510dc6",
+      "3eae7f21b81f5e928b98b2154a1a24673b1ea21161006a38772fea02f7bced01"
+    ],
+    "crop_pixels": 85800,
+    "changed_pixels": 1827,
+    "changed_fraction": 0.021293706293706294,
+    "changed_region_in_crop": [
+      42,
+      50,
+      161,
+      108
+    ],
+    "user_confirmed_visible_motion": true,
+    "normal_quit_removed_application_and_runtime_processes": true,
+    "normal_quit_closed_loopback_listener": true
   },
   "external_effects": {
     "microphone_used": false,
@@ -72,6 +110,6 @@
     "publication_performed": false
   },
   "checkpoint_result": "PASS",
-  "checkpoint_scope": "Deterministic waveform-motion contract, dual-architecture tests, exact-artifact integrity and isolated Runtime launch only.",
+  "checkpoint_scope": "Deterministic waveform-motion contract, dual-architecture tests, exact-artifact integrity, isolated native-window motion and process-cleanup QA only.",
   "sop_02_status_after_checkpoint": "IN_PROGRESS"
 }
