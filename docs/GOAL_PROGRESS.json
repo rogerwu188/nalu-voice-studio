@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "6240fdb4634136642155f34743b9eefd13992cb3",
-  "last_advanced_at": "2026-09-06T23:29:06Z",
+  "observed_head": "026dac26ce7b2f18f28904e3f73cc19151471c26",
+  "last_advanced_at": "2026-09-06T23:41:33Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Approved plan event/hash and shot identity now bind concrete video preparation and are rechecked before dispatch. Existing plans cannot bypass review via professional import path. Evidence docs/qa/approved-plan-video-binding-2026-09-06.md. Full regression 426 passed in 58.65s; Ruff/OpenAPI/diff passed. Native commit 6240fdb pushed; CI 34066939882 pending, previous 34066744041 in progress with ARM job passed. Current native UI/compiled tests still unverified. No real paid call or publication."
+    "summary": "Candidate 026dac2 CI 34067090591 passed all four jobs. ARM artifact 9999348523 checksum/signature verified and launched in isolated macOS temp support on port 18779. Actual native synthetic plan read/edit/save/confirm succeeded; HTTP confirmed modified shot one, unchanged shot two, approved true and paid_approved false, zero remote bindings. Evidence docs/qa/packaged-shot-review-2026-09-06.md. This is not real AI/frame/video/master/release or full accessibility acceptance. Read-only Hops diagnostic stopped at Keychain timeout before HTTP; no retry of failed writer attempt."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Verify native shot panel compilation and model tests in CI, install isolated candidate and capture actual interaction/large-type QA; then connect approved/revised plan to entry-frame generation and full structured request compilation, price review/dispatch/polling. Spoken free-form shot edits remain open. Real story/source-to-master/release QA remains open; do not repeat quarantined Hops writer attempt.",
+    "summary": "Connect approved/revised plan to actual entry-frame generation and full professional request compilation, then native price confirmation/dispatch/polling. Current native synthetic edit/save/confirm and candidate CI are verified, but large-type/audio/voice-edit/restart QA and finish review remain open. QA app/support/port are recorded in docs/qa/packaged-shot-review-2026-09-06.md. Real Hops writer access remains unverified; no repeat of quarantined paid attempt.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

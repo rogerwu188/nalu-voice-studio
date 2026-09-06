@@ -104,6 +104,9 @@ still pending; this checkpoint does not promote any SOP to PASS.
 Concrete video preparation and dispatch now preserve the
 [approved plan/shot binding](qa/approved-plan-video-binding-2026-09-06.md).
 This closes a version handoff gap, not actual frame generation or full production.
+Candidate `026dac2` now has [packaged native shot-edit/confirmation evidence](qa/packaged-shot-review-2026-09-06.md)
+and successful four-job CI. Synthetic review is verified at that bounded scope;
+real model/frame/video/master/release and full accessibility acceptance remain open.
 
 2026-09-06 native checkpoints on `4e03c16`, CI
 [34054486473](https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34054486473):

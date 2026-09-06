@@ -22,6 +22,14 @@ script refuses to resubmit an existing attempt even if its prior result failed.
 Its regression test verifies 401 redaction and exactly one transport call across
 two invocations. Ordinary CI does not run the live command.
 
+2026-09-06 23:32 UTC read-only follow-up: a bounded diagnostic attempted to read
+the same Keychain account for `GET https://hopsapi.com/v1/models`. The `security`
+subprocess timed out after 15 seconds before obtaining the secret; no HTTP
+request or generation occurred. This does not establish whether the current
+credential/account works and does not supersede the earlier HTTP 401 evidence.
+The diagnostic did not print the secret or change credentials, and was not
+automatically repeated.
+
 Reference checked: [OpenAI Chat Completions](https://developers.openai.com/api/reference/ruby/resources/chat/subresources/completions/methods/create).
 OpenAI's schema does not establish Hops account authorization or compatibility.
 
