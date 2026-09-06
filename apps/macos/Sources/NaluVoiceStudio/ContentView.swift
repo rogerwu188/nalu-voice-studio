@@ -42,6 +42,7 @@ struct ContentView: View {
     @State private var isPresentingAssetDependencies = false
     @State private var isPresentingProviderCredentials = false
     @State private var apiBaseURLDraft = AIServiceEndpoint.official
+    @State private var apiModelsDraft = AIServiceModels()
     @State private var connectionCheckMessage: String?
     @State private var connectionCheckAttempt: UUID?
     @State private var seedanceSecretDraft = ""
@@ -1612,9 +1613,17 @@ struct ContentView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     Label("麦克风声音会发送给所配置的实时语音服务商", systemImage: "icloud.and.arrow.up")
                     Text(UserDefaults.standard.string(forKey: AIServiceEndpoint.preferenceKey) ?? AIServiceEndpoint.official)
+                    if let endpoint = try? AIServiceEndpoint.current(),
+                       let models = try? AIServiceModels.load(for: endpoint) {
+                        Text("实时语音模型：\(models.realtime)")
+                        Text("转写模型：\(models.transcription)")
+                    } else {
+                        Text("模型配置无法读取，请先在“模型密钥”中修正。")
+                            .foregroundStyle(.red)
+                    }
                     Label("这会使用您的 API 额度并可能产生费用", systemImage: "creditcard")
                     Label("音频不写入项目 SQLite、备份或反馈记录", systemImage: "externaldrive.badge.checkmark")
-                    Label("随时点“结束自然语音”即可断开，并回到本机按键模式", systemImage: "phone.down")
+                    Label("随时结束 GPT 语音即可断开；本机听写需另行选择", systemImage: "phone.down")
                 }
                 .padding(.top, 5)
             }
@@ -1733,7 +1742,10 @@ struct ContentView: View {
             Text("API 访问地址").naluFont(.headline)
             TextField("https://服务商域名/v1", text: $apiBaseURLDraft)
                 .textFieldStyle(.roundedBorder)
-                .onChange(of: apiBaseURLDraft) { _, _ in connectionCheckMessage = nil }
+                .onChange(of: apiBaseURLDraft) { _, _ in
+                    connectionCheckMessage = nil
+                    loadModelDraftForAddress()
+                }
             Button(connectionCheckAttempt == nil ? "检查连接（不录音、不生成）" : "正在检查连接…") {
                 checkAIServiceConnection()
             }
@@ -1743,6 +1755,25 @@ struct ContentView: View {
             }
             Text("保存后，AI 请求将发送到此服务商。密钥保存成功不代表连接验证通过；兼容聊天接口也不代表支持实时语音。")
                 .naluFont(.caption).foregroundStyle(.secondary)
+            DisclosureGroup("高级：为这个服务商配置模型") {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("联网查询模型（需支持 Responses 和 web_search）").naluFont(.headline)
+                    TextField("服务商提供的查询模型 ID", text: $apiModelsDraft.research)
+                        .textFieldStyle(.roundedBorder)
+                        .accessibilityIdentifier("nalu.models.research")
+                    Text("实时语音模型（需支持 Realtime）").naluFont(.headline)
+                    TextField("服务商提供的实时语音模型 ID", text: $apiModelsDraft.realtime)
+                        .textFieldStyle(.roundedBorder)
+                        .accessibilityIdentifier("nalu.models.realtime")
+                    Text("语音转写模型").naluFont(.headline)
+                    TextField("服务商提供的转写模型 ID", text: $apiModelsDraft.transcription)
+                        .textFieldStyle(.roundedBorder)
+                        .accessibilityIdentifier("nalu.models.transcription")
+                    Text("模型列表不是功能保证。请按服务商支持的接口填写；切换地址会载入该地址已保存的模型。不会自动换模型或发起付费测试。")
+                        .naluFont(.caption).foregroundStyle(.secondary)
+                }
+                .padding(.top, 8)
+            }
             Text("保存密钥不会触发付费调用。明确说“网上搜索”时会为该次查询使用 Responses API；自然语音仍在单独同意后才开启。下载、发布、付款和外部写入必须另行确认。")
                 .naluFont(.caption)
                 .foregroundStyle(.secondary)
@@ -2434,6 +2465,7 @@ struct ContentView: View {
         connectionCheckMessage = nil
         apiBaseURLDraft = UserDefaults.standard.string(forKey: AIServiceEndpoint.preferenceKey) ?? AIServiceEndpoint.official
         credentialSaveError = nil
+        loadModelDraftForAddress()
         refreshCredentialStatus()
         seedanceSecretDraft = ""
         minimaxSecretDraft = ""
@@ -2517,7 +2549,10 @@ struct ContentView: View {
 
     private func savePendingCredentialsAndClose() {
         let endpoint: AIServiceEndpoint
-        do { endpoint = try AIServiceEndpoint(apiBaseURLDraft) }
+        do {
+            endpoint = try AIServiceEndpoint(apiBaseURLDraft)
+            _ = try apiModelsDraft.validated()
+        }
         catch { credentialSaveError = error.localizedDescription; return }
         let drafts: [(ProviderCredential, String)] = [
             (.seedance, seedanceSecretDraft),
@@ -2528,8 +2563,19 @@ struct ContentView: View {
             saveCredential(credential, secret: secret)
         }) else { return }
         realtimeVoice.stop()
+        do { try apiModelsDraft.save(for: endpoint) }
+        catch { credentialSaveError = error.localizedDescription; return }
         UserDefaults.standard.set(endpoint.baseURL.absoluteString, forKey: AIServiceEndpoint.preferenceKey)
         isPresentingProviderCredentials = false
+    }
+
+    private func loadModelDraftForAddress() {
+        guard let endpoint = try? AIServiceEndpoint(apiBaseURLDraft) else { return }
+        do { apiModelsDraft = try AIServiceModels.load(for: endpoint) }
+        catch {
+            apiModelsDraft = AIServiceModels(research: "", realtime: "", transcription: "")
+            credentialSaveError = "此服务商的模型配置无法读取，请重新填写模型 ID 后保存。"
+        }
     }
 
     private func checkAIServiceConnection() {

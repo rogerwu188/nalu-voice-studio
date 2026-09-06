@@ -135,3 +135,14 @@ No provider selection was silently changed and no generation called. Regression
 tests cover provider isolation/persistence, invalid IDs, request fields and
 response model mismatch. Syntax parsing passes. Native settings editing UI,
 full CI and live capability testing are not yet complete for this checkpoint.
+
+Native model-entry follow-up: the credential sheet now has a collapsed advanced
+section with individually labelled research, Realtime and transcription model
+IDs. Changing the address loads that provider's saved choices; corrupt stored
+model configuration is shown as an error rather than silently replaced. All
+model fields validate before any pending credential writes. Invalid model saves
+preserve existing configuration. The voice consent sheet displays both selected
+voice/transcription models and no longer promises automatic local-TTS fallback.
+Whitespace/newline model IDs are rejected. Syntax/diff checks pass, while full
+CI and exact-binary native model-edit/save QA remain pending. No paid request
+or actual user model selection was made by this implementation.

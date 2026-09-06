@@ -8,6 +8,7 @@ struct AIServiceModels: Codable, Equatable {
     func validated() throws -> AIServiceModels {
         for name in [research, realtime, transcription] {
             guard !name.isEmpty, name.count <= 128, !name.hasPrefix("sk-"),
+                  name.rangeOfCharacter(from: .whitespacesAndNewlines) == nil,
                   name.range(of: "^[A-Za-z0-9][A-Za-z0-9._:/-]*$", options: .regularExpression) != nil
             else { throw ModelError.invalidIdentifier }
         }

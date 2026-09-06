@@ -30,7 +30,7 @@
   "next_action": {
     "sop": "SOP-02",
     "id": "complete-provider-model-settings-native-entry",
-    "summary": "Complete native settings inputs and consent disclosure for provider-scoped research/realtime/transcription model selections. Request-layer implementation and regression tests added, syntax passed; full CI/native QA pending. Do not silently pick replacement models or equate listed-model availability with Realtime or web-search support. Also verify speech-entitlement change CI. Full SOP goal remains unchanged. Evidence: docs/qa/gpt-voice-and-credential-save-2026-09-06.md.",
+    "summary": "Verify full CI and exact native artifact for provider-scoped model settings UI, Save-and-Done, invalid-input preservation and consent model disclosure. UI and request-layer implementation are present; syntax checks pass, native editing QA remains pending. Do not silently pick replacements or equate model-list access with Realtime/web-search support. CI must also cover exact speech-entitlement verifier. Full SOP goal unchanged. Evidence: docs/qa/gpt-voice-and-credential-save-2026-09-06.md.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

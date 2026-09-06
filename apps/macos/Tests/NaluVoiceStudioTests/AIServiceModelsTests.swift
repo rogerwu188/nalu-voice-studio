@@ -16,9 +16,20 @@ final class AIServiceModelsTests: XCTestCase {
     }
 
     func testInvalidModelIDsAreRejected() {
-        for name in ["", "sk-secret", "model with space", "<script>", String(repeating: "a", count: 129)] {
+        for name in ["", "sk-secret", "model with space", "model\n", "<script>", String(repeating: "a", count: 129)] {
             XCTAssertThrowsError(try AIServiceModels(research: name).validated())
         }
+    }
+
+    func testInvalidSavePreservesPreviousConfiguration() throws {
+        let suite = "nalu-model-rejection-\(UUID())"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let endpoint = try AIServiceEndpoint("https://hopsapi.com/v1")
+        let original = AIServiceModels(research: "chosen-research")
+        try original.save(for: endpoint, defaults: defaults)
+        XCTAssertThrowsError(try AIServiceModels(realtime: "").save(for: endpoint, defaults: defaults))
+        XCTAssertEqual(try AIServiceModels.load(for: endpoint, defaults: defaults), original)
     }
 
     func testRealtimeResponseMustMatchRequestedModel() throws {
