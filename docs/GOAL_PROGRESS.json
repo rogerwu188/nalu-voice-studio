@@ -11,7 +11,7 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "34db9e99c2d4ae925b044c7db0ca4fd56a6ce53b",
+  "observed_head": "4eb32165c6e57c401f10e9c010a01b22fa8a2f66",
   "last_advanced_at": "2026-09-06T22:23:29Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "CI 34063554684 all jobs passed. 7b9069f ARM64 package checksum/signature verified; native startup and four-project restoration inspected in isolated QA directory/18769, schema 28. Synthetic episode one retains approved revision 1/preflight; episode two remains unapproved. Added commitTranscript model tests, syntax passed, new tests pending CI. No microphone, paid generation or publication performed. Evidence docs/qa/production-entry-package-2026-09-06.md."
+    "summary": "CI 34063989507 for 4eb3216 passed, including dictated-entry model tests. Implemented concrete single-attempt SD2 image HTTP transport and approved-frame hash projection; ten fake-network/projection tests and Ruff passed. Evidence docs/qa/giggle-sd2-image-transport-2026-09-06.md. Not registered for live submission; frame preparation, price approval, polling, H3/omni and real generation remain open."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-runtime-owned-writer-execution-evidence",
-    "summary": "Continue downstream consumption of runtime-observed writer evidence and packaged native core-flow QA. Observation is now in new production packages but is not remote provider lookup or paid authorization. Keep existing real Hops 401 attempt quarantined until account access confirmation. Validate source lookup to interactive drafting and episode-by-episode production; do not substitute synthetic dry-run for video acceptance.",
+    "summary": "Wire digest-verified frame materialization and immutable approved shot/price requests to the concrete SD2 single-attempt transport, then task polling/reconciliation; implement H3/omni without dropping assets. Keep Hops 401 attempt quarantined pending access confirmation. Complete native source/story-to-script-to-video QA; dry-runs are not delivery.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

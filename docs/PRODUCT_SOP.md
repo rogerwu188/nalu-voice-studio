@@ -71,6 +71,9 @@ checksum and signature verified. [Native restoration inspection](qa/production-e
 remains distinct from live speech, real paid generation and release acceptance.
 The video submission boundary now also supports explicit single-attempt adapters
 without inventing server-side replay guarantees; [tests and remaining integration](qa/single-attempt-dispatch-2026-09-06.md).
+Concrete SD2 image HTTP transport and digest-bound frame projection now have
+[mock-network coverage](qa/giggle-sd2-image-transport-2026-09-06.md), not live
+generation acceptance; application wiring and other video modes remain open.
 
 2026-09-06 native checkpoints on `4e03c16`, CI
 [34054486473](https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34054486473):
