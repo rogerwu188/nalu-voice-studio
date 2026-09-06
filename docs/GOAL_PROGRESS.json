@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "3b9dfddb3ae4a38b6cf378189d68f752fd5a9106",
-  "last_advanced_at": "2026-09-06T18:00:54Z",
+  "observed_head": "3fdc8c664a6b5425755a528441f4847a1cd7489b",
+  "last_advanced_at": "2026-09-06T18:14:28Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-02",
     "status": "IN_PROGRESS",
-    "summary": "User identified intended provider https://hopsapi.com/v1. Saved key authenticates there: read-only models returned 200, three models, none labelled realtime. Earlier official-host 401 was wrong-endpoint evidence, not invalid-provider-key evidence. Added configurable base address for Responses and both Realtime stages, redirect refusal, provider disclosure and routing tests. Syntax passes; CI and native verification pending."
+    "summary": "Native arm64 artifact 9994490351 (source 3fdc8c6) verified address Save-and-Done/reopen persistence and real in-app model-list check returning 15 models. Isolated Runtime health passes; no audio/generation, key unchanged. CI 34050705052 completed success, all four jobs. Release verifier dotted-key extraction warns despite present codesign entitlements: fix verifier separately. Full SOP objective unchanged; no whole-SOP completion claimed."
   },
   "next_action": {
     "sop": "SOP-02",

@@ -73,3 +73,48 @@ independently of the fixed Save and Done action.
 Regression cases cover malformed/oversized lists, credential/markup filtering,
 and avoiding false Realtime acceptance. Swift syntax and diff checks pass;
 full build and native interaction QA are still required.
+
+Read-only provider follow-up: `/models` returned HTTP 200 with IDs
+`claude-fable-5`, `claude-fable-5-1`, and `gpt-6-astra`. Neither the configured
+`gpt-realtime-2.1` nor research `gpt-5.4-mini` was listed. This is a concrete
+compatibility gap to resolve, not definitive proof that every unlisted model or
+endpoint is unavailable. Do not silently substitute models or claim Realtime
+works. No generation was requested. The `/goal` was confirmed active after the
+user resumed it; CI 34050705052 is the build for connection-check source
+`3fdc8c664a6b5425755a528441f4847a1cd7489b`.
+
+## Native provider verification — 2026-09-06T18:14Z
+
+- Exact arm64 artifact `9994490351` from CI `34050705052`, source
+  `3fdc8c664a6b5425755a528441f4847a1cd7489b`, archive SHA-256
+  `5ec17a195208f32895ed484be5a788ce5a8c93217bf1632fc9cd3db67238d2ec`
+  matches its packaged checksum. Code signature verification succeeded (ad hoc,
+  not Developer ID/notarization). The release verifier also printed a missing
+  speech-entitlement extraction warning while exiting zero; this needs separate
+  investigation and is not recorded as a clean release acceptance.
+- Launched isolated native process 78287 with a fresh temporary database and
+  port 18767. `/health` returns ok, schema 27. Existing process 74041 and its
+  project data were not terminated or overwritten.
+- The new sheet recognized the existing saved key. No secret was entered,
+  copied into logs, or changed. SD2/H3 stayed unconfigured.
+- Pasted user-requested `https://hopsapi.com/v1` into the address field through
+  native input; Save and Done closed the sheet. Reopening reads the identical
+  address, also present in the app preference. Clipboard contents were restored.
+- Native Check Connection returned 15 models using the saved key. This is a
+  real app request, not only command-line evidence. No audio capture or generation.
+- At 1100x736 window bounds, the settings body scrolls and Save and Done stays
+  visible. [Screenshot](images/native-provider-connection-2026-09-06.png) contains
+  no secret. The model-result body extends below the current scroll viewport;
+  it is not all visible simultaneously. Human accessibility QA remains open.
+- Both architecture jobs and Universal job passed; Runtime offline E2E step
+  still running at observation. Do not claim full CI until it is terminal.
+
+The user clarified the full SOP objective never changed. Model configuration
+updates are progress reports, not completion of the Nalu product objective.
+
+Final CI observation: run 34050705052 completed success (all four jobs). Direct
+codesign inspection confirms the semantic recognizer does contain both boolean
+audio-input and speech-recognition entitlements. The warning is reproducible in
+the verifier's `plutil -extract` handling of the dotted entitlement key; do not
+describe it as evidence that the binary lacks that permission. Correct and test
+the verifier's exact-key extraction separately.
