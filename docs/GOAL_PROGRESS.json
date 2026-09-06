@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "026dac26ce7b2f18f28904e3f73cc19151471c26",
-  "last_advanced_at": "2026-09-06T23:41:33Z",
+  "observed_head": "66e743392733f3b9cf021ee1bb6c75c22abb620a",
+  "last_advanced_at": "2026-09-06T23:44:52Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Candidate 026dac2 CI 34067090591 passed all four jobs. ARM artifact 9999348523 checksum/signature verified and launched in isolated macOS temp support on port 18779. Actual native synthetic plan read/edit/save/confirm succeeded; HTTP confirmed modified shot one, unchanged shot two, approved true and paid_approved false, zero remote bindings. Evidence docs/qa/packaged-shot-review-2026-09-06.md. This is not real AI/frame/video/master/release or full accessibility acceptance. Read-only Hops diagnostic stopped at Keychain timeout before HTTP; no retry of failed writer attempt."
+    "summary": "Pinned QingShan text/image-to-image HTTP transport implemented with fixed endpoints, exact hash authorization callback and bounded secret-safe responses. Full regression 442 passed in 58.90s; Ruff passed. Evidence docs/qa/giggle-image-transport-2026-09-06.md. Implementation CI/live provider unverified; prior evidence CI 34067607241 in progress. No public paid route: persistent image intent/approval integration still required. Candidate 026dac2 native synthetic review and four-job CI remain the previous verified checkpoint, not full SOP completion."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Connect approved/revised plan to actual entry-frame generation and full professional request compilation, then native price confirmation/dispatch/polling. Current native synthetic edit/save/confirm and candidate CI are verified, but large-type/audio/voice-edit/restart QA and finish review remain open. QA app/support/port are recorded in docs/qa/packaged-shot-review-2026-09-06.md. Real Hops writer access remains unverified; no repeat of quarantined paid attempt.",
+    "summary": "Connect the image transport to runtime-owned durable image intents, exact reviewed-cost approval and QingShan scope/entry-state contracts; then safe task polling/media retrieval, frame QA/lock and native activation. Do not expose the raw transport as an ungated paid route. Continue professional video compilation and real source/story-to-master/release. QA app/support/port remain in packaged-shot-review evidence; no repeat of quarantined Hops attempt.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

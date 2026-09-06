@@ -107,6 +107,9 @@ This closes a version handoff gap, not actual frame generation or full productio
 Candidate `026dac2` now has [packaged native shot-edit/confirmation evidence](qa/packaged-shot-review-2026-09-06.md)
 and successful four-job CI. Synthetic review is verified at that bounded scope;
 real model/frame/video/master/release and full accessibility acceptance remain open.
+The [pinned QingShan image HTTP transport](qa/giggle-image-transport-2026-09-06.md)
+now has bounded mock-network coverage. It is not exposed for paid use until
+persistent image intents, upstream gates and cost approvals are integrated.
 
 2026-09-06 native checkpoints on `4e03c16`, CI
 [34054486473](https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34054486473):
