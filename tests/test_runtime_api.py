@@ -2196,6 +2196,36 @@ def test_memory_card_requires_explicit_confirmation_and_keeps_evidence(tmp_path:
     assert backup["schema_version"] == "nalu.project-export/v23"
     assert backup["payload"]["memory_cards"][0]["asset_id"] == asset["id"]
 
+    restored = client(tmp_path / "restored-memory")
+    assert restored.post("/v1/project-imports", json=backup).status_code == 201
+    restored_cards = restored.get(
+        f"/v1/projects/{project['id']}/memory-cards"
+    ).json()
+    assert len(restored_cards) == 1
+    assert restored_cards[0]["current_revision"] == 3
+    assert restored_cards[0]["confirmation_status"] == "draft"
+    assert restored_cards[0]["ocr_text"] == "一九八零年春天"
+    assert restored_cards[0]["approximate_date"] == "1981年春天"
+    assert restored.get(
+        f"/v1/projects/{project['id']}/memory-cards",
+        params={"confirmed_only": True},
+    ).json() == []
+    assert restored.get(
+        f"/v1/memory-cards/{created.json()['id']}/revisions"
+    ).json() == history
+    assert restored.get(
+        f"/v1/memory-cards/{created.json()['id']}/confirmations"
+    ).json() == confirmations
+    assert restored.post(
+        f"/v1/memory-cards/{created.json()['id']}/confirm",
+        json={
+            "confirmed_by": "本人",
+            "reviewed_revision": 2,
+            "review_channel": "voice_and_visual",
+            "spoken_confirmation": "我确认这张记忆卡并归档",
+        },
+    ).status_code == 409
+
     other = api.post("/v1/projects", json={"title": "另一个项目"}).json()
     cross_project = api.post(
         f"/v1/projects/{other['id']}/memory-cards",

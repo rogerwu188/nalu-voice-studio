@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "c61d13540336e02c1a90525fce331ce5195894e5",
-  "last_advanced_at": "2026-09-06T15:57:06Z",
+  "observed_head": "adc21bb35363eb3403342fb83f4d1a5fbfa1f3cc",
+  "last_advanced_at": "2026-09-06T16:14:00Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-05",
     "status": "IN_PROGRESS",
-    "summary": "Native correction QA encountered macOS assistive-access denial (-25211), so remains unverified. Extended synthetic API coverage for post-confirmation correction, SQLite restart, stale confirmation rejection, original OCR and historical revision preservation; focused regression passes. Evidence: docs/qa/memory-correction-restart-2026-09-06.md. Baseline c61d135 CI 34043029586 passed all four jobs."
+    "summary": "Correction/restart adc21bb passed all four CI jobs in 34043937411. Added separate-database export/import regression verifying exact historical revisions/confirmations, original OCR, corrected date and stale-confirmation rejection. Focused local regression passes. Native correction remains unverified after assistive-access denial. Evidence: docs/qa/memory-correction-restart-2026-09-06.md."
   },
   "next_action": {
     "sop": "SOP-05",
-    "id": "memory-correction-regression-ci-and-backup-qa",
-    "summary": "Check correction/restart regression CI, then verify export/import retains revised memory provenance and does not resurrect obsolete confirmation. Native edit QA remains open until assistive access is restored; do not bypass OS permission or substitute API results for native acceptance.",
+    "id": "memory-backup-ci-and-conflict-recovery",
+    "summary": "Verify backup regression CI; inspect correction of conflicting memory cards and test that resolving a conflict still requires explicit current-version confirmation. Native edit QA remains open until assistive access is restored; do not bypass OS permission or substitute API results for native acceptance.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

@@ -21,3 +21,11 @@ This is synthetic API regression coverage, not real microphone, human review,
 handwriting, or native edit acceptance. No paid service or biometric authorization
 was used. The focused regression passed locally. Full local runtime suite:
 301 passed (42.68 seconds); Ruff and `git diff --check` passed.
+
+Follow-up: commit `adc21bb35363eb3403342fb83f4d1a5fbfa1f3cc` passed all four
+jobs in https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34043937411.
+The same regression now exports the corrected project and imports it into a
+separate SQLite/data directory. It verifies exact revision/confirmation history,
+retained OCR, the corrected date, draft status, exclusion from confirmed-only
+results, and rejection of stale revision 2 confirmation after restore. Focused
+local regression passed; this remains API coverage, not native backup-picker QA.
