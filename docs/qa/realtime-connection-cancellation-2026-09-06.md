@@ -83,3 +83,14 @@ The arm64 job log explicitly reports the WebKit ten-scenario test passed in
 9.197 seconds and 139 Swift tests with zero failures; broker cancellation tests
 also explicitly passed. Both architecture jobs and Runtime are now successful;
 Universal remains live at this observation.
+
+Final CI observation: run `34055936631` completed successfully, including Universal.
+The x86_64 job log also explicitly reports the WebKit scenario passed (1.783s),
+with 139 Swift tests and zero failures.
+
+On process 90994 a single saved-key model diagnostic was requested. Seven seconds
+later the UI reported Keychain read timeout, explicitly no provider connection,
+and an enabled Check button. Thus provider access remains blocked before HTTP;
+stored presence does not prove key readability. User action must occur locally
+in the Keychain prompt or Nalu's secure draft field, never by sharing the secret
+in chat. No real Realtime call was attempted.
