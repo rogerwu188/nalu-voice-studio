@@ -85,6 +85,7 @@ from .semantic_recognizer import (
     SemanticRecognizerError,
 )
 from .visual_continuity_qa import inspect_visual_continuity
+from .writer_observation import writer_observation
 
 EPISODE_PROGRESS = {
     EpisodeStatus.PLANNED: ("planning", 0, "等待完善分集规划", "这一集还在规划中。"),
@@ -2532,6 +2533,9 @@ class ProductionService:
                 writer_provider_reconciliation.model_dump(mode="json")
                 if writer_provider_reconciliation is not None
                 else None
+            ),
+            runtime_writer_observation=writer_observation(
+                self.repository.db, project.id, writer_receipt_reconciliation,
             ),
             inherited_assets=[
                 asset.model_dump(mode="json", exclude={"consent_granted_by", "consent_statement"})

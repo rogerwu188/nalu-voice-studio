@@ -60,6 +60,9 @@ quarantined against automatic retry; [backup regression evidence](qa/writer-exec
 The native configured Hops path now calls the runtime-owned generation endpoint;
 [endpoint regression and pending packaged QA](qa/native-runtime-writer-2026-09-06.md).
 This wiring does not establish successful live provider, video or release QA.
+New production packages now carry a separate runtime response observation when
+the approved script receipt matches a completed local invocation; see
+[binding evidence and remaining downstream integration](qa/runtime-writer-observation-2026-09-06.md).
 
 2026-09-06 native checkpoints on `4e03c16`, CI
 [34054486473](https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34054486473):

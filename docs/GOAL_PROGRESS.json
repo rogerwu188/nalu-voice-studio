@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "63dc22d427d13855d343b69be47b8bb8c715bb61",
-  "last_advanced_at": "2026-09-06T22:02:42Z",
+  "observed_head": "d10d77ebe25d0d9fd731ec893e1f656a68f777b1",
+  "last_advanced_at": "2026-09-06T22:06:59Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Native configured Hops writer now calls runtime-owned generation with a transient Keychain header. Four endpoint/service tests and targeted Ruff passed; full regression in progress. Evidence docs/qa/native-runtime-writer-2026-09-06.md. Packaged QA, current CI, authentic observed-execution production binding and live Hops acceptance remain open. No real paid retry performed."
+    "summary": "Native writer checkpoint passed full 349-test regression. Added separate runtime_writer_observation to production packages, binding project-scoped completed execution to approved episode receipt without claiming remote lookup or authorizing production. Ten targeted tests passed; evidence docs/qa/runtime-writer-observation-2026-09-06.md. Full current CI, packaged native QA, downstream consumption and live Hops acceptance remain open."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-runtime-owned-writer-execution-evidence",
-    "summary": "Implement authentic runtime-owned durable writer execution evidence or a documented authenticated read-only provider lookup; shipped verifier is currently disabled. Do not mint verified evidence from client JSON or silently enable provider storage. See docs/qa/writer-production-integration-gap-2026-09-06.md. Fake-transport crash/replay integration is unblocked; live Hops QA still awaits 401 resolution. Running cf674a9 app /tmp/nalu-queue-app.9CBYTS/app uses tmp.gEDfvkaLEc/18769; synthetic episode one now has a dry-run preflight, not video.",
+    "summary": "Continue downstream consumption of runtime-observed writer evidence and packaged native core-flow QA. Observation is now in new production packages but is not remote provider lookup or paid authorization. Keep existing real Hops 401 attempt quarantined until account access confirmation. Validate source lookup to interactive drafting and episode-by-episode production; do not substitute synthetic dry-run for video acceptance.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

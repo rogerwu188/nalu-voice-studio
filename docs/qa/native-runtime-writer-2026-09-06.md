@@ -19,7 +19,8 @@ not retried, and credentials are absent from persisted ledger values.
 Four endpoint/service tests, Ruff, OpenAPI compatibility against the preceding
 commit and Swift syntax parsing passed. Full regression is running separately
 and must not be inferred from these four tests. Syntax parsing is not Swift
-compilation. Packaged native QA and current-commit CI are still required.
+compilation. The full Python suite subsequently passed: 349 tests in 200.48s.
+Packaged native QA and current-commit CI are still required.
 
 No real Hops retry was made: the earlier live attempt returned HTTP 401 after
 successfully reading the configured Keychain credential. Authentic observed

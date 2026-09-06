@@ -1541,6 +1541,7 @@ class ProductionPackage(BaseModel):
     approved_script: dict[str, Any]
     writer_receipt_reconciliation: dict[str, Any] | None = None
     writer_provider_reconciliation: dict[str, Any] | None = None
+    runtime_writer_observation: dict[str, Any] | None = None
     inherited_assets: list[dict[str, Any]]
     resolved_library: list[dict[str, Any]] = Field(default_factory=list)
     continuity: dict[str, Any] | None
