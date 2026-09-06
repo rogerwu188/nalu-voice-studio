@@ -1450,14 +1450,16 @@ final class VoiceInterviewViewModel {
         }
     }
 
-    func restoreProject(from data: Data) async {
+    func restoreProject(from data: Data) async -> Bool {
         do {
             let project = try await runtime.restoreProject(data: data)
             includeArchivedProjects = project.archivedAt != nil
             await reloadProjects()
             await selectProject(project.id)
+            return true
         } catch {
             errorMessage = error.localizedDescription
+            return false
         }
     }
 

@@ -3,6 +3,8 @@ import SwiftUI
 enum NaluPrimaryAccessibilityID {
     static let projectList = "nalu.projects.list"
     static let createProject = "nalu.projects.create"
+    static let projectBackup = "nalu.projects.backup"
+    static let projectRestore = "nalu.projects.restore"
     static let runtimeStatus = "nalu.status.runtime"
     static let realtimeVoice = "nalu.voice.realtime"
     static let assetImportToolbar = "nalu.assets.import.toolbar"

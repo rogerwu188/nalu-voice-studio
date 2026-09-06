@@ -11,8 +11,8 @@ struct ContentView: View {
     @State private var isRenamingProject = false
     @State private var renameTitle = ""
     @State private var isImportingProject = false
-    @State private var isExportingProject = false
-    @State private var exportDocument: ProjectBackupDocument?
+    @State private var isSavingProject = false
+    @State private var fileOperationNotice: String?
     @State private var isScriptEditorExpanded = false
     @State private var isContinuityExpanded = false
     @State private var isLibraryEditorExpanded = false
@@ -34,8 +34,7 @@ struct ContentView: View {
     @State private var assetMemoryRelationship = ""
     @State private var assetMemoryStoryRelevance = ""
     @State private var assetMemoryAllowedUse = "reference_only"
-    @State private var isExportingPrivacy = false
-    @State private var privacyDocument: PrivacyExportDocument?
+    @State private var isSavingPrivacy = false
     @State private var deletionPreview: ProjectDeletionPreview?
     @State private var isPresentingProjectDeletion = false
     @State private var projectDeletionConfirmation = ""
@@ -118,31 +117,16 @@ struct ContentView: View {
             allowsMultipleSelection: false,
             onCompletion: importProject
         )
-        .fileExporter(
-            isPresented: $isExportingProject,
-            document: exportDocument,
-            contentType: .json,
-            defaultFilename: exportFilename
-        ) { result in
-            if case .failure(let error) = result {
-                model.errorMessage = error.localizedDescription
-            }
-        }
         .fileImporter(
             isPresented: $isImportingAsset,
             allowedContentTypes: allowedAssetContentTypes,
             allowsMultipleSelection: false,
             onCompletion: importAsset
         )
-        .fileExporter(
-            isPresented: $isExportingPrivacy,
-            document: privacyDocument,
-            contentType: .zip,
-            defaultFilename: privacyExportFilename
-        ) { result in
-            if case .failure(let error) = result {
-                model.errorMessage = error.localizedDescription
-            }
+        .alert("已经完成", isPresented: fileOperationNoticeBinding) {
+            Button("知道了", role: .cancel) { fileOperationNotice = nil }
+        } message: {
+            Text(fileOperationNotice ?? "")
         }
         .alert("给项目换个名字", isPresented: $isRenamingProject) {
             TextField("项目名称", text: $renameTitle)
@@ -236,17 +220,19 @@ struct ContentView: View {
                 Button("改名", systemImage: "pencil", action: presentRename)
                     .disabled(selectedProject == nil)
                 Button("备份", systemImage: "square.and.arrow.up", action: exportProject)
-                    .disabled(selectedProject == nil)
+                    .disabled(selectedProject == nil || isSavingProject)
+                    .accessibilityIdentifier(NaluPrimaryAccessibilityID.projectBackup)
                 Button("恢复", systemImage: "square.and.arrow.down") {
                     isImportingProject = true
                 }
+                .accessibilityIdentifier(NaluPrimaryAccessibilityID.projectRestore)
             }
             .controlSize(.large)
             .padding(.horizontal, 18)
             Button("隐私包", systemImage: "lock.doc", action: exportPrivacy)
                 .controlSize(.large)
                 .padding(.horizontal, 18)
-                .disabled(selectedProject == nil)
+                .disabled(selectedProject == nil || isSavingPrivacy)
             Button("模型密钥", systemImage: "key") {
                 presentProviderCredentials()
             }
@@ -1917,6 +1903,13 @@ struct ContentView: View {
         )
     }
 
+    private var fileOperationNoticeBinding: Binding<Bool> {
+        Binding(
+            get: { fileOperationNotice != nil },
+            set: { if !$0 { fileOperationNotice = nil } }
+        )
+    }
+
     private var archivedProjectsBinding: Binding<Bool> {
         Binding(
             get: { model.includeArchivedProjects },
@@ -2158,12 +2151,12 @@ struct ContentView: View {
 
     private var exportFilename: String {
         let title = selectedProject?.title ?? "Nalu项目"
-        return "\(title)-Nalu备份.json"
+        return NativeFileExport.suggestedFilename(title: title, suffix: "Nalu备份.json")
     }
 
     private var privacyExportFilename: String {
         let title = selectedProject?.title ?? "Nalu项目"
-        return "\(title)-Nalu隐私包.zip"
+        return NativeFileExport.suggestedFilename(title: title, suffix: "Nalu隐私包.zip")
     }
 
     private var libraryKindOptions: [(value: String, label: String)] {
@@ -2257,18 +2250,46 @@ struct ContentView: View {
     }
 
     private func exportProject() {
-        Task {
+        guard !isSavingProject else { return }
+        isSavingProject = true
+        Task { @MainActor in
+            defer { isSavingProject = false }
             guard let data = await model.exportSelectedProject() else { return }
-            exportDocument = ProjectBackupDocument(data: data)
-            isExportingProject = true
+            do {
+                guard let url = try await NativeFileExport.save(
+                    data: data,
+                    suggestedFilename: exportFilename,
+                    contentType: .json,
+                    title: "保存项目备份",
+                    message: "请选择一个容易找到的位置。以后点“恢复”就能把项目带回来。",
+                    prompt: "保存备份"
+                ) else { return }
+                fileOperationNotice = "项目已经安全备份为“\(url.lastPathComponent)”。"
+            } catch {
+                model.errorMessage = error.localizedDescription
+            }
         }
     }
 
     private func exportPrivacy() {
-        Task {
+        guard !isSavingPrivacy else { return }
+        isSavingPrivacy = true
+        Task { @MainActor in
+            defer { isSavingPrivacy = false }
             guard let data = await model.exportPrivacyBundle() else { return }
-            privacyDocument = PrivacyExportDocument(data: data)
-            isExportingPrivacy = true
+            do {
+                guard let url = try await NativeFileExport.save(
+                    data: data,
+                    suggestedFilename: privacyExportFilename,
+                    contentType: .zip,
+                    title: "保存隐私包",
+                    message: "隐私包只保存到您选择的位置，不会自动上传。",
+                    prompt: "保存隐私包"
+                ) else { return }
+                fileOperationNotice = "隐私包已经保存为“\(url.lastPathComponent)”。"
+            } catch {
+                model.errorMessage = error.localizedDescription
+            }
         }
     }
 
@@ -2427,7 +2448,11 @@ struct ContentView: View {
             let accessing = url.startAccessingSecurityScopedResource()
             defer { if accessing { url.stopAccessingSecurityScopedResource() } }
             let data = try Data(contentsOf: url)
-            Task { await model.restoreProject(from: data) }
+            Task { @MainActor in
+                if await model.restoreProject(from: data) {
+                    fileOperationNotice = "项目已经恢复，可以继续讲故事了。"
+                }
+            }
         } catch {
             model.errorMessage = error.localizedDescription
         }

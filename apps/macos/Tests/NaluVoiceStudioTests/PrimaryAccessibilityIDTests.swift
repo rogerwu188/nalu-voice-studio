@@ -6,6 +6,8 @@ final class PrimaryAccessibilityIDTests: XCTestCase {
         let identifiers = [
             NaluPrimaryAccessibilityID.projectList,
             NaluPrimaryAccessibilityID.createProject,
+            NaluPrimaryAccessibilityID.projectBackup,
+            NaluPrimaryAccessibilityID.projectRestore,
             NaluPrimaryAccessibilityID.runtimeStatus,
             NaluPrimaryAccessibilityID.realtimeVoice,
             NaluPrimaryAccessibilityID.assetImportToolbar,
