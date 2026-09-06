@@ -21,6 +21,11 @@ six-second 156-credit calculation, expiry and amount mismatch, plus earlier
 budget concurrency/recovery coverage. Ruff passed and OpenAPI regenerated.
 Full regression/CI and native confirmation remain to verify.
 
+Follow-up: full regression on `7ea32094b595d7261c94c822bc977c42aaf9a86f`
+passed 401 tests in 50.28 seconds; OpenAPI freshness check passed. Pushed
+[CI 34065785277](https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34065785277)
+was pending at inspection. Native confirmation and real dispatch are still open.
+
 Published-price observation is not an account-specific binding quote or a
 provider-enforced charge cap. These receipts remain `generation_performed=false`
 and `provider_charge_cap_guaranteed=false`. Old manual estimates do not acquire
