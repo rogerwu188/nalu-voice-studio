@@ -1982,6 +1982,18 @@ final class VoiceInterviewViewModel {
     }
 
     func recordRealtimeFlowAnswer(_ answer: String) -> RealtimeInterviewToolResult {
+        if let routed = AssistantActionRouter.route(answer) {
+            let protected: Bool
+            if case .requiresConfirmation = routed { protected = true } else { protected = false }
+            return RealtimeInterviewToolResult(
+                accepted: false,
+                message: protected
+                    ? "这个要求需要可见确认，我没有把它当成采访答案，也没有执行。"
+                    : "这是一项联网查找，不是采访答案。请改用只读联网工具。",
+                nextPrompt: currentInterviewPrompt,
+                requiresVisibleConfirmation: protected
+            )
+        }
         if let response = handleProductionVoiceCommand(answer) {
             return RealtimeInterviewToolResult(
                 accepted: true,
@@ -2026,6 +2038,14 @@ final class VoiceInterviewViewModel {
                 message: "这个要求包含下载、登录、付款、发布或其他外部改变，我没有执行。请回到可见界面确认具体操作。",
                 nextPrompt: currentInterviewPrompt,
                 requiresVisibleConfirmation: true
+            )
+        }
+        guard assistantActionStatus == nil else {
+            return .init(
+                accepted: false,
+                message: "上一项联网查找仍在进行，请等结果出现后再试。",
+                nextPrompt: currentInterviewPrompt,
+                requiresVisibleConfirmation: false
             )
         }
         assistantActionStatus = "正在替您上网查找…"
@@ -2144,6 +2164,12 @@ final class VoiceInterviewViewModel {
             messages.append(.init(speaker: .nalu, text: response))
             speechPlayback.speak(response, rate: comfortPreferences.speechRate)
         case .webResearch(let query):
+            guard assistantActionStatus == nil else {
+                let response = "我还在完成上一项联网查找。请等结果出现后再说下一项；您的创作进度没有改变。"
+                messages.append(.init(speaker: .nalu, text: response))
+                speechPlayback.speak(response, rate: comfortPreferences.speechRate)
+                return
+            }
             assistantActionStatus = "正在替您上网查找…"
             let startMessage = "好的，我现在替您上网查找。查找期间不会改变您的故事，也不会自动下载或发布任何内容。"
             messages.append(.init(speaker: .nalu, text: startMessage))
