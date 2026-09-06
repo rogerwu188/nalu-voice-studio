@@ -171,3 +171,38 @@ reads and save/readback validation retain their authorization behavior. Added
 injected-query regression tests for no password return, no interaction, missing
 items and access failures. Syntax/diff checks pass; new CI and native retest
 remain required. Presence does not certify readability or Realtime support.
+
+## Native presence and model persistence retest
+
+Source `bcfc86ae27dd0d940378aa14467ba4b182a1b8aa`, CI `34051937128`, arm64
+artifact `9994834005`; archive SHA-256
+`55bd27ada55e6e3117aa6351c5b74277707ba42e4107fd6ca22eca89c52b6a70`
+matches its packaged checksum. Revised release verifier succeeds (ad hoc only).
+Fresh isolated native process 80632 / runtime port 18769 reports healthy/schema 27.
+The previous hung isolated process and its remaining runtime were terminated;
+no project data or credentials were removed.
+
+- Credentials sheet opens and remains responsive. After state refresh the saved
+  OpenAI key correctly shows stored; SD2/H3 remain unconfigured.
+- Native paste/save/reopen of synthetic provider `https://nalu-model-bcfc86a.invalid/v1`
+  preserves `qa-research`, `qa-voice`, `qa-transcribe` independently.
+- Entering `invalid model` and pressing Save keeps the sheet open and displays
+  the model-ID validation error.
+- Switching back to HopsAPI restores its original three selections; Save restores
+  `https://hopsapi.com/v1` as the active preference. No real model selection or key
+  changed. Clipboard contents restored; no network generation or audio capture.
+- Native voice-consent sheet displays HopsAPI plus the selected Realtime and
+  transcription IDs. Consent is unchecked and Start disabled; cancelled without
+  starting a session. The controls no longer require a decrypting presence read.
+- [Native final settings screenshot](images/native-credential-presence-2026-09-06.png)
+  verifies stored-key state, address and fixed Save-and-Done control. Initial AX
+  snapshot before refresh was stale. An auxiliary JXA diagnostic initially used
+  incorrect CFString bridging and returned -50; corrected bridging returned 0
+  with both nil and non-nil results. It was not an application query defect.
+
+Native model configuration checks pass, not whole SOP-02. Full CI completion,
+live Realtime capability and same signed/notarized release-candidate acceptance
+remain separate gates.
+
+Final observation: CI 34051937128 completed success, all four jobs including
+Universal. Live Realtime and signed/notarized acceptance remain unverified.

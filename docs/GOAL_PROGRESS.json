@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "6070dee27ad5757b329a61ebfb2000f3616a7e9c",
-  "last_advanced_at": "2026-09-06T18:31:00Z",
+  "observed_head": "bcfc86ae27dd0d940378aa14467ba4b182a1b8aa",
+  "last_advanced_at": "2026-09-06T18:37:44Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-02",
     "status": "IN_PROGRESS",
-    "summary": "CI 34051394664 passes for 6070dee, exact arm64 artifact checksum and corrected entitlement verifier pass. Native settings click hangs: main-thread sample identifies contains() decrypting Keychain content during presence refresh. Attributes-only noninteractive presence fix and regression tests added; new CI and native retest pending. No keys/model choices changed or paid calls made. Full SOP remains incomplete."
+    "summary": "Native bcfc86a artifact 9994834005 verifies responsive credentials sheet and saved-key badge, synthetic provider model save/reopen, invalid model rejection, restoring HopsAPI selections, and consent address/model disclosure with Start disabled before consent. Archive checksum and entitlement verifier pass. CI 34051937128 completed success, all four jobs. No secrets changed, recording or paid calls. Full SOP remains incomplete."
   },
   "next_action": {
     "sop": "SOP-02",
-    "id": "verify-keychain-presence-hang-fix-and-model-entry",
-    "summary": "Verify full CI and exact native artifact for provider-scoped model settings UI, Save-and-Done, invalid-input preservation and consent model disclosure. UI and request-layer implementation are present; syntax checks pass, native editing QA remains pending. Do not silently pick replacements or equate model-list access with Realtime/web-search support. CI must also cover exact speech-entitlement verifier. Full SOP goal unchanged. Evidence: docs/qa/gpt-voice-and-credential-save-2026-09-06.md.",
+    "id": "verify-provider-realtime-capability-without-silent-substitution",
+    "summary": "Finish observing CI 34051937128 and commit native evidence. Resolve HopsAPI Realtime/Responses/transcription capability using provider-authoritative evidence; its current model list does not expose the configured voice/transcription models. Do not silently substitute or equate models access with working voice. Use only bounded authorized live tests; if provider details block that gate, continue native synthetic asset dependency preview/cancel QA without deleting user data. Full SOP objective unchanged. Evidence: docs/qa/gpt-voice-and-credential-save-2026-09-06.md.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

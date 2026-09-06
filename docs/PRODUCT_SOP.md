@@ -107,6 +107,13 @@ Current evidence:
 
 ## SOP-02 · Voice interview and accessible conversation — IN_PROGRESS
 
+- Provider settings native checkpoint (`bcfc86a`, CI `34051937128`, all four
+  jobs success): fixed blocking password reads during status refresh; verified
+  responsive sheet, existing key presence, provider-scoped model save/reopen,
+  invalid-ID rejection, HopsAPI restoration and voice-consent disclosure without
+  recording or paid requests. See [native evidence](qa/gpt-voice-and-credential-save-2026-09-06.md).
+  This is not real Realtime capability or whole-SOP acceptance.
+
 - Bounded native confirmation on exact Universal artifact `9991496944`, product
   `93f962232a22f40c3e172e9b45949d162549e5c2`, CI `34040136383` (all jobs success):
   all four toolbar labels and both bottom primary controls are fully visible at
