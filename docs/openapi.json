@@ -8528,6 +8528,17 @@
             "pattern": "^[0-9a-f]{64}$",
             "title": "Preparation Sha256",
             "type": "string"
+          },
+          "pricing_quote_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pricing Quote Id"
           }
         },
         "required": [
@@ -13024,6 +13035,54 @@
           }
         },
         "summary": "Approve Video Estimate"
+      }
+    },
+    "/v1/production-runs/{run_id}/video-task-preparations/{preparation_id}/price-observations": {
+      "post": {
+        "operationId": "observe_video_price_v1_production_runs__run_id__video_task_preparations__preparation_id__price_observations_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "preparation_id",
+            "required": true,
+            "schema": {
+              "title": "Preparation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunEvent"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Observe Video Price"
       }
     },
     "/v1/production-runs/{run_id}/visual-continuity-qa": {

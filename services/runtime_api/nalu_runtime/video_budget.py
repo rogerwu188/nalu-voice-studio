@@ -1,6 +1,7 @@
 """Atomic local estimate reservations; never a provider price or billing guarantee."""
 
 import json
+from datetime import UTC, datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -17,6 +18,7 @@ class VideoBudgetApproval(BaseModel):
     approved_by: str = Field(min_length=1, max_length=160, pattern=r"\S")
     confirmation: str = Field(min_length=1, max_length=2000, pattern=r"\S")
     guardian_approval: bool = False
+    pricing_quote_id: str | None = None
 
 
 class VideoBudgetService:
@@ -50,6 +52,28 @@ class VideoBudgetService:
                 raise ConflictError("shot preparation changed; review again")
             if digest(prepared["request"]) != prepared["request_sha256"]:
                 raise ConflictError("saved request integrity failed")
+            quote_sha = None
+            if approval.pricing_quote_id is not None:
+                quoted = db.execute(
+                    "SELECT payload_json FROM run_events WHERE id = ? AND run_id = ? AND event_type = 'video_price_observed'",
+                    (approval.pricing_quote_id, run_id),
+                ).fetchone()
+                if quoted is None:
+                    raise ConflictError("price observation not found in this run")
+                quote = json.loads(quoted[0])
+                quote_sha = digest({k: v for k, v in quote.items() if k != "quote_sha256"})
+                if (quote.get("quote_sha256") != quote_sha or quote.get("preparation_id") != preparation_id
+                        or quote.get("preparation_sha256") != expected
+                        or quote.get("request_sha256") != prepared["request_sha256"]
+                        or quote.get("estimated_credits") != approval.estimated_credits):
+                    raise ConflictError("price observation differs from the approved shot or estimate")
+                try:
+                    observed = datetime.fromisoformat(quote["observed_at"])
+                    expires = datetime.fromisoformat(quote["expires_at"])
+                    if not observed <= datetime.now(UTC) < expires or not 0 < (expires - observed).total_seconds() <= 86400:
+                        raise ValueError("expired")
+                except (KeyError, TypeError, ValueError):
+                    raise ConflictError("price observation expired; refresh and review again") from None
             preparations = db.execute(
                 "SELECT payload_json FROM run_events WHERE run_id = ? AND event_type = 'video_task_prepared' AND sequence > ?",
                 (run_id, source["sequence"]),
@@ -79,6 +103,8 @@ class VideoBudgetService:
             if prior:
                 if prior[1]["preparation_sha256"] != expected or prior[1]["estimated_credits"] != approval.estimated_credits:
                     raise ConflictError("shot already reserves a different request or estimate")
+                if prior[1].get("pricing_quote_id") != approval.pricing_quote_id:
+                    raise ConflictError("existing reservation requires explicit price-review reconciliation")
                 event_id = prior[0]
             else:
                 total = sum(record["estimated_credits"] for _, record in reservations) + approval.estimated_credits
@@ -89,6 +115,7 @@ class VideoBudgetService:
                           "production_package_sha256": prepared["production_package_sha256"],
                           "total_reserved_estimate_credits": total,
                           "provider_price_verified": False, "provider_charge_cap_guaranteed": False,
+                          "published_price_observed": quote_sha is not None, "quote_sha256": quote_sha,
                           "generation_performed": False}
                 record["reservation_sha256"] = digest(record)
                 sequence = db.execute("SELECT COALESCE(MAX(sequence), 0) + 1 FROM run_events WHERE run_id = ?", (run_id,)).fetchone()[0]

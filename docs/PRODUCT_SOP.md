@@ -83,6 +83,9 @@ approval-to-dispatch wiring and actual generation remain incomplete.
 Saved shots now have [atomic estimate reservations and confirmation binding](qa/video-estimate-reservations-2026-09-06.md).
 These local estimates are not verified provider prices or permission to bypass
 remaining dispatch, billing, native and end-to-end gates.
+Saved shots can now obtain [automatic official-page price estimates](qa/automatic-video-pricing-2026-09-06.md),
+with exact-request and expiry checks during confirmation. This is not a provider
+charge cap or completed paid-dispatch integration.
 
 2026-09-06 native checkpoints on `4e03c16`, CI
 [34054486473](https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34054486473):

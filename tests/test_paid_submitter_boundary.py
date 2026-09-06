@@ -1086,3 +1086,48 @@ def test_only_submitter_source_invokes_paid_transport() -> None:
         if ".post_paid_task(" in path.read_text(encoding="utf-8")
     }
     assert callers == {"remote_submitter.py"}
+@pytest.mark.parametrize("case", ["ok", "expired", "wrong_amount", "http_error"])
+def test_official_price_observation_binds_confirmation_without_generation(tmp_path, case):
+    calls = []
+    def serve(request):
+        calls.append(request)
+        assert request.method == "GET"
+        assert str(request.url) == "https://apidocs.giggle.pro/8562698m0"
+        assert "x-auth" not in request.headers
+        return httpx.Response(503 if case == "http_error" else 200, text=
+            '<table><tr><td>seedance-2.0-pro</td><td>$0.26 / sec</td><td>26 Credits / sec</td></tr>'
+            '<tr><td>seedance-2.0-fast</td><td>$0.22 / sec</td><td>22 Credits / sec</td></tr></table>')
+    api = TestClient(create_app(tmp_path / "prices.sqlite3", tmp_path / "data", pricing_http_transport=httpx.MockTransport(serve)))
+    run = paid_run(api, tmp_path, run_id="run_quote_fixture", model="seedance-2.0-pro")
+    repository = api.app.state.repository
+    request = {"model": "seedance-2.0-pro", "duration_seconds": 6}
+    record = {"task_key": "E01-U01", "request": request, "request_sha256": canonical_sha256(request),
+              "production_package_sha256": "a" * 64}
+    record["preparation_sha256"] = canonical_sha256(record)
+    prepared = repository.append_run_event(run.id, "video_task_prepared", payload=record)
+    base = f"/v1/production-runs/{run.id}/video-task-preparations/{prepared.id}"
+    quoted = api.post(base + "/price-observations")
+    assert len(calls) == 1
+    if case == "http_error":
+        assert quoted.status_code == 409
+        assert not any(e.event_type == "video_price_observed" for e in repository.list_run_events(run.id))
+        return
+    assert quoted.status_code == 200, quoted.text
+    price = quoted.json()["payload"]
+    assert price["estimated_credits"] == 156
+    assert price["provider_charge_cap_guaranteed"] is False
+    with repository.db.connect() as db:
+        db.execute("UPDATE production_runs SET estimated_budget_credits = 200 WHERE id = ?", (run.id,))
+        if case == "expired":
+            price.update(observed_at="2000-01-01T00:00:00+00:00", expires_at="2000-01-02T00:00:00+00:00")
+            price["quote_sha256"] = canonical_sha256({k: v for k, v in price.items() if k != "quote_sha256"})
+            db.execute("UPDATE run_events SET payload_json = ? WHERE id = ?", (json.dumps(price), quoted.json()["id"]))
+    approval = api.post(base + "/estimate-approvals", json={
+        "preparation_sha256": record["preparation_sha256"], "estimated_credits": 155 if case == "wrong_amount" else 156,
+        "confirmed_run_budget_credits": 200, "pricing_quote_id": quoted.json()["id"],
+        "approved_by": "QA", "confirmation": "合成测试，确认这一镜头的费用预估"})
+    assert approval.status_code == (200 if case == "ok" else 409), approval.text
+    if case == "ok":
+        assert approval.json()["payload"]["published_price_observed"] is True
+        assert approval.json()["payload"]["quote_sha256"] == price["quote_sha256"]
+    assert repository.list_remote_task_bindings(run.id) == []

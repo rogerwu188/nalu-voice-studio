@@ -167,6 +167,7 @@ from .storage_diagnostics import inspect_storage
 from .task_observation_service import TaskObservationService
 from .video_budget import VideoBudgetApproval, VideoBudgetService
 from .video_preparation import VideoPreparationRequest, VideoPreparationService
+from .video_pricing import VideoPricingService
 from .writer_provider import (
     DisabledWriterProviderVerifier,
     WriterProviderVerifier,
@@ -192,6 +193,7 @@ def create_app(
     writer_provider_verifier: WriterProviderVerifier | None = None,
     writer_http_transport: httpx.BaseTransport | None = None,
     task_query_http_transport: httpx.BaseTransport | None = None,
+    pricing_http_transport: httpx.BaseTransport | None = None,
 ) -> FastAPI:
     repository_root = Path(
         os.environ.get("NALU_REPOSITORY_ROOT", Path(__file__).resolve().parents[3])
@@ -1126,6 +1128,10 @@ def create_app(
     @app.post("/v1/production-runs/{run_id}/video-task-preparations/{preparation_id}/estimate-approvals", response_model=RunEvent)
     def approve_video_estimate(run_id: str, preparation_id: str, request: VideoBudgetApproval) -> RunEvent:
         return VideoBudgetService(repository).reserve(run_id, preparation_id, request)
+
+    @app.post("/v1/production-runs/{run_id}/video-task-preparations/{preparation_id}/price-observations", response_model=RunEvent)
+    def observe_video_price(run_id: str, preparation_id: str) -> RunEvent:
+        return VideoPricingService(repository, pricing_http_transport).quote(run_id, preparation_id)
 
     @app.post("/v1/production-runs/{run_id}/tasks/{binding_id}/refresh", response_model=RunEvent)
     def refresh_saved_task(
