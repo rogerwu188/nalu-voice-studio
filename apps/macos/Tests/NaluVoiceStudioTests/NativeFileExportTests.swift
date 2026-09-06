@@ -18,7 +18,7 @@ final class NativeFileExportTests: XCTestCase {
                 title: "  ../家庭/故事:\n第一季  ",
                 suffix: "Nalu备份.json"
             ),
-            "家庭-故事- 第一季-Nalu备份.json"
+            "家庭-故事-第一季-Nalu备份.json"
         )
     }
 
