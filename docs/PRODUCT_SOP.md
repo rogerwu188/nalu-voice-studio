@@ -115,6 +115,11 @@ Current evidence:
 
 ## SOP-02 · Voice interview and accessible conversation — IN_PROGRESS
 
+- Open native failure: old isolated app exited with TCC speech-usage-description
+  abort even though its plist contains that description. Direct-launch privacy
+  attribution is under investigation, not a confirmed fix; see
+  [launch-context evidence](qa/native-speech-launch-context-2026-09-06.md).
+
 - Realtime cancellation checkpoint: broker task cancellation and browser generation
   guards prevent stale continuation; ten local simulated handshake/replacement tests
   pass. Full candidate CI and packaged/real voice QA remain open. See
