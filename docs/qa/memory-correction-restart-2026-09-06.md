@@ -52,3 +52,24 @@ CI correction: run 34044862862 failed the progress-file gate because
 `observed_head` contained a short SHA. Commit
 `3a57c33d3336d83fee9d21a41d2fe1b1930e87e6` repairs the full identity; local audit
 passes. The failure was not a passing runtime/native acceptance result.
+
+CI evidence verified: all four jobs passed on
+`75adedc5dc38d3d7de63a4391be419b1b118a504`, run
+https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34045946711.
+Downloaded Universal artifact `9993199632` (GitHub archive digest
+`b009433de07cce70fffa49465c478d9208eb32a320c00f91e19835c937b1b663`).
+The inner ZIP digest was independently computed and matched its manifest:
+`35f0ccca5680f6587e14b353cd91c38bfd0e67b6c6c1be09d6a27c687b542b37`.
+The packaged `nalu-memory-provenance-universal.json` reports PASS; its runtime
+digest `ea02d56ae0a09041268a30b4c2ed40dd102b543a5378cb5e5e99f5c5515b9cd9`
+matches the locally extracted binary. These are bounded packaged-runtime results,
+not native UI, human voice, Developer ID, notarization or whole-product acceptance.
+
+Extended local rehearsal on the downloaded `75adedc` runtime also passed:
+`packaged-memory-conflict-2026-09-06.json`. The synthetic narrative cards with
+different event years block confirmation. Correcting the year clears the conflict
+but leaves a draft; the previous revision is rejected, no receipt is created for
+it, and only explicit confirmation of the corrected revision archives the card.
+Reference-only material is deliberately exempt from narrative conflict blocking;
+the fixture explicitly permits its entirely synthetic text for story-development
+QA before asserting that boundary. No biometric permission was granted.

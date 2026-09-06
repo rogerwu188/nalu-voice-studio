@@ -122,6 +122,37 @@ def main():
             assert call(path + "/revisions") == history
             assert call(path + "/confirmations") == receipts
             call(path + "/confirm", approval, expected=409)
+            narrative = call(path, {
+                "allowed_use": "story_development", "source_channel": "visual",
+                "change_summary": "Synthetic fixture permitted for story QA only",
+            }, method="PATCH")
+            call(path + "/confirm", approval | {
+                "reviewed_revision": narrative["current_revision"]
+            })
+            other_asset = call(
+                prefix + "/asset-imports?filename=second.txt&kind=source_document&name=second",
+                raw=b"Synthetic conflicting year 1985", expected=201,
+            )
+            other = call(prefix + "/memory-cards", {
+                "asset_id": other_asset["id"], "title": "Synthetic memory",
+                "approximate_date": "1985", "allowed_use": "story_development",
+            }, expected=201)
+            other_path = f"/v1/memory-cards/{other['id']}"
+            assert call(other_path + "/conflicts")["blocking"] is True
+            call(other_path + "/confirm", approval, expected=409)
+            corrected = call(other_path, {
+                "approximate_date": "1983", "source_channel": "visual",
+                "change_summary": "Synthetic conflict correction",
+            }, method="PATCH")
+            assert corrected["confirmation_status"] == "draft"
+            assert call(other_path + "/conflicts")["blocking"] is False
+            assert [item["id"] for item in call(
+                prefix + "/memory-cards?confirmed_only=true"
+            )] == [card["id"]]
+            call(other_path + "/confirm", approval, expected=409)
+            assert call(other_path + "/confirmations") == []
+            call(other_path + "/confirm", approval | {"reviewed_revision": 2})
+            assert len(call(prefix + "/memory-cards?confirmed_only=true")) == 2
         finally:
             stop(process)
     evidence = {
@@ -130,6 +161,7 @@ def main():
         "runtime_mode": "packaged", "network_scope": "loopback only",
         "restored_revision": 2, "original_ocr_preserved": True,
         "history_preserved": True, "stale_confirmation_rejected": True,
+        "conflict_resolution_requires_fresh_confirmation": True,
         "paid_call_performed": False, "native_ui_acceptance": False,
         "human_voice_acceptance": False, "project_complete": False,
     }

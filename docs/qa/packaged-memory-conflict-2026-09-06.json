@@ -1,0 +1,16 @@
+{
+  "schema_version": "nalu.memory-provenance-qa/v1",
+  "status": "PASS",
+  "runtime_sha256": "ea02d56ae0a09041268a30b4c2ed40dd102b543a5378cb5e5e99f5c5515b9cd9",
+  "runtime_mode": "packaged",
+  "network_scope": "loopback only",
+  "restored_revision": 2,
+  "original_ocr_preserved": true,
+  "history_preserved": true,
+  "stale_confirmation_rejected": true,
+  "conflict_resolution_requires_fresh_confirmation": true,
+  "paid_call_performed": false,
+  "native_ui_acceptance": false,
+  "human_voice_acceptance": false,
+  "project_complete": false
+}

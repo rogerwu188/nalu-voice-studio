@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "3a57c33d3336d83fee9d21a41d2fe1b1930e87e6",
-  "last_advanced_at": "2026-09-06T16:32:00Z",
+  "observed_head": "75adedc5dc38d3d7de63a4391be419b1b118a504",
+  "last_advanced_at": "2026-09-06T16:56:00Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-05",
     "status": "IN_PROGRESS",
-    "summary": "Real packaged 93f9622 runtime memory correction/export/import QA passed with two isolated stores and loopback HTTP; OCR/history preserved, stale approval rejected. Evidence: docs/qa/packaged-memory-provenance-2026-09-06.json. Added reproducible Universal CI step. Prior 34044862862 failed short observed_head gate, corrected by 3a57c33; new CI still required. Native UI acceptance remains open."
+    "summary": "75adedc passed all four CI jobs 34045946711. Downloaded artifact 9993199632, independently matched ZIP/runtime digests and inspected passing memory provenance receipt. Extended packaged conflict-resolution rehearsal passed locally on this exact runtime; draft persists until explicit current-revision approval. Evidence: docs/qa/packaged-memory-conflict-2026-09-06.json. Extended CI remains pending; native UI acceptance stays open."
   },
   "next_action": {
     "sop": "SOP-05",
-    "id": "verify-packaged-memory-ci-evidence",
-    "summary": "Check first Universal CI memory-provenance run and artifact, fix any failure, bind evidence to the exact commit. Then extend packaged rehearsal to conflict-resolution confirmation boundaries. Native edit QA still requires restored assistive access; packaged HTTP is not native UI or real-mic acceptance.",
+    "id": "verify-memory-conflict-ci-and-upstream-delta",
+    "summary": "Verify expanded packaged conflict CI receipt, then check the latest Qingshan release against the pinned source and productized adapter contract for actionable upstream changes. Native edit QA still requires restored assistive access; packaged HTTP is not native UI or real-mic acceptance. Do not relabel authorization-dependent SOP gaps as complete.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
