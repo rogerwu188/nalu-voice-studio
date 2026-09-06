@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "aedcde869b2884191b21a45398fb06861140b05f",
-  "last_advanced_at": "2026-09-06T14:11:26Z",
+  "observed_head": "246188240b3008071a66d340005270d3202d09ac",
+  "last_advanced_at": "2026-09-06T14:18:21Z",
   "last_closed_checkpoint": {
     "id": "native-isolated-project-restart-backup-restore-qa",
     "sop": "SOP-03",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-02",
     "status": "IN_PROGRESS",
-    "summary": "Isolated QA port support is implemented and tested. Exact ae388fd arm64 artifact passed native fixed-control visibility at 980x736 points with maximum font and long fixture conversation. Evidence is committed in d33effd. CI run 34037029775 passed Runtime, arm64, x86_64 and Universal jobs. No whole-SOP completion is claimed."
+    "summary": "QA preference isolation fix 2461882 passed all four CI jobs in run 34038401250 and local 301-test regression. Exact arm64 native idle controls are visible and QA settings persist independently. Native font transition FAILED: greeting remains 304x51 points at levels 1 and 3 despite enlargement acknowledgment. Evidence: docs/qa/native-font-transition-2026-09-06.json. SOP-02 remains IN_PROGRESS."
   },
   "next_action": {
     "sop": "SOP-02",
-    "id": "critical-controls-native-visual-qa",
-    "summary": "Universal artifact 9990600793 is verified (digest, both binary architectures, adhoc signature). A QA preference-isolation gap was found and fixed with regression tests; finish its CI, then use the NEW artifact to verify idle controls and default-to-maximum font transition without modifying real user preferences. Preserve all prior evidence; no paid provider calls without authorization.",
+    "id": "explicit-macos-comfort-font-scaling",
+    "summary": "Fix macOS font scaling: ContentView currently relies on dynamicTypeSize but native greeting size stays identical after level changes. Add explicit comfort typography for conversation and primary controls, automated size-policy tests, then verify actual growth and fixed-button visibility in isolated native QA. Preserve failed before-evidence and do not claim full SOP completion.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

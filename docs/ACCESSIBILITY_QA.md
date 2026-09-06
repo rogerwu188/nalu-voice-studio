@@ -219,6 +219,37 @@ Inspector matrix or older-adult/guardian-and-child human acceptance.
 
 ## 2026-09-06 · Stable primary-control accessibility selectors
 
+### Isolated QA alongside an existing recording
+
+Builds with isolated-port support can run without closing the user's active Nalu
+window. Use a fresh, existing system-temporary directory and an unused loopback
+port (1024–65535, excluding the normal 8765 port):
+
+```bash
+qa_root="$(mktemp -d -t nalu-native-qa)"
+NALU_ENABLE_LOCAL_QA=1 \
+NALU_LOCAL_QA_APPLICATION_SUPPORT="$qa_root" \
+NALU_LOCAL_QA_PORT=18766 \
+  "/path/to/Nalu Voice Studio.app/Contents/MacOS/NaluVoiceStudio"
+```
+
+Add `NALU_LOCAL_QA_SCENARIO=conversation-scroll` only for simulated-listening
+presentation checks. Omit it for idle-state checks. Neither the port variable alone
+nor an invalid QA directory authorizes access to user data. An occupied QA port must
+fail closed. Target the QA process/window by its observed PID; do not quit all Nalu
+instances or trigger the user's recording controls.
+
+Builds with comfort-preference isolation save QA font/rate settings in
+`$qa_root/comfort-preferences.json`. A fresh directory starts with default comfort
+settings; restarting with that same directory preserves them. Invalid QA paths must
+not fall back to the normal user's preferences. Older builds shared those preferences
+and must not be used for isolated font-transition evidence.
+
+At the minimum window size, capture the exact QA window in default and maximum font
+states and check both fixed primary controls. Archive fixture-only screenshots with
+product commit, CI run, artifact hash and observed window dimensions. A simulated red
+waveform is not real microphone, Realtime, human accessibility or release acceptance.
+
 Product commit `18fac0ba6b7529b4c11c5dab39dded259ff59161` assigns stable,
 unique identifiers to the primary older-adult interaction surface:
 

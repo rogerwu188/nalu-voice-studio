@@ -1,0 +1,40 @@
+{
+  "schema_version": "nalu.native-font-transition-qa/v1",
+  "recorded_at": "2026-09-06T14:18:21Z",
+  "product_commit": "246188240b3008071a66d340005270d3202d09ac",
+  "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34038401250",
+  "ci_conclusion": "success",
+  "all_four_jobs_passed": true,
+  "local_runtime_tests": 301,
+  "artifact_architecture": "arm64",
+  "artifact_zip_sha256": "fadfbcc9a62a59d11d8e4034f565c8a09174092d47eb4d4a86a96f52b61def7f",
+  "declared_zip_digest_matches": true,
+  "native_qa": {
+    "process_id": 64085,
+    "window_id": 4143,
+    "window_size_points": [980, 736],
+    "isolated_runtime_port": 18766,
+    "runtime_health": "ok",
+    "qa_preferences_file": "/var/folders/y4/k84st0yj7fz043tnxkfrjn1w0000gn/T/nalu-font-isolation.tvzb82F0JL/data/comfort-preferences.json",
+    "fresh_default_level": 1,
+    "level_after_two_enlarge_clicks": 3,
+    "level_after_reset": 1,
+    "idle_microphone_button_visible": true,
+    "create_project_button_visible": true,
+    "maximum_font_greeting_ax_size_points": [304, 51],
+    "reset_default_greeting_ax_size_points": [304, 51],
+    "real_font_scaling_result": "FAIL",
+    "failure": "The app acknowledges font enlargement and persists level 3, but the same greeting retains identical measured dimensions at levels 3 and 1. Visual screenshots likewise show no enlargement.",
+    "qa_process_terminated_by_exact_pid": true,
+    "qa_port_closed_after_exit": true
+  },
+  "screenshots": {
+    "default": "docs/qa/images/native-idle-default-2026-09-06.png",
+    "default_sha256": "5fb9bdc4a67d19cd1a08e12940ae4b377bc44fe7b4e39a093e46f66723b9b850",
+    "maximum": "docs/qa/images/native-idle-maximum-2026-09-06.png",
+    "maximum_sha256": "a857b1b0c85c08638f1d7684304228ad646d3320fe9ddd9106b0460f8f713413"
+  },
+  "next_action": "Implement explicit macOS comfort typography and test actual native text growth, while keeping fixed controls visible.",
+  "project_complete": false,
+  "boundaries": ["No microphone capture or paid provider request.", "Passing settings persistence and CI does not establish visible font scaling.", "No Developer ID, notarization or full accessibility acceptance is claimed."]
+}

@@ -87,6 +87,15 @@ Current evidence:
 
 ## SOP-02 · Voice interview and accessible conversation — IN_PROGRESS
 
+- Native font-transition defect (2026-09-06): CI `34038401250` passed all four jobs
+  for `246188240b3008071a66d340005270d3202d09ac`; QA preference isolation and idle
+  primary-button visibility passed. Actual font enlargement did **not** pass:
+  the greeting's native accessibility size remains 304x51 points at preference
+  levels 1 and 3, despite the spoken acknowledgment. See
+  [failure evidence and screenshots](qa/native-font-transition-2026-09-06.json).
+  Next work is explicit macOS comfort typography and actual-size native regression.
+  Earlier maximum-setting visibility evidence is not proof of effective scaling.
+
 - Follow-up isolation gap: local QA previously shared normal-user comfort preferences.
   QA now stores font/rate preferences under its validated temporary data directory;
   invalid QA configuration cannot read or overwrite the real user's settings.
