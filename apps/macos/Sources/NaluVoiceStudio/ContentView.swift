@@ -1725,19 +1725,19 @@ struct ContentView: View {
             credentialEditor(
                 credential: .seedance,
                 draft: $seedanceSecretDraft,
-                configured: seedanceIsConfigured
+                configured: $seedanceIsConfigured
             )
             Divider()
             credentialEditor(
                 credential: .minimax,
                 draft: $minimaxSecretDraft,
-                configured: minimaxIsConfigured
+                configured: $minimaxIsConfigured
             )
             Divider()
             credentialEditor(
                 credential: .openAIRealtime,
                 draft: $openAIRealtimeSecretDraft,
-                configured: openAIRealtimeIsConfigured
+                configured: $openAIRealtimeIsConfigured
             )
             Text("API 访问地址").naluFont(.headline)
             TextField("https://服务商域名/v1", text: $apiBaseURLDraft)
@@ -1956,9 +1956,12 @@ struct ContentView: View {
     private func credentialEditor(
         credential: ProviderCredential,
         draft: Binding<String>,
-        configured: Bool
+        configured: Binding<Bool>
     ) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
+        // Read live storage when the sheet renders, not a value captured before
+        // its first presentation. The parent may not otherwise observe this state.
+        let configured = configured.wrappedValue
+        return VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Text(credential.label).naluFont(.headline)
                 Spacer()

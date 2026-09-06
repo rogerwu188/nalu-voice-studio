@@ -265,3 +265,17 @@ authorization policies are unchanged. Tests cover success, missing value, errors
 timeout, duplicate suppression, and a late return followed by a fresh read.
 Syntax and diff checks pass; compilation, CI and exact new native-artifact QA
 remain required. SOP-02 stays IN_PROGRESS; no full-product completion is asserted.
+
+### Follow-up while exact timeout artifact builds
+
+The local runtime suite passed **312 tests** (two dependency deprecation warnings).
+CI `34053223425` finished successfully for the preceding source; CI `34053634282`
+is building timeout source `5a1994551e2c237a20d6b37e52959a2c65ce7ce0`, with arm64
+Swift tests passed at observation time. This is not native timeout QA yet.
+
+Credential badge arguments now use live Bindings when the sheet is constructed,
+rather than pre-presentation Boolean snapshots. Native first-open verification
+remains open. The diagnostic worker also releases its occupied flag before
+resuming a successful caller, so an immediate subsequent check does not receive
+a false busy result; the success test reuses one reader for consecutive calls.
+These follow-ups require their own CI and exact-artifact native verification.

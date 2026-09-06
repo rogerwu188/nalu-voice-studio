@@ -3,9 +3,10 @@ import XCTest
 
 final class DiagnosticCredentialReaderTests: XCTestCase {
     func testSuccessfulReadAndMissingValue() async throws {
-        let value = try await DiagnosticCredentialReader().read { "synthetic-only" }
+        let reader = DiagnosticCredentialReader()
+        let value = try await reader.read { "synthetic-only" }
         XCTAssertEqual(value, "synthetic-only")
-        let missing = try await DiagnosticCredentialReader().read { nil }
+        let missing = try await reader.read { nil }
         XCTAssertNil(missing)
     }
 

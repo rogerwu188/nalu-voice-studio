@@ -45,10 +45,10 @@ final class DiagnosticCredentialReader: @unchecked Sendable {
                 let result = Result { try lookup() }
                 // A late result only releases this worker. It cannot resume the
                 // timed-out request or start any provider request on its behalf.
-                attempt.finish(result)
                 self.lock.lock()
                 self.pending = false
                 self.lock.unlock()
+                attempt.finish(result)
             }
         }
     }

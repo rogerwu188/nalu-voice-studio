@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "db83812057a9823ae5076a9a0355d795d14225be",
-  "last_advanced_at": "2026-09-06T18:55:21Z",
+  "observed_head": "5a1994551e2c237a20d6b37e52959a2c65ce7ce0",
+  "last_advanced_at": "2026-09-06T19:04:08Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -30,7 +30,7 @@
   "next_action": {
     "sop": "SOP-02",
     "id": "verify-async-deletion-isolation-and-first-open-credential-state",
-    "summary": "Finish observing CI 34053223425, then push diagnostic timeout follow-up and verify its CI and exact native artifact: five-second error, re-enabled check control, duplicate saved-key read suppression, no late provider request. Current 83373 binary is pre-timeout and stuck; replace only with verified new artifact, preserving tmp.gEDfvkaLEc data/port 18769. Then fix first-open badge freshness. Keep provider Realtime capability and all signed-candidate/human QA gates open; no silent model substitution.",
+    "summary": "CI 34053223425 passed. CI 34053634282 is live for pushed 5a19945; arm64 Swift tests passed, artifact pending. Local runtime 312 tests passed. Obtain exact artifact for five-second timeout/re-enabled button/duplicate suppression native QA, replacing only owned process 83373 and preserving tmp.gEDfvkaLEc data/port 18769. Follow-up live badge Bindings and success-reader gate ordering are locally implemented, require commit/push after current CI completes and their own verification. Provider Realtime capability and full signed-candidate/human QA remain open; no model substitution.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
