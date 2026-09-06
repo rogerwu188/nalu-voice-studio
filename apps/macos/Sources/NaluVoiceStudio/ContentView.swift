@@ -206,61 +206,53 @@ struct ContentView: View {
                 .padding(.vertical, 5)
             }
             .accessibilityIdentifier(NaluPrimaryAccessibilityID.projectList)
-            Toggle("显示已归档项目", isOn: archivedProjectsBinding)
-                .toggleStyle(.switch)
-                .padding(.horizontal, 18)
-            HStack(spacing: 10) {
-                Button("改名", systemImage: "pencil", action: presentRename)
-                    .disabled(selectedProject == nil)
-                Button("备份", systemImage: "square.and.arrow.up", action: exportProject)
-                    .disabled(selectedProject == nil || isSavingProject)
-                    .accessibilityIdentifier(NaluPrimaryAccessibilityID.projectBackup)
-                Button("恢复", systemImage: "square.and.arrow.down") {
-                    presentProjectRestore()
-                }
-                .accessibilityIdentifier(NaluPrimaryAccessibilityID.projectRestore)
-            }
-            .controlSize(.large)
-            .padding(.horizontal, 18)
-            Button("隐私包", systemImage: "lock.doc", action: exportPrivacy)
-                .controlSize(.large)
-                .padding(.horizontal, 18)
-                .disabled(selectedProject == nil || isSavingPrivacy)
-            Button("模型密钥", systemImage: "key") {
-                presentProviderCredentials()
-            }
-            .controlSize(.large)
-            .padding(.horizontal, 18)
-            Button("告诉 Nalu 哪里不好用", systemImage: "bubble.left.and.exclamationmark.bubble.right") {
-                isPresentingFeedback = true
-            }
-            .controlSize(.large)
-            .padding(.horizontal, 18)
-            HStack {
-                Button("字大一点", systemImage: "textformat.size.larger") {
-                    model.makeTextLarger()
-                }
-                Button("恢复字号", systemImage: "arrow.counterclockwise") {
-                    model.resetComfortPreferences()
-                }
-            }
-            .controlSize(.large)
-            .padding(.horizontal, 18)
-            if let project = selectedProject {
-                Button(
-                    project.archivedAt == nil ? "归档这个项目" : "移回项目列表",
-                    systemImage: project.archivedAt == nil ? "archivebox" : "tray.and.arrow.up"
-                ) {
-                    Task { await model.setSelectedProjectArchived(project.archivedAt == nil) }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    Toggle("显示已归档项目", isOn: archivedProjectsBinding)
+                        .toggleStyle(.switch)
+                    ViewThatFits(in: .horizontal) {
+                        HStack(spacing: 10) {
+                            projectTransferButtons
+                        }
+                        VStack(alignment: .leading, spacing: 10) {
+                            projectTransferButtons
+                        }
+                    }
+                    Button("隐私包", systemImage: "lock.doc", action: exportPrivacy)
+                        .disabled(selectedProject == nil || isSavingPrivacy)
+                    Button("模型密钥", systemImage: "key") {
+                        presentProviderCredentials()
+                    }
+                    Button("告诉 Nalu 哪里不好用", systemImage: "bubble.left.and.exclamationmark.bubble.right") {
+                        isPresentingFeedback = true
+                    }
+                    ViewThatFits(in: .horizontal) {
+                        HStack(spacing: 10) {
+                            comfortButtons
+                        }
+                        VStack(alignment: .leading, spacing: 10) {
+                            comfortButtons
+                        }
+                    }
+                    if let project = selectedProject {
+                        Button(
+                            project.archivedAt == nil ? "归档这个项目" : "移回项目列表",
+                            systemImage: project.archivedAt == nil ? "archivebox" : "tray.and.arrow.up"
+                        ) {
+                            Task { await model.setSelectedProjectArchived(project.archivedAt == nil) }
+                        }
+                        Button("彻底删除这个项目", systemImage: "trash", role: .destructive) {
+                            prepareProjectDeletion()
+                        }
+                    }
                 }
                 .controlSize(.large)
                 .padding(.horizontal, 18)
-                Button("彻底删除这个项目", systemImage: "trash", role: .destructive) {
-                    prepareProjectDeletion()
-                }
-                .controlSize(.large)
-                .padding(.horizontal, 18)
+                .padding(.vertical, 4)
             }
+            .frame(maxHeight: 320)
+            .accessibilityIdentifier("nalu.projects.secondary-actions")
+            Divider()
             Button(action: beginProject) {
                 Label("创建新项目", systemImage: "plus.circle.fill")
                     .frame(maxWidth: .infinity)
@@ -317,12 +309,15 @@ struct ContentView: View {
             }
             .padding(24)
             Divider()
-            RealtimeWebRTCContainer(coordinator: realtimeVoice)
-                .frame(width: 1, height: 1)
-                .opacity(0.01)
-                .accessibilityHidden(true)
-            if realtimeVoice.state != .off {
-                HStack(spacing: 12) {
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(spacing: 0) {
+                        RealtimeWebRTCContainer(coordinator: realtimeVoice)
+                            .frame(width: 1, height: 1)
+                            .opacity(0.01)
+                            .accessibilityHidden(true)
+                        if realtimeVoice.state != .off {
+                            HStack(spacing: 12) {
                     if realtimeVoice.state.isActive {
                         ProgressView()
                             .controlSize(.small)
@@ -355,9 +350,9 @@ struct ContentView: View {
                 .padding(.horizontal, 24)
                 .padding(.vertical, 10)
                 .background(Color.purple.opacity(0.07))
-                Divider()
-            }
-            if let progress = selectedEpisodeProgress {
+                            Divider()
+                        }
+                        if let progress = selectedEpisodeProgress {
                 ProductionProgressStatusView(
                     progress: progress,
                     lastRefreshedAt: model.productionProgressLastRefreshedAt,
@@ -379,9 +374,9 @@ struct ContentView: View {
                 )
                 .padding(.horizontal, 24)
                 .padding(.vertical, 12)
-                Divider()
-            }
-            if selectedProject != nil {
+                            Divider()
+                        }
+                        if selectedProject != nil {
                 PublicationLearningView(
                     items: model.publicationLearning,
                     isLoading: model.publicationLearningIsLoading,
@@ -391,9 +386,9 @@ struct ContentView: View {
                 )
                 .padding(.horizontal, 24)
                 .padding(.vertical, 12)
-                Divider()
-            }
-            if selectedProject != nil {
+                            Divider()
+                        }
+                        if selectedProject != nil {
                 Button {
                     beginAutomaticAssetImport()
                 } label: {
@@ -420,9 +415,9 @@ struct ContentView: View {
                 .accessibilityIdentifier(NaluPrimaryAccessibilityID.assetImportCard)
                 .padding(.horizontal, 24)
                 .padding(.vertical, 12)
-                Divider()
-            }
-            if selectedProject != nil {
+                            Divider()
+                        }
+                        if selectedProject != nil {
                 DisclosureGroup(
                     "项目人物、场景、道具和声音",
                     isExpanded: $isLibraryEditorExpanded
@@ -434,9 +429,9 @@ struct ContentView: View {
                 .padding(.horizontal, 24)
                 .padding(.vertical, 14)
                 .background(Color.secondary.opacity(0.04))
-                Divider()
-            }
-            if !model.episodes.isEmpty {
+                            Divider()
+                        }
+                        if !model.episodes.isEmpty {
                 ScrollView(.horizontal) {
                     HStack(spacing: 10) {
                         ForEach(model.episodes) { episode in
@@ -463,15 +458,13 @@ struct ContentView: View {
                     .padding(.horizontal, 24)
                     .padding(.vertical, 12)
                 }
-                Divider()
-            }
-            if !model.seasons.isEmpty {
-                planningEditor
-                Divider()
-            }
-            ScrollViewReader { proxy in
-                ScrollView {
-                    LazyVStack(spacing: 18) {
+                            Divider()
+                        }
+                        if !model.seasons.isEmpty {
+                            planningEditor
+                            Divider()
+                        }
+                        LazyVStack(spacing: 18) {
                         ForEach(model.messages) { message in
                             bubble(message)
                         }
@@ -496,7 +489,8 @@ struct ContentView: View {
                         }
                         Color.clear.frame(height: 1).id("conversation-bottom")
                     }
-                    .padding(28)
+                        .padding(28)
+                    }
                 }
                 .onChange(of: model.messages.count) {
                     withAnimation { proxy.scrollTo("conversation-bottom", anchor: .bottom) }
@@ -508,6 +502,7 @@ struct ContentView: View {
                 }
                 .accessibilityIdentifier("nalu.conversation.scroll")
             }
+            Divider()
             if let planningVoiceLabel = model.planningVoiceLabel {
                 Label("当前语音任务：\(planningVoiceLabel)", systemImage: "waveform.badge.mic")
                     .font(.headline)
@@ -527,7 +522,9 @@ struct ContentView: View {
             }
             .buttonStyle(.borderedProminent)
             .tint(model.isListening ? .red : .blue)
-            .padding(24)
+            .padding(.horizontal, 24)
+            .padding(.bottom, 24)
+            .padding(.top, 12)
             .disabled(realtimeVoice.state.isActive)
             .accessibilityIdentifier(NaluPrimaryAccessibilityID.microphoneToggle)
         }
@@ -535,6 +532,29 @@ struct ContentView: View {
             Button("知道了", role: .cancel) { model.errorMessage = nil }
         } message: {
             Text(model.errorMessage ?? "")
+        }
+    }
+
+    @ViewBuilder
+    private var projectTransferButtons: some View {
+        Button("改名", systemImage: "pencil", action: presentRename)
+            .disabled(selectedProject == nil)
+        Button("备份", systemImage: "square.and.arrow.up", action: exportProject)
+            .disabled(selectedProject == nil || isSavingProject)
+            .accessibilityIdentifier(NaluPrimaryAccessibilityID.projectBackup)
+        Button("恢复", systemImage: "square.and.arrow.down") {
+            presentProjectRestore()
+        }
+        .accessibilityIdentifier(NaluPrimaryAccessibilityID.projectRestore)
+    }
+
+    @ViewBuilder
+    private var comfortButtons: some View {
+        Button("字大一点", systemImage: "textformat.size.larger") {
+            model.makeTextLarger()
+        }
+        Button("恢复字号", systemImage: "arrow.counterclockwise") {
+            model.resetComfortPreferences()
         }
     }
 
