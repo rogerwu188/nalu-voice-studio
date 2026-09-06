@@ -24,8 +24,23 @@ class DialogueCutSafetyTest(unittest.TestCase):
             [unit], maximum_duration=15, minimum_tail_handle=0.6
         )
         result = allocate_dialogue_safe_integer_durations(rows)
-        self.assertGreaterEqual(result["VU-LONG"], 9)
+        self.assertEqual(result["VU-LONG"], 8)
         self.assertGreaterEqual(rows[0]["outgoing_transition_contract"]["outgoing_handle_seconds"], 0.6)
+
+    def test_explicit_dramatic_pause_is_the_only_floating_runtime_padding(self):
+        unit = {
+            "unit_id": "VU-PAUSE", "duration_seconds": 12,
+            "explicit_dramatic_pause_seconds": 2,
+            "ordered_prompt_specs": [{
+                "dialogue": "甲：慢走。", "action": {"t0_seconds": 0, "t1_seconds": 12},
+            }],
+            "outgoing_transition_contract": {"outgoing_handle_seconds": 0.8},
+        }
+        result = allocate_dialogue_safe_integer_durations([unit])
+        minimum_without_pause = allocate_dialogue_safe_integer_durations([
+            {key: value for key, value in unit.items() if key != "explicit_dramatic_pause_seconds"}
+        ])["VU-PAUSE"]
+        self.assertEqual(result["VU-PAUSE"], minimum_without_pause + 2)
 
     def test_allocator_reserves_speech_and_bridge_handle(self):
         units = [
@@ -71,6 +86,26 @@ class DialogueCutSafetyTest(unittest.TestCase):
         rows = compile_dialogue_windows(unit)
         self.assertLess(rows[0]["end_seconds"] + rows[0]["safety_pad_seconds"], 5.01)
 
+    def test_director_declared_dialogue_rate_changes_estimate_without_dropping_tail(self):
+        raw = "甲：赌坊是个陷阱，密谍司没抓到人。"
+        self.assertLess(
+            estimated_spoken_seconds(raw, chinese_characters_per_second=5.8),
+            estimated_spoken_seconds(raw),
+        )
+        unit = {
+            "unit_id": "VU-RATE", "duration_seconds": 5,
+            "ordered_prompt_specs": [{
+                "dialogue": raw,
+                "dialogue_delivery": {"chinese_characters_per_second": 5.8},
+                "action": {"t0_seconds": 0, "t1_seconds": 5},
+            }],
+            "outgoing_transition_contract": {"outgoing_handle_seconds": 0.8},
+        }
+        rows = compile_dialogue_windows(unit)
+        self.assertEqual(rows[0]["chinese_characters_per_second"], 5.8)
+        self.assertLessEqual(rows[0]["end_seconds"] + rows[0]["safety_pad_seconds"], 4.2)
+
 
 if __name__ == "__main__":
     unittest.main()
+from tools.dialogue_cut_safety import estimated_spoken_seconds

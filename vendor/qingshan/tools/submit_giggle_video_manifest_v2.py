@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import fcntl
 import hashlib
 import importlib.util
 import json
@@ -11,12 +12,22 @@ import os
 import re
 import sys
 import time
+import tempfile
 import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
+# A deployed transport wrapper must validate with the exact project checkout
+# that produced the manifest.  Otherwise its bundled compiler can silently
+# disagree with a newly released project compiler.
+_project_root_hint = os.environ.get("BACKLOTOS_PROJECT_ROOT", "").strip()
+if _project_root_hint:
+    _project_root_path = Path(_project_root_hint).expanduser().resolve()
+    for _path in (str(_project_root_path / "tools"), str(_project_root_path)):
+        if _path not in sys.path:
+            sys.path.insert(0, _path)
 
 INSUFFICIENT_CREDIT_TERMS = (
     "insufficient credit", "insufficient credits", "insufficient balance",
@@ -29,45 +40,76 @@ class ProviderInsufficientCreditsError(RuntimeError):
     """The provider rejected submission because the account cannot fund it."""
 
 try:
-    from giggle_api_client import _image_list, _request
+    from giggle_api_client import _image_list, _request, paid_video_submission_context
     from giggle_credit_statements import fetch_pay_statements, reconcile_rows
     from video_model_adapter import require_paid_model_contract
     from retry_cap_gate import validate_submission_attempt
+    from role_semantic_prompt_gate import (
+        validate_role_semantics,
+        validate_role_semantics_structure,
+    )
     from grouped_camera_contract import validate_camera_plan, validate_camera_sequence
     from grouped_transition_contract import validate_transition_sequence
     from grouped_performance_contract import validate_grouped_beat_contract
     from grouped_internal_continuity_contract import validate_internal_transition_sequence
     from video_prompt_compiler import (
+        compile_model_prompt,
         validate_model_prompt_for_model,
         validate_transition_prompt_for_model,
     )
+    from production_efficiency_contract import DEFAULT_WAVE_SIZE, episode_number, require_e47_efficiency_contract
+    from speaker_voice_contract import POLICY_VERSION as SPEAKER_VOICE_POLICY_VERSION
+    from sd2_required_prompt_field_gate import validate_required_sd2_field_coverage
+    from video_sequence_rhythm_gate import validate_combat_sequence_rhythm
+    from opening_anchor_chain_gate import validate_opening_anchor_chain
+    from provider_scope_projection import validate_provider_scope_projection
 except ModuleNotFoundError:
-    from tools.giggle_api_client import _image_list, _request
+    from tools.giggle_api_client import _image_list, _request, paid_video_submission_context
     from tools.giggle_credit_statements import fetch_pay_statements, reconcile_rows
     from tools.video_model_adapter import require_paid_model_contract
     from tools.retry_cap_gate import validate_submission_attempt
+    from tools.role_semantic_prompt_gate import (
+        validate_role_semantics,
+        validate_role_semantics_structure,
+    )
     from tools.grouped_camera_contract import validate_camera_plan, validate_camera_sequence
     from tools.grouped_transition_contract import validate_transition_sequence
     from tools.grouped_performance_contract import validate_grouped_beat_contract
     from tools.grouped_internal_continuity_contract import validate_internal_transition_sequence
     from tools.video_prompt_compiler import (
+        compile_model_prompt,
         validate_model_prompt_for_model,
         validate_transition_prompt_for_model,
     )
+    from tools.production_efficiency_contract import DEFAULT_WAVE_SIZE, episode_number, require_e47_efficiency_contract
+    from tools.speaker_voice_contract import POLICY_VERSION as SPEAKER_VOICE_POLICY_VERSION
+    from tools.sd2_required_prompt_field_gate import validate_required_sd2_field_coverage
+    from tools.video_sequence_rhythm_gate import validate_combat_sequence_rhythm
+    from tools.opening_anchor_chain_gate import validate_opening_anchor_chain
+    from tools.provider_scope_projection import validate_provider_scope_projection
 
 
 ROOT = Path(__file__).resolve().parents[1]
+RUNTIME_GATE_IDS = frozenset({"WRITER-TO-PROVIDER-PROMPT-FIELD-LINEAGE"})
+RUNTIME_GATE_BINDINGS = {
+    "WRITER-TO-PROVIDER-PROMPT-FIELD-LINEAGE": "validate_required_sd2_field_coverage",
+}
+assert frozenset(RUNTIME_GATE_BINDINGS) == RUNTIME_GATE_IDS
 
 
 def authoritative_pipeline_tools_dir() -> Path:
-    """Resolve the deployed BacklotOS tools; never silently fall back to a local copy."""
+    """Resolve the versioned gate implementation shipped with this engine.
+
+    ``BACKLOT_PIPELINE_TOOLS_DIR`` remains a supported enterprise override,
+    but a clean clone is self-contained and defaults to its own tools folder.
+    """
     configured = os.environ.get("BACKLOT_PIPELINE_TOOLS_DIR", "").strip()
-    candidate = Path(configured).expanduser() if configured else Path.home() / ".local/share/backlotos/share/pipeline-tools"
+    candidate = Path(configured).expanduser() if configured else ROOT / "tools"
     required = candidate / "production_video_submission_gate.py"
     if not required.is_file():
         raise ValueError(
-            "Authoritative BacklotOS production gate is unavailable; run the BacklotOS deployment "
-            "or set BACKLOT_PIPELINE_TOOLS_DIR. Paid submission fails closed."
+            "Production video gate is unavailable; restore tools/production_video_submission_gate.py "
+            "or set BACKLOT_PIPELINE_TOOLS_DIR to a compatible audited deployment."
         )
     return candidate.resolve()
 
@@ -176,9 +218,17 @@ def utc_now() -> str:
 
 def atomic_json(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_suffix(path.suffix + ".part")
-    temporary.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    os.replace(temporary, path)
+    with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=path.parent,
+                                     prefix=path.name + ".", suffix=".part", delete=False) as handle:
+        temporary = Path(handle.name)
+        json.dump(payload, handle, ensure_ascii=False, indent=2)
+        handle.write("\n")
+        handle.flush()
+        os.fsync(handle.fileno())
+    try:
+        os.replace(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def provider_response_text(value: Any) -> str:
@@ -223,18 +273,35 @@ def task_fingerprint(task: dict[str, Any]) -> str:
         "reference_audio_urls": task.get("reference_audio_urls") or [],
         "exact_dialogue_audio_urls": task.get("exact_dialogue_audio_urls") or [],
         "dialogue_transport": task.get("dialogue_transport"),
+        "speaker_voice_contract": task.get("speaker_voice_contract")
+        or (task.get("machine_contract") or {}).get("speaker_voice_contract"),
+        "character_entities": task.get("character_entities")
+        or (task.get("machine_contract") or {}).get("character_entities"),
+        "visual_culture_contract": task.get("visual_culture_contract")
+        or (task.get("machine_contract") or {}).get("visual_culture_contract"),
         "model": task.get("model"),
         "duration": task.get("duration_seconds"),
         "aspect_ratio": task.get("aspect_ratio"),
         "resolution": task.get("resolution"),
+        "generation_audio_profile_id": task.get("generation_audio_profile_id"),
+        "audio_profile_binding": task.get("audio_profile_binding"),
         "incoming_transition_contract": (task.get("machine_contract") or {}).get("incoming_transition_contract")
         or task.get("incoming_transition_contract"),
         "outgoing_transition_contract": (task.get("machine_contract") or {}).get("outgoing_transition_contract")
         or task.get("outgoing_transition_contract"),
         "start_frame_semantic_contract": (task.get("machine_contract") or {}).get("start_frame_semantic_contract")
         or task.get("start_frame_semantic_contract"),
+        "opening_anchor_contract": (task.get("machine_contract") or {}).get("opening_anchor_contract")
+        or task.get("opening_anchor_contract"),
         "internal_transition_contracts": (task.get("machine_contract") or {}).get("internal_transition_contracts")
         or task.get("internal_transition_contracts")
+        or [],
+        "event_boundary_decision": (task.get("machine_contract") or {}).get("event_boundary_decision")
+        or task.get("event_boundary_decision"),
+        "persistent_state_contract": (task.get("machine_contract") or {}).get("persistent_state_contract")
+        or task.get("persistent_state_contract"),
+        "shot_state_contracts": (task.get("machine_contract") or {}).get("shot_state_contracts")
+        or task.get("shot_state_contracts")
         or [],
     }
     return hashlib.sha256(json.dumps(contract, sort_keys=True).encode("utf-8")).hexdigest()
@@ -243,6 +310,9 @@ def task_fingerprint(task: dict[str, Any]) -> str:
 def validate_grouped_creative_task(task: dict[str, Any], prompt_text: str) -> None:
     if not task.get("semantic_video_unit"):
         return
+    opening_failures = validate_opening_anchor_chain(task)
+    if opening_failures:
+        raise ValueError(";".join(opening_failures))
     machine = task.get("machine_contract") or {}
     camera_plan = validate_camera_plan(
         machine.get("camera_plan") or task.get("camera_plan"), source_id=str(task.get("task_key"))
@@ -265,14 +335,39 @@ def validate_grouped_creative_task(task: dict[str, Any], prompt_text: str) -> No
     task["internal_transition_contracts"] = validate_internal_transition_sequence(internal_unit)
     prompt_unit = grouped_sequence_unit(task)
     prompt_unit["model"] = task.get("model")
+    prompt_unit["h3_prompt_profile"] = task.get("h3_prompt_profile")
     prompt_unit["duration_seconds"] = task.get("duration_seconds")
+    prompt_unit["resolution"] = task.get("resolution")
+    prompt_unit["aspect_ratio"] = task.get("aspect_ratio")
+    prompt_unit["character_entities"] = machine.get("character_entities") or task.get("character_entities")
+    prompt_unit["visual_culture_contract"] = machine.get("visual_culture_contract") or task.get("visual_culture_contract")
+    prompt_unit["speaker_voice_contract"] = machine.get("speaker_voice_contract") or task.get("speaker_voice_contract")
+    prompt_unit["provider_scope_projection"] = task.get("provider_scope_projection")
+    sequence_by_path = {
+        str(row.get("path") or ""): row
+        for row in task.get("reference_image_sequence") or []
+        if row.get("path") and str(row.get("entity_id") or "").startswith("CHAR-")
+    }
     prompt_unit["reference_images"] = [
-        {"path": path, "role": role}
+        {
+            **sequence_by_path.get(str(path), {}),
+            "path": path,
+            "role": role,
+        }
         for path, role in zip(
             task.get("reference_images") or [],
             task.get("reference_roles") or ["SEMANTIC_REFERENCE"] * len(task.get("reference_images") or []),
         )
     ]
+    expected_prompt = compile_model_prompt(prompt_unit)
+    if prompt_text != expected_prompt:
+        raise ValueError(
+            f"{task.get('task_key')} provider prompt is not the exact output of the current "
+            f"{task.get('model')} compiler"
+        )
+    scope_report = validate_provider_scope_projection(task, prompt_text=prompt_text, model=str(task.get("model") or ""))
+    if scope_report.get("status") == "FAIL":
+        raise ValueError(";".join(scope_report.get("failures") or []))
     prompt_report = validate_model_prompt_for_model(
         prompt_text,
         model=task.get("model"),
@@ -310,8 +405,49 @@ def grouped_sequence_unit(task: dict[str, Any]) -> dict[str, Any]:
     machine = task.get("machine_contract") or {}
     return {
         "unit_id": task.get("unit_id") or task.get("task_key"),
+        # Shared execution-plan recompilation at the final paid boundary is
+        # model-aware.  Keep transport identity in this projection; otherwise
+        # the compact SD2/H3 coverage gate sees an empty model and fails for
+        # the wrong reason after the exact compiler has already passed.
+        "model": task.get("model") or machine.get("model"),
+        "resolution": task.get("resolution") or machine.get("resolution"),
+        "aspect_ratio": task.get("aspect_ratio") or machine.get("aspect_ratio"),
+        # Dialogue-safe window recompilation is duration dependent.  Dropping
+        # this field at the final paid boundary turns a real dialogue unit into
+        # a false "no dialogue" result and can either block a valid task or,
+        # worse, bypass the exact safe-cut contract.
+        "duration_seconds": task.get("duration_seconds")
+        or machine.get("duration_seconds"),
+        # Shared Action-IR duration authority must survive the paid-boundary
+        # task projection.  Falling back to source beat spans alone can turn a
+        # valid provider integer duration plus its authorized tail handle into
+        # a false DURATION_EXCEEDS_AUTHORIZED_CONTENT rejection.
+        "source_duration_seconds": task.get("source_duration_seconds")
+        or machine.get("source_duration_seconds"),
+        "authorized_content_seconds": task.get("authorized_content_seconds")
+        or machine.get("authorized_content_seconds"),
+        "authorized_tail_handle_seconds": task.get("authorized_tail_handle_seconds")
+        if task.get("authorized_tail_handle_seconds") is not None
+        else machine.get("authorized_tail_handle_seconds"),
+        "h3_prompt_profile": task.get("h3_prompt_profile"),
         "scene_id": task.get("scene_id") or machine.get("scene_id"),
+        "scene_first_unit": machine.get("scene_first_unit")
+        if "scene_first_unit" in machine else task.get("scene_first_unit"),
+        "opening_anchor_contract": machine.get("opening_anchor_contract")
+        or task.get("opening_anchor_contract"),
+        "event_boundary_decision": machine.get("event_boundary_decision")
+        or task.get("event_boundary_decision"),
+        "persistent_state_contract": machine.get("persistent_state_contract")
+        or task.get("persistent_state_contract"),
+        "shot_state_contracts": machine.get("shot_state_contracts")
+        or task.get("shot_state_contracts")
+        or [],
+        "continuity_event_contract_required": machine.get("continuity_event_contract_required")
+        if "continuity_event_contract_required" in machine
+        else task.get("continuity_event_contract_required"),
         "wardrobe_contract": machine.get("wardrobe_contract") or task.get("wardrobe_contract"),
+        "speaker_voice_contract": machine.get("speaker_voice_contract")
+        or task.get("speaker_voice_contract"),
         "dialogue_cut_safety": machine.get("dialogue_cut_safety") or task.get("dialogue_cut_safety"),
         "pose_transition_anchor_gate": machine.get("pose_transition_anchor_gate")
         or task.get("pose_transition_anchor_gate"),
@@ -327,10 +463,59 @@ def grouped_sequence_unit(task: dict[str, Any]) -> dict[str, Any]:
         or task.get("incoming_transition_contract"),
         "outgoing_transition_contract": machine.get("outgoing_transition_contract")
         or task.get("outgoing_transition_contract"),
+        "action_classification": machine.get("action_classification")
+        or task.get("action_classification"),
+        "combat_or_chase": machine.get("combat_or_chase")
+        if "combat_or_chase" in machine else task.get("combat_or_chase"),
+        "fight_or_chase": machine.get("fight_or_chase")
+        if "fight_or_chase" in machine else task.get("fight_or_chase"),
+        "combat_classification_override": machine.get("combat_classification_override")
+        or task.get("combat_classification_override"),
+        "combat_source_authority": machine.get("combat_source_authority")
+        or task.get("combat_source_authority"),
+        "combat_choreography_contract": machine.get("combat_choreography_contract")
+        or task.get("combat_choreography_contract"),
+        "combat_action_library_binding": machine.get("combat_action_library_binding")
+        or task.get("combat_action_library_binding"),
+        "interaction_topology_contract": machine.get("interaction_topology_contract")
+        or task.get("interaction_topology_contract"),
+        "performance_tempo_contract": machine.get("performance_tempo_contract")
+        or task.get("performance_tempo_contract"),
+        "h3_provider_english_contract": machine.get("h3_provider_english_contract")
+        or task.get("h3_provider_english_contract"),
+        "reference_exclusion_recomposition_rule": machine.get("reference_exclusion_recomposition_rule")
+        or task.get("reference_exclusion_recomposition_rule"),
+        "reference_images": task.get("reference_images") or [],
+        "start_frame_semantic_contract": machine.get("start_frame_semantic_contract")
+        or task.get("start_frame_semantic_contract"),
+        "background_ecology_contract": machine.get("background_ecology_contract")
+        or task.get("background_ecology_contract"),
+        "weather_visibility_contract": machine.get("weather_visibility_contract")
+        or task.get("weather_visibility_contract"),
+        "native_audio_contract": machine.get("native_audio_contract")
+        or task.get("native_audio_contract"),
+        "h3_ref2va_contract": machine.get("h3_ref2va_contract")
+        or task.get("h3_ref2va_contract"),
     }
 
 
+def uses_structured_role_gate(task: dict[str, Any], prompt_text: str) -> bool:
+    """Return true for compiler-native prompts that intentionally omit role dumps."""
+    shared_ir_prompt = (
+        "【任务】" in prompt_text and "【时间轴】" in prompt_text
+    ) or (
+        "subject_definitions:" in prompt_text and "retention_analysis:" in prompt_text
+    )
+    official_h3_ref2va = (
+        str(task.get("model") or "").lower() in {"minimax-h3", "h3"}
+        and task.get("h3_prompt_profile") == "H3_OFFICIAL_REF2VA_V1"
+    )
+    return shared_ir_prompt or official_h3_ref2va
+
+
 def transaction_path(transaction_dir: Path, task: dict[str, Any]) -> Path:
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*", str(task.get("task_key") or "")):
+        raise ValueError("task_key must be a portable identifier, not a path")
     return transaction_dir / f"{task['task_key']}__{task_fingerprint(task)[:16]}.json"
 
 
@@ -343,7 +528,96 @@ def validate_task(task: dict[str, Any]) -> None:
     if not prompt.is_file() or sha256(prompt) != task["prompt_sha256"]:
         raise ValueError(f"{task['task_key']} prompt SHA mismatch")
     prompt_text = prompt.read_text(encoding="utf-8")
+    # Shared-IR provider prompts deliberately do not serialize the legacy
+    # ROLE_LOCK/schema dump.  Character disambiguation remains fail-closed in
+    # the structured graph, and the exact current compiler plus its rendered
+    # semantic-coverage receipt are checked below.  Requiring the old prose
+    # block here would contradict the provider-boundary contract and force
+    # internal machine text back into both SD2 and H3 prompts.
+    role_failures = (
+        validate_role_semantics_structure(task)
+        if uses_structured_role_gate(task, prompt_text)
+        else validate_role_semantics(task, prompt_text)
+    )
+    if role_failures:
+        raise ValueError(
+            f"{task['task_key']} character-role ambiguity gate failed: "
+            + ",".join(role_failures)
+        )
+    if task.get("native_dialogue_required") is True and str(task.get("model") or "") in {
+        "MiniMax-H3", "minimax-h3", "h3", "seedance-2.0-pro"
+    }:
+        voice_contract = task.get("speaker_voice_contract") or (
+            task.get("machine_contract") or {}
+        ).get("speaker_voice_contract") or {}
+        if voice_contract.get("schema") != SPEAKER_VOICE_POLICY_VERSION or voice_contract.get("status") != "PASS":
+            raise ValueError(f"{task['task_key']} missing PASS canonical speaker_voice_contract")
+        expected_speakers = []
+        for row in task.get("dialogue") or []:
+            speaker = str(row.get("speaker") or "").strip()
+            if speaker and speaker not in expected_speakers:
+                expected_speakers.append(speaker)
+        bindings = voice_contract.get("bindings") or []
+        if [str(row.get("speaker") or "") for row in bindings] != expected_speakers:
+            raise ValueError(f"{task['task_key']} speaker_voice_contract dialogue coverage mismatch")
+        english_machine_rescue = task.get("h3_prompt_profile") in {
+            "H3_ENGLISH_MACHINE_AUDIO_RESCUE_V1", "H3_OFFICIAL_REF2VA_V1",
+            "H3_POSITIVE_SINGLE_SUBJECT_V1", "H3_TIGHT_POV_SINGLE_SUBJECT_V1",
+        }
+        for row in bindings:
+            slot = str(row.get("audio_slot") or "")
+            if not slot:
+                raise ValueError(f"{task['task_key']} canonical speaker audio slot missing")
+            # H3's last-attempt English-machine rescue intentionally removes
+            # canonical Chinese names and verbose voice-slot prose from the
+            # provider prompt because H3 may vocalize them.  Voice identity is
+            # still transported by the bound reference audio URLs, while the
+            # provider-facing prompt uses opaque entity tokens plus exact
+            # <d>[Chinese] dialogue literals.
+            if not english_machine_rescue and slot not in prompt_text:
+                raise ValueError(f"{task['task_key']} canonical speaker audio slot missing from prompt")
+        if english_machine_rescue:
+            if not task.get("provider_entity_token_map"):
+                raise ValueError(f"{task['task_key']} English rescue lacks provider entity token map")
+            outside_dialogue = re.sub(r"<d>\[Chinese\].*?</d>", "", prompt_text, flags=re.DOTALL)
+            if re.search(r"[\u3400-\u9fff]", outside_dialogue):
+                raise ValueError(f"{task['task_key']} English rescue exposes CJK outside dialogue")
+        if str(task.get("model") or "").lower() in {"minimax-h3", "h3"}:
+            expected_transport = [str(row.get("voice_reference_url") or "") for row in bindings]
+            if expected_transport != list(task.get("reference_audio_urls") or []):
+                raise ValueError(f"{task['task_key']} H3 speaker voice URL transport mismatch")
+        else:
+            expected_transport = [str(row.get("voice_reference_asset_id") or "") for row in bindings]
+            if expected_transport != list(task.get("reference_audio_asset_ids") or []):
+                raise ValueError(f"{task['task_key']} SD2 speaker voice asset transport mismatch")
     validate_grouped_creative_task(task, prompt_text)
+    # Final paid-submission boundary: SD2 required fields must survive all the
+    # way from the writer contract into the exact provider-facing prompt.
+    # Earlier compiler/QA reports are evidence, not an authorization bypass.
+    if str(task.get("model") or "").strip().lower() == "seedance-2.0-pro":
+        coverage = validate_required_sd2_field_coverage(
+            grouped_sequence_unit(task), prompt_text
+        )
+        if coverage.get("status") != "PASS":
+            raise ValueError(
+                f"{task['task_key']} SD2 required prompt fields failed at paid boundary: "
+                + ",".join(coverage.get("failures") or [])
+            )
+        episode_value = episode_number(task.get("episode"))
+        if episode_value is not None and episode_value >= 50:
+            binding = task.get("audio_profile_binding")
+            profile_id = str(task.get("generation_audio_profile_id") or "")
+            if not isinstance(binding, dict) or binding.get("automatic") is not True:
+                raise ValueError(f"{task['task_key']} missing automatic writer/director audio-profile binding")
+            if binding.get("resolved_audio_profile_id") != profile_id:
+                raise ValueError(f"{task['task_key']} audio-profile ID/binding mismatch")
+            allowed_profiles = {
+                "NATIVE_MULTIMODAL_NO_EXTERNAL_BGM",
+                "NATIVE_MULTIMODAL_SELECTIVE_BGM",
+                "LAYERED_POST_WITH_BGM",
+            }
+            if profile_id not in allowed_profiles:
+                raise ValueError(f"{task['task_key']} unsupported generation audio profile: {profile_id}")
     references = [resolve(value) for value in task["reference_images"]]
     if len(references) != len(task["reference_sha256"]):
         raise ValueError(f"{task['task_key']} reference count/SHA count mismatch")
@@ -390,7 +664,8 @@ def validate_task(task: dict[str, Any]) -> None:
         minimum_duration = 3
     else:
         raise ValueError(f"{task['task_key']} has no deployed prompt/submission adapter for model {model}")
-    if not minimum_duration <= int(task.get("duration_seconds", 0)) <= 15:
+    duration = task.get("duration_seconds")
+    if type(duration) is not int or not minimum_duration <= duration <= 15:
         raise ValueError(f"{task['task_key']} duration outside {minimum_duration}-15 seconds")
     if task.get("action_unit"):
         tempo = task.get("performance_tempo_contract") or {}
@@ -414,6 +689,11 @@ def prior_bound(task: dict[str, Any], transaction_dir: Path) -> dict[str, Any] |
     if row.get("submission_fingerprint") != task_fingerprint(task):
         raise RuntimeError(f"{task['task_key']} transaction fingerprint mismatch")
     if row.get("state") == "SUBMITTED_TASK_ID_BOUND" and row.get("task_id"):
+        # Recover a failed secondary receipt write without another paid POST.
+        if row.get("receipt") and row.get("provider_response"):
+            receipt = resolve(row["receipt"])
+            if not receipt.is_file():
+                atomic_json(receipt, row["provider_response"])
         return {
             "task_key": task["task_key"], "task_id": row["task_id"], "state": "remote_running",
             "receipt": row.get("receipt"), "transaction": portable(path), "recovered_from_transaction": True,
@@ -427,6 +707,13 @@ def submit_one(task: dict[str, Any], receipt_dir: Path, transaction_dir: Path) -
     prior = prior_bound(task, transaction_dir)
     if prior:
         return prior
+    if sha256(resolve(task["prompt_file"])) != task["prompt_sha256"]:
+        raise ValueError(f"{task['task_key']} prompt changed while waiting for submission")
+    if len(task["reference_images"]) != len(task["reference_sha256"]):
+        raise ValueError("reference count/SHA count mismatch at submission")
+    for reference, expected in zip(task["reference_images"], task["reference_sha256"]):
+        if sha256(resolve(reference)) != expected:
+            raise ValueError(f"{task['task_key']} reference changed while waiting for submission")
     transaction = transaction_path(transaction_dir, task)
     intent = {
         "schema": "qingshan.giggle_video_submit_transaction.v1",
@@ -452,12 +739,15 @@ def submit_one(task: dict[str, Any], receipt_dir: Path, transaction_dir: Path) -
         *(task.get("exact_dialogue_audio_urls") or []),
         *(task.get("reference_audio_urls") or []),
     ]
+    if str(task.get("model") or "").lower() in {"minimax-h3", "h3"} and audio_asset_ids:
+        raise ValueError("MiniMax-H3 requires URL audio references; asset IDs are not valid transport")
     if audio_asset_ids:
         payload["audios"] = [{"asset_id": value} for value in audio_asset_ids]
     elif audio_urls:
         payload["audios"] = [{"url": value} for value in audio_urls]
     try:
-        response = _request("/api/v1/generation/omni-video", payload)
+        with paid_video_submission_context():
+            response = _request("/api/v1/generation/omni-video", payload)
     except (Exception, SystemExit) as exc:
         intent.update({"state": "RESPONSE_LOST_PENDING_LEDGER_RECONCILIATION", "response_lost_at": utc_now(), "error": str(exc)})
         atomic_json(transaction, intent)
@@ -482,9 +772,9 @@ def submit_one(task: dict[str, Any], receipt_dir: Path, transaction_dir: Path) -
             )
         raise RuntimeError(f"response missing task_id: {json.dumps(response, ensure_ascii=False)}")
     receipt = receipt_dir / f"{task['task_key']}_submit_receipt.json"
-    atomic_json(receipt, response)
-    intent.update({"state": "SUBMITTED_TASK_ID_BOUND", "task_id": str(task_id), "receipt": portable(receipt), "response_recorded_at": utc_now()})
+    intent.update({"state": "SUBMITTED_TASK_ID_BOUND", "task_id": str(task_id), "receipt": portable(receipt), "provider_response": response, "response_recorded_at": utc_now()})
     atomic_json(transaction, intent)
+    atomic_json(receipt, response)
     return {
         **task, "task_id": str(task_id), "state": "remote_running", "submitted_at": utc_now(),
         "receipt": portable(receipt), "transaction": portable(transaction), "recovered_from_transaction": False,
@@ -492,49 +782,58 @@ def submit_one(task: dict[str, Any], receipt_dir: Path, transaction_dir: Path) -
     }
 
 
-# The in-project implementation above is retained only so historical tests and
-# receipts remain readable.  It used Omni images[] for every visual reference
-# and must never perform another paid submission.  The CLI below always execs
-# the deployed BacklotOS submitter; any direct import-based submit attempt fails
-# closed instead of bypassing deployed transport policy.
+# The repository owns the standard multi-reference transport. An enterprise
+# deployment may still wrap or replace this entrypoint through an explicit
+# BACKLOT_PIPELINE_TOOLS_DIR, but clean-clone operation never depends on a
+# hidden machine-local copy.
 _legacy_submit_one_for_audit_only = submit_one
 
 
 def submit_one(task: dict[str, Any], receipt_dir: Path, transaction_dir: Path) -> dict[str, Any]:
-    raise RuntimeError(
-        "LOCAL_LEGACY_VIDEO_SUBMIT_DISABLED: invoke the deployed BacklotOS "
-        "submit_giggle_video_manifest_v2.py entrypoint"
-    )
+    transaction = transaction_path(transaction_dir, task)
+    transaction.parent.mkdir(parents=True, exist_ok=True)
+    # Keep the lock inode: unlinking it can let a third worker bypass a waiter.
+    with transaction.with_suffix(".lock").open("a") as handle:
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+        return _legacy_submit_one_for_audit_only(task, receipt_dir, transaction_dir)
 
 
 def classify_failures(failures: list[dict[str, Any]], known: int, matched: int, transaction_dir: Path) -> str:
     extra = matched - known
     if not failures:
         return "NO_AMBIGUOUS_SUBMISSIONS"
-    if extra == 0:
-        state, summary = "VERIFIED_ZERO_RETRYABLE", "ALL_RESPONSE_LOSSES_VERIFIED_ZERO"
-    elif len(failures) == 1 and extra == 1:
+    if len(failures) == 1 and extra == 1:
         state, summary = "CHARGED_TASK_ID_MISSING", "RECOVER_ONE_TASK_ID_FROM_PROVIDER_HISTORY"
     else:
         state, summary = "CHARGE_STATE_UNRESOLVED_BATCH", "QUARANTINE_AMBIGUOUS_TASKS_ONLY"
     for failure in failures:
         path = resolve(failure["transaction"])
         row = json.loads(path.read_text(encoding="utf-8"))
-        row.update({"state": state, "ledger_reconciled_at": utc_now(), "batch_known_task_ids": known, "batch_ledger_pay_rows": matched, "retry_guard": "RETRY_ALLOWED" if state == "VERIFIED_ZERO_RETRYABLE" else "DO_NOT_RESUBMIT_RECOVER_TASK_ID"})
+        if row.get("state") == "SUBMITTED_TASK_ID_BOUND" and row.get("task_id"):
+            failure["task_id"] = row["task_id"]
+            failure["credit_status"] = "BOUND_TASK_RECEIPT_RECOVERY_REQUIRED"
+            continue
+        # Aggregate absence is not per-attempt zero-charge evidence: ledgers can lag.
+        row.update({"state": state, "ledger_reconciled_at": utc_now(), "batch_known_task_ids": known, "batch_ledger_pay_rows": matched, "retry_guard": "DO_NOT_RESUBMIT_RECOVER_TASK_ID"})
         atomic_json(path, row)
         failure["credit_status"] = state
     return summary
 
 
 def main() -> int:
+    global ROOT
     parser = argparse.ArgumentParser()
+    parser.add_argument("--project-root")
     parser.add_argument("--manifest", required=True)
     parser.add_argument("--out", required=True)
     parser.add_argument("--concurrency", type=int, default=4)
     parser.add_argument("--precheck-only", action="store_true")
     args = parser.parse_args()
+    if args.project_root:
+        ROOT = Path(args.project_root).expanduser().resolve()
     manifest_path = resolve(args.manifest)
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    efficiency_gate = require_e47_efficiency_contract(manifest)
     authoritative_gate = run_authoritative_submission_gate(manifest, manifest_path)
     gates = [validate_gate(value) for value in manifest.get("machine_gate_reports") or []]
     tasks = manifest.get("tasks") or []
@@ -545,14 +844,18 @@ def main() -> int:
         validate_task(task)
         if task.get("semantic_video_unit"):
             grouped_camera_units.append(grouped_sequence_unit(task))
-    if not manifest.get("partial_repair_scope"):
+    skip_cross_task_sequence = bool(manifest.get("partial_repair_scope") or manifest.get("staged_generation_scope"))
+    if not skip_cross_task_sequence:
         validate_camera_sequence(grouped_camera_units)
     # A scoped repair batch may contain non-adjacent units from the full
     # episode.  Each unit still validates its own inbound/outbound prompt
     # binding above, but the subset must not be mistaken for a new contiguous
     # episode whose first/last units have no external neighbors.
-    if not manifest.get("partial_repair_scope"):
+    if not skip_cross_task_sequence:
         validate_transition_sequence(grouped_camera_units, require_prompt_specs=True)
+        rhythm = validate_combat_sequence_rhythm(grouped_camera_units)
+        if rhythm["status"] != "PASS":
+            raise ValueError("Combat sequence rhythm gate failed: " + ",".join(rhythm["failures"]))
     if not args.precheck_only and not os.environ.get("GIGGLE_API_KEY", "").strip():
         raise SystemExit("GIGGLE_API_KEY is not set")
     out = resolve(args.out)
@@ -611,6 +914,7 @@ def main() -> int:
         "manifest": portable(manifest_path), "manifest_sha256": sha256(manifest_path), "recorded_at": utc_now(),
         "precheck_only": args.precheck_only, "concurrency": max(1, args.concurrency), "machine_gates": gates,
         "authoritative_production_gate": authoritative_gate,
+        "production_efficiency_gate": efficiency_gate,
         "status": "PASS" if len(results) == len(tasks) and not failures and (args.precheck_only or (credit or {}).get("status") == "PASS_BOUNDED") else "FAIL",
         "submitted": sum(row.get("state") == "remote_running" for row in results),
         "precheck_pass": sum(row.get("state") == "precheck_pass" for row in results),
@@ -631,6 +935,7 @@ def exec_deployed_submitter() -> None:
         raise RuntimeError("--manifest is required") from exc
     manifest_path = resolve(manifest_value)
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    require_e47_efficiency_contract(manifest)
     if str(ROOT) not in sys.path:
         sys.path.insert(0, str(ROOT))
     from tools.action_video_prompt_compiler import validate_action_contract
@@ -663,17 +968,42 @@ def exec_deployed_submitter() -> None:
                 f"{task.get('task_key')} input completeness failed: "
                 f"{precheck.get('failure_code')} missing={','.join(missing)}"
             )
-    if not manifest.get("partial_repair_scope"):
+    # A scene-first wave is intentionally non-contiguous in episode order:
+    # every selected task is the first unit of a different scene.  Per-task
+    # prompt/transition contracts are still validated above, while adjacent
+    # list validation must wait for the complete materialized chain.
+    skip_cross_task_sequence = bool(
+        manifest.get("partial_repair_scope") or manifest.get("staged_generation_scope")
+    )
+    if not skip_cross_task_sequence:
         validate_camera_sequence(grouped_camera_units)
-    if not manifest.get("partial_repair_scope"):
+    if not skip_cross_task_sequence:
         validate_transition_sequence(grouped_camera_units, require_prompt_specs=True)
+        rhythm = validate_combat_sequence_rhythm(grouped_camera_units)
+        if rhythm["status"] != "PASS":
+            raise RuntimeError("Combat sequence rhythm gate failed: " + ",".join(rhythm["failures"]))
     deployed = authoritative_pipeline_tools_dir() / "submit_giggle_video_manifest_v2.py"
     if not deployed.is_file():
         raise RuntimeError("Deployed BacklotOS video submitter is unavailable")
     if "--project-root" not in forwarded:
         forwarded = ["--project-root", str(ROOT), *forwarded]
+    episode_value = episode_number(manifest.get("episode"))
+    if episode_value is not None and episode_value >= 47 and "--concurrency" in forwarded:
+        try:
+            concurrency = int(forwarded[forwarded.index("--concurrency") + 1])
+        except (ValueError, IndexError) as exc:
+            raise RuntimeError("--concurrency requires an integer from 1 to 6") from exc
+        if concurrency < 1 or concurrency > DEFAULT_WAVE_SIZE:
+            raise RuntimeError("E47+ rolling submission concurrency must be from 1 to 6")
+    elif episode_value is not None and episode_value >= 47:
+        forwarded.extend(["--concurrency", str(DEFAULT_WAVE_SIZE)])
+    os.environ["BACKLOTOS_DEPLOYED_SUBMITTER"] = "1"
+    os.environ["BACKLOTOS_PROJECT_ROOT"] = str(ROOT)
+    existing_pythonpath = os.environ.get("PYTHONPATH", "")
+    injected_paths = os.pathsep.join((str(ROOT / "tools"), str(ROOT)))
+    os.environ["PYTHONPATH"] = injected_paths + (os.pathsep + existing_pythonpath if existing_pythonpath else "")
     os.execv(sys.executable, [sys.executable, str(deployed), *forwarded])
 
 
 if __name__ == "__main__":
-    exec_deployed_submitter()
+    raise SystemExit(main())

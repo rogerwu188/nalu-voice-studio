@@ -4669,18 +4669,18 @@ def test_dry_run_writes_immutable_package(tmp_path: Path) -> None:
     gate_audit = json.loads(
         (workspace / "workflow" / "qingshan-gate-registry-audit.json").read_text(encoding="utf-8")
     )
-    assert gate_audit["status"] == "QUARANTINED_KNOWN_UPSTREAM_DEFECT"
-    assert gate_audit["gate_count"] == 68
-    assert gate_audit["coded_gate_count"] == gate_audit["runtime_bound_count"] == 65
-    assert len(gate_audit["known_failures"]) == 9
+    assert gate_audit["status"] == "PASS_INTEGRITY"
+    assert gate_audit["gate_count"] == 69
+    assert gate_audit["coded_gate_count"] == gate_audit["runtime_bound_count"] == 66
+    assert gate_audit["known_failures"] == []
     assert gate_audit["new_failures"] == []
     assert gate_audit["quarantine_binding_valid"] is True
     assert gate_audit["registered_tests_executed"] is False
-    assert gate_audit["paid_execution_allowed"] is False
+    assert gate_audit["paid_execution_allowed"] is True
     preflight = json.loads(
         package.with_name("qingshan-preflight-report.json").read_text(encoding="utf-8")
     )
-    assert preflight["gate_registry_status"] == ("QUARANTINED_KNOWN_UPSTREAM_DEFECT")
+    assert preflight["gate_registry_status"] == "PASS_INTEGRITY"
 
 
 def test_visual_analyzer_inputs_bind_confirmed_character_reference(tmp_path: Path) -> None:
@@ -5228,10 +5228,10 @@ def test_production_run_idempotency_and_paid_key_requirement(tmp_path: Path) -> 
     assert paid.status_code == 409
     assert "Idempotency-Key" in paid.json()["detail"]
 
-    quarantined_api = client(tmp_path / "paid-quarantine")
-    _, _, quarantined_episode = create_approved_episode(quarantined_api)
-    quarantined = quarantined_api.post(
-        f"/v1/episodes/{quarantined_episode['id']}/production-runs",
+    promoted_api = client(tmp_path / "paid-promoted-gates")
+    _, _, promoted_episode = create_approved_episode(promoted_api)
+    promoted = promoted_api.post(
+        f"/v1/episodes/{promoted_episode['id']}/production-runs",
         json={
             "dry_run": False,
             "requested_model": "MiniMax-H3",
@@ -5239,13 +5239,15 @@ def test_production_run_idempotency_and_paid_key_requirement(tmp_path: Path) -> 
             "paid_generation_approved": True,
             "approved_by": "owner",
         },
-        headers={"Idempotency-Key": "paid-gate-quarantine"},
+        headers={"Idempotency-Key": "paid-promoted-gates"},
     )
-    assert quarantined.status_code == 409
-    assert (
-        "paid execution is blocked by Qingshan gate registry quarantine"
-        in (quarantined.json()["detail"])
+    assert promoted.status_code == 201
+    assert promoted.json()["dry_run"] is False
+    promoted_package = json.loads(
+        Path(promoted.json()["package_path"]).read_text(encoding="utf-8")
     )
+    assert promoted_package["production_policy"]["paid_generation_approved"] is True
+    assert promoted_package["production_policy"]["approved_by"] == "owner"
 
 
 def test_keyless_dry_run_replays_server_assigned_idempotency_claim(tmp_path: Path) -> None:

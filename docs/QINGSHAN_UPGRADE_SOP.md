@@ -27,14 +27,14 @@ Every release follows this promotion process.
 An upstream release is not a Nalu release. If any gate fails, the current pin
 remains authoritative and the candidate stays quarantined.
 
-The current `v2026.08.29.1` pin predates this stronger promotion rule and has eight
+The retired `v2026.08.29.1` pin predated this stronger promotion rule and had eight
 missing paths plus one host-specific absolute test path declared by its own gate registry.
 The exact exception is commit- and
 registry-hash-bound in `configs/qingshan-gate-registry-quarantine.json` and tracked in
 [Qingshan issue #20](https://github.com/rogerwu188/qingshan-short-drama-production-line/issues/20).
-It may support local contract work, but cannot authorize a paid request. Any added or
-changed failure is unreviewed drift and fails closed. The exception must be removed—not
-carried forward—when the corrected upstream release is promoted.
+It supported local contract work, but could not authorize a paid request. The exception
+is not carried into the corrected promoted release; any future registry failure is
+unreviewed drift and fails closed.
 
 The latest reviewed candidate is `v2026.09.05.2` at commit
 `401111636a2386c7f087d8dd2ff9df5c0cb98455`. Its tracked-tree SHA-256 is
@@ -50,21 +50,19 @@ on public version `0.3.1`, closing the public-interface defect in the prior revi
 candidate. Relative to `v2026.09.04.6`, this release adds a tracked deployment-code
 integrity manifest, persistent release-authorization policy, H3 cross-modal speaker
 binding, native release-audio leveling and stronger provider submission/receipt, ledger,
-opening-anchor and pipeline-reliability checks. Nalu classifies these as candidate
-reliability and paid-boundary semantics that still require mapping and adapter regression
-before promotion; it does not copy the candidate into the active runtime merely because
-upstream tests pass. `configs/qingshan-candidate-audit.json` binds the exact candidate
-tree, registry, portable manifest, CLI surface, Writer contract and registered-test
-result. CI validates that the record remains `QUARANTINED`, cannot replace the active pin
-and cannot authorize paid execution. No provider credential or paid call is part of this
-evidence.
+opening-anchor and pipeline-reliability checks. Nalu mapped the eight stable adapter
+capabilities: four stayed byte-identical and four changed under their newly recorded
+hashes. `configs/qingshan-candidate-audit.json` binds the exact tree, registry, portable
+manifest, CLI surface, Writer contract and registered-test result; the complete tree is
+now the promoted `configs/qingshan-upstream.json` pin. Promotion never authorizes paid
+execution. No provider credential or paid call is part of this evidence.
 Daily discovery treats both the active pin and this exact reviewed candidate as covered;
 only a newer, unaudited tag opens a new deduplicated upgrade issue.
 The prior `v2026.09.04.6` quarantine evidence remains in repository history at product
 commit `3000920f78d7e0d2446f0c99eb8264be6c975762` and GitHub CI run
-`33822968508`. The current candidate record closes only `v2026.09.05.2` discovery and
-local reproduction until its own whole-tree CI evidence is attached; it does not claim
-candidate promotion, real-provider QA or SOP-07.
+`33822968508`. The current review promotes `v2026.09.05.2`; the promotion checkpoint is
+not closed until its whole-tree Nalu and macOS CI evidence is attached. It does not claim
+real-provider QA or completion of SOP-07.
 
 Nalu productized two safe `v2026.09.01.7` contracts without copying its runtime into the
 paid path: exact adapter/profile/logical/provider model identity at the final I/O boundary,

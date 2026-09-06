@@ -242,10 +242,20 @@ try:
     from action_video_prompt_compiler import validate_action_contract
     from video_model_adapter import require_paid_model_contract
     from image_model_adapter import require_paid_image_model_contract
+    from opening_anchor_chain_gate import validate_opening_anchor_chain
+    from keyframe_entry_state_gate import (
+        evaluate_task as evaluate_keyframe_entry_task,
+        keyframe_entry_contract_required,
+    )
 except ModuleNotFoundError:
     from tools.action_video_prompt_compiler import validate_action_contract
     from tools.video_model_adapter import require_paid_model_contract
     from tools.image_model_adapter import require_paid_image_model_contract
+    from tools.opening_anchor_chain_gate import validate_opening_anchor_chain
+    from tools.keyframe_entry_state_gate import (
+        evaluate_task as evaluate_keyframe_entry_task,
+        keyframe_entry_contract_required,
+    )
 
 RUNTIME_GATE_IDS = frozenset({
     "SCENE-AUTHORITY-LOCK",
@@ -481,6 +491,9 @@ def validate_dialogue_manifest_coverage(config: dict) -> dict:
     results = []
     for task in video_tasks:
         unit_id = str(task.get("unit_id") or "")
+        strict_model_voice_binding = str(task.get("model") or "") in {
+            "MiniMax-H3", "minimax-h3", "h3", "seedance-2.0-pro"
+        }
         expected_rows = rows_by_unit.get(unit_id, [])
         expected_ids = [str(row.get("dia_id") or "") for row in expected_rows]
         actual_ids = [str(row.get("dia_id") or "") for row in task.get("dialogue") or []]
@@ -513,6 +526,14 @@ def validate_dialogue_manifest_coverage(config: dict) -> dict:
             if mode == "EXACT_DIALOGUE_AUDIO_REFERENCE":
                 continue
             if mode == "RIGHTS_CLEARED_MODEL_NATIVE_TEXT_ONLY":
+                if strict_model_voice_binding:
+                    task_failures.append({
+                        "check": "dialogue_audio_reference_policy",
+                        "dia_id": row.get("dia_id"),
+                        "actual": mode,
+                        "error": "h3_and_sd2_require_canonical_voice_reference_and_exact_speaker_binding",
+                    })
+                    continue
                 rights_cleared_native = (
                     row.get("rights_cleared_model_native") is True
                     and row.get("external_voice_reference") is False
@@ -530,6 +551,14 @@ def validate_dialogue_manifest_coverage(config: dict) -> dict:
                 })
                 continue
             if mode == "MODEL_NATIVE_TEXT_ONLY_HUMAN_LISTENING_EXCEPTION":
+                if strict_model_voice_binding:
+                    task_failures.append({
+                        "check": "dialogue_audio_reference_policy",
+                        "dia_id": row.get("dia_id"),
+                        "actual": mode,
+                        "error": "human_listening_exception_forbidden_for_h3_and_sd2_dialogue",
+                    })
+                    continue
                 scoped_native_exception = (
                     row.get("human_listening_exception") is True
                     and row.get("external_voice_reference") is False
@@ -550,7 +579,10 @@ def validate_dialogue_manifest_coverage(config: dict) -> dict:
             native_reference_valid = (
                 mode == "CANONICAL_NATIVE_VOICE_STYLE_REFERENCE_WITH_EXACT_TEXT_PROMPT"
                 and voice is not None
-                and voice.get("status") == "LOCKED_PRODUCTION_READY"
+                and voice.get("status") in {
+                    "LOCKED_PRODUCTION_READY",
+                    "AGENTCUT_GENERATED_REGISTERED_PRODUCTION_READY",
+                }
                 and row.get("remote_asset_id") == voice.get("remote_asset_id")
                 and audio_path.is_file()
                 and hashlib.sha256(audio_path.read_bytes()).hexdigest() == row.get("sha256")
@@ -1059,6 +1091,7 @@ def validate_entity_reference_task(task: dict) -> list[dict]:
             })
         reference_audios = {str(value) for value in task.get("reference_audios") or []}
         reference_audio_asset_ids = {str(value) for value in task.get("reference_audio_asset_ids") or []}
+        reference_audio_urls = {str(value) for value in task.get("reference_audio_urls") or []}
         for asset in dialogue_assets:
             path_value = str(asset.get("path") or "")
             expected_sha = str(asset.get("sha256") or "")
@@ -1070,10 +1103,13 @@ def validate_entity_reference_task(task: dict) -> list[dict]:
                 failures.append({"check": "dialogue_audio_purpose", "dia_id": asset.get("dia_id")})
                 continue
             remote_asset_id = str(asset.get("remote_asset_id") or "")
+            public_url = str(asset.get("url") or "")
             direct_locked_reference = (
                 purpose == "LOCKED_NATIVE_VOICE_STYLE_REFERENCE_WITH_EXACT_TEXT"
-                and remote_asset_id
-                and remote_asset_id in reference_audio_asset_ids
+                and (
+                    (remote_asset_id and remote_asset_id in reference_audio_asset_ids)
+                    or (public_url.startswith("https://") and public_url in reference_audio_urls)
+                )
             )
             if path_value not in reference_audios and not direct_locked_reference:
                 failures.append({"check": "dialogue_audio_forwarding", "dia_id": asset.get("dia_id"), "path": path_value})
@@ -1670,6 +1706,7 @@ def submit_one(task: dict, receipt: dict) -> dict:
         return {"state": "tool_failed_terminal", "tool_error": f"unsupported_tool_type:{tool_type}"}
     episode_match = re.match(r"E(\d+)(?:\D|$)", str(receipt.get("episode") or "").upper())
     if episode_match and int(episode_match.group(1)) >= 40:
+        task.setdefault("episode", str(receipt.get("episode") or ""))
         task["media_stage"] = "VIDEO" if tool_type == "video_generation" else "KEYFRAME"
         task["require_semantic_anchor_evidence"] = True
         task.setdefault("semantic_anchor_policy_version", "1.0.0")
@@ -1689,6 +1726,13 @@ def submit_one(task: dict, receipt: dict) -> dict:
                     "block_code": "BLOCK_STRUCTURED_ACTION_CONTRACT_INVALID",
                     "action_contract_failures": action_failures,
                 }
+            opening_failures = validate_opening_anchor_chain(task)
+            if opening_failures:
+                return {
+                    "status": "submit_blocked", "state": "tool_blocked",
+                    "block_code": "BLOCK_OPENING_ANCHOR_CHAIN_INVALID",
+                    "opening_anchor_chain_failures": opening_failures,
+                }
         else:
             try:
                 require_paid_image_model_contract(task, str(receipt.get("episode") or ""))
@@ -1698,6 +1742,14 @@ def submit_one(task: dict, receipt: dict) -> dict:
                     "block_code": "BLOCK_IMAGE_MODEL_ADAPTER_INVALID",
                     "model_adapter_error": str(exc),
                 }
+            if keyframe_entry_contract_required(task, str(receipt.get("episode") or "")):
+                entry_report = evaluate_keyframe_entry_task(task)
+                if entry_report["status"] != "PASS":
+                    return {
+                        "status": "submit_blocked", "state": "tool_blocked",
+                        "block_code": "BLOCK_KEYFRAME_ENTRY_STATE_INVALID",
+                        "keyframe_entry_state_failures": entry_report["failures"],
+                    }
     task["input_template_id"] = task.get("input_template_id") or compute_input_template_id(task)
     input_precheck = precheck_submission_inputs(task)
     if input_precheck.get("status") != "PASS":

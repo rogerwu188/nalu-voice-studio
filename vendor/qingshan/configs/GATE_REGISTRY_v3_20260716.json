@@ -72,7 +72,7 @@
         "tools/tests/test_scene_authority_lock.py",
         "tools/tests/test_global_space_layout_gate.py",
         "tools/tests/test_submit_giggle_image_manifest.py",
-        "/Users/rogerwu/code/backlot-os/components/pipeline-tools/tests/test_production_video_submission_gate.py"
+        "tools/tests/test_submit_giggle_video_authoritative_gate.py"
       ],
       "parameters": {
         "scene_state_required": true,
@@ -1872,11 +1872,13 @@
       "implementation_type": "CODED",
       "code_paths": [
         "tools/bgm_authenticity_gate.py",
-        "tools/audio_postproduction_contract.py"
+        "tools/audio_postproduction_contract.py",
+        "tools/audio_profile_binding.py"
       ],
       "test_paths": [
         "tools/tests/test_bgm_authenticity_gate.py",
-        "tools/tests/test_audio_postproduction_contract.py"
+        "tools/tests/test_audio_postproduction_contract.py",
+        "tools/tests/test_audio_profile_binding.py"
       ],
       "parameters": {
         "primary_source": "GENERATED_EPISODE_BGM",
@@ -1891,6 +1893,7 @@
         "external_bgm_profile": "LAYERED_POST_WITH_BGM",
         "native_selective_bgm_profile": "NATIVE_MULTIMODAL_SELECTIVE_BGM",
         "native_no_external_bgm_profile": "NATIVE_MULTIMODAL_NO_EXTERNAL_BGM",
+        "generation_contract_audio_profile_auto_binding_required": true,
         "release_audio_sample_rate_hz": 48000
       },
       "authorization_ref": "ROGER-20260723-AGENT-GENERATED-BGM-PROVENANCE",
@@ -2043,6 +2046,56 @@
       ]
     },
     {
+      "gate_id": "WRITER-TO-PROVIDER-PROMPT-FIELD-LINEAGE",
+      "stage": "SCRIPT_AND_VIDEO_GENERATION_PREFLIGHT",
+      "implementation_type": "CODED",
+      "code_paths": [
+        "tools/writer_production_field_gate.py",
+        "tools/character_entity_contract.py",
+        "tools/visual_culture_contract.py",
+        "tools/speaker_voice_contract.py",
+        "tools/canonical_writer_dispatcher.py",
+        "tools/sd2_required_prompt_field_gate.py",
+        "tools/compile_grouped_seedance_manifest.py",
+        "tools/submit_giggle_video_manifest_v2.py",
+        "tools/giggle_api_client.py"
+      ],
+      "test_paths": [
+        "tools/tests/test_writer_production_field_gate.py",
+        "tools/tests/test_character_entity_contract.py",
+        "tools/tests/test_visual_culture_contract.py",
+        "tools/tests/test_speaker_voice_contract.py",
+        "tools/tests/test_compile_grouped_seedance_manifest.py",
+        "tools/tests/test_video_submission_entrypoint_contract_coverage.py",
+        "tools/tests/test_giggle_video_standard_model_gate.py"
+      ],
+      "parameters": {
+        "effective_from_generation_contract_schema": "qingshan.generation_contract.v3",
+        "writer_authored_per_shot_prompt_spec_required": true,
+        "downstream_generic_field_invention_forbidden": true,
+        "all_structured_fields_must_survive_provider_prompt_compilation": true,
+        "paid_sd2_boundary_exact_recompile_required": true,
+        "section_marker_without_exact_structured_content_is_not_pass": true,
+        "camera_transition_internal_continuity_wardrobe_voice_role_ecology_weather_exact_blocks_required": true,
+        "dialogue_safe_window_exact_binding_required": true,
+        "automatic_writer_director_audio_profile_binding_required": true,
+        "writer_director_visual_culture_decision_required": true,
+        "downstream_visual_culture_default_invention_forbidden": true,
+        "canonical_character_id_required_across_cast_action_dialogue_lip_and_voice": true,
+        "character_id_and_voice_entity_id_must_be_separate": true,
+        "direct_low_level_video_transport_forbidden": true,
+        "installed_submitter_must_invoke_project_prompt_lineage_hook": true,
+        "prompt_field_truncation_forbidden": true,
+        "overlength_resolution": "REGROUP_AND_RECOMPILE"
+      },
+      "authorization_ref": "ROGER-20260831-CHECK-AND-CLOSE-PROMPT-REQUIRED-FIELD-BYPASSES",
+      "last_backtest_date": "2026-08-31",
+      "stage_runner_paths": [
+        "tools/canonical_writer_dispatcher.py",
+        "tools/submit_giggle_video_manifest_v2.py"
+      ]
+    },
+    {
       "gate_id": "VIDEO-UNIT-BOUNDARY-CONTINUITY",
       "stage": "EDIT_BEFORE_ASSEMBLY",
       "implementation_type": "CODED",
@@ -2099,7 +2152,7 @@
       ]
     }
   ],
-  "version": "v3.7-bound-plot-transition-handles-and-prompt-audit",
+  "version": "v3.8-non-bypass-writer-to-provider-field-lineage",
   "meta_rules": [
     {
       "rule_id": "REGISTRY-META-05-RUNTIME-INVOCATION",

@@ -16,12 +16,12 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
-from PIL import Image, ImageDraw
-
 try:
     from tools.dialogue_cut_safety import compile_dialogue_windows, evaluate_cut
+    from tools.model_generated_media_integrity_policy import evaluate_accepted_media_row
 except ModuleNotFoundError:
     from dialogue_cut_safety import compile_dialogue_windows, evaluate_cut
+    from model_generated_media_integrity_policy import evaluate_accepted_media_row
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -70,18 +70,21 @@ def _frame(path: Path, second: float, out: Path) -> None:
 
 
 def _mean_luma(path: Path) -> float:
+    from PIL import Image  # Optional media extra; pure evidence checks need no Pillow.
     image = Image.open(path).convert("L")
     pixels = list(image.getdata())
     return sum(pixels) / len(pixels)
 
 
 def _motion_delta(left: Path, right: Path) -> float:
+    from PIL import Image
     a = Image.open(left).convert("L").resize((96, 160))
     b = Image.open(right).convert("L").resize((96, 160))
     return sum(abs(x - y) for x, y in zip(a.getdata(), b.getdata())) / (96 * 160)
 
 
 def _contact_sheet(boundary_id: str, frames: list[Path], labels: list[str], out: Path) -> None:
+    from PIL import Image, ImageDraw
     images = [Image.open(path).convert("RGB") for path in frames]
     width = max(image.width for image in images)
     height = max(image.height for image in images)
@@ -95,7 +98,11 @@ def _contact_sheet(boundary_id: str, frames: list[Path], labels: list[str], out:
     canvas.save(out, quality=92)
 
 
-def evaluate_boundary_decision(decision: dict[str, Any] | None) -> list[str]:
+def evaluate_boundary_decision(
+    decision: dict[str, Any] | None,
+    *,
+    expected_contact_sheet_sha256: str | None = None,
+) -> list[str]:
     if not decision:
         return ["REAL_MEDIA_VISUAL_DECISION_MISSING"]
     failures = []
@@ -104,7 +111,34 @@ def evaluate_boundary_decision(decision: dict[str, Any] | None) -> list[str]:
             failures.append(f"REAL_MEDIA_DOMAIN_NOT_PASS:{domain}:{decision.get(domain)}")
     if not str(decision.get("reviewer") or "").strip():
         failures.append("REAL_MEDIA_REVIEWER_MISSING")
+    if expected_contact_sheet_sha256 is not None:
+        declared_sha = str(decision.get("contact_sheet_sha256") or "").strip()
+        if not declared_sha:
+            failures.append("REAL_MEDIA_CONTACT_SHEET_SHA256_MISSING")
+        elif declared_sha != expected_contact_sheet_sha256:
+            failures.append("REAL_MEDIA_CONTACT_SHEET_SHA256_MISMATCH")
     return failures
+
+
+def is_motivated_foreground_occlusion(
+    decision: dict[str, Any] | None,
+    *, frame_mean_luma: list[float], tail_motion_delta: float,
+) -> bool:
+    """Recognize a reviewer-bound foreground wipe without legalizing black media.
+
+    Only the final tail-edge sample may be near black; the earlier tail and the
+    incoming head must be visible, and the tail must show substantial motion.
+    """
+    return bool(
+        decision
+        and decision.get("foreground_occlusion_transition") == "PASS_MOTIVATED"
+        and len(frame_mean_luma) == 4
+        and frame_mean_luma[0] >= 4.0
+        and frame_mean_luma[1] < 4.0
+        and frame_mean_luma[2] >= 4.0
+        and frame_mean_luma[3] >= 4.0
+        and tail_motion_delta >= 1.0
+    )
 
 
 def run(media_map: dict[str, Any], grouped: dict[str, Any], out_dir: Path, decisions: dict[str, Any]) -> dict[str, Any]:
@@ -115,6 +149,14 @@ def run(media_map: dict[str, Any], grouped: dict[str, Any], out_dir: Path, decis
     media_by_id = {str(row["unit_id"]): row for row in media_rows}
     rows: list[dict[str, Any]] = []
     all_failures: list[str] = []
+    media_integrity = []
+    for media_row in media_rows:
+        integrity = evaluate_accepted_media_row(media_row)
+        media_integrity.append({"unit_id": str(media_row.get("unit_id") or "UNKNOWN"), **integrity})
+        all_failures.extend(
+            f"{media_row.get('unit_id') or 'UNKNOWN'}:{failure}"
+            for failure in integrity["failures"]
+        )
     for index, (left_unit, right_unit) in enumerate(zip(units, units[1:]), start=1):
         left_id, right_id = str(left_unit["unit_id"]), str(right_unit["unit_id"])
         contract = right_unit.get("incoming_transition_contract") or left_unit.get("outgoing_transition_contract") or {}
@@ -151,16 +193,25 @@ def run(media_map: dict[str, Any], grouped: dict[str, Any], out_dir: Path, decis
         _contact_sheet(boundary_id, frame_paths, ["tail -0.72s", "tail -0.08s", "head +0.08s", "head +0.72s"], sheet)
         machine_failures = dialogue_contract_failures + list(cut_report["failures"])
         lumas = [_mean_luma(path) for path in frame_paths]
-        if min(lumas) < 4.0:
-            machine_failures.append("BOUNDARY_CONTAINS_NEAR_BLACK_FRAME")
         tail_motion = _motion_delta(frame_paths[0], frame_paths[1])
         head_motion = _motion_delta(frame_paths[2], frame_paths[3])
+        decision = (decisions.get("boundaries") or {}).get(boundary_id)
+        foreground_occlusion_pass = is_motivated_foreground_occlusion(
+            decision,
+            frame_mean_luma=lumas,
+            tail_motion_delta=tail_motion,
+        )
+        if min(lumas) < 4.0 and not foreground_occlusion_pass:
+            machine_failures.append("BOUNDARY_CONTAINS_NEAR_BLACK_FRAME")
         if tail_motion < 0.12:
             machine_failures.append("TAIL_HANDLE_EFFECTIVELY_FROZEN")
         if head_motion < 0.12:
             machine_failures.append("HEAD_HANDLE_EFFECTIVELY_FROZEN")
-        decision = (decisions.get("boundaries") or {}).get(boundary_id)
-        visual_failures = evaluate_boundary_decision(decision)
+        contact_sheet_sha256 = _sha(sheet)
+        visual_failures = evaluate_boundary_decision(
+            decision,
+            expected_contact_sheet_sha256=contact_sheet_sha256,
+        )
         failures = machine_failures + visual_failures
         row = {
             "boundary_id": boundary_id,
@@ -172,8 +223,11 @@ def run(media_map: dict[str, Any], grouped: dict[str, Any], out_dir: Path, decis
                 "tail_motion_delta": round(tail_motion, 4),
                 "head_motion_delta": round(head_motion, 4),
                 "frame_mean_luma": [round(value, 3) for value in lumas],
+                "foreground_occlusion_transition": (
+                    "PASS_MOTIVATED" if foreground_occlusion_pass else "NOT_APPLIED"
+                ),
                 "contact_sheet": str(sheet.relative_to(ROOT)),
-                "contact_sheet_sha256": _sha(sheet),
+                "contact_sheet_sha256": contact_sheet_sha256,
             },
             "real_media_visual_decision": decision,
             "status": "PASS" if not failures else "FAIL",
@@ -186,6 +240,7 @@ def run(media_map: dict[str, Any], grouped: dict[str, Any], out_dir: Path, decis
         "status": "PASS" if not all_failures else "FAIL",
         "boundary_count": len(rows),
         "required_decision_domains": list(DECISION_DOMAINS),
+        "accepted_media_integrity": media_integrity,
         "rows": rows,
         "failures": all_failures,
     }

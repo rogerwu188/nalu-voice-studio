@@ -54,6 +54,30 @@ class PerformanceTempoCombatContractTest(unittest.TestCase):
         self.assertEqual(result["status"], "FAIL")
         self.assertIn("GROUPED_EDITORIAL_BEAT_DURATION_INVALID", {row["code"] for row in result["failures"]})
 
+    def test_semantic_grouped_chinese_knife_exchange_cannot_bypass_combat_gate(self):
+        task = {
+            "task_key": "GROUPED-KNIFE",
+            "shot_type": "SEMANTIC_GROUPED_SCENE_PERFORMANCE",
+            "semantic_video_unit": True,
+            "action_unit": True,
+            "duration_seconds": 6,
+            "prompt": "短刀直刺胸口，两指捏住刀尖后反拧手腕",
+            "performance_tempo_contract": {
+                "playback_speed": "REAL_TIME_1X",
+                "grouped_editorial_beat_count": 2,
+                "atomic_action_windows": [
+                    {"start_seconds": 0.0, "end_seconds": 3.0, "action": "短刀直刺"},
+                    {"start_seconds": 3.0, "end_seconds": 6.0, "action": "捏住刀尖"},
+                ],
+            },
+        }
+        result = evaluate_batch([task])
+        codes = {row["code"] for row in result["failures"]}
+        self.assertEqual(result["status"], "FAIL")
+        self.assertIn("GROUPED_EDITORIAL_BEAT_DURATION_INVALID", codes)
+        self.assertIn("GROUPED_COMBAT_CONTINUOUS_REAL_TIME_LOCK_MISSING", codes)
+        self.assertIn("GROUPED_COMBAT_TABLEAU_FORBIDDEN_LOCK_MISSING", codes)
+
     def test_dialogue_performance_is_not_misclassified_as_atomic_action(self):
         task = {
             "task_key": "DIALOGUE-8S",
@@ -68,6 +92,29 @@ class PerformanceTempoCombatContractTest(unittest.TestCase):
         }
         self.assertEqual(evaluate_batch([task])["status"], "PASS")
 
+    def test_explicit_noncombat_is_not_overridden_by_negative_combat_wording(self):
+        task = {
+            "task_key": "STRUCTURED-NONCOMBAT",
+            "shot_type": "SEMANTIC_GROUPED_SCENE_PERFORMANCE",
+            "semantic_video_unit": True,
+            "action_unit": True,
+            "fight_or_chase": False,
+            "combat_or_chase": False,
+            "duration_seconds": 4,
+            "prompt": "人物端起茶杯，禁止战斗化表演。",
+            "performance_tempo_contract": {
+                "playback_speed": "REAL_TIME_1X",
+                "grouped_editorial_beat_count": 2,
+                "atomic_action_windows": [
+                    {"start_seconds": 0.0, "end_seconds": 2.0, "action": "端杯"},
+                    {"start_seconds": 2.0, "end_seconds": 4.0, "action": "放稳"},
+                ],
+            },
+        }
+        result = evaluate_batch([task])
+        self.assertEqual(result["status"], "PASS", result)
+        self.assertFalse(result["rows"][0]["fight_or_chase"])
+
     def test_structured_combat_accepts_registered_eight_second_generation_unit(self):
         task = {
         "task_key": "COMBAT-8S",
@@ -81,6 +128,23 @@ class PerformanceTempoCombatContractTest(unittest.TestCase):
             "aftermath_in_same_edit_shot": False,
             "atomic_action_windows": _windows(),
         },
+        }
+        self.assertEqual(evaluate_batch([task])["status"], "PASS")
+
+    def test_structured_combat_classification_precedes_semantic_grouped_flag(self):
+        task = {
+            "task_key": "COMBAT-SEMANTIC-13S",
+            "shot_type": "COMBAT",
+            "semantic_video_unit": True,
+            "action_unit": True,
+            "duration_seconds": 13,
+            "prompt": "continuous combat exchange",
+            "performance_tempo_contract": {
+                "playback_speed": "REAL_TIME_1X",
+                "primary_exchange_complete_by_seconds": 1.5,
+                "aftermath_in_same_edit_shot": False,
+                "atomic_action_windows": _windows(),
+            },
         }
         self.assertEqual(evaluate_batch([task])["status"], "PASS")
 
@@ -121,6 +185,36 @@ class PerformanceTempoCombatContractTest(unittest.TestCase):
         result = evaluate_batch([task])
         self.assertEqual(result["status"], "FAIL")
         self.assertIn("COMBAT_GENERATION_DURATION_INVALID", {row["code"] for row in result["failures"]})
+
+    def test_registered_atomic_combat_coverage_allows_single_exchange_four_seconds(self):
+        task = {
+            "task_key": "COMBAT-RC-C01",
+            "shot_type": "COMBAT",
+            "combat_generation_mode": "ATOMIC_COVERAGE_REDESIGN",
+            "coverage_redesign_origin": {
+                "replaces_failed_unit_id": "OLD",
+                "decision_ref": "qa/redesign.json",
+            },
+            "action_unit": True,
+            "duration_seconds": 4,
+            "prompt": "短刀直刺，两指横向拨开",
+            "performance_tempo_contract": {
+                "playback_speed": "REAL_TIME_1X",
+                "action_onset_by_seconds": 0.0,
+                "contact_by_seconds": 3.0,
+                "primary_exchange_complete_by_seconds": 4.0,
+                "aftermath_in_same_edit_shot": False,
+                "result_hold_seconds": 0.2,
+                "exchange_plan": [{"action": "one exchange"}],
+                "atomic_action_windows": [
+                    {"start_seconds": 0.0, "end_seconds": 1.0, "action": "thrust"},
+                    {"start_seconds": 1.0, "end_seconds": 2.0, "action": "sidestep"},
+                    {"start_seconds": 2.0, "end_seconds": 3.0, "action": "contact"},
+                    {"start_seconds": 3.0, "end_seconds": 4.0, "action": "deflect"},
+                ],
+            },
+        }
+        self.assertEqual(evaluate_batch([task])["status"], "PASS")
 
 
 if __name__ == "__main__":

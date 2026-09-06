@@ -1,0 +1,98 @@
+{
+  "schema": "qingshan.action_video_generation_method.v2",
+  "version": "2.1.0",
+  "status": "ACTIVE",
+  "purpose": "Compile source-authorized action into readable moving-image causality instead of pose lists, hand-waving, static tableaux or slideshow coverage.",
+  "scope": {
+    "shared_model_neutral_contract": ["minimax-h3", "seedance-2.0-pro"],
+    "seedance_compiler_rule": "Keep the existing SD2 provider-facing prompt grammar unchanged; apply this contract before model-specific serialization.",
+    "h3_compiler_rule": "Use the H3-specific real-time, physics-first serialization below."
+  },
+  "source_fidelity": {
+    "canonical_authority_required": true,
+    "may_invent_action_or_outcome": false,
+    "must_lock": [
+      "initiator and target",
+      "weapon or prop owner",
+      "winner and loser",
+      "contact or visible evasion",
+      "force direction",
+      "terminal result"
+    ]
+  },
+  "physical_chain": [
+    "role_and_prop_ownership",
+    "preparation_and_weight_shift",
+    "lower_body_power_path_feet_to_hips_to_shoulders_to_elbow_or_wrist",
+    "displacement_and_action_path",
+    "single_contact_or_visible_evasion",
+    "force_transfer_target_reaction_and_displacement",
+    "environment_feedback",
+    "new_stable_end_state_and_safe_cut_handle"
+  ],
+  "action_ir": {
+    "schema": "qingshan.action_ir.v1_single_causal_chain_per_beat",
+    "interaction_mode_exactly_one_of": ["CONTACT", "EVASION", "THREAT_THRESHOLD"],
+    "required_per_combat_beat": [
+      "force_origin",
+      "primary_action",
+      "one_unambiguous_interaction_mode",
+      "one_primary_feedback",
+      "at_most_one_secondary_feedback",
+      "observable_irreversible_state_delta"
+    ],
+    "duration_underfill_code": "DURATION_EXCEEDS_AUTHORIZED_CONTENT",
+    "duration_underfill_action": "SHORTEN_DURATION_OR_REDESIGN_UNIT_BOUNDARY_BEFORE_SUBMISSION",
+    "action_capacity_score": "OBSERVE_ONLY_UNTIL_EMPIRICALLY_CALIBRATED",
+    "failure_code_map": "configs/ACTION_PROMPT_FAILURE_CODE_MAP_V1.json"
+  },
+  "h3_execution_contract": {
+    "first_explosive_action_onset_max_seconds": 0.5,
+    "maximum_seconds_per_combat_beat": 1.2,
+    "must_state_power_path": "脚→髋→肩→肘/腕",
+    "must_show_both_sides": "Write both the initiating action and the defender/target response; do not serialize only one body.",
+    "force_vector_rule": "State one intended force direction and explicitly forbid its reverse when reversal would change the story result.",
+    "sound_anchor_rule": "Each foot plant, cloth pull, weapon movement, contact and environment response must correspond to a visible event in causal order.",
+    "reference_semantics": "Omni reference images are semantic state anchors, not a guaranteed interpolation or exact first/last-frame transport.",
+    "first_frame_strategy": "For readable action, prefer a pre-contact or mid-motion first frame with a visible power path. Use exact-first-frame I2V only when the opening composition itself is mandatory; a static contact-result first frame is weak unless the prompt requires readable recoil and aftermath.",
+    "forbidden": [
+      "handshake-like contact",
+      "palms meeting without an authorized strike or block",
+      "taiji push-hands or slow shoving",
+      "slow reaching or tentative touching",
+      "static standing tableau",
+      "pose slideshow or still-image montage",
+      "looped or reset action",
+      "unmotivated orbit camera",
+      "reverse force direction",
+      "owner-swapped weapon or limb"
+    ]
+  },
+  "failure_redesign_contract": {
+    "same_prompt_micro_tuning_forbidden": true,
+    "new_prompt_sha256_required": true,
+    "new_unit_or_candidate_id_required": true,
+    "complete_execution_prompt_recompile_required": true,
+    "action_ir_redesign_required": true,
+    "immutable_structured_contract_must_not_change": [
+      "canonical story",
+      "identity",
+      "wardrobe",
+      "map",
+      "weather",
+      "shot type",
+      "camera type",
+      "axis",
+      "prop ownership",
+      "voice binding",
+      "native audio intent"
+    ],
+    "known_failed_prompt_sha_must_be_do_not_repeat": true,
+    "same_failure_twice": "REDUCE_ACTION_BUDGET_AND_DO_NOT_INCREASE_PROVIDER_PROMPT_LENGTH"
+  },
+  "qa_contract": {
+    "pre_generation": "Full detailed prompt QA: canonical plot, dialogue, action, identity, wardrobe, map, props, sound, camera, incoming/outgoing continuity, force chain and terminal state.",
+    "post_generation": "Basic technical QA plus basic plot/outcome presence only. Do not run optical flow, motion-energy scoring, action-velocity analysis, dynamic-causality scoring, or fine-grained action/performance review after generation.",
+    "owner_acceptance": "The owner may accept media with named known limitations. Persist that disposition and stop automatic regeneration."
+  }
+}

@@ -6,6 +6,11 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+try:
+    from tools.video_physical_continuity_contract import is_combat_unit
+except ModuleNotFoundError:
+    from video_physical_continuity_contract import is_combat_unit
+
 
 ACTION_CUES = (
     "fight", "combat", "attack", "lunge", "intercept", "strike", "punch",
@@ -20,6 +25,7 @@ MAX_FIGHT_BEAT_SECONDS = 1.2
 MAX_ACTION_IDLE_GAP_SECONDS = 0.25
 MAX_GROUPED_EDITORIAL_BEAT_SECONDS = 3.0
 COMBAT_TYPES = {"COMBAT", "FIGHT", "ACTION_COMBAT"}
+ATOMIC_COMBAT_COVERAGE_MODE = "ATOMIC_COVERAGE_REDESIGN"
 DIALOGUE_TYPES = {"DIALOGUE", "DIALOGUE_PERFORMANCE", "REACTION_DIALOGUE", "EMOTIONAL_DIALOGUE"}
 
 
@@ -45,7 +51,21 @@ def _looks_like_action(task: dict[str, Any], text: str) -> bool:
 
 
 def _fight_or_chase(text: str, task: dict[str, Any]) -> bool:
-    return bool(task.get("combat_choreography_contract")) or any(cue in text for cue in FIGHT_PURPOSE_CUES)
+    # A current structured writer's explicit classification outranks literal
+    # prompt scanning.  Negative constraints routinely contain phrases such as
+    # "禁止战斗化表演"; treating those words as positive evidence silently
+    # converts ordinary performance into combat at the paid boundary.
+    if task.get("combat_choreography_contract"):
+        return True
+    declared = [
+        task[name]
+        for name in ("fight_or_chase", "combat_or_chase")
+        if isinstance(task.get(name), bool)
+    ]
+    if declared:
+        return any(declared)
+    # Legacy/unclassified manifests still receive fail-safe cue detection.
+    return is_combat_unit(task) or any(cue in text for cue in FIGHT_PURPOSE_CUES)
 
 
 def _evaluate_atomic_windows(key: str, contract: dict[str, Any], *, fight_or_chase: bool) -> list[dict[str, Any]]:
@@ -95,6 +115,10 @@ def evaluate_batch(tasks: list[dict[str, Any]]) -> dict[str, Any]:
         contract = task.get("performance_tempo_contract") or {}
         fight_or_chase = _fight_or_chase(text, task)
         structured_combat = str(task.get("shot_type") or "").upper() in COMBAT_TYPES
+        atomic_combat_coverage = (
+            structured_combat
+            and task.get("combat_generation_mode") == ATOMIC_COMBAT_COVERAGE_MODE
+        )
         rows.append({"task_key": key, "duration_seconds": duration, "fight_or_chase": fight_or_chase, "contract": contract})
         if task.get("action_unit") is not True:
             failures.append({"code": "ACTION_UNIT_CLASSIFICATION_MISSING", "task_key": key})
@@ -103,7 +127,11 @@ def evaluate_batch(tasks: list[dict[str, Any]]) -> dict[str, Any]:
             continue
         if contract.get("playback_speed") != "REAL_TIME_1X":
             failures.append({"code": "ACTION_NOT_AUTHORED_AT_REAL_TIME", "task_key": key})
-        if task.get("semantic_video_unit") is True:
+        # Structured combat keeps its registered 8-15 second contract even
+        # when it is also a semantic grouped unit.  The combat classification
+        # is more specific and must not be pre-empted by the generic 3-12
+        # second grouped-unit branch.
+        if task.get("semantic_video_unit") is True and not structured_combat:
             if not 3.0 <= duration <= 12.0:
                 failures.append({"code": "GROUPED_VIDEO_UNIT_DURATION_INVALID", "task_key": key, "actual_seconds": duration})
             windows = contract.get("atomic_action_windows") or []
@@ -111,6 +139,10 @@ def evaluate_batch(tasks: list[dict[str, Any]]) -> dict[str, Any]:
                 failures.append({"code": "GROUPED_EDITORIAL_BEAT_WINDOWS_MISSING", "task_key": key})
                 continue
             previous_end = 0.0
+            maximum_grouped_beat = (
+                MAX_FIGHT_BEAT_SECONDS if fight_or_chase
+                else MAX_GROUPED_EDITORIAL_BEAT_SECONDS
+            )
             for index, window in enumerate(windows, 1):
                 try:
                     start = float(window["start_seconds"])
@@ -120,18 +152,39 @@ def evaluate_batch(tasks: list[dict[str, Any]]) -> dict[str, Any]:
                     continue
                 if start < previous_end - 0.01 or start - previous_end > MAX_ACTION_IDLE_GAP_SECONDS:
                     failures.append({"code": "GROUPED_EDITORIAL_BEAT_SEQUENCE_GAP_OR_OVERLAP", "task_key": key, "index": index})
-                if end <= start or end - start > MAX_GROUPED_EDITORIAL_BEAT_SECONDS + 0.01:
-                    failures.append({"code": "GROUPED_EDITORIAL_BEAT_DURATION_INVALID", "task_key": key, "index": index, "actual_seconds": round(end - start, 3)})
+                if end <= start or end - start > maximum_grouped_beat + 0.01:
+                    failures.append({"code": "GROUPED_EDITORIAL_BEAT_DURATION_INVALID", "task_key": key, "index": index, "actual_seconds": round(end - start, 3), "maximum_seconds": maximum_grouped_beat})
                 previous_end = max(previous_end, end)
             if int(contract.get("grouped_editorial_beat_count") or 0) != len(windows):
                 failures.append({"code": "GROUPED_EDITORIAL_BEAT_COUNT_MISMATCH", "task_key": key})
+            if fight_or_chase:
+                failures.extend(_evaluate_atomic_windows(key, contract, fight_or_chase=True))
+                if contract.get("continuous_real_time_combat") is not True:
+                    failures.append({"code": "GROUPED_COMBAT_CONTINUOUS_REAL_TIME_LOCK_MISSING", "task_key": key})
+                if contract.get("tableau_or_pose_slideshow_forbidden") is not True:
+                    failures.append({"code": "GROUPED_COMBAT_TABLEAU_FORBIDDEN_LOCK_MISSING", "task_key": key})
             continue
         if structured_combat:
             first_exchange = float(contract.get("primary_exchange_complete_by_seconds") or 0.0)
-            if first_exchange <= 0.0 or first_exchange > 1.5:
-                failures.append({"code": "COMBAT_PRIMARY_EXCHANGE_WINDOW_INVALID", "task_key": key, "actual_seconds": first_exchange, "maximum_seconds": 1.5})
-            if duration < 8.0 or duration > 15.0:
-                failures.append({"code": "COMBAT_GENERATION_DURATION_INVALID", "task_key": key, "actual_seconds": duration, "minimum_seconds": 8.0, "maximum_seconds": 15.0})
+            if atomic_combat_coverage:
+                if duration < 3.0 or duration > 7.0:
+                    failures.append({"code": "ATOMIC_COMBAT_COVERAGE_DURATION_INVALID", "task_key": key, "actual_seconds": duration, "minimum_seconds": 3.0, "maximum_seconds": 7.0})
+                if first_exchange <= 0.0 or first_exchange > duration:
+                    failures.append({"code": "ATOMIC_COMBAT_COVERAGE_EXCHANGE_WINDOW_INVALID", "task_key": key, "actual_seconds": first_exchange, "maximum_seconds": duration})
+                onset = contract.get("action_onset_by_seconds")
+                if onset is None or float(onset) > MAX_FIGHT_ONSET_SECONDS:
+                    failures.append({"code": "ATOMIC_COMBAT_COVERAGE_ONSET_INVALID", "task_key": key, "maximum_seconds": MAX_FIGHT_ONSET_SECONDS})
+                if float(contract.get("contact_by_seconds") or 999.0) > 3.0:
+                    failures.append({"code": "ATOMIC_COMBAT_COVERAGE_CONTACT_TOO_LATE", "task_key": key, "maximum_seconds": 3.0})
+                if len(contract.get("exchange_plan") or []) != 1:
+                    failures.append({"code": "ATOMIC_COMBAT_COVERAGE_EXCHANGE_COUNT_INVALID", "task_key": key})
+                if float(contract.get("result_hold_seconds") or 0.0) > 0.3:
+                    failures.append({"code": "ATOMIC_COMBAT_COVERAGE_RESULT_HOLD_TOO_LONG", "task_key": key, "maximum_seconds": 0.3})
+            else:
+                if first_exchange <= 0.0 or first_exchange > 1.5:
+                    failures.append({"code": "COMBAT_PRIMARY_EXCHANGE_WINDOW_INVALID", "task_key": key, "actual_seconds": first_exchange, "maximum_seconds": 1.5})
+                if duration < 8.0 or duration > 15.0:
+                    failures.append({"code": "COMBAT_GENERATION_DURATION_INVALID", "task_key": key, "actual_seconds": duration, "minimum_seconds": 8.0, "maximum_seconds": 15.0})
             if contract.get("aftermath_in_same_edit_shot") is not False:
                 failures.append({"code": "COMBAT_AFTERMATH_HOLD_FORBIDDEN", "task_key": key})
         else:
@@ -151,6 +204,7 @@ def evaluate_batch(tasks: list[dict[str, Any]]) -> dict[str, Any]:
         "policy": (
             "Action-like prompts cannot bypass classification. Atomic contact completes within 2.0s at real-time 1x; "
             "fight/chase beats complete within 1.2s and begin by 0.5s; non-combat atomic unit <=4.0s with result hold <=0.75s; "
-            "structured combat uses the registered 8-15s multi-exchange generation contract while each fight beat remains <=1.2s."
+            "structured combat uses the registered 8-15s multi-exchange generation contract while each fight beat remains <=1.2s; "
+            "a failed combined combat unit may be redesigned as a registered 3-7s single-exchange atomic coverage unit whose next unit must use its real terminal frame."
         ),
     }

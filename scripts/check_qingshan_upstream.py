@@ -61,8 +61,7 @@ def verify_candidate_audit(manifest: dict, audit: dict) -> list[str]:
         failures.append("unsupported Qingshan candidate-audit schema")
     if audit.get("repository") != manifest.get("repository"):
         failures.append("candidate audit targets a different repository")
-    if audit.get("candidate_release") == manifest.get("release"):
-        failures.append("candidate audit must not describe the active pin")
+    describes_active_pin = audit.get("candidate_release") == manifest.get("release")
     if not isinstance(audit.get("candidate_commit"), str) or len(
         audit["candidate_commit"]
     ) != 40:
@@ -171,12 +170,20 @@ def verify_candidate_audit(manifest: dict, audit: dict) -> list[str]:
     )
     if not registered_test_record_valid:
         failures.append("candidate registered-test evidence is incomplete")
-    if (
+    if audit.get("paid_execution_allowed") is not False:
+        failures.append("candidate review must never authorize paid execution")
+    if describes_active_pin:
+        if (
+            audit.get("promotion_status") != "PROMOTED"
+            or audit.get("replaces_active_pin") is not True
+            or audit.get("candidate_commit") != manifest.get("commit")
+        ):
+            failures.append("active pin must have an exact promoted review record")
+    elif (
         audit.get("promotion_status") != "QUARANTINED"
-        or audit.get("paid_execution_allowed") is not False
         or audit.get("replaces_active_pin") is not False
     ):
-        failures.append("failed candidate audit must remain quarantined and fail closed")
+        failures.append("unpromoted candidate must remain quarantined and fail closed")
     return failures
 
 
@@ -240,8 +247,13 @@ def main() -> int:
             print(f"FAIL: {failure}")
         return 1
     print(f"Pinned Qingshan snapshot verified: {manifest['release']} @ {manifest['commit']}")
+    review_state = (
+        "promoted active Qingshan review"
+        if candidate_audit["promotion_status"] == "PROMOTED"
+        else "quarantined Qingshan candidate"
+    )
     print(
-        "Latest reviewed Qingshan candidate remains quarantined: "
+        f"Latest {review_state}: "
         f"{candidate_audit['candidate_release']} @ {candidate_audit['candidate_commit']} "
         f"(registry={candidate_audit['integrity_status']}, "
         f"public_interface={candidate_audit['public_interface_status']}, "

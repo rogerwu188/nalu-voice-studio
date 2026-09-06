@@ -32,15 +32,15 @@ def load_registered_test_auditor():
     return module
 
 
-def test_candidate_audit_is_quarantined_and_fail_closed() -> None:
+def test_candidate_audit_is_promoted_but_paid_execution_remains_closed() -> None:
     checker = load_checker()
     manifest = json.loads(checker.MANIFEST_PATH.read_text())
     audit = json.loads(checker.CANDIDATE_AUDIT_PATH.read_text())
 
     assert checker.verify_candidate_audit(manifest, audit) == []
-    assert audit["promotion_status"] == "QUARANTINED"
+    assert audit["promotion_status"] == "PROMOTED"
     assert audit["paid_execution_allowed"] is False
-    assert audit["replaces_active_pin"] is False
+    assert audit["replaces_active_pin"] is True
     assert audit["failures"] == []
     assert audit["integrity_status"] == "PASS"
     assert audit["candidate_release"] == "v2026.09.05.2"
@@ -96,6 +96,7 @@ def test_candidate_audit_rejects_false_promotion_and_unknown_failures() -> None:
     manifest = json.loads(checker.MANIFEST_PATH.read_text())
     audit = json.loads(checker.CANDIDATE_AUDIT_PATH.read_text())
     tampered = deepcopy(audit)
+    tampered["candidate_release"] = "v2099.01.01"
     tampered["promotion_status"] = "PROMOTED"
     tampered["paid_execution_allowed"] = True
     tampered["replaces_active_pin"] = True
@@ -103,7 +104,22 @@ def test_candidate_audit_rejects_false_promotion_and_unknown_failures() -> None:
 
     failures = checker.verify_candidate_audit(manifest, tampered)
     assert "candidate audit contains an unsupported failure classification" in failures
-    assert "failed candidate audit must remain quarantined and fail closed" in failures
+    assert "candidate review must never authorize paid execution" in failures
+    assert "unpromoted candidate must remain quarantined and fail closed" in failures
+
+
+def test_candidate_audit_accepts_exact_promoted_active_pin() -> None:
+    checker = load_checker()
+    manifest = json.loads(checker.MANIFEST_PATH.read_text())
+    audit = json.loads(checker.CANDIDATE_AUDIT_PATH.read_text())
+    promoted_manifest = deepcopy(manifest)
+    promoted_manifest["release"] = audit["candidate_release"]
+    promoted_manifest["commit"] = audit["candidate_commit"]
+    promoted = deepcopy(audit)
+    promoted["promotion_status"] = "PROMOTED"
+    promoted["replaces_active_pin"] = True
+
+    assert checker.verify_candidate_audit(promoted_manifest, promoted) == []
 
 
 def test_candidate_audit_rejects_incomplete_registered_test_evidence() -> None:

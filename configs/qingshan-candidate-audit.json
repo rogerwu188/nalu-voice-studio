@@ -58,8 +58,8 @@
   ],
   "registered_writer_test_count": 6,
   "registered_test_failures": [],
-  "promotion_status": "QUARANTINED",
+  "promotion_status": "PROMOTED",
   "paid_execution_allowed": false,
-  "replaces_active_pin": false,
+  "replaces_active_pin": true,
   "audited_at": "2026-09-06T02:38:00Z"
 }

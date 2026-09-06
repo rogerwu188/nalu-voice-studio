@@ -12,6 +12,7 @@ from typing import Any
 
 
 ROOT = Path(__file__).resolve().parents[1]
+MAX_BEATS_PER_UNIT: int | None = 3
 
 
 def scene_key(shot: dict[str, Any]) -> str:
@@ -35,17 +36,60 @@ def duration_cost(duration: float) -> float:
     return 1000.0
 
 
-def partition_scene(shots: list[dict[str, Any]]) -> list[list[dict[str, Any]]]:
-    """Dynamic programming chooses no target count; duration and continuity determine groups."""
+def _dialogue_speaker(shot: dict[str, Any]) -> str:
+    raw = str(
+        (shot.get("prompt_spec") or {}).get("dialogue")
+        or shot.get("dialogue")
+        or ""
+    ).strip()
+    if not raw:
+        return ""
+    speaker, separator, words = raw.partition("：")
+    if not separator or not speaker.strip() or not words.strip():
+        raise ValueError(f"dialogue must use speaker：text format: {raw}")
+    return speaker.strip()
+
+
+def partition_scene(
+    shots: list[dict[str, Any]], *, model: str | None = None
+) -> list[list[dict[str, Any]]]:
+    """Partition by duration, continuity, and native-dialogue isolation.
+
+    MiniMax-H3 speaker changes are hard paid-task boundaries. Its image,
+    speaker and audio references have independent ordinal namespaces, so one
+    H3 task must never ask the provider to switch the speaking identity. SD2
+    retains its existing grouping behavior.
+    """
     count = len(shots)
     best: list[tuple[float, list[list[dict[str, Any]]]] | None] = [None] * (count + 1)
     best[0] = (0.0, [])
+    h3 = str(model or "").strip().lower() in {"minimax-h3", "h3"}
     for end in range(1, count + 1):
         duration = 0.0
+        dialogue_count = 0
+        dialogue_speakers: set[str] = set()
         for start in range(end - 1, -1, -1):
             duration = round(duration + float(shots[start]["duration_seconds"]), 6)
+            prompt_spec = shots[start].get("prompt_spec") or {}
+            dialogue_count += 1 if str(prompt_spec.get("dialogue") or shots[start].get("dialogue") or "").strip() else 0
+            speaker = _dialogue_speaker(shots[start]) if h3 else ""
+            if speaker:
+                dialogue_speakers.add(speaker)
             if duration > 12:
                 break
+            # Required SD2/H3 semantic fields are fail-closed and may not be
+            # dropped merely to fit the provider prompt limit.  Bound semantic
+            # density here so a later compiler can serialize every beat.  A
+            # fourth editorial beat always starts a new unit regardless of
+            # aggregate duration. Combat-heavy three-beat units remain subject
+            # to the exact compiled-length gate and must be split if they still
+            # exceed the provider ceiling.
+            if (
+                (MAX_BEATS_PER_UNIT is not None and end - start > MAX_BEATS_PER_UNIT)
+                or dialogue_count > 2
+                or (h3 and len(dialogue_speakers) > 1)
+            ):
+                continue
             if best[start] is None:
                 continue
             cost = duration_cost(duration)
@@ -196,7 +240,7 @@ def build(manifest: dict[str, Any], source_sha: str) -> tuple[dict[str, Any], di
         end = start + 1
         while end < len(shots) and scene_key(shots[end]) == key:
             end += 1
-        groups.extend(partition_scene(shots[start:end]))
+        groups.extend(partition_scene(shots[start:end], model=manifest.get("model")))
         start = end
 
     episode = str(manifest.get("episode") or "")

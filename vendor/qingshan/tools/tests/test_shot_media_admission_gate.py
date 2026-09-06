@@ -85,6 +85,25 @@ class ShotMediaAdmissionGateTests(unittest.TestCase):
             self.assertEqual(report["status"], "ADMITTED", report["failures"])
             self.assertEqual(report["downstream_status"], "ADMITTED_FOR_VIDEO_SUBMIT")
 
+    def test_identity_evidence_must_cover_every_declared_character(self):
+        with TemporaryDirectory() as directory:
+            payload = self.fixture(Path(directory))
+            identity = next(
+                row for row in payload["evidence"]
+                if row["gate_id"] == "CHARACTER-IDENTITY-ADMISSION"
+            )
+            evidence_path = Path(identity["evidence_path"])
+            evidence_payload = json.loads(evidence_path.read_text(encoding="utf-8"))
+            evidence_payload["objective_verification"]["canonical_characters"] = ["CHAR-A", "CHAR-B"]
+            evidence_path.write_text(json.dumps(evidence_payload), encoding="utf-8")
+            identity["evidence_sha256"] = digest(evidence_path)
+            report = evaluate(payload, self.registry, Path(directory))
+            self.assertEqual(report["status"], "FAIL")
+            self.assertTrue(any(
+                "p0_identity_canonical_character_coverage_incomplete" in row
+                for row in report["failures"]
+            ))
+
     def test_advisory_and_unregistered_metric_cannot_admit_or_block(self):
         with TemporaryDirectory() as directory:
             payload = self.fixture(Path(directory))
@@ -197,6 +216,166 @@ class ShotMediaAdmissionGateTests(unittest.TestCase):
                 ],
             }
             self.assertEqual(precheck_submission_inputs(task, root=root)["status"], "PASS")
+
+    def test_e57_video_rejects_start_frame_without_population_scope_evidence(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            frame = root / "frame.png"
+            frame.write_bytes(b"frame")
+            frame_sha = digest(frame)
+            q1 = root / "q1.json"
+            q1.write_text(json.dumps({
+                "status": "ADMITTED", "downstream_status": "ADMITTED_FOR_VIDEO_SUBMIT",
+                "asset_sha256": frame_sha,
+            }), encoding="utf-8")
+            task = {
+                "episode": "E57", "media_stage": "VIDEO", "require_semantic_anchor_evidence": True,
+                "canonical_characters": ["CHAR-A"], "exact_first_frame_sha256": frame_sha,
+                "start_frame_admission_ref": str(q1),
+                "provider_scope_projection": {"visible_living_entity_instance_total": 1},
+                "reference_image_sequence": [
+                    {"role": "character", "entity_id": "CHAR-A", "path": str(frame)}
+                ],
+            }
+            report = precheck_submission_inputs(task, root=root)
+            self.assertEqual(report["status"], "FAIL")
+            self.assertIn("Q1_POPULATION_SCOPE_VERIFICATION_MISSING", report["failures"])
+
+    def test_e57_video_accepts_exact_population_scope_evidence(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            frame = root / "frame.png"
+            frame.write_bytes(b"frame")
+            frame_sha = digest(frame)
+            q1 = root / "q1.json"
+            q1.write_text(json.dumps({
+                "status": "ADMITTED", "downstream_status": "ADMITTED_FOR_VIDEO_SUBMIT",
+                "asset_sha256": frame_sha,
+                "population_scope_verification": {
+                    "schema": "qingshan.exact_output_population_scope_verification.v1",
+                    "status": "PASS", "reviewed_asset_sha256": frame_sha,
+                    "expected_visible_living_entity_count": 1,
+                    "observed_visible_living_entity_count": 1,
+                    "observed_unbound_living_entity_count": 0,
+                },
+            }), encoding="utf-8")
+            task = {
+                "episode": "E57", "media_stage": "VIDEO", "require_semantic_anchor_evidence": True,
+                "canonical_characters": ["CHAR-A"], "exact_first_frame_sha256": frame_sha,
+                "start_frame_admission_ref": str(q1),
+                "provider_scope_projection": {"visible_living_entity_instance_total": 1},
+                "reference_image_sequence": [
+                    {"role": "character", "entity_id": "CHAR-A", "path": str(frame)}
+                ],
+            }
+            self.assertEqual(precheck_submission_inputs(task, root=root)["status"], "PASS")
+
+    def test_physical_video_requires_exact_action_role_verification(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            frame = root / "frame.png"
+            frame.write_bytes(b"physical-frame")
+            frame_sha = digest(frame)
+            q1 = root / "q1.json"
+            q1.write_text(json.dumps({
+                "status": "ADMITTED",
+                "downstream_status": "ADMITTED_FOR_VIDEO_SUBMIT",
+                "asset_sha256": frame_sha,
+            }), encoding="utf-8")
+            task = {
+                "media_stage": "VIDEO",
+                "require_semantic_anchor_evidence": True,
+                "require_exact_output_action_role_evidence": True,
+                "canonical_characters": ["CHAR-A"],
+                "exact_first_frame_sha256": frame_sha,
+                "start_frame_admission_ref": str(q1),
+                "reference_image_sequence": [
+                    {"role": "character", "entity_id": "CHAR-A", "path": str(frame)}
+                ],
+            }
+            report = precheck_submission_inputs(task, root=root)
+            self.assertEqual(report["status"], "FAIL")
+            self.assertIn("Q1_ACTION_ROLE_VERIFICATION_MISSING", report["failures"])
+
+    def test_physical_video_accepts_exact_action_role_verification(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            frame = root / "frame.png"
+            frame.write_bytes(b"physical-frame")
+            frame_sha = digest(frame)
+            q1 = root / "q1.json"
+            q1.write_text(json.dumps({
+                "status": "ADMITTED",
+                "downstream_status": "ADMITTED_FOR_VIDEO_SUBMIT",
+                "asset_sha256": frame_sha,
+                "action_role_verification": {
+                    "schema": "qingshan.exact_output_action_role_verification.v1",
+                    "status": "PASS",
+                    "reviewed_asset_sha256": frame_sha,
+                    "interaction_state": "PRE_CONTACT",
+                    "initiator_entity_id": "CHAR-ATTACKER",
+                    "target_entity_id": "CHAR-A",
+                    "prop_ownership": [{
+                        "prop_id": "PROP-KNIFE",
+                        "owner_entity_id": "CHAR-ATTACKER",
+                    }],
+                    "forbidden_role_reversal": True,
+                },
+            }), encoding="utf-8")
+            task = {
+                "media_stage": "VIDEO",
+                "require_semantic_anchor_evidence": True,
+                "machine_contract": {
+                    "interaction_topology_contract": {"required": True},
+                },
+                "canonical_characters": ["CHAR-A"],
+                "exact_first_frame_sha256": frame_sha,
+                "start_frame_admission_ref": str(q1),
+                "reference_image_sequence": [
+                    {"role": "character", "entity_id": "CHAR-A", "path": str(frame)}
+                ],
+            }
+            report = precheck_submission_inputs(task, root=root)
+            self.assertEqual(report["status"], "PASS", report)
+            self.assertEqual(report["action_role_evidence_status"], "PASS")
+
+    def test_physical_video_rejects_wrong_action_sha_and_missing_target(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            frame = root / "frame.png"
+            frame.write_bytes(b"physical-frame")
+            frame_sha = digest(frame)
+            q1 = root / "q1.json"
+            q1.write_text(json.dumps({
+                "status": "ADMITTED",
+                "downstream_status": "ADMITTED_FOR_VIDEO_SUBMIT",
+                "asset_sha256": frame_sha,
+                "action_role_verification": {
+                    "schema": "qingshan.exact_output_action_role_verification.v1",
+                    "status": "PASS",
+                    "reviewed_asset_sha256": "wrong-sha",
+                    "interaction_state": "CONTACT_RESULT",
+                    "initiator_entity_id": "CHAR-ATTACKER",
+                    "target_entity_id": "",
+                    "prop_ownership": [],
+                    "forbidden_role_reversal": True,
+                },
+            }), encoding="utf-8")
+            task = {
+                "media_stage": "VIDEO",
+                "require_semantic_anchor_evidence": True,
+                "interaction_topology_contract": {"required": True},
+                "canonical_characters": ["CHAR-A"],
+                "exact_first_frame_sha256": frame_sha,
+                "start_frame_admission_ref": str(q1),
+                "reference_image_sequence": [
+                    {"role": "character", "entity_id": "CHAR-A", "path": str(frame)}
+                ],
+            }
+            report = precheck_submission_inputs(task, root=root)
+            self.assertEqual(report["status"], "FAIL")
+            self.assertIn("Q1_ACTION_ROLE_SHA_MISMATCH", report["failures"])
+            self.assertIn("Q1_ACTION_ROLE_TARGET_MISSING", report["failures"])
 
     def test_video_missing_semantic_policy_declaration_fails_loudly(self):
         task = {
@@ -326,6 +505,16 @@ class ShotMediaAdmissionGateTests(unittest.TestCase):
             "same_attribution_consecutive_count": 2,
         })
         self.assertIn("SWITCH_COVERAGE_REQUIRED", report["failures"])
+
+    def test_first_video_content_failure_requires_full_coverage_redesign(self):
+        report = validate_retry_change({
+            "retry_attempt": 2,
+            "failure_attribution": "PROMPT_SEMANTICS",
+            "prior_failure_classifications": ["PROMPT_SEMANTICS"],
+            "changed_variables": ["PROMPT"],
+        })
+        self.assertEqual(report["status"], "FAIL")
+        self.assertIn("VIDEO_CONTENT_RETRY_REQUIRES_EXECUTION_PROMPT_REDESIGN", report["failures"])
 
     def test_model_stochastic_retry_keeps_input_unchanged(self):
         self.assertEqual(validate_retry_change({
