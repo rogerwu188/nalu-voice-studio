@@ -2,6 +2,7 @@ import base64
 import hashlib
 import io
 import json
+from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
 from pathlib import Path
 
@@ -18,6 +19,40 @@ from nalu_runtime.remote_submitter import (
     PaidProviderAcceptance,
 )
 from nalu_runtime.repository import ConflictError, utc_now
+
+
+@pytest.mark.parametrize("reason", ["dry_run", "cancelled", "archived", "child", "newer", "corrupt"])
+def test_budget_reservation_rejects_ineligible_or_changed_local_state(tmp_path, reason):
+    api = TestClient(create_app(tmp_path / "budget.sqlite3", tmp_path / "data"))
+    run = paid_run(api, tmp_path, run_id="run_budget_guards")
+    repository = api.app.state.repository
+    # Deliberately synthetic record: isolates reservation guards, not frame/shot QA.
+    record = {"task_key": "E01-U01", "request": {"fixture": True},
+              "request_sha256": canonical_sha256({"fixture": True}),
+              "production_package_sha256": PAID_PACKAGE_SHA256}
+    record["preparation_sha256"] = canonical_sha256(record)
+    prepared = repository.append_run_event(run.id, "video_task_prepared", payload=record)
+    with repository.db.connect() as db:
+        if reason == "dry_run":
+            db.execute("UPDATE production_runs SET dry_run = 1 WHERE id = ?", (run.id,))
+        elif reason == "cancelled":
+            db.execute("UPDATE production_runs SET status = 'cancelled' WHERE id = ?", (run.id,))
+        elif reason == "archived":
+            db.execute("UPDATE projects SET archived_at = ? WHERE id = ?", (utc_now(), run.project_id))
+        elif reason == "child":
+            db.execute("UPDATE projects SET audience_mode = 'child' WHERE id = ?", (run.project_id,))
+    if reason == "newer":
+        repository.append_run_event(run.id, "video_task_prepared", payload={
+            **record, "preparation_sha256": "b" * 64})
+    if reason == "corrupt":
+        repository.append_run_event(run.id, "video_estimate_reserved", payload={
+            "task_key": "E01-U02", "estimated_credits": -100, "reservation_sha256": "b" * 64})
+    endpoint = f"/v1/production-runs/{run.id}/video-task-preparations/{prepared.id}/estimate-approvals"
+    approval = {"preparation_sha256": record["preparation_sha256"], "estimated_credits": 20,
+                "confirmed_run_budget_credits": 100, "approved_by": "QA", "confirmation": "fixture only"}
+    assert api.post(endpoint, json=approval).status_code == 409
+    if reason == "child":
+        assert api.post(endpoint, json={**approval, "guardian_approval": True}).status_code == 200
 
 
 @pytest.mark.parametrize("invalid", [None, "bytes", "hash", "extra_reference", "package", "cancelled", "ratio"])
@@ -69,6 +104,31 @@ def test_prepare_concrete_shot_and_image_without_network(tmp_path, invalid):
     assert api.app.state.repository.list_remote_task_bindings(run.id) == []
     restarted = TestClient(create_app(tmp_path / "prepare.sqlite3", tmp_path / "data"))
     assert restarted.get(f"/v1/production-runs/{run.id}/events").json()[-1]["payload"] == record
+    approval_url = endpoint + f"/{response.json()['id']}/estimate-approvals"
+    approval = {"preparation_sha256": record["preparation_sha256"], "estimated_credits": 60,
+                "confirmed_run_budget_credits": 100, "approved_by": "QA",
+                "confirmation": "仅合成预算测试，同意此镜头的预估额度"}
+    for patch in ({"preparation_sha256": "0" * 64}, {"confirmed_run_budget_credits": 101}):
+        assert api.post(approval_url, json={**approval, **patch}).status_code == 409
+    for patch in ({"estimated_credits": True}, {"estimated_credits": -1}, {"approved_by": "   "}):
+        assert api.post(approval_url, json={**approval, **patch}).status_code == 422
+    reserved = api.post(approval_url, json=approval)
+    assert reserved.status_code == 200, reserved.text
+    assert api.post(approval_url, json=approval).json()["id"] == reserved.json()["id"]
+    assert reserved.json()["payload"]["provider_price_verified"] is False
+    assert api.post(approval_url, json={**approval, "estimated_credits": 61}).status_code == 409
+    prepared_others = [api.post(endpoint, json={"task_key": key, "request": request}).json()
+                       for key in ("E01-U02", "E01-U03")]
+    def approve_other(item):
+        return api.post(endpoint + f"/{item['id']}/estimate-approvals", json={
+            **approval, "preparation_sha256": item["payload"]["preparation_sha256"], "estimated_credits": 40,
+        }).status_code
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        assert sorted(pool.map(approve_other, prepared_others)) == [200, 409]
+    reservations = [e for e in restarted.get(f"/v1/production-runs/{run.id}/events").json()
+                    if e["event_type"] == "video_estimate_reserved"]
+    assert sum(e["payload"]["estimated_credits"] for e in reservations) == 100
+    assert api.app.state.repository.list_remote_task_bindings(run.id) == []
 
 
 @pytest.mark.parametrize("status,stage,percent", [

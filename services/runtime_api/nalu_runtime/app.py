@@ -165,6 +165,7 @@ from .semantic_recognizer import LocalSemanticRecognizer
 from .source_reader import read_public_source, source_failure_code
 from .storage_diagnostics import inspect_storage
 from .task_observation_service import TaskObservationService
+from .video_budget import VideoBudgetApproval, VideoBudgetService
 from .video_preparation import VideoPreparationRequest, VideoPreparationService
 from .writer_provider import (
     DisabledWriterProviderVerifier,
@@ -1121,6 +1122,10 @@ def create_app(
     @app.post("/v1/production-runs/{run_id}/video-task-preparations", response_model=RunEvent)
     def prepare_video_task(run_id: str, request: VideoPreparationRequest) -> RunEvent:
         return VideoPreparationService(repository).prepare(run_id, request)
+
+    @app.post("/v1/production-runs/{run_id}/video-task-preparations/{preparation_id}/estimate-approvals", response_model=RunEvent)
+    def approve_video_estimate(run_id: str, preparation_id: str, request: VideoBudgetApproval) -> RunEvent:
+        return VideoBudgetService(repository).reserve(run_id, preparation_id, request)
 
     @app.post("/v1/production-runs/{run_id}/tasks/{binding_id}/refresh", response_model=RunEvent)
     def refresh_saved_task(

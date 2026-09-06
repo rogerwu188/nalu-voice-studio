@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "cab966fae03e8c3dad214a0b1492b88a12e18caa",
-  "last_advanced_at": "2026-09-06T22:55:00Z",
+  "observed_head": "bfb5717eeee20fd8754a7fa78e2e0a49a374b5ac",
+  "last_advanced_at": "2026-09-06T22:58:38Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Concrete shot preparation endpoint persists exact request and decoded first frame. Commit cab966f pushed; full regression 385 passed, Ruff and OpenAPI passed. CI 34065405217 pending at inspection. Evidence docs/qa/video-request-preparation-2026-09-06.md. Preparation only: actual AI shot planning, budget reservation, approved dispatch and native integration remain open. No live provider call performed."
+    "summary": "Per-shot estimate approval endpoint atomically reserves local estimated credits and binds exact preparation/request/package digests. 63 boundary tests passed, including concurrent budget exhaustion, replay, restart and invalid-state guards; Ruff passed. Evidence docs/qa/video-estimate-reservations-2026-09-06.md. Estimates are not verified provider prices; paid dispatch and native/E2E remain open. No live provider call performed."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Implement transactional per-shot budget reservation and explicit approval bound to saved video_task_prepared digest, then concrete SD2 single-attempt dispatch. Budget is currently only metadata, not enforced; do not imply it caps provider charges. Connect actual AI/upstream shot plans and first-frame inputs, native orchestration and polling; H3/omni remain open. Keep Hops 401 quarantined. Complete source/story-to-script-to-video QA; dry-runs are not delivery.",
+    "summary": "Connect verified price/explicit authorization and current-script/package revalidation to reserved exact shot requests before concrete SD2 single-attempt dispatch. Local estimated-credit reservations do not cap provider charges. Connect actual AI/upstream shot planning and first-frame inputs, native confirmation and polling; H3/omni remain open. Keep Hops 401 quarantined. Complete source/story-to-script-to-video QA; dry-runs are not delivery.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

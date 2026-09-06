@@ -8492,6 +8492,54 @@
         "title": "ValidationError",
         "type": "object"
       },
+      "VideoBudgetApproval": {
+        "additionalProperties": false,
+        "properties": {
+          "approved_by": {
+            "maxLength": 160,
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Approved By",
+            "type": "string"
+          },
+          "confirmation": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Confirmation",
+            "type": "string"
+          },
+          "confirmed_run_budget_credits": {
+            "exclusiveMinimum": 0.0,
+            "title": "Confirmed Run Budget Credits",
+            "type": "integer"
+          },
+          "estimated_credits": {
+            "exclusiveMinimum": 0.0,
+            "title": "Estimated Credits",
+            "type": "integer"
+          },
+          "guardian_approval": {
+            "default": false,
+            "title": "Guardian Approval",
+            "type": "boolean"
+          },
+          "preparation_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Preparation Sha256",
+            "type": "string"
+          }
+        },
+        "required": [
+          "preparation_sha256",
+          "estimated_credits",
+          "confirmed_run_budget_credits",
+          "approved_by",
+          "confirmation"
+        ],
+        "title": "VideoBudgetApproval",
+        "type": "object"
+      },
       "VideoPreparationRequest": {
         "additionalProperties": false,
         "properties": {
@@ -12918,6 +12966,64 @@
           }
         },
         "summary": "Prepare Video Task"
+      }
+    },
+    "/v1/production-runs/{run_id}/video-task-preparations/{preparation_id}/estimate-approvals": {
+      "post": {
+        "operationId": "approve_video_estimate_v1_production_runs__run_id__video_task_preparations__preparation_id__estimate_approvals_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "preparation_id",
+            "required": true,
+            "schema": {
+              "title": "Preparation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VideoBudgetApproval"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunEvent"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Approve Video Estimate"
       }
     },
     "/v1/production-runs/{run_id}/visual-continuity-qa": {
