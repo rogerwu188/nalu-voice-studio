@@ -77,15 +77,23 @@ struct KeychainSecretStore {
         }
     }
 
-    func secret(for credential: ProviderCredential) throws -> String? {
-        guard let data = try read(credential) else { return nil }
+    func secret(for credential: ProviderCredential, allowAuthenticationUI: Bool = true) throws -> String? {
+        guard let data = try read(credential, allowAuthenticationUI: allowAuthenticationUI) else { return nil }
         return String(data: data, encoding: .utf8)
     }
 
-    private func read(_ credential: ProviderCredential) throws -> Data? {
+    func readQuery(_ credential: ProviderCredential, allowAuthenticationUI: Bool) -> [String: Any] {
         var query = baseQuery(credential)
         query[kSecReturnData as String] = true
         query[kSecMatchLimit as String] = kSecMatchLimitOne
+        if !allowAuthenticationUI {
+            query[kSecUseAuthenticationUI as String] = kSecUseAuthenticationUIFail
+        }
+        return query
+    }
+
+    private func read(_ credential: ProviderCredential, allowAuthenticationUI: Bool = true) throws -> Data? {
+        let query = readQuery(credential, allowAuthenticationUI: allowAuthenticationUI)
         var item: CFTypeRef?
         let status = SecItemCopyMatching(query as CFDictionary, &item)
         if status == errSecItemNotFound { return nil }

@@ -3,6 +3,19 @@ import Security
 @testable import NaluVoiceStudio
 
 final class CredentialPresenceTests: XCTestCase {
+    func testReadOnlyDiagnosticFailsInsteadOfWaitingForAuthorization() {
+        let query = KeychainSecretStore().readQuery(.openAIRealtime, allowAuthenticationUI: false)
+        XCTAssertEqual(query[kSecUseAuthenticationUI as String] as? String, kSecUseAuthenticationUIFail as String)
+        XCTAssertEqual(query[kSecReturnData as String] as? Bool, true)
+        XCTAssertEqual(query[kSecAttrAccount as String] as? String, ProviderCredential.openAIRealtime.rawValue)
+    }
+
+    func testExplicitSecretOperationsRetainSystemAuthorization() {
+        let query = KeychainSecretStore().readQuery(.openAIRealtime, allowAuthenticationUI: true)
+        XCTAssertNil(query[kSecUseAuthenticationUI as String])
+        XCTAssertEqual(query[kSecReturnData as String] as? Bool, true)
+    }
+
     func testPresenceNeverRequestsPasswordOrInteractiveAuthorization() throws {
         for credential in ProviderCredential.allCases {
             let present = try KeychainSecretStore().contains(credential) { raw in

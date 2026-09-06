@@ -226,3 +226,19 @@ Checks use the complete sanitized list, not just ten displayed names, and do not
 echo selected values that could accidentally be credentials. Three regression
 tests cover independent role status, beyond-ten membership and secret redaction.
 Syntax/diff checks pass; full CI and exact-artifact native result QA remain open.
+
+## Connection-check authorization wait
+
+On native 8af99ac process 82280 the check control stayed disabled without a model
+result. A one-second process sample establishes `AIServiceConnectionCheck.check →
+KeychainSecretStore.secret → read → SecItemCopyMatching` waiting in the security
+service. This happens before URLSession, so its network timeout cannot bound that
+wait. It is not evidence of a provider network failure or missing key.
+
+The diagnostic now requests a noninteractive Keychain read. If authorization or
+unlocking is required it returns an actionable, sanitized credential-access error
+and does not contact the provider. Actual save/readback and explicitly authorized
+voice operations retain their normal system authorization behavior. No permission
+is bypassed. Query-policy tests cover the noninteractive diagnostic and retained
+interactive policy; syntax/diff checks pass. Full CI and native denial/success
+paths remain to be verified. Initial stale status display remains a separate item.

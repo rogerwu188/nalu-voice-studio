@@ -33,7 +33,15 @@ struct AIServiceModelList: Decodable {
 
     enum CheckError: LocalizedError {
         case invalidResponse
-        var errorDescription: String? { "服务商返回的模型列表格式不受支持；尚未验证连接能力。" }
+        case credentialAccessRequired
+        var errorDescription: String? {
+            switch self {
+            case .invalidResponse:
+                "服务商返回的模型列表格式不受支持；尚未验证连接能力。"
+            case .credentialAccessRequired:
+                "本次检查无法读取钥匙串中的密钥，尚未连接服务商。请先解锁钥匙串并允许 Nalu 访问，或在本窗口输入密钥后再检查；无需发到聊天中。"
+            }
+        }
     }
 }
 
@@ -41,8 +49,12 @@ actor AIServiceConnectionCheck {
     func check(endpoint: AIServiceEndpoint, draft: String) async throws -> String {
         let savedModels = try AIServiceModels.load(for: endpoint)
         let entered = draft.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let key = try entered.isEmpty
-                ? KeychainSecretStore().secret(for: .openAIRealtime) : entered,
+        let saved: String?
+        do {
+            saved = try entered.isEmpty
+                ? KeychainSecretStore().secret(for: .openAIRealtime, allowAuthenticationUI: false) : entered
+        } catch { throw AIServiceModelList.CheckError.credentialAccessRequired }
+        guard let key = saved,
               !key.isEmpty else { throw RealtimeVoiceError.missingCredential }
         let configuration = URLSessionConfiguration.ephemeral
         configuration.timeoutIntervalForRequest = 20
