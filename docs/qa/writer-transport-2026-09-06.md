@@ -28,3 +28,5 @@ not to enable remote storage merely to retrieve a task:
 [Retrieve stored completion](https://developers.openai.com/api/reference/ruby/resources/chat/subresources/completions/methods/retrieve).
 Those documents do not establish Hops access or compatibility; mock tests cannot
 establish that either.
+
+Full local regression before runtime service addition: 341 passed in 206.93s.

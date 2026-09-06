@@ -11,7 +11,7 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "9452d3cc98fe7ea63862cabc4a6a12aef8d31589",
+  "observed_head": "da9f829c38570cc9979dbb7efba2c8e8d292bcf2",
   "last_advanced_at": "2026-09-06T21:23:31Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Added bounded Hops HTTP transport and structured-answer validation integrated with ledger in mock tests. Twelve targeted tests and Ruff pass; full suite running. No actual provider request or native activation. Evidence docs/qa/writer-transport-2026-09-06.md. Next: runtime-owned request construction, local provenance binding and backup/privacy handling, then native wiring; real Hops QA awaits authorization resolution."
+    "summary": "Runtime service now constructs request from pending story, executes through ledger/transport and persists draft receipts. Two new tests cover interrupted-answer-save recovery with one network call, preserved queue and prompt projection; Ruff passed. Prior full suite 341 passed. Evidence docs/qa/runtime-interactive-writer-2026-09-06.md. Next: backup/privacy treatment of ledger, native endpoint wiring and authentic observed-execution provenance; still no real provider verification."
   },
   "next_action": {
     "sop": "SOP-04",
