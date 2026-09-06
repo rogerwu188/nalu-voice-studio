@@ -30,7 +30,7 @@
   "next_action": {
     "sop": "SOP-02",
     "id": "verify-provider-connection-check-and-native-settings",
-    "summary": "Verify configurable-provider CI, deploy exact artifact and set user-requested https://hopsapi.com/v1 in native settings. QA address persistence, GPT-primary entry and credential completion. Confirm provider Realtime/model support before audio test; models-list success alone is insufficient. Do not request replacement key: intended provider authentication passed. Evidence: docs/qa/gpt-voice-and-credential-save-2026-09-06.md.",
+    "summary": "Native provider address save/reopen and read-only connection succeeded on source 3fdc8c6; all four CI jobs passed. Verify follow-up exact speech-entitlement verifier CI (9 local tests and native bundle verification pass). Next address explicit per-capability model configuration and confirm provider Realtime support: current list has 15 models but lacks existing realtime/research defaults. Never silently substitute models or infer audio support from model-list success. Evidence: docs/qa/gpt-voice-and-credential-save-2026-09-06.md.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

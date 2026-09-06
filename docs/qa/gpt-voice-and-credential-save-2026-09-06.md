@@ -118,3 +118,11 @@ audio-input and speech-recognition entitlements. The warning is reproducible in
 the verifier's `plutil -extract` handling of the dotted entitlement key; do not
 describe it as evidence that the binary lacks that permission. Correct and test
 the verifier's exact-key extraction separately.
+
+Verifier follow-up: replaced dotted `plutil` key-path extraction with an exact
+plist dictionary check requiring boolean true for speech-recognition and
+audio-input. Nine positive/negative tests pass, including missing keys, false,
+string/integer impostors, nested impostors, non-dictionaries and corrupt/missing
+files. Ruff passes. The same native arm64 artifact now passes the revised
+verifier without the extraction warning. Full CI for the verifier change is
+still required; this does not provide Developer ID/notarization acceptance.
