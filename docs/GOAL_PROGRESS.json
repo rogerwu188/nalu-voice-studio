@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "7f62262fe09127283b36dda513f37e9edb523ec3",
-  "last_advanced_at": "2026-09-06T14:37:05Z",
+  "observed_head": "785c0829346bd7a7fd33fc7a499731fcf1eba312",
+  "last_advanced_at": "2026-09-06T14:44:04Z",
   "last_closed_checkpoint": {
     "id": "native-isolated-project-restart-backup-restore-qa",
     "sop": "SOP-03",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-02",
     "status": "IN_PROGRESS",
-    "summary": "QA preference isolation fix 2461882 passed all four CI jobs in run 34038401250 and local 301-test regression. Exact arm64 native idle controls are visible and QA settings persist independently. Native font transition FAILED: greeting remains 304x51 points at levels 1 and 3 despite enlargement acknowledgment. Evidence: docs/qa/native-font-transition-2026-09-06.json. SOP-02 remains IN_PROGRESS."
+    "summary": "Explicit font scaling 785c082 passed all four CI jobs in 34039752403. Native same-greeting height grew from 45 to 89 points, and bottom primary controls remain visible. Evidence: docs/qa/native-font-growth-2026-09-06.json. Maximum-font toolbar names were truncated; a separate heading/action row correction is implemented but awaits exact-artifact QA. SOP-02 remains IN_PROGRESS."
   },
   "next_action": {
     "sop": "SOP-02",
     "id": "explicit-macos-comfort-font-scaling",
-    "summary": "Explicit comfort point-size policy is implemented across ContentView and activity labels with monotonic/clamping tests. Finish its CI and download the exact new artifact, then measure the same greeting at levels 1 and 3 in isolated QA and verify create/microphone buttons remain visible at minimum window size. Preserve failed before-evidence; implementation alone does not close the defect.",
+    "summary": "Finish CI for the stacked heading/toolbar correction, then use its exact artifact in isolated QA (port 18766) to confirm maximum-font action names and bottom primary controls are fully visible. Preserve measured font-growth evidence. After that bounded confirmation, select the next safe unblocked SOP item; real paid speech remains authorization-bound.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

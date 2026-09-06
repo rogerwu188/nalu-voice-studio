@@ -87,6 +87,13 @@ Current evidence:
 
 ## SOP-02 · Voice interview and accessible conversation — IN_PROGRESS
 
+- Native actual-growth verification for `785c0829346bd7a7fd33fc7a499731fcf1eba312`:
+  all four CI jobs in run `34039752403` passed. At 980x736 points, the same greeting
+  grew from 408x45 to 389x89 points as level changed from 1 to 3. Primary bottom
+  controls remained visible. See [measured evidence](qa/native-font-growth-2026-09-06.json).
+  Large-font toolbar labels were ellipsized, so the heading and actions are now
+  separated into rows; exact-artifact confirmation of that correction remains open.
+
 - Explicit macOS comfort typography implementation follows the failed native
   font-transition evidence: main-window semantic text styles now map to bounded
   point sizes (90%, 100%, 120%, 140%) inherited by controls, transcript, messages

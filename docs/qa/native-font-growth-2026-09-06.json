@@ -1,0 +1,25 @@
+{
+  "schema_version": "nalu.native-font-growth-qa/v1",
+  "recorded_at": "2026-09-06T14:44:04Z",
+  "product_commit": "785c0829346bd7a7fd33fc7a499731fcf1eba312",
+  "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34039752403",
+  "ci_conclusion": "success",
+  "artifact_architecture": "arm64",
+  "artifact_zip_sha256": "38677f3c74f29968b25f090af9f4b3dda07afe0636ea5ab0f6026de417c28196",
+  "declared_zip_digest_matches": true,
+  "window_size_points": [980, 736],
+  "default_greeting_ax_size_points": [408, 45],
+  "maximum_greeting_ax_size_points": [389, 89],
+  "actual_text_growth": "PASS",
+  "idle_microphone_visible_at_maximum": true,
+  "create_project_visible_at_maximum": true,
+  "maximum_toolbar_labels": "FAIL: some action names are ellipsized when sharing a row with the title",
+  "next_correction": "Separate the heading and toolbar into vertically stacked rows, then recheck the exact new artifact.",
+  "screenshots": [
+    "docs/qa/images/native-font-growth-default-2026-09-06.png",
+    "docs/qa/images/native-font-growth-maximum-2026-09-06.png"
+  ],
+  "qa_process_terminated_by_exact_pid": 66317,
+  "project_complete": false,
+  "boundary": "Isolated native visual QA only; no microphone, Realtime provider, signing or notarization acceptance."
+}

@@ -267,7 +267,7 @@ struct ContentView: View {
 
     private var interview: some View {
         VStack(spacing: 0) {
-            HStack {
+            VStack(alignment: .leading, spacing: 12) {
                 VStack(alignment: .leading) {
                     Text("和 Nalu 讲故事").naluFont(.title, weight: .bold)
                     RuntimeStatusBadge(status: model.runtimeStatus)
@@ -275,7 +275,7 @@ struct ContentView: View {
                         StorageStatusBadge(diagnostics: diagnostics)
                     }
                 }
-                Spacer()
+                HStack {
                 Button("选择家庭资料", systemImage: "photo.badge.plus") {
                     beginAutomaticAssetImport()
                 }
@@ -307,6 +307,7 @@ struct ContentView: View {
                 .controlSize(.large)
                 .accessibilityIdentifier(NaluPrimaryAccessibilityID.realtimeVoice)
                 Button("再说一遍", action: repeatQuestion).controlSize(.large)
+                }
             }
             .padding(24)
             Divider()
