@@ -365,9 +365,14 @@ Current evidence:
   SHA-256 `6b8dc142859ca001bfb2ede5b8c39d79dd37f1fc073a6fdb436e212e42bc5225`;
   a repository-external download reproduced it and its declared inner ZIP SHA-256
   `e807b309cb57e7526eee20bb6744a74ec0d1d6a2af38c0abaae0c1a3e11126d2`.
-  This makes repeated native-window and VoiceOver QA resilient to copy changes; it is
-  automation infrastructure, not a claim that the locked-Mac visual, real microphone,
-  paid Realtime or human accessibility matrix passed.
+  The exact downloaded app then passed isolated native-tree QA: all eight selectors were
+  exposed, the final fixture transcript remained visible at the current scroll position,
+  create-project immediately added “未命名故事” to the sidebar, the large material card
+  opened and safely cancelled the native picker, and the Realtime consent sheet remained
+  disabled without a Keychain credential. Evidence:
+  `docs/qa/native-accessibility-selectors-2026-09-06.json`. This closes the repeatable
+  selector/native-window checkpoint, not real microphone, paid Realtime, VoiceOver human
+  traversal or the complete accessibility matrix.
 
 ## SOP-03 · Multi-project, season and episode planning — IN_PROGRESS
 

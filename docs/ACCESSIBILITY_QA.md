@@ -243,7 +243,19 @@ The extracted `studio.nalu.voice` application is version 0.1.0, its native execu
 contains `x86_64` and `arm64`, and a packaged-binary scan found all eight identifiers.
 The CI artifact remains ad-hoc signed with no Team ID and is not a release candidate.
 
-The current Mac was locked when the freshly built window was ready for inspection, so
-this checkpoint deliberately records no claim about visible placement, VoiceOver order,
-animation, microphone permission or human usability. Those observations still require
-an unlocked desktop and remain part of SOP-02 acceptance.
+The Mac was initially locked when the freshly built window was ready. After unlock, the
+exact downloaded application was relaunched against an isolated system-temporary SQLite
+directory with the `conversation-scroll` fixture. Its native tree exposed all eight
+identifiers. The latest live transcript was visible at scrollbar value
+`0.9308466051969824`; activating `nalu.projects.create` immediately added the selected
+“未命名故事” row; `nalu.assets.import.card` opened the native file picker and Cancel
+returned without importing; and `nalu.voice.realtime` opened consent copy promising to
+answer an interruption before returning to the flow while its start action remained
+disabled without a Keychain credential. Runtime health reported schema 27.
+Normal application quit then removed the exact app and Runtime parent/child processes
+and closed the loopback listener.
+
+Machine-readable evidence is
+`docs/qa/native-accessibility-selectors-2026-09-06.json`. No microphone permission,
+live Realtime, VoiceOver human traversal or paid call was exercised, so those acceptance
+items remain open.

@@ -1,0 +1,81 @@
+{
+  "schema_version": "nalu.native-accessibility-qa/v1",
+  "observed_at": "2026-09-06T03:31:00Z",
+  "product_commit": "18fac0ba6b7529b4c11c5dab39dded259ff59161",
+  "ci": {
+    "run_id": 34008547788,
+    "url": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34008547788",
+    "conclusion": "success",
+    "jobs": ["runtime", "macos-arm64", "macos-x86_64", "macos-universal"]
+  },
+  "artifact": {
+    "id": 9981803874,
+    "github_archive_sha256": "6b8dc142859ca001bfb2ede5b8c39d79dd37f1fc073a6fdb436e212e42bc5225",
+    "inner_zip_sha256": "e807b309cb57e7526eee20bb6744a74ec0d1d6a2af38c0abaae0c1a3e11126d2",
+    "bundle_identifier": "studio.nalu.voice",
+    "version": "0.1.0",
+    "architectures": ["x86_64", "arm64"],
+    "signature": "adhoc",
+    "team_identifier": null
+  },
+  "isolation": {
+    "local_qa_enabled": true,
+    "scenario": "conversation-scroll",
+    "application_support": "/var/folders/y4/k84st0yj7fz043tnxkfrjn1w0000gn/T/nalu-selector-native-state.8T4yNt",
+    "user_project_database_used": false
+  },
+  "runtime": {
+    "health": "ok",
+    "version": "0.1.0",
+    "sqlite_schema_version": 27,
+    "loopback_listener": "127.0.0.1:8765",
+    "app_pid": 33390,
+    "runtime_parent_pid": 33398,
+    "runtime_child_pid": 33400
+  },
+  "selector_contract": {
+    "packaged_binary_scan": "PASS",
+    "native_accessibility_tree": "PASS",
+    "identifiers": [
+      "nalu.projects.list",
+      "nalu.projects.create",
+      "nalu.status.runtime",
+      "nalu.voice.realtime",
+      "nalu.assets.import.toolbar",
+      "nalu.assets.import.card",
+      "nalu.voice.activity",
+      "nalu.voice.microphone.toggle"
+    ]
+  },
+  "observations": {
+    "runtime_status_online": "PASS",
+    "conversation_final_transcript_visible": "PASS",
+    "conversation_scrollbar_value": 0.9308466051969824,
+    "final_transcript_prefix": "【QA 当前实时转写】",
+    "create_project_added_sidebar_row": "PASS",
+    "created_project_id": "prj_46f986bc31e3439c84bf9a8217ffaa7c",
+    "created_project_title": "未命名故事",
+    "created_project_planned_episode_count": 6,
+    "asset_card_opened_native_file_picker": "PASS",
+    "asset_picker_cancelled_without_import": "PASS",
+    "realtime_consent_copy_answer_first": "PASS",
+    "realtime_start_disabled_without_keychain_credential": "PASS",
+    "idle_voice_state_visible": "PASS",
+    "normal_quit_removed_exact_processes": "PASS",
+    "normal_quit_closed_loopback_listener": "PASS"
+  },
+  "not_exercised": [
+    "microphone_permission",
+    "speech_recognition_permission",
+    "live_openai_realtime_session",
+    "provider_credential",
+    "paid_generation",
+    "production_submission",
+    "publication",
+    "voiceover_human_traversal",
+    "developer_id_signing",
+    "notarization"
+  ],
+  "result": "PARTIAL_PASS",
+  "completion_claim": false
+}
