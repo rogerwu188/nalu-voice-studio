@@ -163,6 +163,7 @@ from .release_evidence import (
 from .remote_submitter import DurableRemoteTaskSubmitter
 from .repository import ConflictError, NotFoundError, Repository
 from .semantic_recognizer import LocalSemanticRecognizer
+from .shot_planning import ShotPlanningRequest, ShotPlanningService, validate_plan
 from .source_reader import read_public_source, source_failure_code
 from .storage_diagnostics import inspect_storage
 from .task_observation_service import TaskObservationService
@@ -1127,6 +1128,19 @@ def create_app(
     @app.post("/v1/production-runs/{run_id}/video-task-preparations", response_model=RunEvent)
     def prepare_video_task(run_id: str, request: VideoPreparationRequest) -> RunEvent:
         return VideoPreparationService(repository).prepare(run_id, request)
+
+    @app.post("/v1/production-runs/{run_id}/shot-plans", response_model=RunEvent)
+    def generate_shot_plan(run_id: str, request: ShotPlanningRequest,
+                           writer_key: str | None = Header(default=None, alias="X-Nalu-Writer-Key"),
+                           origin: str | None = Header(default=None)) -> RunEvent:
+        if origin is not None or not writer_key or len(writer_key) > 1024:
+            raise HTTPException(403, "native writer credential required")
+        try:
+            return ShotPlanningService(repository).generate(run_id, model=request.model,
+                transport=HopsWriterTransport(lambda: writer_key, transport=writer_http_transport,
+                                               response_validator=validate_plan))
+        except WriterTransportError as exc:
+            raise HTTPException(502, str(exc)) from None
 
     @app.post("/v1/production-runs/{run_id}/video-task-preparations/{preparation_id}/estimate-approvals", response_model=RunEvent)
     def approve_video_estimate(run_id: str, preparation_id: str, request: VideoBudgetApproval) -> RunEvent:

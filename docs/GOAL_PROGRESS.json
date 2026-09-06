@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "2bc20f64d28afb7e944b076439ff9824c38b32b9",
-  "last_advanced_at": "2026-09-06T23:09:25Z",
+  "observed_head": "14c0212883688c33578e0483348ec39ee1403b37",
+  "last_advanced_at": "2026-09-06T23:18:31Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Reviewed SD2 dispatch endpoint implemented with current-context revalidation and sole durable submitter. Commit 2bc20f6 pushed; full regression 409 passed, Ruff/OpenAPI passed; CI 34066107435 pending. Eight mock flow cases include restart, concurrency and cancellation after intent. Evidence docs/qa/approved-shot-dispatch-2026-09-06.md. No real paid call; native/upstream inputs and full E2E remain open."
+    "summary": "Approved-episode AI shot planning implemented with durable writer invocation, literal source and duration validation, continuity task dependencies and current-package checks. Evidence docs/qa/episode-shot-planning-2026-09-06.md. Full regression 419 passed in 53.72s; Ruff/OpenAPI passed. Native review/entry-frame generation and live E2E remain open. Previous dispatch CI 34066107435 cancelled by newer evidence commit; CI 34066172804 was in progress, not claimed passed. Current planning commit/CI verification pending."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Connect actual AI/upstream shot planning and entry-frame inputs to preparation, observed-price approval and dispatch; add native confirmation and saved-task polling. Current dispatch has mock integration only, not real video/master acceptance. H3/omni remain open. Investigate Hops access safely without repeating quarantined failed paid writer invocation; complete real source/story-to-video and release QA.",
+    "summary": "Connect the saved AI shot draft to native review and concrete entry-frame generation, then full structured video preparation, observed-price approval, dispatch and task polling. Commit and verify current planning regression first. Existing dispatch/planning are mock integration only. Investigate Hops access without repeating quarantined writer invocation; actual source/story-to-video/master/release QA remains open.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

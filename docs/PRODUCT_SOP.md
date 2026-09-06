@@ -90,6 +90,10 @@ The [reviewed-shot SD2 dispatch endpoint](qa/approved-shot-dispatch-2026-09-06.m
 now connects exact saved approvals to the durable HTTP submitter in mock-network
 tests. Native orchestration, actual upstream shot inputs and live generation/
 master/release acceptance remain incomplete.
+Approved episodes now have [durable AI shot-draft planning](qa/episode-shot-planning-2026-09-06.md)
+with source, timing, continuity and current-package checks. This is backend/mock
+evidence only; native review, generated entry frames and real production remain
+open, and no SOP status is promoted by this checkpoint.
 
 2026-09-06 native checkpoints on `4e03c16`, CI
 [34054486473](https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34054486473):

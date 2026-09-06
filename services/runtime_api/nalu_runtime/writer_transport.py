@@ -57,9 +57,11 @@ def validate_writer_response(raw: bytes) -> None:
 class HopsWriterTransport:
     endpoint = "https://hopsapi.com/v1/chat/completions"
 
-    def __init__(self, secret: Callable[[], str], *, transport: httpx.BaseTransport | None = None):
+    def __init__(self, secret: Callable[[], str], *, transport: httpx.BaseTransport | None = None,
+                 response_validator: Callable[[bytes], None] = validate_writer_response):
         self._secret = secret
         self._transport = transport
+        self._response_validator = response_validator
 
     def __call__(self, body: bytes) -> bytes:
         try:
@@ -91,7 +93,7 @@ class HopsWriterTransport:
                             raise WriterTransportError("writer_response_size")
                         chunks.append(chunk)
                     raw = b"".join(chunks)
-            validate_writer_response(raw)
+            self._response_validator(raw)
             return raw
         except WriterTransportError:
             raise

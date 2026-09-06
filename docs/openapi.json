@@ -8370,6 +8370,23 @@
         "title": "SemanticMediaQARequest",
         "type": "object"
       },
+      "ShotPlanningRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "model": {
+            "maxLength": 160,
+            "minLength": 3,
+            "pattern": "^[A-Za-z0-9_.:/-]+$",
+            "title": "Model",
+            "type": "string"
+          }
+        },
+        "required": [
+          "model"
+        ],
+        "title": "ShotPlanningRequest",
+        "type": "object"
+      },
       "StorageDiagnostics": {
         "properties": {
           "available_bytes": {
@@ -12975,6 +12992,87 @@
           }
         },
         "summary": "Semantic Media Qa"
+      }
+    },
+    "/v1/production-runs/{run_id}/shot-plans": {
+      "post": {
+        "operationId": "generate_shot_plan_v1_production_runs__run_id__shot_plans_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Nalu-Writer-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Nalu-Writer-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "origin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Origin"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShotPlanningRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunEvent"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Generate Shot Plan"
       }
     },
     "/v1/production-runs/{run_id}/tasks/{binding_id}/refresh": {
