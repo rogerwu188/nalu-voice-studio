@@ -2225,7 +2225,11 @@ final class VoiceInterviewViewModel {
     }
 
     var currentInterviewPrompt: String {
-        planningVoiceFlow.mode?.prompt ?? interviewFlow.prompt
+        if let prompt = planningVoiceFlow.mode?.prompt { return prompt }
+        if selectedProjectID != nil, interviewFlow.step == .idle {
+            return "您可以继续讲故事，或告诉我想用哪份资料来编写这一集。"
+        }
+        return interviewFlow.prompt
     }
 
     private func handleAssistantAction(_ request: AssistantActionRequest) {
@@ -2246,19 +2250,55 @@ final class VoiceInterviewViewModel {
             messages.append(.init(speaker: .nalu, text: startMessage))
             speechPlayback.speak(startMessage, rate: comfortPreferences.speechRate)
             let resumePrompt = currentInterviewPrompt
+            let projectID = selectedProjectID
+            let generation = projectSelectionGeneration
+            let turnID = UUID().uuidString
             Task {
+                var savedRevision: Int?
                 do {
+                    if let projectID {
+                        let state = try await runtime.interactiveStory(projectID: projectID)
+                        let saved = try await runtime.appendStoryInput(
+                            projectID: projectID,
+                            input: InteractiveStoryInput(
+                                turn_id: turnID, expected_revision: state.revision,
+                                text: query, source_mode: "web_source"
+                            )
+                        )
+                        savedRevision = saved.revision
+                    }
                     let result = try await webResearch.research(query)
                     let response = result.conversationText(resumePrompt: resumePrompt)
+                    if let projectID, let savedRevision {
+                        _ = try await runtime.saveStoryAnswer(
+                            projectID: projectID, turnID: turnID,
+                            answer: InteractiveStoryAnswerRequest(
+                                expected_revision: savedRevision, reply: response,
+                                summary: "", episode_drafts: [], outcome: "answered"
+                            )
+                        )
+                    }
                     assistantActionStatus = nil
+                    guard projectSelectionGeneration == generation else { return }
                     messages.append(.init(speaker: .nalu, text: response))
                     speechPlayback.speak(
                         "我查到了。\(result.answer) 我们再接着刚才的创作。\(resumePrompt)",
                         rate: comfortPreferences.speechRate
                     )
                 } catch {
+                    if let projectID, let savedRevision {
+                        _ = try? await runtime.saveStoryAnswer(
+                            projectID: projectID, turnID: turnID,
+                            answer: InteractiveStoryAnswerRequest(
+                                expected_revision: savedRevision,
+                                reply: "这次查找尚未完成。原有故事和剧本保留；可以提供网址、资料文字，或继续讲述。",
+                                summary: "", episode_drafts: [], outcome: "lookup_failed"
+                            )
+                        )
+                    }
                     assistantActionStatus = nil
-                    let response = "\(WebResearchError.publicDescription(for: error))\n\n我们仍停在这里：\(resumePrompt)"
+                    guard projectSelectionGeneration == generation else { return }
+                    let response = "这次查找尚未完成，您的故事没有清空。您可以把网址或资料文字给我，也可以继续讲述；不需要新建项目。"
                     messages.append(.init(speaker: .nalu, text: response))
                     speechPlayback.speak(response, rate: comfortPreferences.speechRate)
                 }

@@ -7,6 +7,27 @@ against the current main branch.
 
 ## Status vocabulary
 
+### Current user priority: core creative workflow (2026-09-06)
+
+SOP-03/SOP-04 and their downstream production path take priority over voice
+polish. Use the existing TTS baseline. Implement and demonstrate both inputs:
+
+1. Narrated memories → contextual questions → editable episode script drafts.
+2. Named online content or URL → source lookup/clarification → project-owned
+   source context → interactive episode script drafts.
+
+Both paths must continue into explicit script confirmation, episode-by-episode
+production, postproduction QA and controlled release. A lookup failure must keep
+the project, conversation and existing drafts; it must not send users back to
+project creation. Answer off-flow questions before gently returning to writing.
+Source claims must be grounded in retrieved content, and generated drafts must
+not be represented as user-authored or automatically approved scripts.
+
+The initial SQLite conversation checkpoint is only infrastructure, not either
+completed user journey. Real writer/provider integration, native interaction,
+script revision handoff and the complete production demonstration remain open.
+The authoritative next action is in `docs/GOAL_PROGRESS.json`.
+
 2026-09-06 native checkpoints on `4e03c16`, CI
 [34054486473](https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34054486473):
 [preflight waiting presentation](qa/production-status-truthfulness-2026-09-06.md)

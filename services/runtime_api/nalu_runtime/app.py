@@ -29,6 +29,7 @@ from .feedback_export import (
     IssueTrackerReconciliationVerifier,
     IssueTrackerTransport,
 )
+from .interactive_story import InteractiveStory, StoryAnswer, StoryInput
 from .models import (
     ApprovalCreate,
     ApprovalRecord,
@@ -192,6 +193,7 @@ def create_app(
     database = Database(database_path)
     database.initialize()
     repository = Repository(database)
+    interactive_story = InteractiveStory(database)
     remote_task_submitter = DurableRemoteTaskSubmitter(repository)
     production = ProductionService(
         repository,
@@ -298,6 +300,18 @@ def create_app(
             update={"production_pipeline": route_decision["resolved_pipeline"]}
         )
         return repository.create_project(request, route_decision)
+
+    @app.get("/v1/projects/{project_id}/interactive-story")
+    def get_interactive_story(project_id: str) -> dict:
+        return interactive_story.read(project_id)
+
+    @app.post("/v1/projects/{project_id}/interactive-story/turns")
+    def append_story_input(project_id: str, request: StoryInput) -> dict:
+        return interactive_story.append(project_id, request)
+
+    @app.post("/v1/projects/{project_id}/interactive-story/turns/{turn_id}/answer")
+    def save_story_answer(project_id: str, turn_id: str, request: StoryAnswer) -> dict:
+        return interactive_story.answer(project_id, turn_id, request)
 
     @app.post("/v1/project-plans", response_model=ProjectPlan, status_code=201)
     def create_project_plan(

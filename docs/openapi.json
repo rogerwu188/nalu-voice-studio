@@ -1764,6 +1764,42 @@
         "title": "EpisodeTransitionRequest",
         "type": "object"
       },
+      "EpisodeWritingDraft": {
+        "additionalProperties": false,
+        "properties": {
+          "episode_number": {
+            "maximum": 500.0,
+            "minimum": 1.0,
+            "title": "Episode Number",
+            "type": "integer"
+          },
+          "outline": {
+            "maxLength": 12000,
+            "minLength": 1,
+            "title": "Outline",
+            "type": "string"
+          },
+          "script": {
+            "default": "",
+            "maxLength": 100000,
+            "title": "Script",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "episode_number",
+          "title",
+          "outline"
+        ],
+        "title": "EpisodeWritingDraft",
+        "type": "object"
+      },
       "ExternalWriterDeclaration": {
         "additionalProperties": false,
         "description": "Untrusted declaration about a writer run performed outside Nalu.",
@@ -8251,6 +8287,90 @@
         "title": "StorageDiagnostics",
         "type": "object"
       },
+      "StoryAnswer": {
+        "additionalProperties": false,
+        "properties": {
+          "episode_drafts": {
+            "items": {
+              "$ref": "#/components/schemas/EpisodeWritingDraft"
+            },
+            "maxItems": 50,
+            "title": "Episode Drafts",
+            "type": "array"
+          },
+          "expected_revision": {
+            "minimum": 1.0,
+            "title": "Expected Revision",
+            "type": "integer"
+          },
+          "outcome": {
+            "default": "answered",
+            "enum": [
+              "answered",
+              "lookup_failed",
+              "writer_failed"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          },
+          "reply": {
+            "maxLength": 12000,
+            "minLength": 1,
+            "title": "Reply",
+            "type": "string"
+          },
+          "summary": {
+            "default": "",
+            "maxLength": 24000,
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "expected_revision",
+          "reply"
+        ],
+        "title": "StoryAnswer",
+        "type": "object"
+      },
+      "StoryInput": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_revision": {
+            "minimum": 0.0,
+            "title": "Expected Revision",
+            "type": "integer"
+          },
+          "source_mode": {
+            "enum": [
+              "narrated_story",
+              "web_source"
+            ],
+            "title": "Source Mode",
+            "type": "string"
+          },
+          "text": {
+            "maxLength": 12000,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          },
+          "turn_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Turn Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "turn_id",
+          "expected_revision",
+          "text",
+          "source_mode"
+        ],
+        "title": "StoryInput",
+        "type": "object"
+      },
       "SuccessfulCIEvidence": {
         "properties": {
           "artifact_sha256": {
@@ -13481,6 +13601,158 @@
           }
         },
         "summary": "Export Project"
+      }
+    },
+    "/v1/projects/{project_id}/interactive-story": {
+      "get": {
+        "operationId": "get_interactive_story_v1_projects__project_id__interactive_story_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Interactive Story V1 Projects  Project Id  Interactive Story Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Interactive Story"
+      }
+    },
+    "/v1/projects/{project_id}/interactive-story/turns": {
+      "post": {
+        "operationId": "append_story_input_v1_projects__project_id__interactive_story_turns_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StoryInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Append Story Input V1 Projects  Project Id  Interactive Story Turns Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Append Story Input"
+      }
+    },
+    "/v1/projects/{project_id}/interactive-story/turns/{turn_id}/answer": {
+      "post": {
+        "operationId": "save_story_answer_v1_projects__project_id__interactive_story_turns__turn_id__answer_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "turn_id",
+            "required": true,
+            "schema": {
+              "title": "Turn Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StoryAnswer"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Save Story Answer V1 Projects  Project Id  Interactive Story Turns  Turn Id  Answer Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Save Story Answer"
       }
     },
     "/v1/projects/{project_id}/library-entities": {

@@ -176,6 +176,20 @@ actor RuntimeClient {
         try await post("v1/projects", body: draft)
     }
 
+    func interactiveStory(projectID: String) async throws -> InteractiveStoryState {
+        try await get("v1/projects/\(projectID)/interactive-story")
+    }
+
+    func appendStoryInput(projectID: String, input: InteractiveStoryInput) async throws -> InteractiveStoryState {
+        try await post("v1/projects/\(projectID)/interactive-story/turns", body: input)
+    }
+
+    func saveStoryAnswer(
+        projectID: String, turnID: String, answer: InteractiveStoryAnswerRequest
+    ) async throws -> InteractiveStoryState {
+        try await post("v1/projects/\(projectID)/interactive-story/turns/\(turnID)/answer", body: answer)
+    }
+
     func createFeedback(_ draft: FeedbackDraft) async throws -> FeedbackItem {
         try await post("v1/feedback", body: draft)
     }
