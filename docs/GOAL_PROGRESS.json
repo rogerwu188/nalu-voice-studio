@@ -29,7 +29,7 @@
   },
   "next_action": {
     "sop": "SOP-02",
-    "id": "verify-capability-advisory-and-resolve-provider-voice-contract",
+    "id": "verify-native-asset-confirmation-and-capability-advisory",
     "summary": "Native settings evidence is committed as e4c4632 and product CI 34051937128 is fully successful. Verify new saved-model membership advisory tests/CI/native result; it must not equate membership with Realtime support. HopsAPI public docs do not establish its Realtime contract; obtain provider-authoritative details, without silently substituting models or repeated paid probes. If details block that gate, continue native synthetic asset dependency preview/cancel QA without deleting user data. Full SOP unchanged. Evidence: docs/qa/gpt-voice-and-credential-save-2026-09-06.md.",
     "requires_user_authorization": false
   },

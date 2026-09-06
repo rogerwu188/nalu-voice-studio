@@ -156,20 +156,20 @@ struct ContentView: View {
         }
         .sheet(isPresented: $isPresentingAssetEditor) {
             assetEditorSheet
+                .alert("删除素材前的依赖检查", isPresented: $isPresentingAssetDependencies) {
+                    Button("取消", role: .cancel) { assetDependencyReport = nil }
+                    if assetDependencyReport?.allowsDeletionPresentation == true,
+                       let assetID = assetDependencyReport?.assetID {
+                        Button("删除本地素材", role: .destructive) {
+                            Task { await model.deleteAsset(assetID) }
+                        }
+                    }
+                } message: {
+                    Text(assetDependencyMessage)
+                }
         }
         .sheet(isPresented: $isPresentingRealtimeConsent) {
             realtimeConsentSheet
-        }
-        .alert("删除素材前的依赖检查", isPresented: $isPresentingAssetDependencies) {
-            Button("取消", role: .cancel) { assetDependencyReport = nil }
-            if assetDependencyReport?.canDelete == true,
-               let assetID = assetDependencyReport?.assetID {
-                Button("删除本地素材", role: .destructive) {
-                    Task { await model.deleteAsset(assetID) }
-                }
-            }
-        } message: {
-            Text(assetDependencyMessage)
         }
         .confirmationDialog(
             "暂停这一集的制作？",
@@ -2339,8 +2339,7 @@ struct ContentView: View {
 
     private var assetDependencyMessage: String {
         guard let report = assetDependencyReport else { return "尚未取得依赖报告。" }
-        if report.productionRunIDs.isEmpty { return report.explanation }
-        return "\(report.explanation)\n制作快照：\(report.productionRunIDs.joined(separator: "、"))"
+        return report.deletionMessage
     }
 
     private func presentRename() {
@@ -2424,8 +2423,11 @@ struct ContentView: View {
     }
 
     private func inspectAssetDependencies(_ assetID: String) {
+        let projectID = selectedProject?.id
         Task {
-            guard let report = await model.assetDependencies(assetID) else { return }
+            guard let report = await model.assetDependencies(assetID),
+                  report.assetID == assetID,
+                  isPresentingAssetEditor, selectedProject?.id == projectID else { return }
             assetDependencyReport = report
             isPresentingAssetDependencies = true
         }
