@@ -141,6 +141,7 @@ final class VoiceInterviewViewModel {
         }
     }
     private let webResearch = OpenAIWebResearchClient()
+    private let storyWriter = InteractiveStoryWriter()
     private let finalMasterSpeechRecognizer = FinalMasterSpeechRecognizer()
     private var interviewFlow = InterviewFlow()
     private var planningVoiceFlow = PlanningVoiceFlow()
@@ -275,11 +276,66 @@ final class VoiceInterviewViewModel {
                 )
             )
         } else {
-            let action = interviewFlow.consume(spoken)
-            handle(action)
-            if interviewFlow.step == .episodeCount,
-               !interviewFlow.draft.title.isEmpty {
-                Task { await renameDraftProjectDuringInterview() }
+            handleInteractiveStoryInput(spoken)
+        }
+    }
+
+    private func handleInteractiveStoryInput(_ spoken: String) {
+        guard assistantActionStatus == nil else {
+            messages.append(.init(speaker: .nalu, text: "我正在整理上一句话，请等这次回复后再继续。"))
+            return
+        }
+        assistantActionStatus = "正在理解您的故事、整理分集…"
+        let initialGeneration = projectSelectionGeneration
+        Task {
+            var projectID = selectedProjectID
+            var generation = initialGeneration
+            var revision: Int?
+            let turnID = UUID().uuidString
+            do {
+                if projectID == nil {
+                    var draft = ProjectDraft()
+                    draft.title = "未命名故事"
+                    let project = try await runtime.createProject(draft)
+                    guard projectSelectionGeneration == initialGeneration else {
+                        assistantActionStatus = nil
+                        return
+                    }
+                    projects = try await runtime.listProjects(includeArchived: includeArchivedProjects)
+                    await selectProject(project.id)
+                    projectID = project.id
+                    generation = projectSelectionGeneration
+                }
+                guard let projectID else { throw InteractiveStoryWriter.WriterError.unavailable }
+                let existing = try await runtime.interactiveStory(projectID: projectID)
+                let state = try await runtime.appendStoryInput(projectID: projectID,
+                    input: .init(turn_id: turnID, expected_revision: existing.revision,
+                                 text: spoken, source_mode: "narrated_story"))
+                revision = state.revision
+                let answer = try await storyWriter.write(state: state)
+                _ = try await runtime.saveStoryAnswer(projectID: projectID, turnID: turnID,
+                    answer: .init(expected_revision: state.revision, reply: answer.reply,
+                                  summary: answer.summary, episode_drafts: answer.episode_drafts,
+                                  outcome: "answered"))
+                assistantActionStatus = nil
+                guard projectSelectionGeneration == generation else { return }
+                let drafts = answer.episode_drafts.map {
+                    "第\($0.episode_number)集《\($0.title)》草稿\n\($0.outline)\n\n\($0.script)"
+                }.joined(separator: "\n\n")
+                messages.append(.init(speaker: .nalu, text: answer.reply + (drafts.isEmpty ? "" : "\n\n" + drafts)))
+                speechPlayback.speak(answer.reply, rate: comfortPreferences.speechRate)
+            } catch {
+                if let projectID, let revision {
+                    _ = try? await runtime.saveStoryAnswer(projectID: projectID, turnID: turnID,
+                        answer: .init(expected_revision: revision,
+                                      reply: "编剧请求未完成，原有故事和草稿保留。", summary: "",
+                                      episode_drafts: [], outcome: "writer_failed"))
+                }
+                assistantActionStatus = nil
+                guard projectSelectionGeneration == generation else { return }
+                let reply = "这次编剧请求没有完成，已有内容没有清空。我没有自动重复请求。您可以继续补充故事。"
+                messages.append(.init(speaker: .nalu, text: reply))
+                speechPlayback.speak(reply, rate: comfortPreferences.speechRate)
             }
         }
     }

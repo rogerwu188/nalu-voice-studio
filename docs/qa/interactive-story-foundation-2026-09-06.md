@@ -26,3 +26,24 @@ generated video or release is claimed by these synthetic tests.
 API request documentation inspected for the next writer step:
 [Chat Completions](https://developers.openai.com/api/reference/typescript/resources/chat/subresources/completions/methods/create).
 This documentation does not establish third-party provider compatibility.
+
+## Native writer integration follow-up
+
+Ordinary story input now calls the configured service's `chat/completions` with
+the configured text/research model and project-owned history (including saved
+lookup answers). It creates a project when none is selected, produces unapproved
+episode drafts in the conversation, persists the answer and speaks the short
+reply using existing TTS. No production, approval or publication is performed.
+Calls have no automatic retry. In-flight inputs remain durable after a crash;
+they are not automatically resubmitted.
+
+Three Swift tests cover configured Hops host/model, accumulated source context,
+concrete script decoding and invalid/truncated answers. Local Swift parse passed;
+compiled tests and real service compatibility remain pending. Schema-constrained
+output is validated locally; a provider rejecting JSON mode must not be silently
+treated as success or rerouted to another host.
+
+Still open: genuine writer receipt/provenance capture and script-revision handoff,
+native draft review/restart display, source content acquisition and source rights,
+multi-season numbering, in-flight follow-up handling, and both real end-to-end
+user journeys. Draft conversation output alone is not a completed writing flow.

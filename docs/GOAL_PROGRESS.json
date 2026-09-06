@@ -11,7 +11,7 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "1c31daed182ee2abf01857794e1d4f0de353b0ab",
+  "observed_head": "eb269111541aeecadcc17d20aee829ce9f505244",
   "last_advanced_at": "2026-09-06T19:46:10Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "User reprioritized the core creative workflow: narrated story or online source -> interactive episode scripts -> confirmed per-episode production -> postproduction and controlled release. SQLite interactive-story persistence implemented; two local tests pass. Native writer integration and real journey QA remain incomplete. Existing TTS is the baseline; voice polish is deferred."
+    "summary": "SQLite story persistence landed in eb26911 (315 local runtime tests; CI 34057449160 pending). Native ordinary-story input now invokes configured chat/completions writer with accumulated story and saved research context, displays episode drafts and saves them locally. Three writer contract/parser tests added; Swift parse passed, compiled CI and real native/provider journey QA still pending. Existing TTS remains baseline."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-interactive-story-writer-and-source-input",
-    "summary": "Connect native conversation to project-owned interactive-story API, then actual configured-provider writer with narrated and retrieved-source context. Preserve project binding across awaits, retain context after lookup failure, show editable episode drafts, and hand off with honest AI provenance to script confirmation/production. Test both journeys. Do not resume voice polish or key-entry minutiae as the primary task. Prior runtime CI 34056611147 passed; this does not validate the creative workflow.",
+    "summary": "Verify writer integration compiled CI and native conversation, then preserve actual writer receipt/provenance and hand episode drafts into existing script revisions/confirmation/production. Verify configured source lookup, select/import real source text instead of pretending search summary is full novel. Add visible/restart-restored draft review and test both journeys. Do not resume voice polish/key-entry minutiae as primary task; no SOP is complete from this checkpoint.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
