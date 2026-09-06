@@ -2831,6 +2831,9 @@ Current evidence:
   holding the port. Owner-pipe EOF shutdown is implemented with a passing
   two-instance loopback test; packaged/native crash QA remains open. See
   [owner lifetime checkpoint](qa/runtime-owner-lifetime-2026-09-06.md).
+  Follow-up on `f490062`: arm64 packaged test passed; native app SIGKILL released
+  its Runtime/port in 0.63s and relaunch preserved two synthetic projects and
+  SQLite integrity. Full candidate CI and real production recovery remain open.
 
 Acceptance:
 

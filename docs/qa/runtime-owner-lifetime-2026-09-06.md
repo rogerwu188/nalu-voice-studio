@@ -37,3 +37,29 @@ successfully started both instances, then failed specifically at the first
 control: old packaged Runtime does not react to EOF. The harness finally cleaned
 up only its owned subprocesses; it did not produce a PASS receipt. New packaged
 Runtime must pass the identical scenario before this checkpoint can close.
+
+## New arm64 package and native crash/restart
+
+Candidate `f49006265cd9ddd1ae3e27752a9713547abc5dd1`, CI `34056611147`,
+arm64 artifact `9996185852`: packaged owner lifetime step passed. Downloaded ZIP
+SHA-256 `1a8c9a624203237d9e8696b7f859f6da5b525f65bccb430e03968d593cc4498e`;
+the included owner-lifetime report binds Runtime SHA-256
+`99d92f8501ba737f1634737e205f023fa574002258d2324ed0331110a8297efa`.
+
+Launched via macOS `open -n` with explicit isolated support `tmp.gEDfvkaLEc`
+and port 18769, app PID 93509 owned bootloader 93518 and server 93520. Once
+health returned 200/schema 27, SIGKILL was sent **only to the app PID**.
+Both Runtime PIDs disappeared and the port refused connections after 0.63s;
+no separate Runtime termination was needed for this new candidate.
+
+Relaunch through the same system launcher produced app PID 93638 and Runtime
+93650/93652. Health again returned 200/schema 27, the native window exposed two
+project rows, and read-only SQLite inspection returned `integrity_check=ok`.
+Both project IDs/titles matched the pre-crash baseline:
+`prj_57a28cc17a4843879add31a0f43b7029` (未命名故事) and
+`prj_c23554a23adf4cdca88394196f7d3349` (Synthetic QA B — no assets).
+
+No microphone, speech recognition, provider request or production job was started.
+This is bounded native owner-death/restart evidence, not in-flight paid-job recovery,
+real voice acceptance or signed-release acceptance. Full x86_64/Universal CI still
+needs final verification.

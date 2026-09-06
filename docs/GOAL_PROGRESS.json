@@ -30,7 +30,7 @@
   "next_action": {
     "sop": "SOP-11",
     "id": "verify-packaged-owner-pipe-crash-recovery",
-    "summary": "Commit owner lifetime implementation/tests, then push after live CI 34056282089 finishes. Verify full CI, download new arm64 package and test isolated app termination releases only its own Runtime and permits restart with preserved data. Current native 90994 is older deb9cc0, tmp.gEDfvkaLEc/18769. Do not repeat Keychain diagnostic absent user/system change; real provider voice, human QA and signed-release gates remain open.",
+    "summary": "Candidate f490062 is pushed; live CI 34056611147 has arm64 packaged owner-pipe PASS. Downloaded artifact 9996185852 passed native app-only SIGKILL: owned Runtime and port released in 0.63s; restarted app 93638/runtime 93650/93652 is healthy with two baseline projects and SQLite integrity intact at tmp.gEDfvkaLEc/18769. Await remaining CI, then push bounded evidence. New speech TCC crash evidence is tracked separately in native-speech-launch-context-2026-09-06.md; Launch Services startup does not prove that issue fixed. Real provider, human QA and signed-release gates remain open.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
