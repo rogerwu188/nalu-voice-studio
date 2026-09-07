@@ -11,8 +11,9 @@ from test_director_draft import director_fixture
 
 
 @pytest.mark.parametrize("case", ["ok", "duration", "source", "asset", "authority", "http_failure", "continuity",
-                                  "continuous_ok", "blank", "package_changed", "missing_designs", "missing_director", "director_scope"])
-def test_approved_script_to_durable_shot_plan(tmp_path, case):
+                                  "continuous_ok", "blank", "package_changed", "missing_designs", "missing_director", "director_scope",
+                                  "refresh", "refresh_rewrite", "refresh_failure", "refresh_race", "refresh_recover"])
+def test_approved_script_to_durable_shot_plan(tmp_path, monkeypatch, case):
     calls = []
     shot = {"source_excerpt": "外婆看海。", "scene": "海边", "duration_seconds": 12,
             "entry_state": "外婆站在岸边", "action": "抬头看海", "exit_state": "面朝海面",
@@ -53,6 +54,22 @@ def test_approved_script_to_durable_shot_plan(tmp_path, case):
         context = json.loads(body["messages"][1]["content"])
         assert context["approved_script"] == "外婆看海。"
         assert "private-unapproved-memory" not in request.content.decode()
+        if "current_plan" in context:
+            enriched = context["current_plan"]
+            for item in enriched["shots"]:
+                if item["director"] is None:
+                    item["director"] = director_fixture()
+            if case == "refresh_rewrite":
+                enriched["shots"][0]["camera"] = "AI擅自覆盖用户选择"
+            if case == "refresh_race":
+                race_plan = json.loads(json.dumps(modified["payload"]["plan"]))
+                race_plan["shots"][0]["camera"] = "用户在等待时又改了机位"
+                assert restarted.post(endpoint + f"/{modified['id']}/review", json={
+                    **edit, "plan": race_plan, "expected_plan_sha256": modified["payload"]["plan_sha256"]
+                }).status_code == 200
+            return httpx.Response(401 if case == "refresh_failure" else 200, json={
+                "id": "synthetic-director-refresh", "model": "fixture-model", "choices": [
+                    {"finish_reason": "stop", "message": {"content": json.dumps(enriched)}}]})
         if case == "package_changed":
             path.write_text("broken package")
         return httpx.Response(401 if case == "http_failure" else 200, json={
@@ -82,7 +99,7 @@ def test_approved_script_to_durable_shot_plan(tmp_path, case):
     headers = {"X-Nalu-Writer-Key": "synthetic-key"}
     assert api.post(endpoint, json={"model": "fixture-model"}).status_code == 403
     first = api.post(endpoint, json={"model": "fixture-model"}, headers=headers)
-    if case in {"ok", "continuous_ok"}:
+    if case in {"ok", "continuous_ok"} or case.startswith("refresh"):
         assert first.status_code == 200, first.text
         assert first.json()["payload"]["approved"] is False
         assert first.json()["payload"]["frames_generated"] is False
@@ -98,7 +115,7 @@ def test_approved_script_to_durable_shot_plan(tmp_path, case):
     restarted = TestClient(create_app(db_path, tmp_path / "data", writer_http_transport=httpx.MockTransport(serve)))
     second = restarted.post(endpoint, json={"model": "fixture-model"}, headers=headers)
     assert len(calls) == 1
-    if case in {"ok", "continuous_ok"}:
+    if case in {"ok", "continuous_ok"} or case.startswith("refresh"):
         assert second.json()["id"] == first.json()["id"]
         source = first.json()
         current_url = endpoint + "/current"
@@ -122,6 +139,50 @@ def test_approved_script_to_durable_shot_plan(tmp_path, case):
         assert modified["payload"]["approved"] is False
         assert modified["payload"]["source_event_id"] == source["id"]
         assert restarted.post(review_url, json=edit).json()["id"] == modified["id"]
+        if case.startswith("refresh"):
+            refresh_url = endpoint + f"/{modified['id']}/director-refresh"
+            refresh_body = {"model": "fixture-model", "expected_plan_sha256": modified["payload"]["plan_sha256"]}
+            assert restarted.post(refresh_url, json=refresh_body).status_code == 403
+            repo = restarted.app.state.repository
+            repo.append_run_event_once(run.id, "image_submit_intent", dedupe_key="test_id",
+                dedupe_value="synthetic-refresh-lock", message="Synthetic lock", payload={"test_id": "synthetic-refresh-lock"})
+            assert restarted.post(refresh_url, json=refresh_body, headers=headers).status_code == 409
+            assert len(calls) == 1
+            with repo.db.connect() as db:
+                db.execute("DELETE FROM run_events WHERE run_id=? AND event_type='image_submit_intent'", (run.id,))
+            if case == "refresh_recover":
+                from nalu_runtime.repository import ConflictError
+                from nalu_runtime.shot_review import ShotReviewService
+                original_review = ShotReviewService.review
+                def interrupted_save(*args, **kwargs):
+                    raise ConflictError("synthetic interruption after durable writer result")
+                monkeypatch.setattr(ShotReviewService, "review", interrupted_save)
+                assert restarted.post(refresh_url, json=refresh_body, headers=headers).status_code == 409
+                monkeypatch.setattr(ShotReviewService, "review", original_review)
+            result = restarted.post(refresh_url, json=refresh_body, headers=headers)
+            reopened = TestClient(create_app(db_path, tmp_path / "data", writer_http_transport=httpx.MockTransport(serve)))
+            replay = reopened.post(refresh_url, json=refresh_body, headers=headers)
+            assert len(calls) == 2  # One initial plan, one enrichment; no repeat after restart/failure.
+            if case in {"refresh", "refresh_recover"}:
+                assert result.status_code == 200, result.text
+                assert replay.json()["id"] == result.json()["id"]
+                refreshed = result.json()["payload"]
+                assert refreshed["plan"]["shots"][0]["camera"] == plan["shots"][0]["camera"]
+                assert refreshed["plan"]["shots"][0]["director"] is not None
+                assert refreshed["approved"] is False and refreshed["paid_approved"] is False
+                assert refreshed["director_derivation"]["response_id"] == "synthetic-director-refresh"
+            else:
+                assert result.status_code in {409, 502}, result.text
+                assert replay.status_code in {409, 502}, replay.text
+                current = reopened.get(current_url).json()
+                assert current["payload"]["plan"]["shots"][0]["director"] is None
+                if case == "refresh_race":
+                    assert current["payload"]["plan"]["shots"][0]["camera"] == "用户在等待时又改了机位"
+                else:
+                    assert current["id"] == modified["id"]
+            assert reopened.post(refresh_url, json={**refresh_body, "model": "different-model"}, headers=headers).status_code == 409
+            assert len(calls) == 2
+            return
         confirm = {"expected_plan_sha256": modified["payload"]["plan_sha256"], "action": "approve",
                    "reviewed_by": "QA", "confirmation": "就按修改后的分镜继续"}
         confirm_url = endpoint + f"/{modified['id']}/review"

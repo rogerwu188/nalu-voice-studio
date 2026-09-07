@@ -35,8 +35,10 @@ class ShotReviewService:
         events = [event for event in self.repository.list_run_events(run_id) if event.event_type in PLAN_EVENTS]
         return events[-1] if events else None
 
-    def review(self, run_id: str, source_id: str, request: ShotReviewRequest):
+    def review(self, run_id: str, source_id: str, request: ShotReviewRequest, *, derivation: dict | None = None):
         request_sha = digest({"source_id": source_id, "request": request.model_dump()})
+        if derivation is not None:
+            request_sha = digest({"review": request_sha, "derivation": derivation})
         event_id, now = new_id("evt"), utc_now()
         with self.repository.db.connect() as db:
             db.execute("BEGIN IMMEDIATE")
@@ -101,6 +103,8 @@ class ShotReviewService:
                       "script_revision": episode.approved_script_revision,
                       "approved": approved, "frames_generated": False,
                       "generation_performed": False, "paid_approved": False}
+            if derivation is not None:
+                record["director_derivation"] = derivation
             record["plan_sha256"] = digest(record)
             sequence = db.execute("SELECT COALESCE(MAX(sequence), 0) + 1 FROM run_events WHERE run_id = ?", (run_id,)).fetchone()[0]
             db.execute("INSERT INTO run_events VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",

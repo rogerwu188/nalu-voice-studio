@@ -22,6 +22,7 @@ from .development_result import (
     DevelopmentResultVerifier,
     DisabledDevelopmentResultVerifier,
 )
+from .director_refresh import DirectorRefreshRequest, DirectorRefreshService
 from .engine import ProductionService
 from .feedback_export import (
     DisabledIssueTrackerReconciliationVerifier,
@@ -1186,6 +1187,19 @@ def create_app(
             return ShotPlanningService(repository).generate(run_id, model=request.model,
                 transport=HopsWriterTransport(lambda: writer_key, transport=writer_http_transport,
                                                response_validator=validate_plan))
+        except WriterTransportError as exc:
+            raise HTTPException(502, str(exc)) from None
+
+    @app.post("/v1/production-runs/{run_id}/shot-plans/{source_id}/director-refresh", response_model=RunEvent)
+    def refresh_director(run_id: str, source_id: str, request: DirectorRefreshRequest,
+                         writer_key: str | None = Header(default=None, alias="X-Nalu-Writer-Key"),
+                         origin: str | None = Header(default=None)):
+        if origin is not None or not writer_key or len(writer_key) > 1024:
+            raise HTTPException(403, "native writer credential required")
+        try:
+            return DirectorRefreshService(repository).refresh(run_id, source_id, request,
+                transport=HopsWriterTransport(lambda: writer_key, transport=writer_http_transport,
+                                             response_validator=validate_plan))
         except WriterTransportError as exc:
             raise HTTPException(502, str(exc)) from None
 

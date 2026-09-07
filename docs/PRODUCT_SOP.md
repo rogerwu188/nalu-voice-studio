@@ -29,7 +29,9 @@ script revision handoff and the complete production demonstration remain open.
 The authoritative next action is in `docs/GOAL_PROGRESS.json`.
 
 AI plans now carry [typed director choices with native round-trip and plain-language readback](qa/structured-director-drafts-2026-09-07.md).
-User edits invalidate stale choices. Automatic re-derivation, full production
+User edits invalidate stale choices. A [version-bound director refresh backend](qa/director-refresh-2026-09-07.md)
+now fills missing choices without rewriting user descriptions, with restart and
+concurrent-edit protection. Native automatic orchestration, full production
 compilation and real/native acceptance remain unfinished; no SOP becomes PASS.
 
 Core-path diagnosis: the interactive plan still lacks the

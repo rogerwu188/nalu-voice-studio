@@ -1299,6 +1299,29 @@
         "title": "DirectorDraft",
         "type": "object"
       },
+      "DirectorRefreshRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_plan_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Expected Plan Sha256",
+            "type": "string"
+          },
+          "model": {
+            "maxLength": 160,
+            "minLength": 3,
+            "pattern": "^[A-Za-z0-9_.:/-]+$",
+            "title": "Model",
+            "type": "string"
+          }
+        },
+        "required": [
+          "model",
+          "expected_plan_sha256"
+        ],
+        "title": "DirectorRefreshRequest",
+        "type": "object"
+      },
       "DirectorStrategyRevision": {
         "properties": {
           "created_at": {
@@ -14685,6 +14708,96 @@
           }
         },
         "summary": "Prepare Reviewed Reference"
+      }
+    },
+    "/v1/production-runs/{run_id}/shot-plans/{source_id}/director-refresh": {
+      "post": {
+        "operationId": "refresh_director_v1_production_runs__run_id__shot_plans__source_id__director_refresh_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "source_id",
+            "required": true,
+            "schema": {
+              "title": "Source Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Nalu-Writer-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Nalu-Writer-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "origin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Origin"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DirectorRefreshRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunEvent"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Refresh Director"
       }
     },
     "/v1/production-runs/{run_id}/shot-plans/{source_id}/review": {
