@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "63314181aa4e403fc0f1ad64809db546ad20322a",
-  "last_advanced_at": "2026-09-07T01:45:08Z",
+  "observed_head": "46525d24fa834201e6d593df74cb7c989d36a4e5",
+  "last_advanced_at": "2026-09-07T01:47:41Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Fixed forced portrait framing in professional compilation; adapter 1.8.0 preserves explicit project ratio and video preparation/pre-HTTP dispatch reject changed framing. Registry/schema updated without enabling new creative-format routes. Full final regression: 599 passed in 297.98s; Ruff and OpenAPI checks passed. Preceding 90441a0 CI 34073133520 passed; this change CI pending. See docs/qa/project-production-aspect-ratio-2026-09-07.md. Reference pricing/paid activation, full keyframe compilation and real/native acceptance remain open."
+    "summary": "Source diagnosis confirms an unimplemented interactive director-to-video compiler: plain camera/state prose lacks full camera authority, state/prop/continuity contracts and provider-scope projection. Native Codable must preserve additions. See docs/qa/interactive-director-contract-gap-2026-09-07.md. Next action is actual typed director drafting/review/compilation, not more mock receipts. Previous aspect fix 46525d2 has 599 local tests passed and pending CI; real/native acceptance remains open."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Complete production price verification and explicit native spending handoff for the reference dispatch service; never activate its synthetic test verifier. Obtain applicable image rates, preserve the shared budget and single-attempt state. Compile full keyframe contracts separately and verify native image progression, then real sequential video/master/release. Keep narrated/online-source writing priority, existing TTS and quarantined Hops attempt; no automatic paid retry or invented authority.",
+    "summary": "Implement typed director drafts and native round-trip/readback for camera, state delta, props and continuity, then compile reviewed choices plus actual assets/frame evidence into the existing full video boundary. Follow docs/qa/interactive-director-contract-gap-2026-09-07.md; do not invent visual PASS or omit visible people. In parallel dependency order, finish real reference pricing/native spending activation when evidence is available. Keep narration/web-source priority, existing TTS, durable attempts and complete sequential video/master/release objective.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

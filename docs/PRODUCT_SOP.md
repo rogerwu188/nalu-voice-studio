@@ -28,6 +28,11 @@ completed user journey. Real writer/provider integration, native interaction,
 script revision handoff and the complete production demonstration remain open.
 The authoritative next action is in `docs/GOAL_PROGRESS.json`.
 
+Core-path diagnosis: the interactive plan still lacks the
+[structured director contracts required by actual video submission](qa/interactive-director-contract-gap-2026-09-07.md).
+This is unfinished implementation, not merely missing credentials/prices. It must
+be compiled from reviewed creative choices and separate real visual evidence.
+
 The professional compiler now [preserves project framing through video preparation and dispatch](qa/project-production-aspect-ratio-2026-09-07.md)
 instead of forcing every project to portrait 9:16. Actual provider output, native
 acceptance and documentary/commercial route activation remain separate unfinished work.
