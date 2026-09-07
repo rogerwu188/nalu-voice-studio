@@ -59,6 +59,34 @@ class EpisodeDialogueService:
     def __init__(self, repository, data_root):
         self.repository, self.data_root = repository, data_root
 
+    def validate_materialization(self, run_id, request):
+        receipt = self.repository.get_run_event(request.adopted_dialogue_staging_id)
+        p = receipt.payload
+        if (receipt.run_id != run_id or receipt.event_type != "episode_dialogue_staged"
+                or p.get("staging_sha256") != request.expected_dialogue_staging_sha256
+                or digest({k: v for k, v in p.items() if k != "staging_sha256"}) != request.expected_dialogue_staging_sha256):
+            raise ConflictError("adopted dialogue staging identity changed")
+        lineage = p["lineage"]
+        current = self.stage(run_id, EpisodeDialogueStageRequest(sound_plan_id=lineage["sound_plan_id"],
+            expected_sound_plan_sha256=lineage["sound_plan_sha256"], expected_lineage_sha256=lineage["lineage_sha256"]))
+        if current.id != receipt.id:
+            raise ConflictError("adopted dialogue receipt changed")
+        sound = self.repository.get_run_event(lineage["sound_plan_id"]).payload
+        edit = self.repository.get_run_event(sound["edit_id"]).payload
+        dialogue = next((layer for layer in request.audio_layers if layer.layer == "dialogue"), None)
+        files = p["files"]
+        cues = [digest(cue) for cue in sound["cues"]]
+        if (dialogue is None or dialogue.source_relative_path != files["dialogue.wav"]["relative_path"]
+                or dialogue.source_sha256 != files["dialogue.wav"]["sha256"]
+                or dialogue.source_in_seconds != 0 or dialogue.source_cue_sha256s != cues
+                or request.captions_source_relative_path != files["captions.vtt"]["relative_path"]
+                or request.captions_source_sha256 != files["captions.vtt"]["sha256"]
+                or request.subtitle_contract_sha256 != digest([s["caption_review_sha256"] for s in lineage["sources"]])
+                or [shot.model_dump(mode="json") for shot in request.shots] != edit["shots"]
+                or request.frame_rate != edit["frame_rate"]):
+            raise ConflictError("materialization inputs differ from adopted edit, dialogue or captions")
+        return receipt
+
     def build(self, run_id, sound_plan_id, expected_sound_plan_sha256, *, _db=None):
         repo = self.repository
         audio_service = EpisodeAudioReviewService(repo, self.data_root)

@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "f87b5f0a01f458c0fbc117f892c73424fee19373",
-  "last_advanced_at": "2026-09-07T09:50:04Z",
+  "observed_head": "bef428a58022cf1440057c9d57379c8d37ec847f",
+  "last_advanced_at": "2026-09-07T09:54:43Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -30,7 +30,7 @@
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Dialogue WAV/VTT/lineage staging and replay/damaged-file checks implemented; managed-media fixture passed 59.49s after test import fix. Evidence docs/qa/dialogue-workspace-staging-2026-09-07.md. Next bind staged receipts to materializer sound/subtitle contracts and remaining sound-layer selection, then final mix/master/release. Current CI/installed QA and cancellation/crash-injection remain pending. Preserve two-source writing/TTS, no Hops 401 retries.",
+    "summary": "Materializer request now binds adopted staging receipt and validates current dialogue/caption/edit sources before and after render; 14 focused tests passed but full rendering remains unverified. Evidence docs/qa/dialogue-materializer-binding-2026-09-07.md. Next construct executable request from staged inputs and explicit remaining sound-layer choices, verify full actual render/cancellation and native action, then final QA/release. Current CI/installed QA pending; no Hops 401 retries.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

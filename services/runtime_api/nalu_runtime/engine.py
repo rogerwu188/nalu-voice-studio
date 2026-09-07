@@ -434,6 +434,13 @@ class ProductionService:
         run_directory = self._run_directory(run)
         if (run_directory / "rendered-output-seal.json").exists():
             raise ConflictError("sealed outputs cannot be rematerialized")
+        adopted_sources = [request.captions_source_relative_path,
+                           *(layer.source_relative_path for layer in request.audio_layers)]
+        if any(path.startswith("provider-results/adopted-dialogue/") for path in adopted_sources) and not request.adopted_dialogue_staging_id:
+            raise ConflictError("adopted dialogue requires its current staging receipt")
+        if request.adopted_dialogue_staging_id:
+            from .episode_dialogue import EpisodeDialogueService
+            EpisodeDialogueService(self.repository, self.data_root).validate_materialization(run_id, request)
         package_path = Path(run.package_path)
         try:
             package = json.loads(package_path.read_text(encoding="utf-8"))
@@ -476,6 +483,8 @@ class ProductionService:
             )
         except (KeyError, TypeError, ValueError, PostproductionMaterializationError) as exc:
             raise ConflictError(str(exc)) from exc
+        if request.adopted_dialogue_staging_id:
+            EpisodeDialogueService(self.repository, self.data_root).validate_materialization(run_id, request)
         self.repository.mark_postproduction_materialized(
             run.id,
             plan_sha256=result.plan_sha256,

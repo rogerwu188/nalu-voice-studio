@@ -1620,6 +1620,9 @@ class PostproductionAudioSource(BaseModel):
 class PostproductionMaterializationCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    adopted_dialogue_staging_id: str | None = Field(default=None, min_length=1, max_length=160)
+    expected_dialogue_staging_sha256: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
+
     requested_by: str = Field(min_length=1, max_length=160)
     shots: list[PostproductionShotSource] = Field(min_length=1, max_length=500)
     audio_layers: list[PostproductionAudioSource] = Field(min_length=5, max_length=5)
@@ -1640,6 +1643,8 @@ class PostproductionMaterializationCreate(BaseModel):
 
     @model_validator(mode="after")
     def require_complete_execution_plan(self) -> PostproductionMaterializationCreate:
+        if (self.adopted_dialogue_staging_id is None) != (self.expected_dialogue_staging_sha256 is None):
+            raise ValueError("adopted dialogue staging requires both receipt ID and digest")
         shot_ids = [shot.shot_id for shot in self.shots]
         if len(set(shot_ids)) != len(shot_ids):
             raise ValueError("postproduction shot IDs must be unique")
