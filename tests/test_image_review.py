@@ -180,6 +180,13 @@ def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypat
         assert following.json()["payload"]["request"]["shot_role"] == "SAME_SCENE_CONTINUATION"
         assert following.json()["payload"]["frame"]["sha256"] == tail.json()["payload"]["frame_sha256"]
         assert reopened.post(url, json=next_request).json()["id"] == following.json()["id"]
+        auto_url = f"/v1/production-runs/{run.id}/shot-plans/{plan_event.id}/continuation-preparations"
+        auto_request = {"expected_plan_sha256": plan["plan_sha256"], "shot_index": 1}
+        assert api.post(auto_url, json=auto_request, headers={"Origin": "https://example.org"}).status_code == 403
+        assert api.post(auto_url, json=auto_request).json()["id"] == following.json()["id"]
+        assert reopened.post(auto_url, json=auto_request).json()["id"] == following.json()["id"]
+        assert api.post(auto_url, json={**auto_request, "expected_plan_sha256": "0" * 64}).status_code == 409
+        assert api.post(auto_url, json={**auto_request, "shot_index": 2}).status_code == 409
         assert api.post(url, json={**next_request, "approved_tail_id": None,
                                   "approved_frame_review_id": result.json()["id"]}).status_code == 409
         assert api.post(url, json={**next_request, "shot_index": 0}).status_code == 409
@@ -190,6 +197,7 @@ def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypat
             "decision": "reject", "reviewed_by": "synthetic-qa", "confirmation": "不采用这个镜头"})
         assert revoked.status_code == 200, revoked.text
         assert reopened.post(url, json=next_request).status_code == 409
+        assert reopened.post(auto_url, json=auto_request).status_code == 409
         return
     video = VideoPreparationRequest(task_key="E01-U01", request={}, approved_plan_event_id=plan_event.id,
         approved_plan_sha256=plan["plan_sha256"], approved_frame_review_id=result.json()["id"])

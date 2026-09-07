@@ -577,6 +577,28 @@
         "title": "ConsentScope",
         "type": "string"
       },
+      "ContinuationPreparationRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_plan_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Expected Plan Sha256",
+            "type": "string"
+          },
+          "shot_index": {
+            "maximum": 119.0,
+            "minimum": 1.0,
+            "title": "Shot Index",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expected_plan_sha256",
+          "shot_index"
+        ],
+        "title": "ContinuationPreparationRequest",
+        "type": "object"
+      },
       "ContinuityConflict": {
         "properties": {
           "explanation": {
@@ -15054,6 +15076,80 @@
           }
         },
         "summary": "Current Shot Plan"
+      }
+    },
+    "/v1/production-runs/{run_id}/shot-plans/{plan_id}/continuation-preparations": {
+      "post": {
+        "operationId": "prepare_continuation_video_v1_production_runs__run_id__shot_plans__plan_id__continuation_preparations_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "plan_id",
+            "required": true,
+            "schema": {
+              "title": "Plan Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "origin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Origin"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContinuationPreparationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunEvent"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Prepare Continuation Video"
       }
     },
     "/v1/production-runs/{run_id}/shot-plans/{plan_id}/opening-frame-preparations": {

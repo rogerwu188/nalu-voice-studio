@@ -224,6 +224,20 @@ actor RuntimeClient {
         try await post("v1/production-runs/\(runID)/shot-plans/\(planID)/video-preparations", body: draft)
     }
 
+    func prepareContinuousVideo(runID: String, planID: String, planSHA: String, shotIndex: Int) async throws -> FrameProductionEvent {
+        struct Draft: Encodable { let expected_plan_sha256: String; let shot_index: Int }
+        let saved: FrameProductionEvent = try await post(
+            "v1/production-runs/\(runID)/shot-plans/\(planID)/continuation-preparations",
+            body: Draft(expected_plan_sha256: planSHA, shot_index: shotIndex))
+        guard saved.run_id == runID, saved.event_type == "video_task_prepared",
+              saved.payload.approved_plan_event_id == planID, saved.payload.approved_plan_sha256 == planSHA,
+              saved.payload.approved_shot_index == shotIndex, saved.payload.approved_tail_id?.isEmpty == false,
+              saved.payload.approved_tail_sha256?.count == 64,
+              saved.payload.generation_performed == false, saved.payload.paid_approved == false,
+              !Task.isCancelled else { throw LibrarySnapshotRefreshError.contextChanged }
+        return saved
+    }
+
     func observeVideoPrice(runID: String, preparationID: String) async throws -> VideoPriceObservation {
         try await post("v1/production-runs/\(runID)/video-task-preparations/\(preparationID)/price-observations",
                        body: [String: String]())

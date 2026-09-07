@@ -34,6 +34,28 @@ private final class ShotReviewProtocol: URLProtocol, @unchecked Sendable {
 
 @Suite(.serialized)
 struct EpisodeShotPlanTests {
+    @MainActor @Test func continuousPreparationCarriesPlanAndRejectsForeignTailResponse() async throws {
+        func response(index: Int = 1) throws -> Data {
+            try JSONSerialization.data(withJSONObject: ["id": "prepared", "run_id": "run", "event_type": "video_task_prepared",
+                "payload": ["approved_plan_event_id": "plan", "approved_plan_sha256": "plan-sha", "approved_shot_index": index,
+                    "approved_tail_id": "tail", "approved_tail_sha256": String(repeating: "a", count: 64),
+                    "generation_performed": false, "paid_approved": false]])
+        }
+        ShotReviewProtocol.requests = []; ShotReviewProtocol.bodies = []
+        ShotReviewProtocol.queued = [(200, try response()), (200, try response(index: 2))]
+        let client = runtime()
+        let prepared = try await client.prepareContinuousVideo(runID: "run", planID: "plan", planSHA: "plan-sha", shotIndex: 1)
+        #expect(prepared.payload.approved_tail_id == "tail")
+        do { _ = try await client.prepareContinuousVideo(runID: "run", planID: "plan", planSHA: "plan-sha", shotIndex: 1)
+            Issue.record("wrong shot must not become actionable") } catch {}
+        #expect(ShotReviewProtocol.requests.allSatisfy { $0.value(forHTTPHeaderField: "X-Nalu-Provider-Key") == nil })
+        #expect(ShotReviewProtocol.requests[0].url?.path.hasSuffix("shot-plans/plan/continuation-preparations") == true)
+        let body = try JSONSerialization.jsonObject(with: ShotReviewProtocol.bodies[0]) as! [String: Any]
+        #expect(body["expected_plan_sha256"] as? String == "plan-sha")
+        #expect(body["shot_index"] as? Int == 1)
+        #expect(body["approved_tail_id"] == nil) // Runtime resolves it, not the elder.
+    }
+
     @MainActor @Test func videoDecisionRecoveryAndSubmissionPreserveExactCandidate() async throws {
         let binding = VideoSubmissionObservation(id: "binding", run_id: "run", task_key: "shot",
             request_sha256: "request", state: "submitted", provider_task_id: "task")

@@ -81,9 +81,15 @@ import SwiftUI
                                     guardianRequired: guardianRequired, onRead: onRead, onRegistered: { referenceRevision += 1 })
                                     .id("\(event.id)-\(selectedShot)-references")
                             }
-                            EpisodeFrameReviewView(runID: model.runID, planID: event.id, shotIndex: selectedShot,
-                                guardianRequired: guardianRequired, onRead: onRead)
-                                .id("\(model.runID)-\(event.id)-\(selectedShot)-\(referenceRevision)")
+                            if shot.transition == "continuous" {
+                                ContinuousShotPanel(runID: model.runID, planID: event.id, planSHA: event.payload.plan_sha256,
+                                    shotIndex: selectedShot, guardianRequired: guardianRequired, onRead: onRead)
+                                    .id("\(model.runID)-\(event.id)-\(selectedShot)-continuous")
+                            } else {
+                                EpisodeFrameReviewView(runID: model.runID, planID: event.id, shotIndex: selectedShot,
+                                    guardianRequired: guardianRequired, onRead: onRead)
+                                    .id("\(model.runID)-\(event.id)-\(selectedShot)-\(referenceRevision)")
+                            }
                         }
                     }
                     Button("保存修改并整理拍法", systemImage: "square.and.arrow.down") {

@@ -12,6 +12,12 @@ from .shot_review import ShotReviewService
 from .video_preparation import VideoPreparationRequest, VideoPreparationService, digest
 
 
+class ContinuationPreparationRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    expected_plan_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    shot_index: int = Field(strict=True, ge=1, le=119)
+
+
 class ReviewedVideoRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     expected_plan_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
@@ -29,6 +35,29 @@ class ReviewedVideoService:
         # This revalidates under the same writer lock as frame decisions and
         # snapshot refresh. No provider submission or spending approval occurs.
         return VideoPreparationService(self.repository, self.data_root).prepare(run_id, request)
+
+    def prepare_continuation(self, run_id, plan_id, incoming: ContinuationPreparationRequest):
+        from .video_tail import VideoTailService
+        event = ShotReviewService(self.repository).current(run_id)
+        if (event is None or event.id != plan_id or event.event_type != "shot_plan_approved"
+                or event.payload.get("plan_sha256") != incoming.expected_plan_sha256
+                or digest({k: v for k, v in event.payload.items() if k != "plan_sha256"}) != incoming.expected_plan_sha256):
+            raise ConflictError("confirm the current plan before continuing")
+        shots = event.payload["plan"]["shots"]
+        if incoming.shot_index >= len(shots) or shots[incoming.shot_index]["transition"] != "continuous":
+            raise ConflictError("this shot requires its own opening image")
+        previous = [t for t in event.payload.get("tasks", []) if t.get("shot_index") == incoming.shot_index - 1]
+        if len(previous) != 1:
+            raise ConflictError("previous shot identity is unavailable")
+        reviews = [e for e in self.repository.list_run_events(run_id) if e.event_type == "video_shot_reviewed"
+                   and e.payload.get("task_key") == previous[0]["task_key"]]
+        if not reviews:
+            raise ConflictError("view and adopt the previous shot video first")
+        # Extraction verifies latest acceptance and exact media; preparation
+        # revalidates it under its writer lock. No provider call is made here.
+        tail = VideoTailService(self.repository, self.data_root).extract(run_id, reviews[-1].id)
+        return self.prepare(run_id, plan_id, ReviewedVideoRequest(
+            expected_plan_sha256=incoming.expected_plan_sha256, shot_index=incoming.shot_index, approved_tail_id=tail.id))
 
     def compose(self, run_id, plan_id, incoming: ReviewedVideoRequest):
         repo = self.repository

@@ -24,6 +24,8 @@ struct FrameProductionEvent: Decodable, Sendable {
         var approved_plan_event_id: String?
         var approved_plan_sha256: String?
         var approved_frame_review_id: String?
+        var approved_tail_id: String?
+        var approved_tail_sha256: String?
         var frame_materialization_id: String?
         var preparation_sha256: String?
         var user_approved: Bool?

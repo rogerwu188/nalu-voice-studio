@@ -97,6 +97,10 @@ Native adoption controls, installed-app and real media acceptance remain open.
 connect playback to adoption/rejection with TTS readback and explicit confirmation.
 Native CI, installed-app QA and real production acceptance remain open.
 
+[Native continuous-shot entry](qa/native-continuous-shot-entry-2026-09-07.md)
+automatically resolves accepted preceding media/tail from the selected shot and
+reuses cost/dispatch controls. New native CI, actual app QA and real E2E remain open.
+
 AI plans now carry [typed director choices with native round-trip and plain-language readback](qa/structured-director-drafts-2026-09-07.md).
 User edits invalidate stale choices. A [version-bound director refresh backend](qa/director-refresh-2026-09-07.md)
 now fills missing choices without rewriting user descriptions, with restart and
