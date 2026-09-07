@@ -31,6 +31,7 @@ from .feedback_export import (
     IssueTrackerTransport,
 )
 from .giggle_task_query import GiggleTaskQuery, GiggleTaskQueryError
+from .image_budget import ImageBudgetApproval, ImageBudgetService
 from .image_download import ImageDownloadError
 from .image_materialization import ImageMaterializationService
 from .image_observation import ImageObservationService
@@ -1139,6 +1140,13 @@ def create_app(
     @app.post("/v1/production-runs/{run_id}/image-task-preparations", response_model=RunEvent)
     def prepare_image_task(run_id: str, request: ImagePreparationRequest) -> RunEvent:
         return ImagePreparationService(repository, asset_service).prepare(run_id, request)
+
+    @app.post("/v1/production-runs/{run_id}/image-task-preparations/{preparation_id}/estimate-approvals", response_model=RunEvent)
+    def approve_image_estimate(run_id: str, preparation_id: str, request: ImageBudgetApproval,
+                               origin: str | None = Header(default=None)) -> RunEvent:
+        if origin is not None:
+            raise HTTPException(403, "native image cost confirmation required")
+        return ImageBudgetService(repository, asset_service).reserve(run_id, preparation_id, request)
 
     @app.get("/v1/production-runs/{run_id}/shot-plans/current", response_model=RunEvent | None)
     def current_shot_plan(run_id: str):

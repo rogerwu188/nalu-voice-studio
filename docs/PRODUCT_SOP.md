@@ -33,6 +33,10 @@ including interrupted-download recovery without a replacement generation task.
 Native orchestration and real paid image activation still require completion;
 this backend checkpoint does not promote any SOP to PASS.
 
+Image preparations also support [shared image/video estimate reservations](qa/shared-image-video-budget-2026-09-07.md).
+This does not verify provider prices, grant QingShan contract approval or enable
+an otherwise unavailable paid image submission path.
+
 Confirmed shots now support [automatic local opening-image preparation](qa/reviewed-opening-image-preparation-2026-09-06.md)
 with exact source bindings, inherited reference checks and restart reuse. This is
 not paid image activation, native QA, continuous-frame handoff or finished production.

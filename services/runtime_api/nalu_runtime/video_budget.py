@@ -82,7 +82,7 @@ class VideoBudgetService:
                    and json.loads(row[0]).get("preparation_sha256") != expected for row in preparations):
                 raise ConflictError("a newer shot preparation requires review")
             rows = db.execute(
-                "SELECT id, payload_json FROM run_events WHERE run_id = ? AND event_type = 'video_estimate_reserved'",
+                "SELECT id, payload_json FROM run_events WHERE run_id = ? AND event_type IN ('video_estimate_reserved','image_estimate_reserved')",
                 (run_id,),
             ).fetchall()
             reservations = [(row["id"], json.loads(row["payload_json"])) for row in rows]
@@ -95,6 +95,8 @@ class VideoBudgetService:
             reserved_keys = {record["task_key"] for _, record in reservations}
             if len(reserved_keys) != len(reservations):
                 raise ConflictError("duplicate shot reservations require reconciliation")
+            if sum(record["estimated_credits"] for _, record in reservations) > approval.confirmed_run_budget_credits:
+                raise ConflictError("existing image and video estimates exceed the current run budget")
             bindings = db.execute("SELECT task_key FROM remote_task_bindings WHERE run_id = ?", (run_id,)).fetchall()
             if any(row[0] not in reserved_keys for row in bindings):
                 raise ConflictError("existing provider tasks have unreserved cost; reconcile first")
