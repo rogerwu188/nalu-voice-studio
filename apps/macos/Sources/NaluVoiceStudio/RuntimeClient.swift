@@ -28,6 +28,56 @@ actor RuntimeClient {
         self.session = URLSession(configuration: configuration)
     }
 
+    func prepareEpisodeDialogue(sound: EpisodeSoundPlan) async throws -> EpisodeDialoguePreparation {
+        try sound.validateCueWindows()
+        guard !sound.run_id.isEmpty, sound.payload.edit_approved else {
+            throw LibrarySnapshotRefreshError.contextChanged
+        }
+        var components = URLComponents(url: baseURL.appending(path: "v1/production-runs/\(sound.run_id)/adopted-dialogue"), resolvingAgainstBaseURL: false)!
+        components.queryItems = [URLQueryItem(name: "sound_plan_id", value: sound.id),
+            URLQueryItem(name: "expected_sound_plan_sha256", value: sound.payload.sound_plan_sha256),
+            URLQueryItem(name: "artifact", value: "captions")]
+        var request = URLRequest(url: components.url!)
+        request.timeoutInterval = 300
+        let (data, response) = try await authorizedData(for: request)
+        try validate(response, data: data)
+        guard !Task.isCancelled, let http = response as? HTTPURLResponse,
+              http.value(forHTTPHeaderField: "X-Nalu-Sound-Plan-ID") == sound.id,
+              http.value(forHTTPHeaderField: "X-Nalu-Master-Accepted") == "false",
+              let lineage = http.value(forHTTPHeaderField: "X-Nalu-Lineage-SHA256"),
+              EpisodeDialogueStageReceipt.validSHA(lineage),
+              let sha = http.value(forHTTPHeaderField: "X-Nalu-Artifact-SHA256"),
+              SHA256.hash(data: data).map({ String(format: "%02x", $0) }).joined() == sha,
+              data.starts(with: Data("WEBVTT".utf8)) else {
+            throw LibrarySnapshotRefreshError.contextChanged
+        }
+        return EpisodeDialoguePreparation(draft: .init(sound_plan_id: sound.id,
+            expected_sound_plan_sha256: sound.payload.sound_plan_sha256, expected_lineage_sha256: lineage), captionsSHA256: sha)
+    }
+
+    func stageEpisodeDialogue(sound: EpisodeSoundPlan, preparation: EpisodeDialoguePreparation) async throws -> EpisodeDialogueStageReceipt {
+        try Task.checkCancellation()
+        try sound.validateCueWindows()
+        let draft = preparation.draft
+        guard !sound.run_id.isEmpty, sound.payload.edit_approved,
+              draft.sound_plan_id == sound.id, draft.expected_sound_plan_sha256 == sound.payload.sound_plan_sha256,
+              EpisodeDialogueStageReceipt.validSHA(draft.expected_lineage_sha256),
+              EpisodeDialogueStageReceipt.validSHA(preparation.captionsSHA256) else {
+            throw LibrarySnapshotRefreshError.contextChanged
+        }
+        var request = URLRequest(url: baseURL.appending(path: "v1/production-runs/\(sound.run_id)/adopted-dialogue/stage"))
+        request.httpMethod = "POST"
+        request.timeoutInterval = 300
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try encoder.encode(draft)
+        let (data, response) = try await authorizedData(for: request)
+        try validate(response, data: data)
+        try Task.checkCancellation()
+        let receipt = try decoder.decode(EpisodeDialogueStageReceipt.self, from: data)
+        try receipt.validate(runID: sound.run_id, preparation: preparation)
+        return receipt
+    }
+
     func health() async throws -> RuntimeHealth {
         let (data, response) = try await authorizedData(
             from: baseURL.appending(path: "health")

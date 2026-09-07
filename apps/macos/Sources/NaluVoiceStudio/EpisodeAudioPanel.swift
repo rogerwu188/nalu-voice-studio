@@ -5,6 +5,8 @@ import SwiftUI
 // Extend the incumbent native Operate surface: no IDs, no professional form.
 @MainActor struct EpisodeAudioPanel: View {
     @State private var model: EpisodeAudioModel
+    @State private var dialogue: EpisodeDialogueStageModel
+    @State private var dialogueTask: Task<Void, Never>?
     @State private var showingConfirmation = false
     @State private var player: AVAudioPlayer?
     @State private var auditionTask: Task<Void, Never>?
@@ -14,6 +16,7 @@ import SwiftUI
 
     init(sound: EpisodeSoundPlan, onRead: @escaping (String) -> Void) {
         _model = State(initialValue: EpisodeAudioModel(sound: sound))
+        _dialogue = State(initialValue: EpisodeDialogueStageModel(sound: sound))
         self.onRead = onRead
     }
 
@@ -75,10 +78,28 @@ import SwiftUI
                         stop(); onRead(model.readback); showingConfirmation = true
                     }.disabled(model.busy)
                 }
+                Divider()
+                Text(dialogue.notice).fixedSize(horizontal: false, vertical: true)
+                if dialogue.busy { ProgressView("正在整理本集配音与字幕") }
+                Button(dialogue.pending == nil ? "准备这一集的配音与字幕" : "重试保存同一版", systemImage: "waveform.and.magnifyingglass") {
+                    stop()
+                    dialogueTask = Task {
+                        await dialogue.prepare()
+                        if !Task.isCancelled { onRead(dialogue.notice) }
+                    }
+                }.buttonStyle(.borderedProminent)
+                    .disabled(model.busy || !model.loaded || model.pending != nil || dialogue.busy)
+                    .accessibilityIdentifier("nalu.episode.dialogue.prepare")
+                if dialogue.pending != nil || dialogue.receipt != nil {
+                    Button("重新核对当前版本", systemImage: "arrow.clockwise") {
+                        dialogue.refreshCurrentVersion(); onRead(dialogue.notice)
+                    }.disabled(dialogue.busy)
+                }
             }.buttonStyle(.bordered).controlSize(.large).padding(.vertical, 8)
+                .disabled(dialogue.busy)
         }.naluFont(.body).accessibilityIdentifier("nalu.episode.audio")
         .task { await model.load() }
-        .onDisappear { stop() }
+        .onDisappear { stop(); dialogueTask?.cancel(); dialogueTask = nil }
         .confirmationDialog(model.readback, isPresented: $showingConfirmation, titleVisibility: .visible) {
             Button("确认绑定录音素材") { Task { await model.confirm(); onRead(model.notice) } }
                 .disabled(model.busy || model.pending == nil)

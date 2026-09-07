@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "af6adb5a0f536413b2b478f916ef6851b3e943c0",
-  "last_advanced_at": "2026-09-07T10:21:31Z",
+  "observed_head": "c03ccd56857769ecd5a82748bb58222880cb51e3",
+  "last_advanced_at": "2026-09-07T10:28:01Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Actual local materialization cancellation now tested before work, after encoded segment and after durable promotion. Explicit resume reuses durable bytes without re-encoding; 3 targeted tests passed in 7.18s. Added uncached completion-boundary cancellation check. Evidence docs/qa/materialization-cancel-resume-2026-09-07.md. Current CI and installed E2E remain incomplete."
+    "summary": "Native episode audio/caption preparation action implemented with typed staging receipt and exact pending retry. Added native transport/model test; execution pending CI because local SwiftBridging duplicate-module error blocks parsing. Backend dialogue/binding 15 tests pass (0.71s), OpenAPI current. Evidence docs/qa/native-dialogue-staging-2026-09-07.md. Not installed or native-QA accepted."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Next connect native adopted-dialogue staging and production action, automatic sound preparation/selection without professional forms, then semantic/content/master QA. Local synthetic cancellation/resume at encoded and durable boundaries now covered, installed workflow still pending. Verify current CI (34110783973 pending, 34109964486 running at 10:21 UTC). No Hops 401 retries.",
+    "summary": "Verify new native staging CI/tests, then implement automatic sound preparation/selection and native mix/production action without professional forms; continue semantic/content/master QA. Evidence docs/qa/native-dialogue-staging-2026-09-07.md. Existing local compiler environment broken; installed workflow remains pending. No Hops 401 retries.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

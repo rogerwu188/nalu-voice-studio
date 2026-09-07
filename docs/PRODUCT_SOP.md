@@ -7,6 +7,10 @@ against the current main branch.
 
 ## Status vocabulary
 
+[Native dialogue staging](qa/native-dialogue-staging-2026-09-07.md) connects the
+confirmed audio/captions preparation action without professional fields. Native
+compilation/QA, other sound layers and the final production action remain open.
+
 [Materialization cancellation/resume](qa/materialization-cancel-resume-2026-09-07.md)
 now exercises actual encoded-segment and durable-promotion interruption, not
 only pre-work cancellation. Installed native workflow and release remain open.
