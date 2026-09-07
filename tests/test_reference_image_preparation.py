@@ -48,6 +48,13 @@ def test_native_shots_prepare_shared_references_with_budget_and_restart_reuse(tm
     refs = [e for e in repo.list_run_events(run.id) if e.payload.get("purpose") == "visual_reference"]
     assert len(refs) == 2
     assert {e.payload["image_task_key"] for e in refs} == {"REF-grandma-design", "REF-beach-design"}
+    reference_endpoint = f"/v1/production-runs/{run.id}/shot-plans/{plan.id}/reference-image-preparations"
+    assert api.post(reference_endpoint, json={"visual_asset_key": "grandma"}, headers={"Origin": "https://example.org"}).status_code == 403
+    assert api.post(reference_endpoint, json={"visual_asset_key": "../escape"}).status_code == 422
+    assert api.post(reference_endpoint, json={"visual_asset_key": "missing"}).status_code == 409
+    selected_reference = api.post(reference_endpoint, json={"visual_asset_key": "grandma"})
+    assert selected_reference.status_code == 200
+    assert selected_reference.json()["id"] in {e.id for e in refs}
     for event in refs:
         value = event.payload
         assert "approved_shot_index" not in value  # Never selected as an entry frame by the native decoder.

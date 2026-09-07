@@ -390,7 +390,7 @@ struct ContentView: View {
                             Divider()
                         }
                         if let runID = selectedEpisodeProgress?.runID {
-                            EpisodeShotPlanView(runID: runID, onRead: model.readShotPlanText)
+                            EpisodeShotPlanView(runID: runID, guardianRequired: selectedProject?.audienceMode == "child", onRead: model.readShotPlanText)
                                 .id(runID)
                                 .padding(.horizontal, 24)
                                 .padding(.vertical, 12)

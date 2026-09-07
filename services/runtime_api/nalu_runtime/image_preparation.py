@@ -29,6 +29,11 @@ class ReviewedShotFrameRequest(BaseModel):
     shot_index: int = Field(strict=True, ge=0, le=119)
 
 
+class ReviewedReferenceRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    visual_asset_key: str = Field(pattern=r"^[A-Za-z][A-Za-z0-9_-]{0,79}$")
+
+
 class ImagePreparationService:
     def __init__(self, repository: Repository, assets: AssetService):
         self.repository, self.assets = repository, assets

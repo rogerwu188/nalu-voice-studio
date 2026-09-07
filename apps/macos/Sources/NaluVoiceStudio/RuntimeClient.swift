@@ -240,6 +240,16 @@ actor RuntimeClient {
         return data
     }
 
+    func prepareReviewedReference(runID: String, planID: String, key: String) async throws -> FrameProductionEvent {
+        try await post("v1/production-runs/\(runID)/shot-plans/\(planID)/reference-image-preparations",
+                       body: ["visual_asset_key": key])
+    }
+
+    func registerReviewedReference(runID: String, reviewID: String, guardianApproved: Bool) async throws -> NaluAsset {
+        try await post("v1/production-runs/\(runID)/reference-reviews/\(reviewID)/asset",
+                       body: ReferencePermissionDraft(guardian_approved: guardianApproved))
+    }
+
     func reviewSavedFrame(runID: String, materializationID: String, draft: FrameReviewDraft) async throws -> FrameProductionEvent {
         try await post("v1/production-runs/\(runID)/image-results/\(materializationID)/review", body: draft)
     }

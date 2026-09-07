@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "876142aa9c07186b64af2be1cae1d426971dffc8",
-  "last_advanced_at": "2026-09-07T01:03:34Z",
+  "observed_head": "7a81e0312b8ac704568634e5e8c6e4f17ad25401",
+  "last_advanced_at": "2026-09-07T01:09:03Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Registered references now resolve into actual opening-frame request bytes by exact source/design binding without plan edits. Shared use across two shots, revocation and byte mutation rejection passed; full Python regression 566 passed in 77.86s with two dependency warnings. Native refresh prevents stale-request frame confirmation; Swift tests added, compiled/native QA pending. See docs/qa/registered-reference-frame-resolution-2026-09-07.md. Prior f0772a9 CI 34071320708 SUCCESS; 876142a CI 34071632998 running. No real image/video/release acceptance claimed."
+    "summary": "Native one-reference-at-a-time review and separate project-use/guardian confirmation now call the existing image review and durable asset registration paths, then refresh opening frames. Existing TTS preserved. Full Python regression 566 passed in 78.63s, two dependency warnings. Swift lifecycle/permission tests added but CI/native acceptance pending. See docs/qa/native-reference-review-registration-2026-09-07.md. Prior 876142a CI 34071632998 running, 7a81e03 CI 34071848678 pending at observation. No real creation/release acceptance claimed."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Connect native reference-image review, explicit permission and project-asset registration to the now-integrated frame pipeline. Complete real image pricing/full QingShan authority and real provider activation, then sequential video, master QA and controlled release. Verify native behavior while preserving existing apps/user data. Narrated-story and named-web-source interactive scripts remain the priority with existing TTS. Preserve quarantined Hops writer attempt; no automatic paid retry.",
+    "summary": "Verify compiled native reference review/permission/registration and activate actual reference/entry-image production through authoritative pricing and full QingShan contracts; connect native accepted-task progress. Then complete sequential video, master QA and controlled release. Preserve existing apps/user data. Narrated-story and named-web-source interactive scripts remain the priority with existing TTS. Preserve quarantined Hops writer attempt; no automatic paid retry or invented authority.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

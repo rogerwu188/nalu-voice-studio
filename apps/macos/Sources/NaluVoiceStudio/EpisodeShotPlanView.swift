@@ -9,11 +9,14 @@ import SwiftUI
     @State private var showGenerationConfirmation = false
     @State private var showReloadConfirmation = false
     @State private var expanded = false
+    @State private var referenceRevision = 0
     let onRead: (String) -> Void
+    let guardianRequired: Bool
 
-    init(runID: String, onRead: @escaping (String) -> Void) {
+    init(runID: String, guardianRequired: Bool = false, onRead: @escaping (String) -> Void) {
         _model = State(initialValue: EpisodeShotPlanModel(runID: runID))
         self.onRead = onRead
+        self.guardianRequired = guardianRequired
     }
 
     var body: some View {
@@ -56,8 +59,16 @@ import SwiftUI
                                 .naluFont(.body).textSelection(.enabled)
                         }
                         if let event = model.event, event.payload.approved && !model.hasEdits {
+                            let designs = (plan.visual_assets ?? []).filter {
+                                (shot.visual_asset_keys ?? []).contains($0.key) && $0.existing_asset_id == nil
+                            }
+                            if !designs.isEmpty {
+                                EpisodeReferenceCollectionView(runID: model.runID, planID: event.id, designs: designs,
+                                    guardianRequired: guardianRequired, onRead: onRead, onRegistered: { referenceRevision += 1 })
+                                    .id("\(event.id)-\(selectedShot)-references")
+                            }
                             EpisodeFrameReviewView(runID: model.runID, planID: event.id, shotIndex: selectedShot)
-                                .id("\(model.runID)-\(event.id)-\(selectedShot)")
+                                .id("\(model.runID)-\(event.id)-\(selectedShot)-\(referenceRevision)")
                         }
                     }
                     Button("保存我的修改", systemImage: "square.and.arrow.down") {

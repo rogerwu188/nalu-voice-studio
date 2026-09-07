@@ -61,6 +61,10 @@ Registered references now [resolve into opening-frame image inputs](qa/registere
 without rewriting the approved plan. Native refresh avoids reusing a frame from
 the old inputs; compiled/native and real-production acceptance remain open.
 
+Native users can now [review references and separately confirm project use](qa/native-reference-review-registration-2026-09-07.md)
+with existing TTS readback and guardian confirmation for child projects. Compilation,
+packaged interaction, pure-voice QA and real generation remain unverified.
+
 Confirmed shots now support [automatic local opening-image preparation](qa/reviewed-opening-image-preparation-2026-09-06.md)
 with exact source bindings, inherited reference checks and restart reuse. This is
 not paid image activation, native QA, continuous-frame handoff or finished production.

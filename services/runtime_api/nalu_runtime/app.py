@@ -38,6 +38,7 @@ from .image_observation import ImageObservationService
 from .image_preparation import (
     ImagePreparationRequest,
     ImagePreparationService,
+    ReviewedReferenceRequest,
     ReviewedShotFrameRequest,
 )
 from .image_progress import ImageProgressResult, ImageProgressService
@@ -1152,6 +1153,13 @@ def create_app(
         if origin is not None:
             raise HTTPException(403, "native confirmed-shot selection required")
         return ImagePreparationService(repository, asset_service).prepare_reviewed_shot(run_id, plan_id, request.shot_index)
+
+    @app.post("/v1/production-runs/{run_id}/shot-plans/{plan_id}/reference-image-preparations", response_model=RunEvent)
+    def prepare_reviewed_reference(run_id: str, plan_id: str, request: ReviewedReferenceRequest,
+                                   origin: str | None = Header(default=None)) -> RunEvent:
+        if origin is not None:
+            raise HTTPException(403, "native reference selection required")
+        return ImagePreparationService(repository, asset_service).prepare_reviewed_reference(run_id, plan_id, request.visual_asset_key)
 
     @app.post("/v1/production-runs/{run_id}/image-task-preparations/{preparation_id}/estimate-approvals", response_model=RunEvent)
     def approve_image_estimate(run_id: str, preparation_id: str, request: ImageBudgetApproval,

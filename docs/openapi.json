@@ -7748,6 +7748,21 @@
         "title": "ReviewedChangeEvidence",
         "type": "object"
       },
+      "ReviewedReferenceRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "visual_asset_key": {
+            "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,79}$",
+            "title": "Visual Asset Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "visual_asset_key"
+        ],
+        "title": "ReviewedReferenceRequest",
+        "type": "object"
+      },
       "ReviewedShotFrameRequest": {
         "additionalProperties": false,
         "properties": {
@@ -14299,6 +14314,80 @@
           }
         },
         "summary": "Prepare Reviewed Shot Frame"
+      }
+    },
+    "/v1/production-runs/{run_id}/shot-plans/{plan_id}/reference-image-preparations": {
+      "post": {
+        "operationId": "prepare_reviewed_reference_v1_production_runs__run_id__shot_plans__plan_id__reference_image_preparations_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "plan_id",
+            "required": true,
+            "schema": {
+              "title": "Plan Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "origin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Origin"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewedReferenceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunEvent"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Prepare Reviewed Reference"
       }
     },
     "/v1/production-runs/{run_id}/shot-plans/{source_id}/review": {

@@ -9,6 +9,7 @@ private final class FrameReviewProtocol: URLProtocol, @unchecked Sendable {
     static var image = Data("synthetic-image-bytes".utf8)
     static var review = Data()
     static var preparation = Data()
+    static var asset = Data()
     static var fail = false
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
@@ -16,7 +17,8 @@ private final class FrameReviewProtocol: URLProtocol, @unchecked Sendable {
         Self.requests.append(request)
         let path = request.url!.path
         let body = path.hasSuffix("/events") ? Self.events : path.hasSuffix("/content") ? Self.image
-            : path.hasSuffix("/opening-frame-preparations") ? Self.preparation : Self.review
+            : (path.hasSuffix("/opening-frame-preparations") || path.hasSuffix("/reference-image-preparations")) ? Self.preparation
+            : path.hasSuffix("/asset") ? Self.asset : Self.review
         client?.urlProtocol(self, didReceive: HTTPURLResponse(url: request.url!, statusCode: Self.fail ? 409 : 200,
             httpVersion: nil, headerFields: nil)!, cacheStoragePolicy: .notAllowed)
         client?.urlProtocol(self, didLoad: body)
@@ -26,6 +28,16 @@ private final class FrameReviewProtocol: URLProtocol, @unchecked Sendable {
 }
 
 @Suite(.serialized) struct EpisodeFrameReviewTests {
+    @Test func referencePermissionDoesNotAuthorizeSpendingOrPublication() throws {
+        for guardian in [false, true] {
+            let body = try JSONSerialization.jsonObject(with: JSONEncoder().encode(
+                ReferencePermissionDraft(guardian_approved: guardian))) as! [String: Any]
+            #expect(body["consent_granted"] as? Bool == true)
+            #expect(body["guardian_approved"] as? Bool == guardian)
+            #expect(Set(body.keys) == Set(["consent_granted", "confirmed_by", "statement", "guardian_approved"]))
+        }
+    }
+
     private func event(_ id: String, _ type: String, _ payload: [String: Any]) -> [String: Any] {
         ["id": id, "run_id": "run-one", "event_type": type, "payload": payload]
     }
@@ -37,6 +49,7 @@ private final class FrameReviewProtocol: URLProtocol, @unchecked Sendable {
     }
     private func setup() throws {
         FrameReviewProtocol.requests = []; FrameReviewProtocol.fail = false
+        FrameReviewProtocol.asset = Data()
         FrameReviewProtocol.preparation = try JSONSerialization.data(withJSONObject:
             event("prep", "image_task_prepared", ["approved_plan_event_id": "plan", "approved_shot_index": 0,
                 "request_sha256": "request", "image_task_key": "E01-U01-entry"]))
@@ -114,5 +127,43 @@ private final class FrameReviewProtocol: URLProtocol, @unchecked Sendable {
         #expect(!model.canReview && model.imageData == nil)
         #expect(FrameReviewProtocol.requests.map(\.httpMethod) == ["GET", "POST"])
         #expect(FrameReviewProtocol.requests.allSatisfy { $0.value(forHTTPHeaderField: "X-Nalu-Provider-Key") == nil })
+    }
+
+    @MainActor @Test func referenceReviewAndPermissionAreSeparateLocalActions() async throws {
+        try setup()
+        let sha = SHA256.hash(data: FrameReviewProtocol.image).map { String(format: "%02x", $0) }.joined()
+        let prep = event("reference-prep", "image_task_prepared", ["approved_plan_event_id": "plan",
+            "visual_asset_key": "grandma", "purpose": "visual_reference", "request_sha256": "ref-request",
+            "image_task_key": "REF-grandma-design"])
+        let material = event("material", "image_result_materialized", ["request_sha256": "ref-request",
+            "task_key": "REF-grandma-design", "materialization_sha256": String(repeating: "a", count: 64), "image": ["sha256": sha]])
+        FrameReviewProtocol.preparation = try JSONSerialization.data(withJSONObject: prep)
+        FrameReviewProtocol.events = try JSONSerialization.data(withJSONObject: [prep, material])
+        let review = event("reference-review", "image_frame_reviewed", ["decision": "accept",
+            "materialization_id": "material", "task_key": "REF-grandma-design"])
+        FrameReviewProtocol.review = try JSONSerialization.data(withJSONObject: review)
+        FrameReviewProtocol.asset = try JSONSerialization.data(withJSONObject: ["id": "asset-ref", "project_id": "project",
+            "kind": "character_image", "name": "外婆", "local_uri": "file:///synthetic/reference.png", "subject_name": "外婆",
+            "metadata": [String: String](), "consent_granted": true, "consent_scope": "project_only", "guardian_approved": true, "created_at": "2026-09-07"] as [String: Any])
+        let model = EpisodeFrameReviewModel(runID: "run-one", planID: "plan", shotIndex: 0, referenceKey: "grandma", runtime: runtime())
+        await model.load()
+        #expect(model.canReview && !model.canRegister)
+        let count = FrameReviewProtocol.requests.count
+        await model.registerReference(guardianApproved: true)
+        #expect(FrameReviewProtocol.requests.count == count)
+        await model.review(accept: true)
+        #expect(model.canRegister && model.registeredAssetID == nil)
+        await model.registerReference(guardianApproved: true)
+        #expect(model.registeredAssetID == "asset-ref" && !model.canRegister)
+        let sent = try #require(FrameReviewProtocol.requests.last)
+        #expect(sent.url?.path == "/v1/production-runs/run-one/reference-reviews/reference-review/asset")
+        #expect(FrameReviewProtocol.requests.allSatisfy { $0.value(forHTTPHeaderField: "X-Nalu-Provider-Key") == nil })
+        FrameReviewProtocol.events = try JSONSerialization.data(withJSONObject: [prep, material, review,
+            event("registration", "reference_asset_registered", ["review_id": "reference-review", "visual_asset_key": "grandma", "asset_id": "asset-ref"])])
+        await model.load()
+        #expect(model.registeredAssetID == "asset-ref" && !model.canRegister)
+        FrameReviewProtocol.fail = true
+        await model.load()
+        #expect(model.imageData == nil && !model.canRegister)
     }
 }
