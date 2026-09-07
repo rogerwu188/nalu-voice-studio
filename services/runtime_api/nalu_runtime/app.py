@@ -25,6 +25,7 @@ from .development_result import (
 )
 from .director_refresh import DirectorRefreshRequest, DirectorRefreshService
 from .engine import ProductionService
+from .episode_preview import EpisodePreviewRequest, EpisodePreviewService
 from .episode_sound_plan import EpisodeSoundPlanRequest, EpisodeSoundPlanService
 from .feedback_export import (
     DisabledIssueTrackerReconciliationVerifier,
@@ -167,6 +168,7 @@ from .models import (
     WriterProviderReconciliationRecord,
     WriterReceiptReconciliation,
 )
+from .postproduction_materializer import PostproductionMaterializationError
 from .privacy_service import ProjectPrivacyService
 from .production_authorization import ProductionAuthorizationRequest, ProductionAuthorizationService
 from .publication_learning import (
@@ -1410,6 +1412,20 @@ def create_app(
             raise HTTPException(403, "native sound planning required")
         return EpisodeSoundPlanService(repository, data_root).prepare(run_id, request.expected_plan_sha256,
             edit_id=request.edit_id, expected_edit_sha256=request.expected_edit_sha256)
+
+    @app.post("/v1/production-runs/{run_id}/episode-edit-drafts/{edit_id}/picture-preview", response_class=Response,
+              responses={200: {"content": {"video/mp4": {}}}})
+    def preview_episode_edit(run_id: str, edit_id: str, request: EpisodePreviewRequest,
+                             origin: str | None = Header(default=None)):
+        if origin is not None:
+            raise HTTPException(403, "native picture preview required")
+        try:
+            raw, sha = EpisodePreviewService(repository, data_root).render(run_id, edit_id, request.expected_edit_sha256)
+        except PostproductionMaterializationError as exc:
+            raise HTTPException(409, "picture preview could not read or render the current edited sources") from exc
+        return Response(content=raw, media_type="video/mp4", headers={"Cache-Control": "no-store",
+            "X-Content-Type-Options": "nosniff", "X-Nalu-Edit-SHA256": request.expected_edit_sha256,
+            "X-Nalu-Preview-SHA256": sha, "X-Nalu-Preview-Audio": "none", "X-Nalu-Master-Accepted": "false"})
 
     @app.post("/v1/production-runs/{run_id}/episode-edit-drafts", response_model=RunEvent)
     def draft_episode_edit(run_id: str, request: EpisodeEditRequest, origin: str | None = Header(default=None)):

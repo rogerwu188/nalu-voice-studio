@@ -302,6 +302,27 @@ def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypat
                     pixel_format="yuv420p"))
                 assert decoded == timing["frame_count"]
             assert reopened.post(edit_url, json=edit_request).json()["id"] == edit.json()["id"]
+            preview_url = f"{edit_url}/{edit.json()['id']}/picture-preview"
+            preview_request = {"expected_edit_sha256": editing["edit_sha256"]}
+            assert api.post(preview_url, json=preview_request, headers={"Origin": "https://example.org"}).status_code == 403
+            assert api.post(preview_url, json={"expected_edit_sha256": "0" * 64}).status_code == 409
+            from nalu_runtime.episode_preview import PREVIEW_SLOT
+            with PREVIEW_SLOT:
+                assert api.post(preview_url, json=preview_request).status_code == 409
+            picture = api.post(preview_url, json=preview_request)
+            assert picture.status_code == 200, picture.text[:200] if picture.status_code != 200 else ""
+            import hashlib
+            import io
+
+            import av
+            assert picture.headers["X-Nalu-Preview-SHA256"] == hashlib.sha256(picture.content).hexdigest()
+            assert picture.headers["X-Nalu-Preview-Audio"] == "none"
+            assert picture.headers["X-Nalu-Master-Accepted"] == "false"
+            with av.open(io.BytesIO(picture.content)) as player:
+                frames = list(player.decode(video=0))
+                assert len(frames) == 312
+                assert abs(float(frames[-1].time) - 311 / 24) < 0.001
+                assert not player.streams.audio
             retime_url = f"/v1/production-runs/{run.id}/sound-plan-drafts"
             retime = {"expected_plan_sha256": plan["plan_sha256"], "edit_id": edit.json()["id"],
                       "expected_edit_sha256": editing["edit_sha256"]}
@@ -318,6 +339,7 @@ def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypat
             files[0].write_bytes(b"corrupted")
             assert reopened.post(staging).status_code == 409
             assert reopened.post(edit_url, json=edit_request).status_code == 409
+            assert reopened.post(preview_url, json=preview_request).status_code in {400, 409}
             return
         revoked = api.post(f"/v1/production-runs/{run.id}/video-results/{receipt['id']}/reviews", json={
             "preparation_id": prepared_video.json()["id"],

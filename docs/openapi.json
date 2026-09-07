@@ -1879,6 +1879,21 @@
         "title": "EpisodePlanUpdate",
         "type": "object"
       },
+      "EpisodePreviewRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_edit_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Expected Edit Sha256",
+            "type": "string"
+          }
+        },
+        "required": [
+          "expected_edit_sha256"
+        ],
+        "title": "EpisodePreviewRequest",
+        "type": "object"
+      },
       "EpisodeProductionProgress": {
         "properties": {
           "can_cancel": {
@@ -13462,6 +13477,76 @@
           }
         },
         "summary": "Draft Episode Edit"
+      }
+    },
+    "/v1/production-runs/{run_id}/episode-edit-drafts/{edit_id}/picture-preview": {
+      "post": {
+        "operationId": "preview_episode_edit_v1_production_runs__run_id__episode_edit_drafts__edit_id__picture_preview_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "edit_id",
+            "required": true,
+            "schema": {
+              "title": "Edit Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "origin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Origin"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EpisodePreviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "video/mp4": {}
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview Episode Edit"
       }
     },
     "/v1/production-runs/{run_id}/events": {
