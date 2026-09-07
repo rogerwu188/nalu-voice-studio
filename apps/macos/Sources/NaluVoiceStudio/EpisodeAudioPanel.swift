@@ -56,7 +56,18 @@ import SwiftUI
                             }.buttonStyle(.borderedProminent)
                                 .disabled(model.busy || !model.loaded || model.pending != nil)
                         }
-                        if model.attached[cue.id] != nil { Text("已绑定录音素材 · 尚待试听确认与字幕核对") }
+                        if let take = model.attached[cue.id] {
+                            if take.payload.asset_id == model.selectedAssetID(cue.id),
+                               take.payload.source_in_seconds == model.sourceOffset(cue.id) {
+                                EpisodeAudioReviewPanel(sound: model.sound, take: take) { text in
+                                    stop(); onRead(text)
+                                }.id(take.id)
+                                    .disabled(!model.loaded || model.busy || model.pending != nil || playing)
+                            } else {
+                                Text("选择已调整。请先把当前录音用于这一段，再试听并确认；不会沿用旧录音的确认。")
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
                     }.padding(.vertical, 8)
                 }
                 if model.pending != nil {

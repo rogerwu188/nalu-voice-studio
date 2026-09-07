@@ -311,6 +311,45 @@ struct EpisodeShotPlanTests {
                 Issue.record("changed listening identity or final approval must fail") } catch {}
             listeningPayload[field] = original
         }
+        func recoveredListening(_ review: Data?, applies: Bool = false, approved: Bool = false) throws -> Data {
+            try JSONSerialization.data(withJSONObject: ["current_take_id": attached.id,
+                "current_take_sha256": attached.payload.take_sha256,
+                "latest_review": try review.map { try JSONSerialization.jsonObject(with: $0) } ?? NSNull(),
+                "applies_to_current_take": applies, "take_approved": approved])
+        }
+        let listeningModel = EpisodeAudioReviewModel(sound: cuePlan, take: attached, runtime: runtime())
+        #expect(!listeningModel.begin(.accept))
+        ShotReviewProtocol.queued = [(200, try recoveredListening(nil))]
+        await listeningModel.load()
+        #expect(listeningModel.loaded)
+        #expect(listeningModel.begin(.accept))
+        let pendingListening = listeningModel.pending!
+        ShotReviewProtocol.queued = [(503, Data())]
+        await listeningModel.confirm()
+        #expect(listeningModel.uncertain && listeningModel.pending != nil)
+        listeningModel.cancelUnsubmitted()
+        #expect(listeningModel.pending != nil)
+        listeningPayload["reviewed_by"] = pendingListening.reviewed_by
+        listeningPayload["confirmation"] = pendingListening.confirmation
+        ShotReviewProtocol.queued = [(200, try recoveredListening(listeningResponse(), applies: true, approved: true))]
+        await listeningModel.load()
+        #expect(listeningModel.latest?.take_approved == true)
+        #expect(!listeningModel.uncertain && listeningModel.pending == nil)
+        #expect(ShotReviewProtocol.requests.last?.httpMethod == "GET")
+        #expect(ShotReviewProtocol.requests.last?.url?.query?.contains(attached.payload.take_sha256) == true)
+        // An older approved take remains only a CAS predecessor, not current approval.
+        listeningPayload["take_id"] = "older-take"
+        listeningPayload["take_sha256"] = String(repeating: "b", count: 64)
+        ShotReviewProtocol.queued = [(200, try recoveredListening(listeningResponse()))]
+        await listeningModel.load()
+        #expect(listeningModel.loaded && listeningModel.latest?.take_approved == false)
+        #expect(listeningModel.begin(.reject))
+        #expect(listeningModel.pending?.expected_review_id == "listening")
+        listeningModel.cancelUnsubmitted()
+        ShotReviewProtocol.queued = [(200, try recoveredListening(listeningResponse(), applies: true, approved: true))]
+        await listeningModel.load()
+        #expect(!listeningModel.loaded)
+        #expect(!listeningModel.begin(.accept))
         takePayload["asset_id"] = "foreign"
         ShotReviewProtocol.queued = [(200, try takeResponse())]
         do { _ = try await runtime().attachEpisodeAudio(sound: cuePlan, draft: audioDraft)

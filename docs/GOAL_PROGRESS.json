@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "5d10fe5425c93afa84bc15ab80055b194979a9ae",
-  "last_advanced_at": "2026-09-07T08:38:51Z",
+  "observed_head": "fd72300a108444ecf1b3aef27fa6d4accdebc0b5",
+  "last_advanced_at": "2026-09-07T08:45:34Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Added read-only listening decision recovery with current take/media/consent revalidation and explicit separation of historical review versus current approval. Accepted old recordings cannot approve replacement offsets. 26 workflow tests passed in 21.14s; Ruff/OpenAPI/diff checks passed. Parent CI 34101343116 running. Evidence docs/qa/listening-recovery-2026-09-07.md. Native recovery/controls and actual final sound/master/release remain incomplete."
+    "summary": "Native listening recovery/model/visible controls now preserve uncertain confirmations, reconcile by GET and prevent historical acceptance from applying to replacement recordings. Added native fixture coverage; execution pending CI. Backend affected fixture passed in 14.24s. Local Swift parse blocked by duplicate system SwiftBridging module declarations. CI 34100873064 passed; 34101343116 runtime/ARM passed with Intel running. Evidence docs/qa/native-listening-recovery-controls-2026-09-07.md. Installed QA and actual final sound/master/release remain incomplete."
   },
   "next_action": {
     "sop": "SOP-04",

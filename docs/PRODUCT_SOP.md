@@ -28,6 +28,11 @@ completed user journey. Real writer/provider integration, native interaction,
 script revision handoff and the complete production demonstration remain open.
 The authoritative next action is in `docs/GOAL_PROGRESS.json`.
 
+[Native listening recovery and controls](qa/native-listening-recovery-controls-2026-09-07.md)
+now connect explicit readback/decisions and uncertain-result recovery to saved
+recordings. Current native CI, installed playback/accessibility QA and final
+alignment/mix/master/release remain open; no SOP is upgraded from source wiring.
+
 [Listening decision recovery](qa/listening-recovery-2026-09-07.md) now distinguishes
 historical decisions from effective approval of the current recording. Recovery
 rechecks actual media and consent without submitting another confirmation.
