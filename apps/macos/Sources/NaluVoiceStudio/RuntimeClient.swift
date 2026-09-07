@@ -238,6 +238,44 @@ actor RuntimeClient {
         return saved
     }
 
+    func stageEpisodeInputs(runID: String, planID: String, planSHA: String) async throws -> EpisodeEditingEvent {
+        let result: EpisodeEditingEvent = try await post("v1/production-runs/\(runID)/accepted-episode-inputs", body: [String: String]())
+        try validateEpisodeEditing(result, runID: runID, planID: planID, planSHA: planSHA)
+        guard result.event_type == "postproduction_shot_inputs_staged", result.payload.input_sha256?.count == 64 else {
+            throw LibrarySnapshotRefreshError.contextChanged
+        }
+        return result
+    }
+
+    func saveEpisodeEdit(inputs: EpisodeEditingEvent, cuts: [EpisodeEditCut]) async throws -> EpisodeEditingEvent {
+        struct Draft: Encodable { let expected_input_sha256: String; let cuts: [EpisodeEditCut] }
+        guard let sha = inputs.payload.input_sha256, sha.count == 64 else { throw LibrarySnapshotRefreshError.contextChanged }
+        let result: EpisodeEditingEvent = try await post("v1/production-runs/\(inputs.run_id)/episode-edit-drafts",
+            body: Draft(expected_input_sha256: sha, cuts: cuts))
+        try validateEpisodeEditing(result, runID: inputs.run_id, planID: inputs.payload.plan_id, planSHA: inputs.payload.plan_sha256)
+        guard result.event_type == "postproduction_edit_drafted", result.payload.source_input_sha256 == sha,
+              result.payload.edit_sha256?.count == 64, result.payload.edit_approved == false,
+              result.payload.edited_duration_seconds.map({ $0.isFinite && $0 > 0 }) == true,
+              result.payload.items.map(\.task_key) == inputs.payload.items.map(\.task_key),
+              result.payload.shots.count == cuts.count,
+              zip(result.payload.shots, cuts).allSatisfy({ source, cut in
+                  source.source_in_seconds == cut.source_in_seconds && source.source_out_seconds == cut.source_out_seconds
+              }) else { throw LibrarySnapshotRefreshError.contextChanged }
+        return result
+    }
+
+    private func validateEpisodeEditing(_ event: EpisodeEditingEvent, runID: String, planID: String, planSHA: String) throws {
+        let payload = event.payload
+        guard !Task.isCancelled, event.run_id == runID, payload.plan_id == planID, payload.plan_sha256 == planSHA,
+              !payload.generation_performed, !payload.master_accepted, !payload.items.isEmpty,
+              payload.items.count == payload.shots.count, payload.items.count <= 120,
+              payload.items.map(\.shot_index) == Array(payload.items.indices),
+              Set(payload.items.map(\.task_key)).count == payload.items.count,
+              zip(payload.items, payload.shots).allSatisfy({ item, source in
+                  item.task_key == source.shot_id && item.source_duration_seconds.isFinite && item.source_duration_seconds > 0
+              }) else { throw LibrarySnapshotRefreshError.contextChanged }
+    }
+
     func observeVideoPrice(runID: String, preparationID: String) async throws -> VideoPriceObservation {
         try await post("v1/production-runs/\(runID)/video-task-preparations/\(preparationID)/price-observations",
                        body: [String: String]())

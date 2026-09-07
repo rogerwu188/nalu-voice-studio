@@ -125,6 +125,11 @@ import SwiftUI
                     .buttonStyle(.borderedProminent).controlSize(.large)
                     .disabled(!model.canApprove)
                     if model.event?.payload.approved == true && !model.hasEdits && !model.snapshotRefreshPending {
+                        if let event = model.event {
+                            EpisodeEditingPanel(runID: model.runID, planID: event.id,
+                                planSHA: event.payload.plan_sha256, onRead: onRead)
+                                .id(event.id)
+                        }
                         Button("核对本集人物", systemImage: "person.crop.rectangle") {
                             Task {
                                 if let cards = await model.prepareCharacterCards() {

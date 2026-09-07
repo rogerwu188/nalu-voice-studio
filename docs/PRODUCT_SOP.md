@@ -116,6 +116,11 @@ now produce version-bound trimmed source inputs and actual frame-count timelines
 tested with the renderer's decoder. Native editing/confirmation, changed-duration
 approval, retimed audio/captions and real complete rendering remain open.
 
+[Native episode editing entry](qa/native-episode-editing-2026-09-07.md) now exposes
+reversible half-second trim controls and draft save in the confirmed-plan surface.
+Native tests await CI due to the local Swift manifest linker failure; installed
+UI QA, preview/confirmation, restart recovery and sound retiming remain open.
+
 AI plans now carry [typed director choices with native round-trip and plain-language readback](qa/structured-director-drafts-2026-09-07.md).
 User edits invalidate stale choices. A [version-bound director refresh backend](qa/director-refresh-2026-09-07.md)
 now fills missing choices without rewriting user descriptions, with restart and

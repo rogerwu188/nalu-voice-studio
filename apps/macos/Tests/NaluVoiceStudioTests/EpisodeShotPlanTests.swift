@@ -34,6 +34,46 @@ private final class ShotReviewProtocol: URLProtocol, @unchecked Sendable {
 
 @Suite(.serialized)
 struct EpisodeShotPlanTests {
+    @MainActor @Test func episodeEditingPreservesCutsOnFailedSaveAndRejectsForeignContext() async throws {
+        func response(edited: Bool, plan: String = "plan") throws -> Data {
+            var payload: [String: Any] = ["plan_id": plan, "plan_sha256": "plan-sha",
+                "items": [["shot_index": 0, "task_key": "shot", "source_duration_seconds": 8]],
+                "shots": [["shot_id": "shot", "source_in_seconds": edited ? 0.5 : 0, "source_out_seconds": 8]],
+                "generation_performed": false, "master_accepted": false]
+            if edited {
+                payload["source_input_sha256"] = String(repeating: "a", count: 64)
+                payload["edit_sha256"] = String(repeating: "b", count: 64)
+                payload["edit_approved"] = false; payload["edited_duration_seconds"] = 7.5
+            } else { payload["input_sha256"] = String(repeating: "a", count: 64) }
+            return try JSONSerialization.data(withJSONObject: ["id": edited ? "edit" : "inputs", "run_id": "run",
+                "event_type": edited ? "postproduction_edit_drafted" : "postproduction_shot_inputs_staged", "payload": payload])
+        }
+        ShotReviewProtocol.requests = []; ShotReviewProtocol.bodies = []
+        ShotReviewProtocol.queued = [(200, try response(edited: false)), (503, Data()),
+            (200, try response(edited: false)), (200, try response(edited: true)), (200, try response(edited: false, plan: "foreign"))]
+        let model = EpisodeEditingModel(runID: "run", planID: "plan", planSHA: "plan-sha", runtime: runtime())
+        #expect(ShotReviewProtocol.requests.isEmpty)
+        await model.load()
+        #expect(!model.canSave) // Never manufacture a cut to bypass whole-source QA.
+        model.trim(index: 0, beginning: true)
+        #expect(model.canSave)
+        #expect(ShotReviewProtocol.requests.count == 1) // Local editing is not submission.
+        await model.save()
+        #expect(model.saved == nil && model.cuts[0].source_in_seconds == 0.5)
+        await model.load()
+        #expect(model.cuts[0].source_in_seconds == 0.5) // Reload preserves unsaved edits.
+        await model.save()
+        #expect(model.saved?.id == "edit")
+        let first = try JSONSerialization.jsonObject(with: ShotReviewProtocol.bodies[1]) as! NSDictionary
+        let retry = try JSONSerialization.jsonObject(with: ShotReviewProtocol.bodies[3]) as! NSDictionary
+        #expect(first == retry)
+        await model.load()
+        #expect(model.inputs?.payload.plan_id == "plan" && model.cuts[0].source_in_seconds == 0.5)
+        #expect(ShotReviewProtocol.requests.allSatisfy { $0.value(forHTTPHeaderField: "X-Nalu-Provider-Key") == nil })
+        model.reset(index: 0)
+        #expect(!model.canSave && model.saved == nil)
+    }
+
     @MainActor @Test func continuousPreparationCarriesPlanAndRejectsForeignTailResponse() async throws {
         func response(index: Int = 1) throws -> Data {
             try JSONSerialization.data(withJSONObject: ["id": "prepared", "run_id": "run", "event_type": "video_task_prepared",

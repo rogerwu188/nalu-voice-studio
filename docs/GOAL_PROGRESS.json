@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "c6881bd3bb0bec62eb38db03188fbc6bdcb566fd",
-  "last_advanced_at": "2026-09-07T06:33:21Z",
+  "observed_head": "9802db8ca0b1dd076d1d3958e31a754a273eee38",
+  "last_advanced_at": "2026-09-07T06:41:44Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Added version-bound adopted-video edit-draft endpoint with complete ordered source windows, decoded source-duration guards, actual 24fps timelines and restart/corruption checks. Nine focused tests passed in 11.43s, including actual renderer decoding of 168+144 selected frames and existing whole-provider passthrough rejection. Ruff passed; OpenAPI regenerated. Parent c6881bd CI 34091013930 in progress. Evidence docs/qa/episode-editorial-windows-2026-09-07.md; native controls, approval, retiming and real postproduction remain incomplete."
+    "summary": "Connected native confirmed-plan surface to adopted-video staging and reversible half-second trim/draft-save controls. Typed client validates exact run/plan/source/ranges; model preserves edits on reload/failure and exact retries. Added native transport/model tests, but local Swift manifest linker fails before app compilation; current native CI/UI QA not passed. Ruff/diff check passed. c6881bd CI 34091013930 passed; 9802db8 CI 34091496570 in progress. Evidence docs/qa/native-episode-editing-2026-09-07.md."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Connect native plain-language episode editing/preview/confirmation to saved adopted-media windows, preserving changed-duration approval and retiming sound/captions. Then integrate authorized recordings, five audio layers and verified workspace/receipts to render/QA/master/release. Verify current CI and installed-app behavior. Backend edit drafts and synthetic decoder tests are not real E2E; preserve two-source interactive writing and existing TTS.",
+    "summary": "Verify native edit-control CI and installed-app behavior; add saved-edit recovery, actual trimmed video preview and explicit changed-duration/edit approval, then retime sound/caption drafts and integrate recordings/five audio layers/verified workspace into real render, master QA and release. Native draft save alone is not a completed workflow. Preserve two-source interactive writing and existing TTS.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
