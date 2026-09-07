@@ -28,6 +28,11 @@ completed user journey. Real writer/provider integration, native interaction,
 script revision handoff and the complete production demonstration remain open.
 The authoritative next action is in `docs/GOAL_PROGRESS.json`.
 
+[Audio listening decisions](qa/audio-listening-decisions-2026-09-07.md) now record
+explicit take acceptance/rejection with exact source-window and live consent
+checks. Native listening confirmation, alignment and final mix/master/release
+remain incomplete; synthetic attestations are not actual user acceptance.
+
 [Recording recovery](qa/recording-recovery-2026-09-07.md) now reads saved per-cue
 attachments with live media/consent/edit revalidation and no new events. Native
 recovery now consumes those records and reconciles uncertain submissions by GET;

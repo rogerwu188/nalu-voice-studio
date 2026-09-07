@@ -26,6 +26,7 @@ from .development_result import (
 from .director_refresh import DirectorRefreshRequest, DirectorRefreshService
 from .engine import ProductionService
 from .episode_audio import EpisodeAudioService, EpisodeAudioTakeRequest
+from .episode_audio_review import EpisodeAudioReviewRequest, EpisodeAudioReviewService
 from .episode_edit_review import EpisodeEditReviewRequest, EpisodeEditReviewService
 from .episode_preview import EpisodePreviewRequest, EpisodePreviewService
 from .episode_sound_plan import EpisodeSoundPlanRequest, EpisodeSoundPlanService
@@ -1426,6 +1427,13 @@ def create_app(
     def recover_episode_audio(run_id: str, sound_plan_id: str,
                               expected_sound_plan_sha256: str):
         return EpisodeAudioService(repository, data_root).recover(run_id, sound_plan_id, expected_sound_plan_sha256)
+
+    @app.post("/v1/production-runs/{run_id}/audio-takes/{take_id}/reviews", response_model=RunEvent)
+    def review_episode_audio(run_id: str, take_id: str, request: EpisodeAudioReviewRequest,
+                             origin: str | None = Header(default=None)):
+        if origin is not None:
+            raise HTTPException(403, "native listening confirmation required")
+        return EpisodeAudioReviewService(repository, data_root).review(run_id, take_id, request)
 
     @app.post("/v1/production-runs/{run_id}/episode-edit-drafts/{edit_id}/picture-preview", response_class=Response,
               responses={200: {"content": {"video/mp4": {}}}})

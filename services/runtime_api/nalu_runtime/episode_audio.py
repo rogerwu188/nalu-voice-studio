@@ -2,6 +2,7 @@
 
 import hashlib
 import time
+from contextlib import nullcontext
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
@@ -28,7 +29,7 @@ class EpisodeAudioService:
     def __init__(self, repository, data_root):
         self.repository, self.data_root = repository, Path(data_root).resolve()
 
-    def recover(self, run_id, sound_plan_id, expected_sound_plan_sha256):
+    def recover(self, run_id, sound_plan_id, expected_sound_plan_sha256, *, _db=None):
         """Read saved candidates, never create a replacement for an invalid take."""
         repo = self.repository
         sound = repo.get_run_event(sound_plan_id)
@@ -54,13 +55,14 @@ class EpisodeAudioService:
             request = EpisodeAudioTakeRequest.model_validate({key: event.payload[key] for key in EpisodeAudioTakeRequest.model_fields})
             if request.expected_sound_plan_sha256 != expected_sound_plan_sha256:
                 raise ConflictError("saved recording sound plan changed")
-            result.append(self.attach(run_id, request, _expected_event=event))
+            result.append(self.attach(run_id, request, _expected_event=event, _db=_db))
         return result
 
-    def attach(self, run_id, request, *, _expected_event=None):
+    def attach(self, run_id, request, *, _expected_event=None, _db=None):
         repo = self.repository
-        with repo.db.connect() as db:
-            db.execute("BEGIN IMMEDIATE")
+        with (nullcontext(_db) if _db is not None else repo.db.connect()) as db:
+            if _db is None:
+                db.execute("BEGIN IMMEDIATE")
             run = repo.get_run(run_id)
             project = repo.get_project(run.project_id)
             episode = repo.get_episode(run.episode_id)
