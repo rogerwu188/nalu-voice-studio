@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "15dfb2063c7b4321ba9324cbe936ce137b2e571b",
-  "last_advanced_at": "2026-09-07T00:21:28Z",
+  "observed_head": "94767bf88f42587653c73f6ef404e085c5fb6c89",
+  "last_advanced_at": "2026-09-07T00:25:04Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Accepted-frame dispatch binding 15dfb20 is pushed; CI 34069325621 pending at observation. Native candidate 26dddd6 CI 34068985738 runtime/ARM passed, full workflow still running. ARM artifact 9999962862 checksum and deep-strict ad-hoc signature verified; isolated launch requested on port 18789. See docs/qa/frame-review-package-2026-09-07.md for exact paths and candidate distinction. No native interaction, real generation or full product acceptance claimed."
+    "summary": "Accepted image task advancement now joins query, durable terminal observation and verified materialization without regeneration. Full suite 513 passed in 68.49s; final targeted subset including added cancellation-during-download case 15 passed in 3.46s. See docs/qa/image-progress-advance-2026-09-07.md. Native CI 34068985738 succeeded; dispatch-binding CI 34069325621 running. Isolated port 18789 healthy; native UI QA blocked by locked Mac. No real generation or full product acceptance claimed."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Verify newly wired native frame preview/review via CI-built artifact, capture scoped native states and complete impeccable finish review. Then connect accepted frame to video preparation plus previous-final-frame handoff. Paid image activation still needs exact cost/full QingShan contracts; no fabricated QA or permission. Image-specific backup/import recovery remains unverified. Continue full real story/source-to-master/release; preserve isolated QA app and quarantined Hops attempt.",
+    "summary": "Continue exact cost/full QingShan image-contract authority and native orchestration for the new advance endpoint; never fabricate approval to activate generation. Once the Mac is unlocked, verify the already-running frame-review app on isolated port 18789, without relaunching or replacing user data. Continue accepted-frame video preparation and previous-final-frame handoff, then real story/source-to-master/release. Preserve the quarantined Hops writer attempt; no automatic paid retry.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

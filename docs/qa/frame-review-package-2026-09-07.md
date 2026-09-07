@@ -30,3 +30,8 @@ native-app inspection reported that the Mac is locked and could not be unlocked
 automatically. Manual unlock is required for native interaction QA. This is not
 evidence of an app crash or failed frame workflow. Do not repeat launches or mark
 the native check PASS; continue safe backend work while the screen is unavailable.
+
+Follow-up at approximately 00:24 UTC: the same isolated runtime (no restart)
+returned `/health` status `ok`, schema 28, version 0.1.0. CI 34068985738 completed
+successfully and 34069325621 started. Runtime readiness does not remove the
+locked-screen interaction blocker or establish native acceptance.

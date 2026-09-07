@@ -35,6 +35,7 @@ from .image_download import ImageDownloadError
 from .image_materialization import ImageMaterializationService
 from .image_observation import ImageObservationService
 from .image_preparation import ImagePreparationRequest, ImagePreparationService
+from .image_progress import ImageProgressResult, ImageProgressService
 from .image_review import ImageReviewRequest, ImageReviewService
 from .interactive_story import InteractiveStory, StoryAnswer, StoryInput
 from .interactive_writer_service import InteractiveWriterService, WriterGenerationRequest
@@ -1203,6 +1204,21 @@ def create_app(
         try:
             return ImageMaterializationService(repository, data_root).materialize(run_id, observation_id, result_index)
         except ImageDownloadError as exc:
+            raise HTTPException(502, str(exc)) from None
+
+    @app.post("/v1/production-runs/{run_id}/image-tasks/{submission_id}/advance", response_model=ImageProgressResult)
+    def advance_saved_image_task(
+        run_id: str, submission_id: str,
+        provider_key: str | None = Header(default=None, alias="X-Nalu-Provider-Key"),
+        origin: str | None = Header(default=None),
+    ) -> ImageProgressResult:
+        if (origin is not None or not provider_key or not provider_key.strip() or len(provider_key) > 1024
+                or "\r" in provider_key or "\n" in provider_key):
+            raise HTTPException(403, "native provider credential required")
+        try:
+            return ImageProgressService(repository, data_root).advance(run_id, submission_id,
+                GiggleTaskQuery(lambda: provider_key, transport=task_query_http_transport))
+        except (GiggleTaskQueryError, ImageDownloadError) as exc:
             raise HTTPException(502, str(exc)) from None
 
     @app.post("/v1/production-runs/{run_id}/image-tasks/{submission_id}/refresh", response_model=RunEvent)

@@ -28,6 +28,11 @@ completed user journey. Real writer/provider integration, native interaction,
 script revision handoff and the complete production demonstration remain open.
 The authoritative next action is in `docs/GOAL_PROGRESS.json`.
 
+Accepted image tasks now have [one-step progress to local frame review](qa/image-progress-advance-2026-09-07.md),
+including interrupted-download recovery without a replacement generation task.
+Native orchestration and real paid image activation still require completion;
+this backend checkpoint does not promote any SOP to PASS.
+
 Confirmed shots now support [automatic local opening-image preparation](qa/reviewed-opening-image-preparation-2026-09-06.md)
 with exact source bindings, inherited reference checks and restart reuse. This is
 not paid image activation, native QA, continuous-frame handoff or finished production.

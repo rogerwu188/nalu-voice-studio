@@ -3834,6 +3834,68 @@
         "title": "ImagePreparationRequest",
         "type": "object"
       },
+      "ImageProgressResult": {
+        "properties": {
+          "billing_verified": {
+            "const": false,
+            "default": false,
+            "title": "Billing Verified",
+            "type": "boolean"
+          },
+          "generation_performed": {
+            "const": false,
+            "default": false,
+            "title": "Generation Performed",
+            "type": "boolean"
+          },
+          "materialization_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Materialization Id"
+          },
+          "observation_id": {
+            "title": "Observation Id",
+            "type": "string"
+          },
+          "phase": {
+            "enum": [
+              "waiting",
+              "provider_failed",
+              "ready_for_review"
+            ],
+            "title": "Phase",
+            "type": "string"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "submission_id": {
+            "title": "Submission Id",
+            "type": "string"
+          },
+          "visual_semantics_verified": {
+            "const": false,
+            "default": false,
+            "title": "Visual Semantics Verified",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "run_id",
+          "submission_id",
+          "observation_id",
+          "phase"
+        ],
+        "title": "ImageProgressResult",
+        "type": "object"
+      },
       "ImageReviewRequest": {
         "additionalProperties": false,
         "properties": {
@@ -12686,6 +12748,86 @@
           }
         },
         "summary": "Prepare Image Task"
+      }
+    },
+    "/v1/production-runs/{run_id}/image-tasks/{submission_id}/advance": {
+      "post": {
+        "operationId": "advance_saved_image_task_v1_production_runs__run_id__image_tasks__submission_id__advance_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "submission_id",
+            "required": true,
+            "schema": {
+              "title": "Submission Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Nalu-Provider-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Nalu-Provider-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "origin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Origin"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImageProgressResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Advance Saved Image Task"
       }
     },
     "/v1/production-runs/{run_id}/image-tasks/{submission_id}/refresh": {
