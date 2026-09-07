@@ -10038,6 +10038,58 @@
         "title": "SuccessfulCIEvidence",
         "type": "object"
       },
+      "TranscriptReviewRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "confirmation": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Confirmation",
+            "type": "string"
+          },
+          "expected_previous_review_id": {
+            "anyOf": [
+              {
+                "maxLength": 160,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Previous Review Id"
+          },
+          "expected_transcript_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Expected Transcript Sha256",
+            "type": "string"
+          },
+          "reviewed_by": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Reviewed By",
+            "type": "string"
+          },
+          "segments": {
+            "items": {
+              "$ref": "#/components/schemas/RecordingWord"
+            },
+            "maxItems": 4000,
+            "minItems": 1,
+            "title": "Segments",
+            "type": "array"
+          }
+        },
+        "required": [
+          "expected_transcript_sha256",
+          "segments",
+          "reviewed_by",
+          "confirmation"
+        ],
+        "title": "TranscriptReviewRequest",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -14040,6 +14092,89 @@
           }
         },
         "summary": "Save Recording Transcript"
+      }
+    },
+    "/v1/production-runs/{run_id}/audio-takes/{take_id}/transcripts/{transcript_id}/reviews": {
+      "post": {
+        "operationId": "review_recording_transcript_v1_production_runs__run_id__audio_takes__take_id__transcripts__transcript_id__reviews_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "take_id",
+            "required": true,
+            "schema": {
+              "title": "Take Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "transcript_id",
+            "required": true,
+            "schema": {
+              "title": "Transcript Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "origin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Origin"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TranscriptReviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunEvent"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Review Recording Transcript"
       }
     },
     "/v1/production-runs/{run_id}/cancel": {

@@ -1,8 +1,9 @@
 """Persist unapproved timed transcript drafts bound to actual adopted PCM."""
 
+from contextlib import nullcontext
 from typing import Literal
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from .episode_audio_review import EpisodeAudioReviewService
 from .repository import ConflictError, encode, new_id, utc_now
@@ -40,6 +41,15 @@ class RecordingTranscriptRequest(BaseModel):
         return self
 
 
+class TranscriptReviewRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    expected_transcript_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    expected_previous_review_id: str | None = Field(default=None, min_length=1, max_length=160)
+    segments: list[RecordingWord] = Field(min_length=1, max_length=4000)
+    reviewed_by: str = Field(min_length=1, max_length=160)
+    confirmation: str = Field(min_length=1, max_length=2000)
+
+
 class RecordingTranscriptService:
     def __init__(self, repository, data_root):
         self.repository, self.data_root = repository, data_root
@@ -69,10 +79,11 @@ class RecordingTranscriptService:
                 encode(payload), utc_now()))
         return repo.get_run_event(identity)
 
-    def recover(self, run_id, take_id, expected_take_sha256, expected_review_id):
+    def recover(self, run_id, take_id, expected_take_sha256, expected_review_id, *, _db=None):
         repo = self.repository
-        with repo.db.connect() as db:
-            db.execute("BEGIN IMMEDIATE")
+        with (repo.db.connect() if _db is None else nullcontext(_db)) as db:
+            if _db is None:
+                db.execute("BEGIN IMMEDIATE")
             matches = [event for event in repo.list_run_events(run_id)
                        if event.event_type == "episode_recording_transcribed" and event.payload.get("take_id") == take_id
                        and event.payload.get("expected_review_id") == expected_review_id]
@@ -89,3 +100,46 @@ class RecordingTranscriptService:
             request = RecordingTranscriptRequest.model_validate({key: p[key] for key in RecordingTranscriptRequest.model_fields})
             self._validate(run_id, take_id, request, db)
             return latest
+
+    def review(self, run_id, take_id, transcript_id, request):
+        """Explicit corrected captions; never promote this to final-master approval."""
+        repo = self.repository
+        with repo.db.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            events = repo.list_run_events(run_id)
+            source = next((e for e in events if e.id == transcript_id
+                           and e.event_type == "episode_recording_transcribed"
+                           and e.payload.get("take_id") == take_id), None)
+            if source is None:
+                raise ConflictError("transcript is not part of this recording")
+            p = source.payload
+            latest = self.recover(run_id, take_id, p["expected_take_sha256"],
+                                  p["expected_review_id"], _db=db)
+            if latest.id != transcript_id or p["transcript_sha256"] != request.expected_transcript_sha256:
+                raise ConflictError("transcript changed; recover before confirming captions")
+            # Reuse the same bounded timestamp and text checks as the source draft.
+            corrected = {key: p[key] for key in RecordingTranscriptRequest.model_fields}
+            corrected["segments"] = [word.model_dump() for word in request.segments]
+            corrected["transcript"] = " ".join(word.text for word in request.segments)
+            try:
+                RecordingTranscriptRequest.model_validate(corrected)
+            except ValidationError as exc:
+                raise ConflictError("corrected captions must fit the adopted recording") from exc
+            reviews = [e for e in events if e.event_type == "episode_transcript_reviewed"
+                       and e.payload.get("take_id") == take_id]
+            payload = {**request.model_dump(mode="json"), "take_id": take_id,
+                       "transcript_id": transcript_id, "source_audio_sha256": p["source_audio_sha256"],
+                       "expected_review_id": p["expected_review_id"],
+                       "captions_approved": True, "speech_alignment_verified": False,
+                       "master_accepted": False, "review_evidence": "USER_ATTESTATION_NOT_ALIGNMENT_PROOF"}
+            payload["review_sha256"] = digest(payload)
+            if reviews and reviews[-1].payload == payload:
+                return reviews[-1]
+            if request.expected_previous_review_id != (reviews[-1].id if reviews else None):
+                raise ConflictError("caption review changed; recover before saving corrections")
+            identity = new_id("evt")
+            sequence = db.execute("SELECT COALESCE(MAX(sequence),0)+1 FROM run_events WHERE run_id=?", (run_id,)).fetchone()[0]
+            db.execute("INSERT INTO run_events VALUES (?,?,?,?,?,?,?,?,?)", (identity, run_id, sequence,
+                "episode_transcript_reviewed", None, None, "Corrected recording captions explicitly confirmed.",
+                encode(payload), utc_now()))
+        return repo.get_run_event(identity)

@@ -7,6 +7,10 @@ against the current main branch.
 
 ## Status vocabulary
 
+Latest caption correction checkpoint: [backend confirmation evidence](qa/caption-correction-review-2026-09-07.md).
+Native correction, final-master integration and installed QA remain incomplete;
+this checkpoint does not promote any SOP to PASS.
+
 ### Current user priority: core creative workflow (2026-09-06)
 
 SOP-03/SOP-04 and their downstream production path take priority over voice
