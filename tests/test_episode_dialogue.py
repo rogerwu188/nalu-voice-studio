@@ -33,3 +33,21 @@ def test_dialogue_joins_real_pcm_and_offsets_each_caption():
 def test_dialogue_never_pads_missing_or_overlapping_recordings(parts, duration):
     with pytest.raises(ConflictError):
         assemble_dialogue(parts, duration)
+
+
+def test_episode_export_rejects_a_different_lineage(tmp_path, monkeypatch):
+    from fastapi.testclient import TestClient
+    from nalu_runtime.app import create_app
+    from nalu_runtime.episode_dialogue import EpisodeDialogueService
+
+    sha = "a" * 64
+    monkeypatch.setattr(EpisodeDialogueService, "build", lambda *args: (b"audio", b"captions",
+        {"dialogue_sha256": sha, "captions_sha256": sha, "lineage_sha256": sha}))
+    with TestClient(create_app(tmp_path / "db", tmp_path / "data")) as api:
+        query = {"sound_plan_id": "sound", "expected_sound_plan_sha256": sha,
+                 "expected_lineage_sha256": "b" * 64}
+        url = "/v1/production-runs/run/adopted-dialogue"
+        assert api.get(url, params=query).status_code == 409
+        result = api.get(url, params={**query, "expected_lineage_sha256": sha})
+        assert result.status_code == 200
+        assert result.headers["x-nalu-lineage-sha256"] == sha

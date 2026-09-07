@@ -1442,14 +1442,18 @@ def create_app(
     @app.get("/v1/production-runs/{run_id}/adopted-dialogue", response_class=Response)
     def export_episode_dialogue(run_id: str, sound_plan_id: str,
                                 expected_sound_plan_sha256: str = Query(pattern=r"^[a-f0-9]{64}$"),
+                                expected_lineage_sha256: str | None = Query(default=None, pattern=r"^[a-f0-9]{64}$"),
                                 artifact: str = Query(default="audio", pattern="^(audio|captions)$")):
         audio, captions, lineage = EpisodeDialogueService(repository, data_root).build(
             run_id, sound_plan_id, expected_sound_plan_sha256)
+        if expected_lineage_sha256 is not None and lineage["lineage_sha256"] != expected_lineage_sha256:
+            raise HTTPException(409, "episode audio/caption sources changed; recover matching exports")
         raw = audio if artifact == "audio" else captions
         sha = lineage["dialogue_sha256" if artifact == "audio" else "captions_sha256"]
         return Response(raw, media_type="audio/wav" if artifact == "audio" else "text/vtt",
             headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff",
                      "X-Nalu-Artifact-SHA256": sha, "X-Nalu-Sound-Plan-ID": sound_plan_id,
+                     "X-Nalu-Lineage-SHA256": lineage["lineage_sha256"],
                      "X-Nalu-Master-Accepted": "false"})
 
     @app.post("/v1/production-runs/{run_id}/audio-takes/{take_id}/transcripts", response_model=RunEvent)

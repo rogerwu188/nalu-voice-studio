@@ -13694,6 +13694,23 @@
           },
           {
             "in": "query",
+            "name": "expected_lineage_sha256",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^[a-f0-9]{64}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Expected Lineage Sha256"
+            }
+          },
+          {
+            "in": "query",
             "name": "artifact",
             "required": false,
             "schema": {

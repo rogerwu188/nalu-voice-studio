@@ -8,6 +8,7 @@ from .episode_audio import EpisodeAudioService
 from .episode_audio_review import EpisodeAudioReviewService
 from .episode_transcript import RecordingTranscriptService, caption_vtt
 from .repository import ConflictError
+from .video_preparation import digest
 
 
 def assemble_dialogue(parts, duration_seconds):
@@ -78,7 +79,9 @@ class EpisodeDialogueService:
                     "caption_review_id": captions.latest_review.id,
                     "caption_review_sha256": captions.latest_review.payload["review_sha256"]})
             audio, captions = assemble_dialogue(parts, sound["duration_seconds"])
-            return audio, captions, {"sound_plan_id": sound_plan_id, "sound_plan_sha256": expected_sound_plan_sha256,
+            manifest = {"sound_plan_id": sound_plan_id, "sound_plan_sha256": expected_sound_plan_sha256,
                 "sources": lineage, "dialogue_sha256": hashlib.sha256(audio).hexdigest(),
                 "captions_sha256": hashlib.sha256(captions).hexdigest(), "master_accepted": False,
                 "speech_alignment_verified": False, "other_audio_layers_generated": False}
+            manifest["lineage_sha256"] = digest(manifest)
+            return audio, captions, manifest

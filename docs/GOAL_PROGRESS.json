@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "cab755818c1a991d93b7dc9479a0c490e86844a7",
-  "last_advanced_at": "2026-09-07T09:43:19Z",
+  "observed_head": "e0c19c62520ee27ba88e17dc3306e20a127d2fed",
+  "last_advanced_at": "2026-09-07T09:46:56Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -30,7 +30,7 @@
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Episode dialogue/caption assembler and local export added; six PCM tests and missing-cue managed-media check pass. Next add full two-cue service/API success and stale-source tests, persist staged lineage for materializer, then final mix/master/release. Evidence docs/qa/episode-dialogue-assembly-2026-09-07.md. UI CI 34106778965 ARM/runtime pass, Intel running. Native/installed QA still pending; preserve two-source writing/TTS, no Hops 401 retries.",
+    "summary": "Full two-cue managed-media/API export and mixed-lineage protection validated: 8 tests pass (47.08s), evidence docs/qa/episode-dialogue-assembly-2026-09-07.md. Next persist staged dialogue/captions and lineage for ProductionService.materialize_postproduction and connect remaining sound-layer inputs, then final mix/master/release. CI 34106778965 (113e2fb) fully passed; current checkpoint and installed QA pending. Preserve two-source writing/TTS, no Hops 401 retries.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

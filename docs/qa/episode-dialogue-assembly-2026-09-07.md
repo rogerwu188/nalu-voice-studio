@@ -16,3 +16,19 @@ native consumption and installed QA remain open. This is not final sound QA.
 
 CI 34106778965 (113e2fb native caption UI) has ARM and runtime success, Intel
 still running at 09:43 UTC. No full current-candidate CI PASS is claimed.
+
+Full service/API follow-up: the synthetic managed-media workflow now attaches
+and adopts both recordings, saves/explicitly confirms both transcripts, then
+exports a 13-second WAV and episode VTT through reopened HTTP clients. Both PCM
+regions are compared sample-for-sample to accepted source exports. The second
+cue starts at 7 seconds. Missing captions, superseded transcript and withdrawn
+listening confirmation fail. Exports append no events. Audio/caption responses
+carry the same source-lineage digest; an optional expected-lineage query rejects
+mixed-version downloads (separate mocked transport boundary test).
+
+Combined result: 8 passed, 25 deselected in 47.08s; Ruff/diff passed; OpenAPI
+updated. This is actual processing of synthetic fixtures, not provider/family QA.
+CI 34106778965 on 113e2fb is now fully successful, including Universal. Current
+checkpoint CI is pending. Persisted staged inputs and remaining sound layers
+must still be wired into ProductionService.materialize_postproduction; no final
+mix, signed installed app or release is declared complete.

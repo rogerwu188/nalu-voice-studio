@@ -507,10 +507,48 @@ def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypat
             assert reopened.get(vtt_url, params={**vtt_query, "expected_caption_review_id": "old"}).status_code == 409
             assert len(repo.list_run_events(run.id)) == caption_count
             assert api.post(caption_url, json={**caption_request, "confirmation": "另一次修正"}).status_code == 409
+            dialogue_url = f"/v1/production-runs/{run.id}/adopted-dialogue"
+            assert reopened.get(dialogue_url, params=recovery_query).status_code == 409
+            second_take = api.post(take_url, json={**take_request, "shot_index": 1})
+            assert second_take.status_code == 200, second_take.text
+            second_base = f"{take_url}/{second_take.json()['id']}"
+            second_listening = api.post(f"{second_base}/reviews", json={**listening_request,
+                "expected_take_sha256": second_take.json()["payload"]["take_sha256"]})
+            assert second_listening.status_code == 200, second_listening.text
+            second_query = {"expected_take_sha256": second_take.json()["payload"]["take_sha256"],
+                            "expected_review_id": second_listening.json()["id"]}
+            second_audio = reopened.get(f"{second_base}/accepted-audio", params=second_query)
+            assert second_audio.status_code == 200, second_audio.text
+            second_transcript = api.post(f"{second_base}/transcripts", json={**transcript_request, **second_query,
+                "source_audio_sha256": second_audio.headers["x-nalu-audio-sha256"],
+                "sample_count": second_take.json()["payload"]["decoded_sample_count"]})
+            assert second_transcript.status_code == 200, second_transcript.text
+            assert reopened.get(dialogue_url, params=recovery_query).status_code == 409
+            second_caption = api.post(f"{second_base}/transcripts/{second_transcript.json()['id']}/reviews",
+                json={**caption_request, "expected_transcript_sha256": second_transcript.json()["payload"]["transcript_sha256"]})
+            assert second_caption.status_code == 200, second_caption.text
+            before_assembly = len(repo.list_run_events(run.id))
+            whole_audio = reopened.get(dialogue_url, params=recovery_query)
+            assert whole_audio.status_code == 200, whole_audio.text
+            with wave.open(io.BytesIO(whole_audio.content), "rb") as assembled:
+                assert assembled.getnframes() == 13 * 48000
+                assert assembled.getnchannels() == 2
+                assert assembled.readframes(7 * 48000) == exported_audio.content[44:]
+                assert assembled.readframes(6 * 48000) == second_audio.content[44:]
+            whole_captions = reopened.get(dialogue_url, params={**recovery_query, "artifact": "captions",
+                "expected_lineage_sha256": whole_audio.headers["x-nalu-lineage-sha256"]})
+            assert whole_captions.status_code == 200, whole_captions.text
+            assert "00:00:07.100 --> 00:00:07.800" in whole_captions.text
+            assert whole_captions.text.count("WEBVTT") == 1
+            assert whole_captions.headers["x-nalu-lineage-sha256"] == whole_audio.headers["x-nalu-lineage-sha256"]
+            assert whole_audio.headers["x-nalu-artifact-sha256"] == hashlib.sha256(whole_audio.content).hexdigest()
+            assert whole_captions.headers["x-nalu-artifact-sha256"] == hashlib.sha256(whole_captions.content).hexdigest()
+            assert len(repo.list_run_events(run.id)) == before_assembly
             newer_transcript = api.post(transcript_url, json={**transcript_request, "transcript": "新转写"})
             assert newer_transcript.status_code == 200
             assert reopened.get(caption_url, params=caption_query).status_code == 409
             assert reopened.get(vtt_url, params=vtt_query).status_code == 409
+            assert reopened.get(dialogue_url, params=recovery_query).status_code == 409
             newer_caption_url = f"{transcript_url}/{newer_transcript.json()['id']}/reviews"
             newer_query = {"expected_transcript_sha256": newer_transcript.json()["payload"]["transcript_sha256"]}
             historical_caption = reopened.get(newer_caption_url, params=newer_query).json()
@@ -522,6 +560,7 @@ def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypat
                                          "expected_review_id": listened.json()["id"]})
             assert rejected_listening.status_code == 200, rejected_listening.text
             assert rejected_listening.json()["payload"]["take_approved"] is False
+            assert reopened.get(dialogue_url, params=recovery_query).status_code == 409
             assert reopened.get(transcript_url, params=accepted_audio_query).status_code == 409
             assert reopened.post(transcript_url, json=transcript_request).status_code == 409
             assert reopened.post(caption_url, json=caption_request).status_code == 409
