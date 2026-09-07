@@ -50,7 +50,7 @@ def _safe_file(exports_root: Path, relative_path: str) -> Path | None:
     return resolved
 
 
-def _media_stream_facts(path: Path) -> dict[str, Any]:
+def _media_stream_facts(path: Path, *, require_audio: bool = True) -> dict[str, Any]:
     failures: list[str] = []
     dimensions: set[tuple[int, int]] = set()
     pixel_formats: set[str] = set()
@@ -74,7 +74,8 @@ def _media_stream_facts(path: Path) -> dict[str, Any]:
                         video_times.append(float(frame.time))
         with av.open(str(path), mode="r") as container:
             if not container.streams.audio:
-                failures.append("AUDIO_STREAM_MISSING")
+                if require_audio:
+                    failures.append("AUDIO_STREAM_MISSING")
             else:
                 stream = container.streams.audio[0]
                 for frame in container.decode(stream):
@@ -88,7 +89,7 @@ def _media_stream_facts(path: Path) -> dict[str, Any]:
 
     if not video_times:
         failures.append("VIDEO_FRAMES_MISSING")
-    if not audio_samples or not audio_rate:
+    if require_audio and (not audio_samples or not audio_rate):
         failures.append("AUDIO_SAMPLES_MISSING")
     duration = max(
         (video_times[-1] + (1 / fps if fps else 0.0)) if video_times else 0.0,
@@ -354,7 +355,9 @@ def inspect_postproduction_lineage(
         elif file_sha256(source_path) != shot.get("source_sha256"):
             shot_failures.append("SHOT_SOURCE_SHA_MISMATCH")
         else:
-            source_facts = _media_stream_facts(source_path)
+            # Source picture may be silent: adopted dialogue is supplied separately.
+            # Normalized segments and final masters still require decoded audio.
+            source_facts = _media_stream_facts(source_path, require_audio=False)
             if source_facts.get("status") != "PASS":
                 shot_failures.append("SHOT_SOURCE_DECODE_FAILED")
         normalized_path = _safe_file(exports_root, str(shot.get("normalized_relative_path") or ""))

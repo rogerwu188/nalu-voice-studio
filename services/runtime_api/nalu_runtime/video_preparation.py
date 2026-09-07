@@ -57,11 +57,17 @@ class VideoPreparationService:
                 encode(record), now))
         return self.repository.get_run_event(identity)
 
-    def validate(self, run_id: str, incoming: VideoPreparationRequest):
+    def validate(self, run_id: str, incoming: VideoPreparationRequest, *, _read_saved=False):
         run = self.repository.get_run(run_id)
         if self.repository.get_project(run.project_id).archived_at:
             raise ConflictError("archived project is read-only")
-        if run.status not in {RunStatus.PREFLIGHT, RunStatus.WAITING_FOR_APPROVAL}:
+        allowed = {RunStatus.PREFLIGHT, RunStatus.WAITING_FOR_APPROVAL}
+        if _read_saved:
+            allowed |= {RunStatus.RUNNING, RunStatus.QA_REVIEW}
+            latest = self.repository.latest_run_for_episode(run.episode_id)
+            if latest is None or latest.id != run_id:
+                raise ConflictError("saved shot belongs to a superseded production run")
+        if run.status not in allowed:
             raise ConflictError("shot preparation requires a preflight or approval-waiting run")
         path = Path(run.package_path)
         if path.is_symlink() or not path.is_file():

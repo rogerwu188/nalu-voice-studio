@@ -1,0 +1,32 @@
+# Actual adopted-dialogue render fixture
+
+The new video_assemble_stage_render regression drives two adopted video shots,
+listening-confirmed recordings, corrected captions, whole-episode assembly,
+durable staging, mix preparation and the real postproduction HTTP endpoint.
+It creates a 13-second 64x64 render using actual encoded synthetic video/PCM,
+four explicitly supplied synthetic tone layers, and exact staged VTT. The real
+materializer's decoded-lineage/loudness checks pass and the run enters QA_REVIEW.
+The fixture explicitly seeds running/postproduction state and a synthetic
+workspace manifest: it does not demonstrate production authorization or install.
+
+This test exposed and fixed two integration defects:
+- Saved accepted video reads inherited the new-shot preparation status gate.
+  Internal saved-read validation now permits running/QA only for the current
+  run; preparation/submission paths retain their original status restrictions.
+- Source-video QA incorrectly required an audio stream even though separate
+  dialogue/stems supply audio. Only source-picture checks may omit audio;
+  normalized segments and final masters still require decoded audio.
+
+Initial fixture failures included duplicate run insertion and insufficient
+synthetic tone loudness. State setup and tone amplitude were corrected; release
+loudness limits were NOT relaxed.
+
+Evidence: full render 1 passed, 26 deselected (54.66s). Five focused state/audio
+requirement tests passed (0.31s). Ruff/diff passed. Actual local rendering of
+synthetic fixtures is not real user/provider QA, subjective audio quality,
+signed/notarized installation or controlled release acceptance. Current CI
+still needs verification. No SOP upgraded to PASS.
+
+Next: verify replay/cancellation and source-change handling around actual render;
+connect native sound selection and production action; then content/semantic QA,
+master review and controlled release.

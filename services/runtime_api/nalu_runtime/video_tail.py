@@ -40,7 +40,8 @@ class VideoTailService:
                 or saved.get("preparation_sha256") != digest({k: v for k, v in saved.items() if k != "preparation_sha256"})):
             raise ConflictError("accepted preparation changed")
         request = VideoPreparationRequest.model_validate({k: saved[k] for k in VideoPreparationRequest.model_fields if k in saved})
-        validated = VideoPreparationService(repo, self.data_root).validate(run_id, request)
+        # Existing accepted preparation is being read, not prepared/submitted again.
+        validated = VideoPreparationService(repo, self.data_root).validate(run_id, request, _read_saved=True)
         if validated["preparation_sha256"] != decision["preparation_sha256"]:
             raise ConflictError("accepted shot inputs changed")
         return review, media, raw

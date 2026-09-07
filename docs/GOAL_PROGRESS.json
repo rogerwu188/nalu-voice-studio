@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "1cecabf3bf828d6b6af951deaf6256bcb9fea1fe",
-  "last_advanced_at": "2026-09-07T09:58:21Z",
+  "observed_head": "2a1f57ce87a6aaa83247bc04af316d98b74070f4",
+  "last_advanced_at": "2026-09-07T10:06:02Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Backend corrected-caption confirmation and typed recovery implemented; current transcript/PCM integrity and historical approval suppression covered by synthetic media regression (21.53s). Ruff/OpenAPI passed. Evidence docs/qa/caption-correction-review-2026-09-07.md. CI 34106043111 queued at observation; native UI/installed QA and final master/release remain incomplete."
+    "summary": "Actual synthetic two-shot adopted-dialogue render passed (54.66s), reaching QA_REVIEW through real materializer. Fixed saved-read status gate and silent source-picture validation; final-master audio/loudness requirements unchanged. Five focused regressions pass. Evidence docs/qa/adopted-dialogue-full-render-2026-09-07.md. Current CI, installed E2E, final content/master QA and release remain incomplete."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Native-only prepare-mix builds materializer input automatically from adopted staging/edit/captions and four selected sound-layer files; 15 focused tests pass, full render not yet verified. Evidence docs/qa/dialogue-materializer-binding-2026-09-07.md. Next run actual managed-fixture preparation/materialization and fix failures, then native sound selection/action and final QA/release. CI 34108693072 in progress, installed QA pending; no Hops 401 retries.",
+    "summary": "Actual managed-fixture prepare/render passed and entered QA_REVIEW. Next verify actual render replay/cancellation/stale-source handling, wire native sound selection and production action, then semantic/content QA, master review and controlled release. Evidence docs/qa/adopted-dialogue-full-render-2026-09-07.md. Current CI/installed E2E pending; no Hops 401 retries.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

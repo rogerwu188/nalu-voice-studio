@@ -20,10 +20,13 @@ from test_image_download import png
 
 @pytest.mark.parametrize("case", ["accept", "reject", "stale_image", "changed_file", "changed_plan", "downstream", "restart",
                                   "other_shot_prepared", "same_shot_prepared", "other_shot_budget", "same_shot_budget",
-                                  "other_shot_remote", "same_shot_remote", "video_assemble", "video_assemble_stage", "video_missing_director", "video_unknown_prior", "video_wrong_index",
+                                  "other_shot_remote", "same_shot_remote", "video_assemble", "video_assemble_stage", "video_assemble_stage_render", "video_missing_director", "video_unknown_prior", "video_wrong_index",
                                   "video_script_changed", "video_frame_rejected", "video_sound", "video_sound_empty",
                                   "video_sound_changed", "video_sound_script", "video_sound_archive", "video_sound_hash"])
 def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypatch, case):
+    render_adopted_dialogue = case == "video_assemble_stage_render"
+    if render_adopted_dialogue:
+        case = "video_assemble_stage"
     db_path, root = tmp_path / "db", tmp_path / "data"
     api = TestClient(create_app(db_path, root))
     repo = api.app.state.repository
@@ -380,7 +383,8 @@ def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypat
                 wav.setnchannels(1)
                 wav.setsampwidth(2)
                 wav.setframerate(8000)
-                wav.writeframes(b"".join(struct.pack("<h", round(1000 * math.sin(i * 0.2))) for i in range(8 * 8000)))
+                amplitude = 5000 if render_adopted_dialogue else 1000
+                wav.writeframes(b"".join(struct.pack("<h", round(amplitude * math.sin(i * 0.2))) for i in range(8 * 8000)))
             recording = AssetService(repo, root).import_bytes(project["id"], content=audio_buffer.getvalue(),
                 filename="synthetic-tone-not-speech.wav", content_type="audio/wav", kind=AssetKind.ARCHIVE_AUDIO,
                 name="合成音频非真实旁白", subject_name="", season_id=None, episode_id=episode["id"],
@@ -561,6 +565,33 @@ def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypat
             stage_event_count = len(repo.list_run_events(run.id))
             assert reopened.post(dialogue_stage_url, json=dialogue_stage_request).json()["id"] == staged_dialogue.json()["id"]
             assert len(repo.list_run_events(run.id)) == stage_event_count
+            if render_adopted_dialogue:
+                layers = []
+                for layer in ("ambience", "foley", "music", "sfx"):
+                    # Explicit synthetic tone tracks; not real sound-design evidence.
+                    relative = f"provider-results/synthetic-{layer}.wav"
+                    (dialogue_exports / relative).write_bytes(whole_audio.content)
+                    layers.append({"layer": layer, "source_relative_path": relative,
+                        "source_sha256": hashlib.sha256(whole_audio.content).hexdigest(),
+                        "source_cue_sha256s": [digest({"synthetic_layer": layer})], "gain_db": -12})
+                mix_selection = {"staging_id": staged_dialogue.json()["id"],
+                    "expected_staging_sha256": staged_dialogue.json()["payload"]["staging_sha256"],
+                    "requested_by": "synthetic-render-qa", "sound_layers": layers, "width": 64, "height": 64}
+                prepared_mix = api.post(f"{dialogue_url}/prepare-mix", json=mix_selection)
+                assert prepared_mix.status_code == 200, prepared_mix.text
+                assert prepared_mix.json()["adopted_dialogue_staging_id"] == staged_dialogue.json()["id"]
+                # Fixture enters rendering state explicitly; not a production authorization claim.
+                with repo.db.connect() as fixture_db:
+                    fixture_db.execute("UPDATE production_runs SET status = 'running' WHERE id = ?", (run.id,))
+                    fixture_db.execute("UPDATE episodes SET status = 'postproduction' WHERE id = ?", (run.episode_id,))
+                (dialogue_exports.parent / "workspace-manifest.json").write_text('{"synthetic_fixture":true}')
+                rendered = api.post(f"/v1/production-runs/{run.id}/postproduction-materializations", json=prepared_mix.json())
+                assert rendered.status_code == 201, rendered.text
+                rendered_payload = rendered.json()
+                assert (dialogue_exports / rendered_payload["master"]["relative_path"]).is_file()
+                assert (dialogue_exports / rendered_payload["captions"]["relative_path"]).read_bytes() == whole_captions.content
+                assert repo.get_run(run.id).status == RunStatus.QA_REVIEW
+                return
             staged_wav.write_bytes(b"changed-fixture")
             assert reopened.post(dialogue_stage_url, json=dialogue_stage_request).status_code == 409
             assert staged_wav.read_bytes() == b"changed-fixture"
