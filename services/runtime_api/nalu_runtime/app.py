@@ -31,7 +31,11 @@ from .episode_audio_review import (
     EpisodeAudioReviewRequest,
     EpisodeAudioReviewService,
 )
-from .episode_dialogue import EpisodeDialogueService, EpisodeDialogueStageRequest
+from .episode_dialogue import (
+    EpisodeDialogueService,
+    EpisodeDialogueStageRequest,
+    EpisodeMixPreparationRequest,
+)
 from .episode_edit_review import EpisodeEditReviewRequest, EpisodeEditReviewService
 from .episode_preview import EpisodePreviewRequest, EpisodePreviewService
 from .episode_sound_plan import EpisodeSoundPlanRequest, EpisodeSoundPlanService
@@ -1438,6 +1442,12 @@ def create_app(
     def recover_episode_audio(run_id: str, sound_plan_id: str,
                               expected_sound_plan_sha256: str):
         return EpisodeAudioService(repository, data_root).recover(run_id, sound_plan_id, expected_sound_plan_sha256)
+
+    @app.post("/v1/production-runs/{run_id}/adopted-dialogue/prepare-mix", response_model=PostproductionMaterializationCreate)
+    def prepare_episode_mix(run_id: str, request: EpisodeMixPreparationRequest, origin: str | None = Header(default=None)):
+        if origin is not None:
+            raise HTTPException(403, "native mix preparation required")
+        return EpisodeDialogueService(repository, data_root).prepare_mix(run_id, request)
 
     @app.post("/v1/production-runs/{run_id}/adopted-dialogue/stage", response_model=RunEvent)
     def stage_episode_dialogue(run_id: str, request: EpisodeDialogueStageRequest, origin: str | None = Header(default=None)):

@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "bef428a58022cf1440057c9d57379c8d37ec847f",
-  "last_advanced_at": "2026-09-07T09:54:43Z",
+  "observed_head": "1cecabf3bf828d6b6af951deaf6256bcb9fea1fe",
+  "last_advanced_at": "2026-09-07T09:58:21Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -30,7 +30,7 @@
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Materializer request now binds adopted staging receipt and validates current dialogue/caption/edit sources before and after render; 14 focused tests passed but full rendering remains unverified. Evidence docs/qa/dialogue-materializer-binding-2026-09-07.md. Next construct executable request from staged inputs and explicit remaining sound-layer choices, verify full actual render/cancellation and native action, then final QA/release. Current CI/installed QA pending; no Hops 401 retries.",
+    "summary": "Native-only prepare-mix builds materializer input automatically from adopted staging/edit/captions and four selected sound-layer files; 15 focused tests pass, full render not yet verified. Evidence docs/qa/dialogue-materializer-binding-2026-09-07.md. Next run actual managed-fixture preparation/materialization and fix failures, then native sound selection/action and final QA/release. CI 34108693072 in progress, installed QA pending; no Hops 401 retries.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

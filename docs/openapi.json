@@ -2050,6 +2050,59 @@
         "title": "EpisodeEvent",
         "type": "object"
       },
+      "EpisodeMixPreparationRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_staging_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Expected Staging Sha256",
+            "type": "string"
+          },
+          "height": {
+            "default": 1080,
+            "maximum": 2160.0,
+            "minimum": 16.0,
+            "title": "Height",
+            "type": "integer"
+          },
+          "requested_by": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Requested By",
+            "type": "string"
+          },
+          "sound_layers": {
+            "items": {
+              "$ref": "#/components/schemas/PostproductionAudioSource"
+            },
+            "maxItems": 4,
+            "minItems": 4,
+            "title": "Sound Layers",
+            "type": "array"
+          },
+          "staging_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Staging Id",
+            "type": "string"
+          },
+          "width": {
+            "default": 1920,
+            "maximum": 3840.0,
+            "minimum": 16.0,
+            "title": "Width",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "staging_id",
+          "expected_staging_sha256",
+          "requested_by",
+          "sound_layers"
+        ],
+        "title": "EpisodeMixPreparationRequest",
+        "type": "object"
+      },
       "EpisodePlanUpdate": {
         "properties": {
           "logline": {
@@ -13790,6 +13843,71 @@
           }
         },
         "summary": "Export Episode Dialogue"
+      }
+    },
+    "/v1/production-runs/{run_id}/adopted-dialogue/prepare-mix": {
+      "post": {
+        "operationId": "prepare_episode_mix_v1_production_runs__run_id__adopted_dialogue_prepare_mix_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "origin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Origin"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EpisodeMixPreparationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostproductionMaterializationCreate"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Prepare Episode Mix"
       }
     },
     "/v1/production-runs/{run_id}/adopted-dialogue/stage": {

@@ -8,11 +8,17 @@ import wave
 from contextlib import nullcontext
 from pathlib import Path
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .episode_audio import EpisodeAudioService
 from .episode_audio_review import EpisodeAudioReviewService
 from .episode_transcript import RecordingTranscriptService, caption_vtt
+from .models import (
+    PostproductionAudioSource,
+    PostproductionMaterializationCreate,
+    PostproductionShotSource,
+)
+from .postproduction_materializer import PostproductionMaterializationError, _safe_input
 from .repository import ConflictError, encode, new_id, utc_now
 from .secure_files import secure_directory, sync_directory
 from .video_preparation import digest
@@ -55,9 +61,60 @@ class EpisodeDialogueStageRequest(BaseModel):
     expected_lineage_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
 
 
+class EpisodeMixPreparationRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    staging_id: str = Field(min_length=1, max_length=160)
+    expected_staging_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    requested_by: str = Field(min_length=1, max_length=160)
+    sound_layers: list[PostproductionAudioSource] = Field(min_length=4, max_length=4)
+    width: int = Field(default=1920, ge=16, le=3840)
+    height: int = Field(default=1080, ge=16, le=2160)
+
+    @model_validator(mode="after")
+    def distinct_layers(self):
+        if {layer.layer for layer in self.sound_layers} != {"ambience", "foley", "music", "sfx"}:
+            raise ValueError("select exactly one source for each remaining sound layer")
+        if self.width % 2 or self.height % 2:
+            raise ValueError("output geometry must use even dimensions")
+        return self
+
+
 class EpisodeDialogueService:
     def __init__(self, repository, data_root):
         self.repository, self.data_root = repository, data_root
+
+    def prepare_mix(self, run_id, request):
+        repo = self.repository
+        receipt = repo.get_run_event(request.staging_id)
+        p = receipt.payload
+        if (receipt.run_id != run_id or receipt.event_type != "episode_dialogue_staged"
+                or p.get("staging_sha256") != request.expected_staging_sha256
+                or digest({k: v for k, v in p.items() if k != "staging_sha256"}) != request.expected_staging_sha256):
+            raise ConflictError("mix preparation requires the exact staged dialogue")
+        lineage, files = p["lineage"], p["files"]
+        sound = repo.get_run_event(lineage["sound_plan_id"]).payload
+        edit = repo.get_run_event(sound["edit_id"]).payload
+        prepared = PostproductionMaterializationCreate(
+            requested_by=request.requested_by, adopted_dialogue_staging_id=receipt.id,
+            expected_dialogue_staging_sha256=p["staging_sha256"],
+            shots=[PostproductionShotSource.model_validate(shot) for shot in edit["shots"]],
+            audio_layers=[PostproductionAudioSource(layer="dialogue",
+                source_relative_path=files["dialogue.wav"]["relative_path"],
+                source_sha256=files["dialogue.wav"]["sha256"],
+                source_cue_sha256s=[digest(cue) for cue in sound["cues"]]),
+                *sorted(request.sound_layers, key=lambda layer: layer.layer)],
+            captions_source_relative_path=files["captions.vtt"]["relative_path"],
+            captions_source_sha256=files["captions.vtt"]["sha256"],
+            subtitle_contract_sha256=digest([s["caption_review_sha256"] for s in lineage["sources"]]),
+            width=request.width, height=request.height, frame_rate=edit["frame_rate"])
+        self.validate_materialization(run_id, prepared)
+        exports = Path(repo.get_run(run_id).package_path).parent / "qingshan-workspace/exports"
+        try:
+            for layer in request.sound_layers:
+                _safe_input(exports, layer.source_relative_path, layer.source_sha256)
+        except PostproductionMaterializationError as exc:
+            raise ConflictError("selected sound-layer file is missing or changed") from exc
+        return prepared
 
     def validate_materialization(self, run_id, request):
         receipt = self.repository.get_run_event(request.adopted_dialogue_staging_id)

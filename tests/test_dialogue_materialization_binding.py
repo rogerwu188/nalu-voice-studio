@@ -1,7 +1,8 @@
+import hashlib
 from types import SimpleNamespace
 
 import pytest
-from nalu_runtime.episode_dialogue import EpisodeDialogueService
+from nalu_runtime.episode_dialogue import EpisodeDialogueService, EpisodeMixPreparationRequest
 from nalu_runtime.models import PostproductionShotSource
 from nalu_runtime.repository import ConflictError
 from nalu_runtime.video_preparation import digest
@@ -52,3 +53,30 @@ def test_materializer_rejects_shifted_dialogue(monkeypatch):
     request.audio_layers[0].source_in_seconds = 0.5
     with pytest.raises(ConflictError):
         service.validate_materialization("run", request)
+
+
+def test_prepare_mix_fills_adopted_inputs_without_professional_fields(monkeypatch, tmp_path):
+    service, current = fixture(monkeypatch)
+    service.repository.get_run = lambda _: SimpleNamespace(package_path=str(tmp_path / "package.json"))
+    exports = tmp_path / "qingshan-workspace/exports/provider-results"
+    exports.mkdir(parents=True)
+    raw = b"synthetic file identity fixture, not decoded audio"
+    sha = hashlib.sha256(raw).hexdigest()
+    layers = []
+    for layer in ("music", "ambience", "sfx", "foley"):
+        (exports / f"{layer}.wav").write_bytes(raw)
+        layers.append({"layer": layer, "source_relative_path": f"provider-results/{layer}.wav",
+            "source_sha256": sha, "source_cue_sha256s": ["a" * 64]})
+    selected = EpisodeMixPreparationRequest(staging_id="stage", expected_staging_sha256=current.expected_dialogue_staging_sha256,
+        requested_by="synthetic-qa", sound_layers=layers, width=64, height=64)
+    prepared = service.prepare_mix("run", selected)
+    assert prepared.adopted_dialogue_staging_id == "stage"
+    assert prepared.shots == current.shots
+    assert prepared.audio_layers[0].layer == "dialogue"
+    assert prepared.audio_layers[0].source_in_seconds == 0
+    assert prepared.subtitle_contract_sha256 == current.subtitle_contract_sha256
+    assert prepared.captions_source_relative_path == current.captions_source_relative_path
+    assert prepared.frame_rate == 24
+    (exports / "music.wav").write_bytes(b"changed")
+    with pytest.raises(ConflictError, match="missing or changed"):
+        service.prepare_mix("run", selected)
