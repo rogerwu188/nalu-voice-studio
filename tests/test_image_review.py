@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 from types import SimpleNamespace
 
 import httpx
@@ -544,6 +545,26 @@ def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypat
             assert whole_audio.headers["x-nalu-artifact-sha256"] == hashlib.sha256(whole_audio.content).hexdigest()
             assert whole_captions.headers["x-nalu-artifact-sha256"] == hashlib.sha256(whole_captions.content).hexdigest()
             assert len(repo.list_run_events(run.id)) == before_assembly
+            dialogue_stage_url = f"{dialogue_url}/stage"
+            dialogue_stage_request = {**recovery_query,
+                "expected_lineage_sha256": whole_audio.headers["x-nalu-lineage-sha256"]}
+            assert api.post(dialogue_stage_url, json=dialogue_stage_request,
+                            headers={"Origin": "https://example.org"}).status_code == 403
+            staged_dialogue = api.post(dialogue_stage_url, json=dialogue_stage_request)
+            assert staged_dialogue.status_code == 200, staged_dialogue.text
+            staged_files = staged_dialogue.json()["payload"]["files"]
+            dialogue_exports = Path(repo.get_run(run.id).package_path).parent / "qingshan-workspace/exports"
+            staged_wav = dialogue_exports / staged_files["dialogue.wav"]["relative_path"]
+            assert staged_wav.read_bytes() == whole_audio.content
+            assert (dialogue_exports / staged_files["captions.vtt"]["relative_path"]).read_bytes() == whole_captions.content
+            assert staged_wav.stat().st_mode & 0o777 == 0o600
+            stage_event_count = len(repo.list_run_events(run.id))
+            assert reopened.post(dialogue_stage_url, json=dialogue_stage_request).json()["id"] == staged_dialogue.json()["id"]
+            assert len(repo.list_run_events(run.id)) == stage_event_count
+            staged_wav.write_bytes(b"changed-fixture")
+            assert reopened.post(dialogue_stage_url, json=dialogue_stage_request).status_code == 409
+            assert staged_wav.read_bytes() == b"changed-fixture"
+            assert len(repo.list_run_events(run.id)) == stage_event_count
             newer_transcript = api.post(transcript_url, json={**transcript_request, "transcript": "新转写"})
             assert newer_transcript.status_code == 200
             assert reopened.get(caption_url, params=caption_query).status_code == 409

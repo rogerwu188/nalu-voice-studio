@@ -2,12 +2,19 @@
 
 import hashlib
 import io
+import os
+import tempfile
 import wave
+from contextlib import nullcontext
+from pathlib import Path
+
+from pydantic import BaseModel, ConfigDict, Field
 
 from .episode_audio import EpisodeAudioService
 from .episode_audio_review import EpisodeAudioReviewService
 from .episode_transcript import RecordingTranscriptService, caption_vtt
-from .repository import ConflictError
+from .repository import ConflictError, encode, new_id, utc_now
+from .secure_files import secure_directory, sync_directory
 from .video_preparation import digest
 
 
@@ -41,16 +48,24 @@ def assemble_dialogue(parts, duration_seconds):
     return output.getvalue(), caption_vtt(words, 0)
 
 
+class EpisodeDialogueStageRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    sound_plan_id: str = Field(min_length=1, max_length=160)
+    expected_sound_plan_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    expected_lineage_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+
+
 class EpisodeDialogueService:
     def __init__(self, repository, data_root):
         self.repository, self.data_root = repository, data_root
 
-    def build(self, run_id, sound_plan_id, expected_sound_plan_sha256):
+    def build(self, run_id, sound_plan_id, expected_sound_plan_sha256, *, _db=None):
         repo = self.repository
         audio_service = EpisodeAudioReviewService(repo, self.data_root)
         transcripts = RecordingTranscriptService(repo, self.data_root)
-        with repo.db.connect() as db:
-            db.execute("BEGIN IMMEDIATE")
+        with (repo.db.connect() if _db is None else nullcontext(_db)) as db:
+            if _db is None:
+                db.execute("BEGIN IMMEDIATE")
             takes = EpisodeAudioService(repo, self.data_root).recover(
                 run_id, sound_plan_id, expected_sound_plan_sha256, _db=db)
             sound = repo.get_run_event(sound_plan_id).payload
@@ -85,3 +100,63 @@ class EpisodeDialogueService:
                 "speech_alignment_verified": False, "other_audio_layers_generated": False}
             manifest["lineage_sha256"] = digest(manifest)
             return audio, captions, manifest
+
+    def stage(self, run_id, request):
+        repo = self.repository
+        with repo.db.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            audio, captions, lineage = self.build(run_id, request.sound_plan_id,
+                request.expected_sound_plan_sha256, _db=db)
+            if lineage["lineage_sha256"] != request.expected_lineage_sha256:
+                raise ConflictError("dialogue sources changed before staging")
+            run = repo.get_run(run_id)
+            package = Path(run.package_path).absolute()
+            root = Path(self.data_root).resolve()
+            if package.resolve() != package or not package.is_relative_to(root / "runs") or not package.is_file():
+                raise ConflictError("dialogue workspace is outside managed storage")
+            if (package.parent / "rendered-output-seal.json").exists():
+                raise ConflictError("sealed outputs cannot accept new staged dialogue")
+            relative = f"provider-results/adopted-dialogue/{lineage['lineage_sha256']}"
+            exports = package.parent / "qingshan-workspace" / "exports"
+            directory = package.parent
+            for component in ("qingshan-workspace", "exports", *relative.split("/")):
+                directory /= component
+                if directory.is_symlink() or directory.resolve() != directory:
+                    raise ConflictError("unsafe dialogue staging directory")
+                secure_directory(directory)
+            files = {"dialogue.wav": audio, "captions.vtt": captions,
+                     "lineage.json": (encode(lineage) + "\n").encode("utf-8")}
+            payload = {"run_id": run_id, "lineage": lineage, "files": {
+                name: {"relative_path": str((directory / name).relative_to(exports)),
+                       "sha256": hashlib.sha256(raw).hexdigest(), "byte_size": len(raw)}
+                for name, raw in files.items()}, "master_accepted": False}
+            payload["staging_sha256"] = digest(payload)
+            existing = next((e for e in repo.list_run_events(run_id)
+                if e.event_type == "episode_dialogue_staged" and e.payload.get("lineage", {}).get("lineage_sha256") == request.expected_lineage_sha256), None)
+            if existing and existing.payload != payload:
+                raise ConflictError("dialogue staging receipt changed")
+            for name, raw in files.items():
+                path = directory / name
+                if path.exists() or path.is_symlink():
+                    if path.is_symlink() or not path.is_file() or path.stat().st_size != len(raw) or path.read_bytes() != raw:
+                        raise ConflictError("staged dialogue is changed; reconciliation required")
+                    continue
+                if existing:
+                    raise ConflictError("staged dialogue is missing; reconciliation required")
+                descriptor, temporary = tempfile.mkstemp(prefix=".dialogue-", dir=directory)
+                try:
+                    with os.fdopen(descriptor, "wb") as target:
+                        target.write(raw); target.flush(); os.fsync(target.fileno())
+                    os.link(temporary, path)
+                    sync_directory(directory)
+                finally:
+                    Path(temporary).unlink(missing_ok=True)
+                    sync_directory(directory)
+            if existing:
+                return existing
+            identity = new_id("evt")
+            sequence = db.execute("SELECT COALESCE(MAX(sequence),0)+1 FROM run_events WHERE run_id=?", (run_id,)).fetchone()[0]
+            db.execute("INSERT INTO run_events VALUES (?,?,?,?,?,?,?,?,?)", (identity, run_id, sequence,
+                "episode_dialogue_staged", None, None, "Adopted dialogue/captions staged; final mixing remains pending.",
+                encode(payload), utc_now()))
+        return repo.get_run_event(identity)

@@ -1882,6 +1882,34 @@
         "title": "EpisodeCut",
         "type": "object"
       },
+      "EpisodeDialogueStageRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_lineage_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Expected Lineage Sha256",
+            "type": "string"
+          },
+          "expected_sound_plan_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Expected Sound Plan Sha256",
+            "type": "string"
+          },
+          "sound_plan_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Sound Plan Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sound_plan_id",
+          "expected_sound_plan_sha256",
+          "expected_lineage_sha256"
+        ],
+        "title": "EpisodeDialogueStageRequest",
+        "type": "object"
+      },
       "EpisodeEditRequest": {
         "additionalProperties": false,
         "properties": {
@@ -13737,6 +13765,71 @@
           }
         },
         "summary": "Export Episode Dialogue"
+      }
+    },
+    "/v1/production-runs/{run_id}/adopted-dialogue/stage": {
+      "post": {
+        "operationId": "stage_episode_dialogue_v1_production_runs__run_id__adopted_dialogue_stage_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "origin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Origin"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EpisodeDialogueStageRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunEvent"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Stage Episode Dialogue"
       }
     },
     "/v1/production-runs/{run_id}/audio-takes": {

@@ -7,6 +7,10 @@ against the current main branch.
 
 ## Status vocabulary
 
+[Dialogue workspace staging](qa/dialogue-workspace-staging-2026-09-07.md) persists
+adopted audio/captions and provenance with replay checks. Materializer contract
+integration and final release acceptance remain incomplete.
+
 [Episode dialogue assembly](qa/episode-dialogue-assembly-2026-09-07.md) combines
 current adopted cue audio/captions. Full service success QA, persisted staging
 and final mix/master integration are still open.

@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "e0c19c62520ee27ba88e17dc3306e20a127d2fed",
-  "last_advanced_at": "2026-09-07T09:46:56Z",
+  "observed_head": "f87b5f0a01f458c0fbc117f892c73424fee19373",
+  "last_advanced_at": "2026-09-07T09:50:04Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -30,7 +30,7 @@
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Full two-cue managed-media/API export and mixed-lineage protection validated: 8 tests pass (47.08s), evidence docs/qa/episode-dialogue-assembly-2026-09-07.md. Next persist staged dialogue/captions and lineage for ProductionService.materialize_postproduction and connect remaining sound-layer inputs, then final mix/master/release. CI 34106778965 (113e2fb) fully passed; current checkpoint and installed QA pending. Preserve two-source writing/TTS, no Hops 401 retries.",
+    "summary": "Dialogue WAV/VTT/lineage staging and replay/damaged-file checks implemented; managed-media fixture passed 59.49s after test import fix. Evidence docs/qa/dialogue-workspace-staging-2026-09-07.md. Next bind staged receipts to materializer sound/subtitle contracts and remaining sound-layer selection, then final mix/master/release. Current CI/installed QA and cancellation/crash-injection remain pending. Preserve two-source writing/TTS, no Hops 401 retries.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

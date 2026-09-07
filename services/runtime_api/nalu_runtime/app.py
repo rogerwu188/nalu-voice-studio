@@ -31,7 +31,7 @@ from .episode_audio_review import (
     EpisodeAudioReviewRequest,
     EpisodeAudioReviewService,
 )
-from .episode_dialogue import EpisodeDialogueService
+from .episode_dialogue import EpisodeDialogueService, EpisodeDialogueStageRequest
 from .episode_edit_review import EpisodeEditReviewRequest, EpisodeEditReviewService
 from .episode_preview import EpisodePreviewRequest, EpisodePreviewService
 from .episode_sound_plan import EpisodeSoundPlanRequest, EpisodeSoundPlanService
@@ -1438,6 +1438,12 @@ def create_app(
     def recover_episode_audio(run_id: str, sound_plan_id: str,
                               expected_sound_plan_sha256: str):
         return EpisodeAudioService(repository, data_root).recover(run_id, sound_plan_id, expected_sound_plan_sha256)
+
+    @app.post("/v1/production-runs/{run_id}/adopted-dialogue/stage", response_model=RunEvent)
+    def stage_episode_dialogue(run_id: str, request: EpisodeDialogueStageRequest, origin: str | None = Header(default=None)):
+        if origin is not None:
+            raise HTTPException(403, "native dialogue staging required")
+        return EpisodeDialogueService(repository, data_root).stage(run_id, request)
 
     @app.get("/v1/production-runs/{run_id}/adopted-dialogue", response_class=Response)
     def export_episode_dialogue(run_id: str, sound_plan_id: str,
