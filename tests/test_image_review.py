@@ -435,11 +435,26 @@ def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypat
                 assert recovered_review.json()["applies_to_current_take"] is True
                 assert recovered_review.json()["take_approved"] is True
             assert len(repo.list_run_events(run.id)) == after_accept
+            accepted_audio_url = f"{take_url}/{take.json()['id']}/accepted-audio"
+            accepted_audio_query = {**listening_query, "expected_review_id": listened.json()["id"]}
+            exported_audio = reopened.get(accepted_audio_url, params=accepted_audio_query)
+            assert exported_audio.status_code == 200, exported_audio.text
+            assert exported_audio.headers["content-type"] == "audio/wav"
+            assert exported_audio.headers["cache-control"] == "no-store"
+            assert exported_audio.headers["x-nalu-audio-sha256"] == hashlib.sha256(exported_audio.content).hexdigest()
+            with wave.open(io.BytesIO(exported_audio.content), "rb") as decoded:
+                assert (decoded.getnchannels(), decoded.getsampwidth(), decoded.getframerate()) == (2, 2, 48000)
+                assert decoded.getnframes() == take.json()["payload"]["decoded_sample_count"]
+                assert any(decoded.readframes(decoded.getnframes()))  # real tone, no fabricated silence
+            assert reopened.get(accepted_audio_url, params=accepted_audio_query).content == exported_audio.content
+            assert len(repo.list_run_events(run.id)) == after_accept
+            assert api.get(accepted_audio_url, params={**accepted_audio_query, "expected_review_id": "wrong"}).status_code == 409
             assert api.post(listening_url, json={**listening_request, "decision": "reject"}).status_code == 409
             rejected_listening = api.post(listening_url, json={**listening_request, "decision": "reject",
                                          "expected_review_id": listened.json()["id"]})
             assert rejected_listening.status_code == 200, rejected_listening.text
             assert rejected_listening.json()["payload"]["take_approved"] is False
+            assert reopened.get(accepted_audio_url, params=accepted_audio_query).status_code == 409
             assert reopened.post(listening_url, json=listening_request).status_code == 409
             recovered_rejection = reopened.get(listening_url, params=listening_query).json()
             assert recovered_rejection["latest_review"]["id"] == rejected_listening.json()["id"]
@@ -452,18 +467,30 @@ def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypat
             replacement_url = f"{take_url}/{replacement.json()['id']}/reviews"
             replacement_query = {"expected_take_sha256": replacement.json()["payload"]["take_sha256"]}
             assert reopened.get(listening_url, params=listening_query).status_code == 409
+            assert reopened.get(accepted_audio_url, params=accepted_audio_query).status_code == 409
             replacement_review = reopened.get(replacement_url, params=replacement_query).json()
             assert replacement_review["latest_review"]["id"] == accepted_again.json()["id"]
             assert replacement_review["latest_review"]["payload"]["take_approved"] is True
             assert replacement_review["current_take_id"] == replacement.json()["id"]
             assert replacement_review["applies_to_current_take"] is False
             assert replacement_review["take_approved"] is False
+            replacement_accept = api.post(replacement_url, json={**listening_request, **replacement_query,
+                "expected_review_id": accepted_again.json()["id"]})
+            assert replacement_accept.status_code == 200, replacement_accept.text
+            shifted_audio_url = f"{take_url}/{replacement.json()['id']}/accepted-audio"
+            shifted_audio_query = {**replacement_query, "expected_review_id": replacement_accept.json()["id"]}
+            shifted_audio = api.get(shifted_audio_url, params=shifted_audio_query)
+            assert shifted_audio.status_code == 200, shifted_audio.text
+            assert len(shifted_audio.content) == len(exported_audio.content)
+            assert shifted_audio.content != exported_audio.content
             event_count = len(repo.list_run_events(run.id))
             repo.revoke_asset_consent(recording.id, AssetConsentRevocationCreate(requested_by="synthetic-qa", reason="测试撤销"))
             assert reopened.post(take_url, json=take_request).status_code == 409
             assert reopened.get(take_url, params=recovery_query).status_code == 409
             assert reopened.post(listening_url, json=listening_request).status_code == 409
             assert reopened.get(replacement_url, params=replacement_query).status_code == 409
+            assert reopened.get(accepted_audio_url, params=accepted_audio_query).status_code == 409
+            assert reopened.get(shifted_audio_url, params=shifted_audio_query).status_code == 409
             assert len(repo.list_run_events(run.id)) == event_count
             assert api.post(retime_url, json={**retime, "expected_edit_review_id": rejected_edit.json()["id"]}).status_code == 409
             assert api.post(retime_url, json={"expected_plan_sha256": plan["plan_sha256"],

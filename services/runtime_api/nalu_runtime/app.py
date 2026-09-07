@@ -1444,6 +1444,17 @@ def create_app(
                                       expected_take_sha256: str = Query(pattern=r"^[a-f0-9]{64}$")):
         return EpisodeAudioReviewService(repository, data_root).recover(run_id, take_id, expected_take_sha256)
 
+    @app.get("/v1/production-runs/{run_id}/audio-takes/{take_id}/accepted-audio", response_class=Response,
+             responses={200: {"content": {"audio/wav": {}}}})
+    def read_accepted_episode_audio(run_id: str, take_id: str,
+                                    expected_take_sha256: str = Query(pattern=r"^[a-f0-9]{64}$"),
+                                    expected_review_id: str = Query(min_length=1, max_length=160)):
+        audio, sha = EpisodeAudioReviewService(repository, data_root).accepted_audio(
+            run_id, take_id, expected_take_sha256, expected_review_id)
+        return Response(audio, media_type="audio/wav", headers={"X-Nalu-Audio-SHA256": sha,
+            "X-Nalu-Take-ID": take_id, "X-Nalu-Review-ID": expected_review_id,
+            "Cache-Control": "no-store"})
+
     @app.post("/v1/production-runs/{run_id}/episode-edit-drafts/{edit_id}/picture-preview", response_class=Response,
               responses={200: {"content": {"video/mp4": {}}}})
     def preview_episode_edit(run_id: str, edit_id: str, request: EpisodePreviewRequest,

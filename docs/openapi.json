@@ -13580,6 +13580,71 @@
         "summary": "Attach Episode Audio"
       }
     },
+    "/v1/production-runs/{run_id}/audio-takes/{take_id}/accepted-audio": {
+      "get": {
+        "operationId": "read_accepted_episode_audio_v1_production_runs__run_id__audio_takes__take_id__accepted_audio_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "take_id",
+            "required": true,
+            "schema": {
+              "title": "Take Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expected_take_sha256",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-f0-9]{64}$",
+              "title": "Expected Take Sha256",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expected_review_id",
+            "required": true,
+            "schema": {
+              "maxLength": 160,
+              "minLength": 1,
+              "title": "Expected Review Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "audio/wav": {}
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Accepted Episode Audio"
+      }
+    },
     "/v1/production-runs/{run_id}/audio-takes/{take_id}/reviews": {
       "get": {
         "operationId": "recover_episode_audio_reviews_v1_production_runs__run_id__audio_takes__take_id__reviews_get",

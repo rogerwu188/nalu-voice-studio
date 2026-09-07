@@ -1,11 +1,20 @@
 """Explicit listening decisions on exact recording windows, not final mix QA."""
 
+import hashlib
+import io
+import sys
+import time
+import wave
+from contextlib import nullcontext
+from pathlib import Path
 from typing import Literal
+from urllib.parse import unquote, urlparse
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from .episode_audio import EpisodeAudioService
 from .models import RunEvent
+from .postproduction_materializer import PostproductionMaterializationError, _audio_chunks
 from .repository import ConflictError, encode, new_id, utc_now
 from .video_preparation import digest
 
@@ -31,12 +40,13 @@ class EpisodeAudioReviewService:
     def __init__(self, repository, data_root):
         self.repository, self.data_root = repository, data_root
 
-    def recover(self, run_id, take_id, expected_take_sha256):
+    def recover(self, run_id, take_id, expected_take_sha256, *, _db=None):
         repo = self.repository
-        with repo.db.connect() as db:
+        with (nullcontext(_db) if _db is not None else repo.db.connect()) as db:
             # Serialize the source/consent check and decision snapshot without
             # appending an event or replaying the user's confirmation.
-            db.execute("BEGIN IMMEDIATE")
+            if _db is None:
+                db.execute("BEGIN IMMEDIATE")
             take = repo.get_run_event(take_id)
             p = take.payload
             if (take.run_id != run_id or take.event_type != "episode_audio_take_attached"
@@ -82,6 +92,48 @@ class EpisodeAudioReviewService:
             return EpisodeAudioReviewRecovery(current_take_id=take_id, current_take_sha256=expected_take_sha256,
                 latest_review=latest, applies_to_current_take=applies,
                 take_approved=bool(applies and latest.payload.get("take_approved") is True))
+
+    def accepted_audio(self, run_id, take_id, expected_take_sha256, expected_review_id):
+        """Decode the exact accepted source window, without padding or cloning."""
+        repo = self.repository
+        with repo.db.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            recovered = self.recover(run_id, take_id, expected_take_sha256, _db=db)
+            if (not recovered.take_approved or recovered.latest_review is None
+                    or recovered.latest_review.id != expected_review_id):
+                raise ConflictError("confirm the current recording before preparing its audio")
+            take = repo.get_run_event(take_id).payload
+            asset = repo.get_asset(take["asset_id"])
+            source = Path(unquote(urlparse(asset.local_uri).path))
+            output = io.BytesIO()
+            deadline = time.monotonic() + 30
+            count = 0
+            try:
+                with wave.open(output, "wb") as target:
+                    target.setnchannels(2)
+                    target.setsampwidth(2)
+                    target.setframerate(48000)
+                    for samples in _audio_chunks(source, start_seconds=take["source_in_seconds"],
+                            sample_count=take["decoded_sample_count"], require_full_duration=True,
+                            should_cancel=lambda: time.monotonic() > deadline):
+                        count += len(samples) // 2
+                        if count > 300 * 48000:
+                            raise ConflictError("accepted recording exceeds export duration")
+                        if sys.byteorder != "little":
+                            samples.byteswap()
+                        target.writeframesraw(samples.tobytes())
+            except PostproductionMaterializationError as exc:
+                raise ConflictError("accepted recording could not be decoded") from exc
+            # Recovery has already checked managed path and live consent; detect
+            # a file edit during decode before returning any bytes to the caller.
+            with source.open("rb") as current_source:
+                source_bytes = current_source.read(100 * 1024 * 1024 + 1)
+            if (count != take["decoded_sample_count"] or source.resolve() != source
+                    or len(source_bytes) > 100 * 1024 * 1024
+                    or hashlib.sha256(source_bytes).hexdigest() != take["expected_asset_sha256"]):
+                raise ConflictError("recording changed while preparing accepted audio")
+            data = output.getvalue()
+            return data, hashlib.sha256(data).hexdigest()
 
     def review(self, run_id, take_id, request):
         repo = self.repository

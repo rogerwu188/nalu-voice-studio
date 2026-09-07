@@ -28,6 +28,11 @@ completed user journey. Real writer/provider integration, native interaction,
 script revision handoff and the complete production demonstration remain open.
 The authoritative next action is in `docs/GOAL_PROGRESS.json`.
 
+[Accepted recording audio](qa/accepted-recording-audio-2026-09-07.md) now exports
+actual exact-window PCM WAV from the current adopted recording, rechecking media
+and consent. Native consumption, alignment, final mix/subtitles/master and release
+remain unfinished; synthetic audio regression is not actual narration QA.
+
 [Native listening recovery and controls](qa/native-listening-recovery-controls-2026-09-07.md)
 now connect explicit readback/decisions and uncertain-result recovery to saved
 recordings. Current native CI, installed playback/accessibility QA and final

@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "fd72300a108444ecf1b3aef27fa6d4accdebc0b5",
-  "last_advanced_at": "2026-09-07T08:45:34Z",
+  "observed_head": "e68923c12fb5ab4a8debdc4da95938ab58a11617",
+  "last_advanced_at": "2026-09-07T08:50:50Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Native listening recovery/model/visible controls now preserve uncertain confirmations, reconcile by GET and prevent historical acceptance from applying to replacement recordings. Added native fixture coverage; execution pending CI. Backend affected fixture passed in 14.24s. Local Swift parse blocked by duplicate system SwiftBridging module declarations. CI 34100873064 passed; 34101343116 runtime/ARM passed with Intel running. Evidence docs/qa/native-listening-recovery-controls-2026-09-07.md. Installed QA and actual final sound/master/release remain incomplete."
+    "summary": "Actual adopted recording source windows can now be exported as bounded 48kHz stereo PCM WAV, bound to current accepted review/take, with live consent/media validation and no state mutations. 26 workflow tests passed in 31.56s; Ruff/OpenAPI/diff passed. CI 34101343116 fully passed; newer UI/recovery CI pending. Evidence docs/qa/accepted-recording-audio-2026-09-07.md. Native export consumption, alignment and final mix/master/release remain incomplete."
   },
   "next_action": {
     "sop": "SOP-04",
