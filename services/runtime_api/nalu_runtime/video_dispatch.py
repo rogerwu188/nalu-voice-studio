@@ -17,7 +17,7 @@ class VideoDispatchService:
                  transport: httpx.BaseTransport | None = None):
         self.repository, self.submitter, self.transport = repository, submitter, transport
 
-    def dispatch(self, run_id: str, reservation_id: str, secret: str):
+    def _reservation(self, run_id: str, reservation_id: str):
         event = self.repository.get_run_event(reservation_id)
         if event.run_id != run_id or event.event_type != "video_estimate_reserved":
             raise ConflictError("reservation does not belong to this run")
@@ -25,15 +25,26 @@ class VideoDispatchService:
         if (reservation.get("run_id") != run_id or reservation.get("reservation_sha256") !=
                 digest({k: v for k, v in reservation.items() if k != "reservation_sha256"})):
             raise ConflictError("reservation integrity or import boundary failed")
-        # A repeated click after submission/uncertainty is read-only, even after
-        # the quote expires or the user cancels. Never manufacture another task.
+        return reservation
+
+    def observation(self, run_id: str, reservation_id: str):
+        """Read the durable submission state without credentials or provider I/O."""
+        reservation = self._reservation(run_id, reservation_id)
         existing = [item for item in self.repository.list_remote_task_bindings(run_id)
                     if item.task_key == reservation["task_key"]]
-        if existing:
-            if len(existing) != 1 or existing[0].request_sha256 != reservation["request_sha256"]:
-                raise ConflictError("saved task differs from reserved shot")
-            if existing[0].state != RemoteTaskState.PREPARED:
-                return existing[0]
+        if not existing:
+            return None
+        if len(existing) != 1 or existing[0].request_sha256 != reservation["request_sha256"]:
+            raise ConflictError("saved task differs from reserved shot")
+        return existing[0]
+
+    def dispatch(self, run_id: str, reservation_id: str, secret: str):
+        reservation = self._reservation(run_id, reservation_id)
+        # A repeated click after submission/uncertainty is read-only, even after
+        # the quote expires or the user cancels. Never manufacture another task.
+        existing = self.observation(run_id, reservation_id)
+        if existing and existing.state != RemoteTaskState.PREPARED:
+            return existing
         if not reservation.get("pricing_quote_id") or not reservation.get("published_price_observed"):
             raise ConflictError("dispatch requires a reviewed observed-price estimate")
         approval = VideoBudgetApproval.model_validate({

@@ -1245,8 +1245,15 @@ def create_app(
             raise HTTPException(502, str(exc)) from None
 
     @app.post("/v1/production-runs/{run_id}/video-task-preparations/{preparation_id}/estimate-approvals", response_model=RunEvent)
-    def approve_video_estimate(run_id: str, preparation_id: str, request: VideoBudgetApproval) -> RunEvent:
+    def approve_video_estimate(run_id: str, preparation_id: str, request: VideoBudgetApproval,
+                               origin: str | None = Header(default=None)) -> RunEvent:
+        if origin is not None:
+            raise HTTPException(403, "native explicit video cost approval required")
         return VideoBudgetService(repository).reserve(run_id, preparation_id, request)
+
+    @app.get("/v1/production-runs/{run_id}/video-reservations/{reservation_id}/submission", response_model=RemoteTaskBinding | None)
+    def observe_reserved_video(run_id: str, reservation_id: str):
+        return VideoDispatchService(repository, remote_task_submitter).observation(run_id, reservation_id)
 
     @app.post("/v1/production-runs/{run_id}/video-task-preparations/{preparation_id}/price-observations", response_model=RunEvent)
     def observe_video_price(run_id: str, preparation_id: str) -> RunEvent:

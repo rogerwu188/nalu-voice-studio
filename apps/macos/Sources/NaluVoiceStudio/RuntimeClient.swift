@@ -233,6 +233,51 @@ actor RuntimeClient {
         try await get("v1/production-runs/\(runID)")
     }
 
+    func reserveVideoCost(runID: String, preparationID: String, approval: VideoCostApproval) async throws -> VideoCostReservation {
+        let saved: VideoCostReservation = try await post(
+            "v1/production-runs/\(runID)/video-task-preparations/\(preparationID)/estimate-approvals", body: approval)
+        guard saved.run_id == runID, saved.event_type == "video_estimate_reserved",
+              saved.payload.preparation_id == preparationID,
+              saved.payload.preparation_sha256 == approval.preparation_sha256,
+              saved.payload.estimated_credits == approval.estimated_credits,
+              saved.payload.confirmed_run_budget_credits == approval.confirmed_run_budget_credits,
+              saved.payload.guardian_approval == approval.guardian_approval,
+              saved.payload.pricing_quote_id == approval.pricing_quote_id,
+              saved.payload.published_price_observed, !saved.payload.generation_performed,
+              !Task.isCancelled else { throw LibrarySnapshotRefreshError.contextChanged }
+        return saved
+    }
+
+    /// Explicit submission only. Recovery uses observeVideoSubmission, never an
+    /// automatic repeat POST. The runtime retains the durable single-attempt key.
+    func submitReservedVideo(_ reservation: VideoCostReservation, apiKey: String) async throws -> VideoSubmissionObservation {
+        var request = URLRequest(url: baseURL.appending(path:
+            "v1/production-runs/\(reservation.run_id)/video-reservations/\(reservation.id)/submit"))
+        request.httpMethod = "POST"
+        request.timeoutInterval = 120
+        request.setValue(apiKey, forHTTPHeaderField: "X-Nalu-Provider-Key")
+        let (data, response) = try await authorizedData(for: request)
+        try validate(response, data: data)
+        let saved = try decoder.decode(VideoSubmissionObservation.self, from: data)
+        try validateVideoSubmission(saved, reservation: reservation)
+        return saved
+    }
+
+    /// Local SQLite observation: no key lookup, no provider HTTP or production.
+    func observeVideoSubmission(_ reservation: VideoCostReservation) async throws -> VideoSubmissionObservation? {
+        let saved: VideoSubmissionObservation? = try await get(
+            "v1/production-runs/\(reservation.run_id)/video-reservations/\(reservation.id)/submission")
+        if let saved { try validateVideoSubmission(saved, reservation: reservation) }
+        return saved
+    }
+
+    private func validateVideoSubmission(_ saved: VideoSubmissionObservation, reservation: VideoCostReservation) throws {
+        guard saved.run_id == reservation.run_id, saved.task_key == reservation.payload.task_key,
+              saved.request_sha256 == reservation.payload.request_sha256, !Task.isCancelled else {
+            throw LibrarySnapshotRefreshError.contextChanged
+        }
+    }
+
     func productionAuthorizationPreview(runID: String) async throws -> LibrarySnapshotRefreshPreview {
         try await get("v1/production-runs/\(runID)/library-snapshot-refresh")
     }

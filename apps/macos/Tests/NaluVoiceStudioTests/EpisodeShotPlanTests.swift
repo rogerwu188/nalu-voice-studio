@@ -22,6 +22,56 @@ private final class ShotReviewProtocol: URLProtocol, @unchecked Sendable {
 
 @Suite(.serialized)
 struct EpisodeShotPlanTests {
+    private func videoReservationFixture() throws -> Data {
+        try JSONSerialization.data(withJSONObject: ["id": "reservation-one", "run_id": "run-one", "event_type": "video_estimate_reserved",
+            "payload": ["preparation_id": "prep-one", "preparation_sha256": String(repeating: "a", count: 64),
+                "estimated_credits": 156, "confirmed_run_budget_credits": 1000, "pricing_quote_id": "quote-one",
+                "guardian_approval": false, "task_key": "shot-one", "request_sha256": String(repeating: "b", count: 64),
+                "published_price_observed": true, "generation_performed": false]])
+    }
+
+    @MainActor @Test func videoCostDispatchAndRecoveryAreSeparateBoundRequests() async throws {
+        let approval = VideoCostApproval(preparation_sha256: String(repeating: "a", count: 64), estimated_credits: 156,
+            confirmed_run_budget_credits: 1000, approved_by: "fixture-user", confirmation: "测试确认", guardian_approval: false,
+            pricing_quote_id: "quote-one")
+        let receipt = try JSONSerialization.data(withJSONObject: ["id": "binding-one", "run_id": "run-one", "task_key": "shot-one",
+            "request_sha256": String(repeating: "b", count: 64), "state": "ambiguous_charge"])
+        ShotReviewProtocol.requests = []
+        ShotReviewProtocol.queued = [(200, try videoReservationFixture()), (200, receipt), (200, receipt), (200, Data("null".utf8))]
+        let client = runtime()
+        let reservation = try await client.reserveVideoCost(runID: "run-one", preparationID: "prep-one", approval: approval)
+        #expect(ShotReviewProtocol.requests.count == 1)
+        #expect(ShotReviewProtocol.requests[0].value(forHTTPHeaderField: "X-Nalu-Provider-Key") == nil)
+        let submitted = try await client.submitReservedVideo(reservation, apiKey: "synthetic-test-key")
+        #expect(submitted.state == "ambiguous_charge")
+        let recovered = try await client.observeVideoSubmission(reservation)
+        #expect(recovered?.id == submitted.id)
+        let absent = try await client.observeVideoSubmission(reservation)
+        #expect(absent == nil)
+        #expect(ShotReviewProtocol.requests.map(\.httpMethod) == ["POST", "POST", "GET", "GET"])
+        #expect(ShotReviewProtocol.requests[1].url?.path.hasSuffix("reservation-one/submit") == true)
+        #expect(ShotReviewProtocol.requests[1].value(forHTTPHeaderField: "X-Nalu-Provider-Key") == "synthetic-test-key")
+        #expect(ShotReviewProtocol.requests[2].url?.path.hasSuffix("reservation-one/submission") == true)
+        #expect(ShotReviewProtocol.requests[2].value(forHTTPHeaderField: "X-Nalu-Provider-Key") == nil)
+    }
+
+    @MainActor @Test func videoReservationRejectsChangedEstimateAndObservationRejectsForeignTask() async throws {
+        ShotReviewProtocol.requests = []
+        ShotReviewProtocol.queued = [(200, try videoReservationFixture())]
+        let different = VideoCostApproval(preparation_sha256: String(repeating: "a", count: 64), estimated_credits: 200,
+            confirmed_run_budget_credits: 1000, approved_by: "fixture-user", confirmation: "测试确认", guardian_approval: false,
+            pricing_quote_id: "quote-one")
+        do { _ = try await runtime().reserveVideoCost(runID: "run-one", preparationID: "prep-one", approval: different)
+            Issue.record("changed estimate must not be actionable") } catch {}
+        let reservation = try JSONDecoder().decode(VideoCostReservation.self, from: videoReservationFixture())
+        let foreign = try JSONSerialization.data(withJSONObject: ["id": "foreign", "run_id": "run-one", "task_key": "another-shot",
+            "request_sha256": String(repeating: "b", count: 64), "state": "submitted", "provider_task_id": "fixture-task"])
+        ShotReviewProtocol.queued = [(200, foreign), (503, Data())]
+        do { _ = try await runtime().observeVideoSubmission(reservation); Issue.record("foreign shot") } catch {}
+        do { _ = try await runtime().observeVideoSubmission(reservation); Issue.record("unavailable observation") } catch {}
+        #expect(ShotReviewProtocol.requests.map(\.httpMethod) == ["POST", "GET", "GET"])
+    }
+
     @MainActor @Test func productionAuthorizationBindsReceiptWithoutProviderKeyOrDispatch() async throws {
         let draft = ProductionAuthorizationDraft(source_event_id: "saved-plan",
             expected_plan_sha256: String(repeating: "a", count: 64), expected_package_sha256: String(repeating: "b", count: 64),

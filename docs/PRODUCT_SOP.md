@@ -57,6 +57,11 @@ is connected in source with explicit confirmation and retry identity preservatio
 current native CI/UI QA, per-task cost approval, dispatch and real production QA
 remain required. No SOP becomes PASS.
 
+[Video submission/recovery bridge](qa/video-submission-recovery-2026-09-07.md)
+provides typed native cost/submission calls and a credential-free local observation
+endpoint for lost responses. The accepted-frame UI has not yet connected these
+calls; real per-episode video/master/release acceptance remains open.
+
 AI plans now carry [typed director choices with native round-trip and plain-language readback](qa/structured-director-drafts-2026-09-07.md).
 User edits invalidate stale choices. A [version-bound director refresh backend](qa/director-refresh-2026-09-07.md)
 now fills missing choices without rewriting user descriptions, with restart and

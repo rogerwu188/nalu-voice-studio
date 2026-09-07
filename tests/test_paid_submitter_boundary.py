@@ -109,6 +109,16 @@ def test_reserved_shot_dispatch_revalidates_and_posts_once(tmp_path, case, monke
         "pricing_quote_id": quote.json()["id"]})
     assert reservation.status_code == 200, reservation.text
     submit_url = base + "/video-reservations/" + reservation.json()["id"] + "/submit"
+    observation_url = submit_url.removesuffix("/submit") + "/submission"
+    observed = api.get(observation_url)
+    assert observed.status_code == 200 and observed.json() is None
+    assert posts == []
+    assert api.get(observation_url.replace(run.id, "foreign-run")).status_code == 409
+    approval_body = {key: reservation.json()["payload"][key] for key in (
+        "preparation_sha256", "estimated_credits", "confirmed_run_budget_credits", "approved_by",
+        "confirmation", "guardian_approval", "pricing_quote_id")}
+    assert api.post(prep_url + "/estimate-approvals", json=approval_body,
+                    headers={"Origin": "https://example.org"}).status_code == 403
     headers = {"X-Nalu-Provider-Key": "fixture-video-key"}
     assert api.post(submit_url).status_code == 403
     assert api.post(submit_url, headers={**headers, "Origin": "https://untrusted.invalid"}).status_code == 403
@@ -164,6 +174,15 @@ def test_reserved_shot_dispatch_revalidates_and_posts_once(tmp_path, case, monke
         return
     assert result.status_code == 200, result.text
     assert result.json()["state"] == ("ambiguous_charge" if case == "uncertain" else "submitted")
+    # Observation after a lost/accepted response uses no secret and no provider
+    # call, including a fresh runtime process. It is not a retry submission.
+    count = len(posts)
+    observed = api.get(observation_url)
+    assert observed.status_code == 200 and observed.json()["id"] == result.json()["id"]
+    assert observed.json()["state"] == result.json()["state"]
+    restarted = TestClient(create_app(db_path, tmp_path / "data", video_http_transport=httpx.MockTransport(provider)))
+    assert restarted.get(observation_url).json()["id"] == result.json()["id"]
+    assert len(posts) == count
     assert "fixture-video-key" not in result.text
     restarted = TestClient(create_app(db_path, tmp_path / "data", video_http_transport=httpx.MockTransport(provider)))
     assert restarted.post(submit_url, headers=headers).json() == result.json()
