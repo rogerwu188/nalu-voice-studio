@@ -254,7 +254,8 @@ struct EpisodeShotPlanTests {
         let audioDraft = EpisodeAudioTakeDraft(sound_plan_id: cuePlan.id,
             expected_sound_plan_sha256: cuePlan.payload.sound_plan_sha256, shot_index: 0,
             asset_id: "recording", expected_asset_sha256: String(repeating: "e", count: 64), source_in_seconds: 0)
-        var takePayload: [String: Any] = ["sound_plan_id": "sound", "expected_sound_plan_sha256": cuePlan.payload.sound_plan_sha256,
+        var takePayload: [String: Any] = ["take_sha256": String(repeating: "a", count: 64),
+            "sound_plan_id": "sound", "expected_sound_plan_sha256": cuePlan.payload.sound_plan_sha256,
             "shot_index": 0, "asset_id": "recording", "expected_asset_sha256": audioDraft.expected_asset_sha256,
             "source_in_seconds": 0, "edit_review_id": "review", "edit_sha256": cuePlan.payload.edit_sha256,
             "start_seconds": 0, "duration_seconds": 7.5, "decoded_sample_count": 360000, "sample_rate_hz": 48000,
@@ -269,6 +270,47 @@ struct EpisodeShotPlanTests {
         #expect(attached.id == "take")
         #expect(ShotReviewProtocol.requests.last?.url?.path.hasSuffix("audio-takes") == true)
         #expect(ShotReviewProtocol.requests.last?.value(forHTTPHeaderField: "X-Nalu-Provider-Key") == nil)
+        let listeningDraft = EpisodeAudioReviewDraft(expected_take_sha256: attached.payload.take_sha256,
+            expected_review_id: "previous-listening", decision: .accept, reviewed_by: "synthetic QA", confirmation: "听过并采用")
+        var listeningPayload: [String: Any] = ["take_id": attached.id, "take_sha256": attached.payload.take_sha256,
+            "sound_plan_id": cuePlan.id, "sound_plan_sha256": cuePlan.payload.sound_plan_sha256,
+            "edit_review_id": "review", "edit_sha256": cuePlan.payload.edit_sha256, "shot_index": 0,
+            "asset_id": "recording", "asset_sha256": audioDraft.expected_asset_sha256,
+            "source_in_seconds": 0, "duration_seconds": 7.5, "decision": "accept", "reviewed_by": "synthetic QA",
+            "confirmation": "听过并采用", "review_sha256": String(repeating: "f", count: 64), "take_approved": true,
+            "listening_evidence": "USER_ATTESTATION_NOT_PLAYBACK_TELEMETRY", "speech_alignment_verified": false,
+            "final_mix_approved": false, "captions_approved": false, "master_accepted": false, "generation_performed": false]
+        func listeningResponse() throws -> Data {
+            try JSONSerialization.data(withJSONObject: ["id": "listening", "run_id": "run",
+                "event_type": "episode_audio_take_reviewed", "payload": listeningPayload])
+        }
+        ShotReviewProtocol.queued = [(200, try listeningResponse())]
+        let listened = try await runtime().reviewEpisodeAudio(sound: cuePlan, take: attached, draft: listeningDraft)
+        #expect(listened.payload.take_approved)
+        #expect(ShotReviewProtocol.requests.last?.url?.path.hasSuffix("audio-takes/take/reviews") == true)
+        let listeningBody = try JSONSerialization.jsonObject(with: ShotReviewProtocol.bodies.last!) as! [String: Any]
+        #expect(listeningBody["expected_review_id"] as? String == "previous-listening")
+        #expect(listeningBody["expected_take_sha256"] as? String == attached.payload.take_sha256)
+        let beforeWrongTake = ShotReviewProtocol.requests.count
+        do {
+            _ = try await runtime().reviewEpisodeAudio(sound: cuePlan, take: attached,
+                draft: EpisodeAudioReviewDraft(expected_take_sha256: String(repeating: "b", count: 64),
+                    expected_review_id: nil, decision: .accept, reviewed_by: "synthetic QA", confirmation: "确认"))
+            Issue.record("different take digest must not submit a review")
+        } catch {}
+        #expect(ShotReviewProtocol.requests.count == beforeWrongTake)
+        for field in ["source_in_seconds", "take_sha256", "master_accepted"] {
+            let original = listeningPayload[field]
+            switch field {
+            case "source_in_seconds": listeningPayload[field] = 1
+            case "take_sha256": listeningPayload[field] = "wrong"
+            default: listeningPayload[field] = true
+            }
+            ShotReviewProtocol.queued = [(200, try listeningResponse())]
+            do { _ = try await runtime().reviewEpisodeAudio(sound: cuePlan, take: attached, draft: listeningDraft)
+                Issue.record("changed listening identity or final approval must fail") } catch {}
+            listeningPayload[field] = original
+        }
         takePayload["asset_id"] = "foreign"
         ShotReviewProtocol.queued = [(200, try takeResponse())]
         do { _ = try await runtime().attachEpisodeAudio(sound: cuePlan, draft: audioDraft)

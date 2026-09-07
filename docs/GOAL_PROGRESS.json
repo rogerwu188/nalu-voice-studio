@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "998d45e0ac74373bee0acc31dcfafc51e56b0ffe",
-  "last_advanced_at": "2026-09-07T08:27:51Z",
+  "observed_head": "73e11c8024115ae7a0a1d6abf576ea7a2258e60c",
+  "last_advanced_at": "2026-09-07T08:34:38Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Refocused core two-source writing journey: synthetic HTTP coverage from narrated/page context through two drafts, episode-two-only revision, restart, receipt binding, explicit approval and independent production packages. 31 related tests passed in 16.46s. Parent CI 34100009067 runtime/Intel/ARM passed; Universal queued. Evidence docs/qa/two-source-writing-journey-2026-09-07.md. No full SOP upgrade or real-provider/native/master acceptance."
+    "summary": "Native typed listening transport now binds exact take/source window and prior review ID, rejecting mismatches and implied final approval. Added native request/response fixture cases; native CI pending. Backend workflow 26 tests passed in 20.46s. CI 34100009067 fully successful; parent 34100873064 running. Evidence docs/qa/native-audio-listening-transport-2026-09-07.md. Visible controls/recovery and real master QA remain incomplete."
   },
   "next_action": {
     "sop": "SOP-04",

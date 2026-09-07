@@ -331,12 +331,54 @@ actor RuntimeClient {
         return results
     }
 
+    func reviewEpisodeAudio(sound: EpisodeSoundPlan, take: EpisodeAudioTake,
+                            draft: EpisodeAudioReviewDraft) async throws -> EpisodeAudioReview {
+        try sound.validateCueWindows()
+        let p = take.payload
+        guard sound.event_type == "episode_sound_plan_drafted", sound.payload.edit_approved,
+              let reviewID = sound.payload.edit_review_id, !reviewID.isEmpty,
+              sound.payload.cues.indices.contains(p.shot_index),
+              p.source_in_seconds.isFinite, (0...1800).contains(p.source_in_seconds),
+              !p.asset_id.isEmpty, p.expected_asset_sha256.count == 64,
+              p.expected_asset_sha256.allSatisfy({ "0123456789abcdef".contains($0) }),
+              draft.expected_take_sha256 == p.take_sha256,
+              draft.expected_review_id.map({ !$0.isEmpty && $0.count <= 160 }) ?? true,
+              !draft.reviewed_by.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              draft.reviewed_by.count <= 160,
+              !draft.confirmation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              draft.confirmation.count <= 2000 else { throw LibrarySnapshotRefreshError.contextChanged }
+        try validateEpisodeAudio(take, sound: sound, draft: EpisodeAudioTakeDraft(
+            sound_plan_id: sound.id, expected_sound_plan_sha256: sound.payload.sound_plan_sha256,
+            shot_index: p.shot_index, asset_id: p.asset_id, expected_asset_sha256: p.expected_asset_sha256,
+            source_in_seconds: p.source_in_seconds), reviewID: reviewID)
+        let saved: EpisodeAudioReview = try await post(
+            "v1/production-runs/\(sound.run_id)/audio-takes/\(take.id)/reviews", body: draft)
+        let r = saved.payload
+        guard !Task.isCancelled, !saved.id.isEmpty, saved.run_id == sound.run_id,
+              saved.event_type == "episode_audio_take_reviewed",
+              r.take_id == take.id, r.take_sha256 == p.take_sha256,
+              r.sound_plan_id == sound.id, r.sound_plan_sha256 == sound.payload.sound_plan_sha256,
+              r.edit_review_id == reviewID, r.edit_sha256 == p.edit_sha256,
+              r.shot_index == p.shot_index, r.asset_id == p.asset_id, r.asset_sha256 == p.expected_asset_sha256,
+              r.source_in_seconds == p.source_in_seconds, r.duration_seconds == p.duration_seconds,
+              r.decision == draft.decision,
+              r.reviewed_by == draft.reviewed_by.trimmingCharacters(in: .whitespacesAndNewlines),
+              r.confirmation == draft.confirmation.trimmingCharacters(in: .whitespacesAndNewlines),
+              r.review_sha256.count == 64, r.review_sha256.allSatisfy({ "0123456789abcdef".contains($0) }),
+              r.take_approved == (draft.decision == .accept),
+              r.listening_evidence == "USER_ATTESTATION_NOT_PLAYBACK_TELEMETRY",
+              !r.speech_alignment_verified, !r.final_mix_approved, !r.captions_approved,
+              !r.master_accepted, !r.generation_performed else { throw LibrarySnapshotRefreshError.contextChanged }
+        return saved
+    }
+
     private func validateEpisodeAudio(_ result: EpisodeAudioTake, sound: EpisodeSoundPlan,
                                       draft: EpisodeAudioTakeDraft, reviewID: String) throws {
         let take = result.payload
         let cue = sound.payload.cues[draft.shot_index]
         let duration = cue.end_seconds - cue.start_seconds
         guard !Task.isCancelled, !result.id.isEmpty, result.run_id == sound.run_id,
+              take.take_sha256.count == 64, take.take_sha256.allSatisfy({ "0123456789abcdef".contains($0) }),
               result.event_type == "episode_audio_take_attached", take.sound_plan_id == sound.id,
               take.expected_sound_plan_sha256 == sound.payload.sound_plan_sha256,
               take.shot_index == draft.shot_index, take.asset_id == draft.asset_id,

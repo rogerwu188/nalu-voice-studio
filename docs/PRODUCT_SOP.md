@@ -28,6 +28,10 @@ completed user journey. Real writer/provider integration, native interaction,
 script revision handoff and the complete production demonstration remain open.
 The authoritative next action is in `docs/GOAL_PROGRESS.json`.
 
+[Native listening transport](qa/native-audio-listening-transport-2026-09-07.md)
+now submits explicit exact-take decisions without treating them as final master
+approval. Current native CI, visible controls and recovery remain required.
+
 [Two-source writing journey](qa/two-source-writing-journey-2026-09-07.md) now
 checks both inputs through two drafts, targeted episode correction, restart,
 explicit approval and separate production packages. All 31 related regression

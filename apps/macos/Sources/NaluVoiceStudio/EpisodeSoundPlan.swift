@@ -15,6 +15,7 @@ struct EpisodeAudioTake: Decodable, Sendable {
     let event_type: String
     let payload: Payload
     struct Payload: Decodable, Sendable {
+        let take_sha256: String
         let sound_plan_id: String
         let expected_sound_plan_sha256: String
         let shot_index: Int
