@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "87087e7aaaa4f7ebd19577031a0e2c4b8eb8aabf",
-  "last_advanced_at": "2026-09-07T02:26:44Z",
+  "observed_head": "69a2d0c01bcec38ba685b19bac6da352d9be6879",
+  "last_advanced_at": "2026-09-07T02:30:36Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Approved shot plans can prepare local character-card drafts with Chinese readback, preserving existing family facts and leaving identity confirmation/package contents unchanged. SQLite transaction and exact-source replay prevent duplicates. See docs/qa/shot-character-cards-2026-09-07.md. Final 18 planning tests passed in 15.11s; earlier 22 planning/library tests passed. Ruff/OpenAPI passed. Previous full session 91694 completed 626 passed in 220.81s before these new changes. Prior 0a15e68 CI 34075561888 succeeded. Current native handoff/CI pending."
+    "summary": "Native shot approval now prepares character drafts and hands off to existing local TTS/library confirmation one person at a time, preserves approved plans on failure and clears stale project confirmation queues. See docs/qa/native-character-handoff-2026-09-07.md. 22 backend planning/library tests passed in 19.97s. Native request tests added but not executed locally due known Swift toolchain failure; current CI/native QA pending. Prior full backend checkpoint: 626 passed in 220.81s."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Connect native approved-plan flow to character-card preparation and existing TTS/library confirmation without professional forms. Then implement explicit immutable snapshot reconciliation when the run predates confirmed characters, preserving plans and avoiding duplicate production. Compose actual approved assets/frame evidence and contracts into per-shot preparation and native continuation. Check CI. Keep both narrated and web-source script paths, existing TTS and sequential video/master/release objective.",
+    "summary": "Check current native CI; implement conversational corrections for generated character cards, then explicit immutable snapshot reconciliation when the run predates confirmed characters, preserving approved plans and avoiding duplicate tasks. Compose actual approved assets/frame evidence and contracts into per-shot preparation and native continuation. Verify native QA when accessible. Keep both narrated and web-source script inputs, existing TTS and sequential video/master/release objective.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

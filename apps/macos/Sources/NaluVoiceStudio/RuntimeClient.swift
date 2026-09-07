@@ -269,6 +269,11 @@ actor RuntimeClient {
         try await post("v1/production-runs/\(runID)/shot-plans/\(eventID)/review", body: request)
     }
 
+    func prepareShotCharacterCards(runID: String, eventID: String, planSHA: String) async throws -> ShotCharacterCards {
+        try await post("v1/production-runs/\(runID)/shot-plans/\(eventID)/character-cards",
+            body: ["expected_plan_sha256": planSHA])
+    }
+
     func generateShotPlan(runID: String, model: String, apiKey: String) async throws -> EpisodeShotPlanEvent {
         var request = URLRequest(url: baseURL.appending(path: "v1/production-runs/\(runID)/shot-plans"))
         request.httpMethod = "POST"

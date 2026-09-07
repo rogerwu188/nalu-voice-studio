@@ -22,6 +22,34 @@ private final class ShotReviewProtocol: URLProtocol, @unchecked Sendable {
 
 @Suite(.serialized)
 struct EpisodeShotPlanTests {
+    @MainActor @Test func characterPreparationUsesApprovedSourceAndPreservesPlanOnFailure() async throws {
+        ShotReviewProtocol.requests = []
+        let cards = try JSONSerialization.data(withJSONObject: ["run_id": "run-one", "payload": [
+            "plan_event_id": "saved-plan", "plan_sha256": String(repeating: "a", count: 64),
+            "bindings": [["entity_id": "grandma", "revision": 1]], "readback": "外婆的待确认草稿",
+            "characters_auto_confirmed": false]])
+        ShotReviewProtocol.queued = [(200, try fixture(approved: true)), (200, cards),
+                                    (409, Data("{\"detail\":\"source changed\"}".utf8))]
+        let model = EpisodeShotPlanModel(runID: "run-one", runtime: runtime())
+        await model.load()
+        let prepared = await model.prepareCharacterCards()
+        #expect(prepared?.payload.bindings.first?.entity_id == "grandma")
+        #expect(ShotReviewProtocol.requests.last?.url?.path.hasSuffix("saved-plan/character-cards") == true)
+        #expect(ShotReviewProtocol.requests.last?.value(forHTTPHeaderField: "X-Nalu-Writer-Key") == nil)
+        #expect(await model.prepareCharacterCards() == nil)
+        #expect(model.event?.payload.approved == true)
+        #expect(model.notice?.contains("分镜已确认并保存") == true)
+    }
+
+    @MainActor @Test func characterPreparationRejectsUnapprovedPlanWithoutRequest() async throws {
+        ShotReviewProtocol.requests = []
+        ShotReviewProtocol.queued = [(200, try fixture())]
+        let model = EpisodeShotPlanModel(runID: "run-one", runtime: runtime())
+        await model.load()
+        #expect(await model.prepareCharacterCards() == nil)
+        #expect(ShotReviewProtocol.requests.count == 1)
+    }
+
     private func designedFixture(id: String, prompt: String, complete: Bool = false) throws -> Data {
         var root = try JSONSerialization.jsonObject(with: fixture()) as! [String: Any]
         var payload = root["payload"] as! [String: Any]

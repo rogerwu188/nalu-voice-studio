@@ -12,11 +12,14 @@ import SwiftUI
     @State private var referenceRevision = 0
     let onRead: (String) -> Void
     let guardianRequired: Bool
+    let onCharactersPrepared: ([String]) async -> Void
 
-    init(runID: String, guardianRequired: Bool = false, onRead: @escaping (String) -> Void) {
+    init(runID: String, guardianRequired: Bool = false, onRead: @escaping (String) -> Void,
+         onCharactersPrepared: @escaping ([String]) async -> Void = { _ in }) {
         _model = State(initialValue: EpisodeShotPlanModel(runID: runID))
         self.onRead = onRead
         self.guardianRequired = guardianRequired
+        self.onCharactersPrepared = onCharactersPrepared
     }
 
     var body: some View {
@@ -89,10 +92,25 @@ import SwiftUI
                         .buttonStyle(.bordered).controlSize(.large).disabled(model.busy)
                     }
                     Button("确认这个版本的分镜", systemImage: "checkmark.circle") {
-                        Task { await model.review(approve: true) }
+                        Task {
+                            await model.review(approve: true)
+                            if let cards = await model.prepareCharacterCards() {
+                                await onCharactersPrepared(cards.payload.bindings.map(\.entity_id))
+                            }
+                        }
                     }
                     .buttonStyle(.borderedProminent).controlSize(.large)
                     .disabled(!model.canApprove)
+                    if model.event?.payload.approved == true && !model.hasEdits {
+                        Button("核对本集人物", systemImage: "person.crop.rectangle") {
+                            Task {
+                                if let cards = await model.prepareCharacterCards() {
+                                    await onCharactersPrepared(cards.payload.bindings.map(\.entity_id))
+                                }
+                            }
+                        }
+                        .buttonStyle(.bordered).controlSize(.large).disabled(model.busy)
+                    }
                     if model.hasEdits {
                         Text("您改过内容，请先保存，再确认。") .naluFont(.body)
                     }

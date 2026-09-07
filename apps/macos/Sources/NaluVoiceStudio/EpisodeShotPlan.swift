@@ -135,6 +135,19 @@ struct EpisodeShotReview: Encodable {
     var confirmation: String
 }
 
+struct ShotCharacterCards: Decodable {
+    var run_id: String
+    var payload: Payload
+    struct Payload: Decodable {
+        var plan_event_id: String
+        var plan_sha256: String
+        var bindings: [Binding]
+        var readback: String
+        var characters_auto_confirmed: Bool
+    }
+    struct Binding: Decodable { var entity_id: String; var revision: Int }
+}
+
 @MainActor @Observable
 final class EpisodeShotPlanModel {
     private let runtime: RuntimeClient
@@ -146,6 +159,24 @@ final class EpisodeShotPlanModel {
     var loaded = false
     var notice: String?
     var generationAttempted = false
+
+    func prepareCharacterCards() async -> ShotCharacterCards? {
+        guard let event, event.payload.approved, !hasEdits, !busy else { return nil }
+        busy = true
+        defer { busy = false }
+        do {
+            let cards = try await runtime.prepareShotCharacterCards(runID: runID, eventID: event.id,
+                planSHA: event.payload.plan_sha256)
+            guard !Task.isCancelled, self.event?.id == event.id, cards.run_id == runID,
+                  cards.payload.plan_event_id == event.id, cards.payload.plan_sha256 == event.payload.plan_sha256,
+                  !cards.payload.characters_auto_confirmed else { return nil }
+            notice = cards.payload.bindings.isEmpty ? "本集没有需要整理的人物卡。" : "人物草稿已整理，接下来逐位核对。分镜仍然保留。"
+            return cards
+        } catch {
+            notice = "分镜已确认并保存，人物草稿暂时没有整理成功。可以再点“核对本集人物”，不会生成视频或重复建立同一批人物。"
+            return nil
+        }
+    }
 
     init(runID: String, runtime: RuntimeClient = RuntimeClient(),
          writerConfiguration: @escaping () async throws -> (model: String, key: String)? = {

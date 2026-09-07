@@ -96,6 +96,7 @@ final class VoiceInterviewViewModel {
     private var memoryIntakeStep: MemoryIntakeStep?
     private var libraryIntakeStep: LibraryIntakeStep?
     private var libraryIntakeEntityID: String?
+    private var shotCharacterReviewQueue: [String] = []
     private var hookReviewVoiceStep: HookReviewVoiceStep?
     private var hookReviewShouldCapture = false
     var draftProjectID: String?
@@ -690,13 +691,47 @@ final class VoiceInterviewViewModel {
                     spokenConfirmation: "我确认这份项目设定"
                 )
             )
-            libraryEntities = try await runtime.listLibraryEntities(projectID: projectID)
+            let refreshedEntities = try await runtime.listLibraryEntities(projectID: projectID)
+            guard selectedProjectID == projectID else { return }
+            libraryEntities = refreshedEntities
             let response = "已确认\(entity.current.name)。以后每一集都会继承这个版本，修改时会另存新版本。"
             messages.append(.init(speaker: .nalu, text: response))
             speechPlayback.speak(response, rate: comfortPreferences.speechRate)
+            if shotCharacterReviewQueue.first == entityID {
+                shotCharacterReviewQueue.removeFirst()
+                promptNextShotCharacter()
+            }
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    func beginShotCharacterReview(_ entityIDs: [String]) async {
+        guard let projectID = selectedProjectID, !entityIDs.isEmpty else { return }
+        do {
+            let entities = try await runtime.listLibraryEntities(projectID: projectID)
+            guard selectedProjectID == projectID,
+                  entityIDs.allSatisfy({ id in entities.contains(where: { $0.id == id && $0.kind == "character" }) }) else { return }
+            libraryEntities = entities
+            shotCharacterReviewQueue = entityIDs.filter { id in
+                entities.contains { $0.id == id && $0.confirmedRevision != $0.currentRevision }
+            }
+            promptNextShotCharacter()
+        } catch {
+            errorMessage = "人物草稿已保留，暂时无法读取。分镜没有丢失，可以稍后再核对本集人物。"
+        }
+    }
+
+    private func promptNextShotCharacter() {
+        libraryIntakeEntityID = nil
+        libraryIntakeStep = nil
+        guard let id = shotCharacterReviewQueue.first,
+              let entity = libraryEntities.first(where: { $0.id == id }) else { return }
+        libraryIntakeEntityID = id
+        libraryIntakeStep = .confirmation
+        let prompt = "我们核对一位人物：\(entity.current.name)，\(entity.current.description)。这是待确认的草稿，不代表真人授权。正确请说“我确认这份项目设定”；不正确请说“不要确认”，我们先保留草稿。"
+        messages.append(.init(speaker: .nalu, text: prompt))
+        speechPlayback.speak(prompt, rate: comfortPreferences.speechRate)
     }
 
     func speakLibraryEntity(_ entityID: String) {
@@ -734,7 +769,9 @@ final class VoiceInterviewViewModel {
             let entityID = libraryIntakeEntityID
             libraryIntakeEntityID = nil
             libraryIntakeStep = nil
-            guard spoken.contains("我确认") || spoken.contains("我同意") else {
+            guard !["不要", "不确认", "不同意", "不对", "还没", "别确认"].contains(where: spoken.contains),
+                  spoken.contains("我确认") || spoken.contains("我同意") else {
+                shotCharacterReviewQueue = []
                 let response = "没有听到明确确认，所以这份设定仍是草稿，不会进入生产。"
                 messages.append(.init(speaker: .nalu, text: response))
                 speechPlayback.speak(response, rate: comfortPreferences.speechRate)
@@ -762,6 +799,9 @@ final class VoiceInterviewViewModel {
         projectSelectionGeneration = UUID()
         let generation = projectSelectionGeneration
         if switchedProject { messages = [] }
+        shotCharacterReviewQueue = []
+        libraryIntakeEntityID = nil
+        libraryIntakeStep = nil
         let isDocumentary = selectedProject?.creativeFormat == "documentary_series"
         pendingVoiceRunCancellationID = nil
         memoryConflictReports = [:]
