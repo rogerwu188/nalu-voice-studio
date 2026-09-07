@@ -10,6 +10,9 @@ against the current main branch.
 [Actual adopted-dialogue render fixture](qa/adopted-dialogue-full-render-2026-09-07.md)
 now produces a QA-review video from two adopted synthetic shots and sound/caption
 inputs. This is not installed-user E2E, final content QA or release completion.
+Post-render original recording consent is now checked before sealing and shared
+integrity/master access; the synthetic render/revocation test passes. Native
+execution, full cancellation and external publication acceptance remain open.
 
 [Dialogue materializer binding](qa/dialogue-materializer-binding-2026-09-07.md)
 checks adopted source receipts before/after rendering. Request construction,

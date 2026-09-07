@@ -607,6 +607,8 @@ class ProductionService:
         run = self.repository.get_run(run_id)
         if run.status != RunStatus.QA_REVIEW:
             raise ConflictError("rendered outputs can only be sealed during QA review")
+        from .rendered_dialogue_consent import validate_rendered_dialogue_consent
+        validate_rendered_dialogue_consent(self.repository, self.data_root, run_id)
         run_directory = self._run_directory(run)
         package_path = Path(run.package_path)
         try:
@@ -715,6 +717,8 @@ class ProductionService:
         return seal
 
     def rendered_output_integrity(self, run_id: str) -> RenderedOutputIntegrityReport:
+        from .rendered_dialogue_consent import validate_rendered_dialogue_consent
+        validate_rendered_dialogue_consent(self.repository, self.data_root, run_id)
         run = self.repository.get_run(run_id)
         run_directory = self._run_directory(run)
         seal_path = run_directory / "rendered-output-seal.json"

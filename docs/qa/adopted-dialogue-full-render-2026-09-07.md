@@ -43,3 +43,21 @@ Ruff/diff passed. CI 34109001146 remained running at 10:09 UTC.
 Open gap: consent validation must extend beyond materialization replay to seal,
 master access and release for the exact adopted-source lineage. Full render
 cancellation/cleanup, native action and final acceptance remain unverified.
+
+Post-render authorization follow-up (parent `8d85025982dc6607d1c7b23d3178f48a919f5fec`):
+seal and rendered-output integrity now validate the saved materialization plan,
+staged lineage, exact recording receipts and current original consent grant.
+Changed source hash/scope, revoked or replaced grant, missing child guardian
+approval, archived project or damaged evidence fail closed. This is a read-time
+gate, not deletion of existing masters or proof of atomic publication handling.
+Master access and release packaging use the shared integrity gate; complete
+external publication acceptance is still pending.
+
+Actual synthetic render/reopen/replay/revocation test passed again in 68.67s,
+including a positive post-render authorization check and HTTP 409 on integrity
+after consent revocation. No real provider charge or public release occurred.
+Previous checkpoint CI 34109001146 passed; current commit CI is not yet proven.
+Full render cancellation, installed native production action and final QA remain
+open. No SOP promoted to PASS.
+Focused authorization and existing rendered-output immutability regressions:
+34 passed in 19.24s. Ruff, diff and machine-readable progress schema checks pass.

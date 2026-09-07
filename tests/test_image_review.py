@@ -599,12 +599,21 @@ def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypat
                 assert replayed.json() == rendered_payload
                 assert master_path.read_bytes() == master_before_replay
                 assert len(repo.list_run_events(run.id)) == events_before_replay
+                from nalu_runtime.rendered_dialogue_consent import (
+                    validate_rendered_dialogue_consent,
+                )
+                validate_rendered_dialogue_consent(repo, root, run.id)
                 repo.revoke_asset_consent(recording.id, AssetConsentRevocationCreate(
                     requested_by="synthetic-qa", reason="测试成片后撤回录音授权"))
                 refused = reopened.post(f"/v1/production-runs/{run.id}/postproduction-materializations", json=prepared_mix.json())
                 assert refused.status_code == 409, refused.text
                 assert master_path.read_bytes() == master_before_replay
                 assert len(repo.list_run_events(run.id)) == events_before_replay
+                with pytest.raises(ConflictError, match="consent"):
+                    validate_rendered_dialogue_consent(repo, root, run.id)
+                blocked_integrity = reopened.get(f"/v1/production-runs/{run.id}/rendered-output-integrity")
+                assert blocked_integrity.status_code == 409
+                assert "consent" in blocked_integrity.json()["detail"]
                 return
             staged_wav.write_bytes(b"changed-fixture")
             assert reopened.post(dialogue_stage_url, json=dialogue_stage_request).status_code == 409

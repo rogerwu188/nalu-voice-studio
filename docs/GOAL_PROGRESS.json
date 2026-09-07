@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "279564352bccbb3dd08a3dbd61695880c97f27c6",
-  "last_advanced_at": "2026-09-07T10:09:10Z",
+  "observed_head": "8d85025982dc6607d1c7b23d3178f48a919f5fec",
+  "last_advanced_at": "2026-09-07T10:17:44Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Actual synthetic two-shot adopted-dialogue render passed (54.66s), reaching QA_REVIEW through real materializer. Fixed saved-read status gate and silent source-picture validation; final-master audio/loudness requirements unchanged. Five focused regressions pass. Evidence docs/qa/adopted-dialogue-full-render-2026-09-07.md. Current CI, installed E2E, final content/master QA and release remain incomplete."
+    "summary": "Post-render original recording consent gate added to sealing and rendered-output integrity. Actual synthetic render/reopen/replay/revocation test passed in 68.67s, including revoked integrity HTTP 409. Evidence docs/qa/adopted-dialogue-full-render-2026-09-07.md. CI 34109001146 passed for previous checkpoint; current CI, installed E2E and final release remain incomplete."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Actual render replay and revoked-recording refusal passed (66.28s); decoder cancellation test passed (0.51s). Next extend exact adopted-source consent validation to seal/master access/release, test full render cancellation/cleanup, then native sound selection/action and semantic/content/master QA. Evidence docs/qa/adopted-dialogue-full-render-2026-09-07.md. CI 34109001146 running; installed E2E pending; no Hops 401 retries.",
+    "summary": "Next test full materialization cancellation and cleanup, then connect native sound selection/production action and semantic/content/master QA. Post-render original-consent gate covers seal and shared integrity paths but is not atomic external publication proof. Verify current CI. Evidence docs/qa/adopted-dialogue-full-render-2026-09-07.md. Installed E2E pending; no Hops 401 retries.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
