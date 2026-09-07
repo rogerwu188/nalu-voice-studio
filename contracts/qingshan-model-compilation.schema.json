@@ -26,7 +26,7 @@
     "adapter_id": {
       "enum": ["nalu.qingshan.seedance2-pro", "nalu.qingshan.minimax-h3"]
     },
-    "adapter_version": { "const": "1.7.0" },
+    "adapter_version": { "const": "1.8.0" },
     "profile_id": {
       "enum": ["SEEDANCE_2_STANDARD_GIGGLE", "MINIMAX_H3_GIGGLE"]
     },
@@ -234,7 +234,7 @@
         "maximum_duration_seconds"
       ],
       "properties": {
-        "aspect_ratio": { "const": "9:16" },
+        "aspect_ratio": { "type": "string", "pattern": "^[1-9][0-9]{0,3}:[1-9][0-9]{0,3}$" },
         "native_resolution": { "enum": ["720p", "768p"] },
         "minimum_duration_seconds": { "enum": [3, 4] },
         "maximum_duration_seconds": { "const": 15 }

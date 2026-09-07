@@ -28,6 +28,10 @@ completed user journey. Real writer/provider integration, native interaction,
 script revision handoff and the complete production demonstration remain open.
 The authoritative next action is in `docs/GOAL_PROGRESS.json`.
 
+The professional compiler now [preserves project framing through video preparation and dispatch](qa/project-production-aspect-ratio-2026-09-07.md)
+instead of forcing every project to portrait 9:16. Actual provider output, native
+acceptance and documentary/commercial route activation remain separate unfinished work.
+
 Reference preparation and shared spending reservations now have a
 [reference-specific single-attempt dispatch service](qa/reference-dispatch-authority-2026-09-07.md).
 Production price verification, native paid activation and real output remain

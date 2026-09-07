@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "90441a0b46f6881d146b38aa94a63f7367c48407",
-  "last_advanced_at": "2026-09-07T01:34:23Z",
+  "observed_head": "63314181aa4e403fc0f1ad64809db546ad20322a",
+  "last_advanced_at": "2026-09-07T01:45:08Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Reference-specific dispatch now binds real saved design/preparation/shared budget to the single-attempt submitter, rechecking before intent and HTTP. Nine mocked authority/replay tests and full 577-test regression passed (179.23s). Required production price verifier remains unimplemented and no paid route is exposed. See docs/qa/reference-dispatch-authority-2026-09-07.md. Native progress candidate 1dd7962 passed all four CI jobs in 34072916544. Current new dispatch CI is pending. Mac lock prevents native interaction QA."
+    "summary": "Fixed forced portrait framing in professional compilation; adapter 1.8.0 preserves explicit project ratio and video preparation/pre-HTTP dispatch reject changed framing. Registry/schema updated without enabling new creative-format routes. Full final regression: 599 passed in 297.98s; Ruff and OpenAPI checks passed. Preceding 90441a0 CI 34073133520 passed; this change CI pending. See docs/qa/project-production-aspect-ratio-2026-09-07.md. Reference pricing/paid activation, full keyframe compilation and real/native acceptance remain open."
   },
   "next_action": {
     "sop": "SOP-04",

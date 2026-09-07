@@ -1,10 +1,10 @@
 {
   "schema_version": "nalu.production-adapter-registry/v1",
-  "registry_version": "2026.09.05.1",
+  "registry_version": "2026.09.07.1",
   "adapters": [
     {
       "adapter_id": "qingshan-short-drama",
-      "adapter_version": "1.7.0",
+      "adapter_version": "1.8.0",
       "status": "ACTIVE",
       "runtime_driver": "qingshan",
       "creative_formats": [
@@ -62,5 +62,5 @@
       ]
     }
   },
-  "registry_sha256": "1dee4399ae6238ccbecfcf84304e2df1449284c8b5a5d9f1b5c1391cd136f0a6"
+  "registry_sha256": "9bebade07ec15aee12ff312b519db9da6c5d59d7b4fa7e4a1b05dbae9a5b60d3"
 }

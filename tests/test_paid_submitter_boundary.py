@@ -21,7 +21,7 @@ from nalu_runtime.remote_submitter import (
 from nalu_runtime.repository import ConflictError, utc_now
 
 
-@pytest.mark.parametrize("case", ["accepted", "uncertain", "cancelled", "script_changed", "price_changed", "package_changed", "cancel_during_dispatch", "concurrent", "plan_bound", "frame_bound"])
+@pytest.mark.parametrize("case", ["accepted", "uncertain", "cancelled", "script_changed", "price_changed", "package_changed", "cancel_during_dispatch", "aspect_during_dispatch", "concurrent", "plan_bound", "frame_bound"])
 def test_reserved_shot_dispatch_revalidates_and_posts_once(tmp_path, case, monkeypatch):
     posts = []
     def provider(request):
@@ -44,12 +44,13 @@ def test_reserved_shot_dispatch_revalidates_and_posts_once(tmp_path, case, monke
     approved = api.post(f"/v1/episodes/{run.episode_id}/scripts/1/approve", json={"approved_by": "QA"})
     assert approved.status_code == 200, approved.text
     package = json.loads(Path(run.package_path).read_text())
-    package.update(project={"id": run.project_id}, season={"id": run.season_id},
+    package.update(project={"id": run.project_id, "aspect_ratio": "1:1"}, season={"id": run.season_id},
                    episode={"id": run.episode_id}, approved_script=approved.json(), inherited_assets=[])
     package["production_policy"]["estimated_budget_credits"] = 300
     package["package_sha256"] = canonical_sha256({k: v for k, v in package.items() if k != "package_sha256"})
     Path(run.package_path).write_text(json.dumps(package))
     with api.app.state.repository.db.connect() as db:
+        db.execute("UPDATE projects SET aspect_ratio='1:1' WHERE id=?", (run.project_id,))
         db.execute("UPDATE production_runs SET estimated_budget_credits = 300 WHERE id = ?", (run.id,))
     output = io.BytesIO()
     with av.open(output, mode="w", format="image2pipe") as container:
@@ -125,14 +126,17 @@ def test_reserved_shot_dispatch_revalidates_and_posts_once(tmp_path, case, monke
     if case == "package_changed":
         package["project"]["title"] = "changed fixture"
         Path(run.package_path).write_text(json.dumps(package))
-    if case == "cancel_during_dispatch":
+    if case in {"cancel_during_dispatch", "aspect_during_dispatch"}:
         submitter = api.app.state.remote_task_submitter
         record_response = submitter.record_response
         def cancel_after_intent(*args, **kwargs):
             result = record_response(*args, **kwargs)
             if kwargs.get("target_state") == RemoteTaskState.AMBIGUOUS_CHARGE:
                 with api.app.state.repository.db.connect() as db:
-                    db.execute("UPDATE production_runs SET status = 'cancelled' WHERE id = ?", (run.id,))
+                    if case == "cancel_during_dispatch":
+                        db.execute("UPDATE production_runs SET status = 'cancelled' WHERE id = ?", (run.id,))
+                    else:
+                        db.execute("UPDATE projects SET aspect_ratio='16:9' WHERE id=?", (run.project_id,))
             return result
         monkeypatch.setattr(submitter, "record_response", cancel_after_intent)
     if case == "concurrent":
@@ -151,10 +155,10 @@ def test_reserved_shot_dispatch_revalidates_and_posts_once(tmp_path, case, monke
         assert binding.state == RemoteTaskState.SUBMITTED
     else:
         result = api.post(submit_url, headers=headers)
-    if case in {"cancelled", "script_changed", "price_changed", "package_changed", "cancel_during_dispatch"}:
+    if case in {"cancelled", "script_changed", "price_changed", "package_changed", "cancel_during_dispatch", "aspect_during_dispatch"}:
         assert result.status_code == 409, result.text
         assert posts == []
-        if case == "cancel_during_dispatch":
+        if case in {"cancel_during_dispatch", "aspect_during_dispatch"}:
             assert api.post(submit_url, headers=headers).json()["state"] == "ambiguous_charge"
             assert posts == []
         return
@@ -200,11 +204,17 @@ def test_budget_reservation_rejects_ineligible_or_changed_local_state(tmp_path, 
         assert api.post(endpoint, json={**approval, "guardian_approval": True}).status_code == 200
 
 
-@pytest.mark.parametrize("invalid", [None, "bytes", "hash", "extra_reference", "package", "cancelled", "ratio",
+@pytest.mark.parametrize("invalid", [None, "bytes", "hash", "extra_reference", "package", "cancelled", "ratio", "project_ratio",
     "plan_ok", "plan_unconfirmed", "plan_unbound", "plan_wrong_prompt", "plan_wrong_duration", "plan_stale"])
 def test_prepare_concrete_shot_and_image_without_network(tmp_path, invalid):
     api = TestClient(create_app(tmp_path / "prepare.sqlite3", tmp_path / "data"))
     run = paid_run(api, tmp_path, run_id="run_frame_fixture", model="seedance-2.0-pro")
+    package = json.loads(Path(run.package_path).read_text())
+    package["project"] = {"id": run.project_id, "aspect_ratio": "1:1"}
+    package["package_sha256"] = canonical_sha256({k: v for k, v in package.items() if k != "package_sha256"})
+    Path(run.package_path).write_text(json.dumps(package))
+    with api.app.state.repository.db.connect() as db:
+        db.execute("UPDATE projects SET aspect_ratio=? WHERE id=?", ("16:9" if invalid == "project_ratio" else "1:1", run.project_id))
     output = io.BytesIO()
     with av.open(output, mode="w", format="image2pipe") as container:
         stream = container.add_stream("png", rate=1)

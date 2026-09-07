@@ -149,7 +149,7 @@ def test_creative_format_routes_projects_without_faking_an_adapter(tmp_path: Pat
         f"/v1/projects/{animation.json()['id']}/production-route"
     )
     assert animation_route.status_code == 200
-    assert animation_route.json()["registry_version"] == "2026.09.05.1"
+    assert animation_route.json()["registry_version"] == "2026.09.07.1"
     assert animation_route.json()["selected_adapter_id"] == "qingshan-short-drama"
     assert animation_route.json()["resolved_pipeline"] == "qingshan-short-drama"
     assert animation_route.json()["source"] == "project_creation"

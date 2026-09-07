@@ -13,6 +13,15 @@ class ModelCompilationError(RuntimeError):
     pass
 
 
+def project_aspect_ratio(package: dict[str, Any]) -> str:
+    # Legacy packages without this field were portrait. Explicit invalid values
+    # must not silently become portrait, and planning is not provider approval.
+    ratio = (package.get("project") or {}).get("aspect_ratio", "9:16")
+    if not isinstance(ratio, str) or not re.fullmatch(r"[1-9][0-9]{0,3}:[1-9][0-9]{0,3}", ratio):
+        raise ModelCompilationError("project aspect ratio is invalid")
+    return ratio
+
+
 CAMERA_PROTECTED_FIELDS = (
     "shot_scale",
     "camera_height",
@@ -61,7 +70,7 @@ class QingshanModelCompiler(ABC):
     """Compile an immutable Nalu package into one provider-specific planning contract."""
 
     adapter_id: str
-    adapter_version = "1.7.0"
+    adapter_version = "1.8.0"
     profile_id: str
     model: str
     native_resolution: str
@@ -186,7 +195,7 @@ class QingshanModelCompiler(ABC):
             "provider_contract": provider_contract,
             "paid_boundary_contract": self.paid_boundary_contract(),
             "planning_defaults": {
-                "aspect_ratio": "9:16",
+                "aspect_ratio": project_aspect_ratio(package),
                 "native_resolution": self.native_resolution,
                 "minimum_duration_seconds": self.minimum_duration_seconds,
                 "maximum_duration_seconds": self.maximum_duration_seconds,
@@ -773,11 +782,12 @@ def verify_compilation(path: Path, package: dict[str, Any]) -> list[str]:
         failures.append("model compilation does not match requested model")
     try:
         compiler = ModelCompilerRegistry().compiler_for(str(requested_model or ""))
+        aspect_ratio = project_aspect_ratio(package)
     except ModelCompilationError:
         failures.append("model compilation has no registered compiler")
     else:
         expected_planning_defaults = {
-            "aspect_ratio": "9:16",
+            "aspect_ratio": aspect_ratio,
             "native_resolution": compiler.native_resolution,
             "minimum_duration_seconds": compiler.minimum_duration_seconds,
             "maximum_duration_seconds": compiler.maximum_duration_seconds,

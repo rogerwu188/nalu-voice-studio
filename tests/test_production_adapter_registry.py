@@ -36,7 +36,7 @@ def source_manifest() -> dict:
 
 def test_registry_routes_only_capability_approved_formats() -> None:
     registry = ProductionAdapterRegistry(source_manifest())
-    assert registry.registry_version == "2026.09.05.1"
+    assert registry.registry_version == "2026.09.07.1"
     assert registry.resolve("short_drama_series", "auto") == "qingshan-short-drama"
     assert registry.resolve("animation_series", "auto") == "qingshan-short-drama"
     assert registry.resolve("commercial_campaign", "auto") == "unassigned"
@@ -49,7 +49,7 @@ def test_registry_routes_only_capability_approved_formats() -> None:
     registry.validate_runtime_binding(
         "qingshan-short-drama",
         runtime_driver="qingshan",
-        adapter_version="1.7.0",
+        adapter_version="1.8.0",
         requested_models=("MiniMax-H3", "seedance-2.0-pro"),
     )
 
@@ -58,7 +58,7 @@ def test_registry_routes_only_capability_approved_formats() -> None:
     ("overrides", "message"),
     [
         ({"runtime_driver": "other"}, "runtime driver binding drift"),
-        ({"adapter_version": "1.8.0"}, "version binding drift"),
+        ({"adapter_version": "1.7.0"}, "version binding drift"),
         ({"requested_models": ("seedance-2.0-pro",)}, "model binding drift"),
     ],
 )
@@ -68,7 +68,7 @@ def test_registry_rejects_runtime_binding_drift(
     registry = ProductionAdapterRegistry(source_manifest())
     binding = {
         "runtime_driver": "qingshan",
-        "adapter_version": "1.7.0",
+        "adapter_version": "1.8.0",
         "requested_models": ("MiniMax-H3", "seedance-2.0-pro"),
     }
     binding.update(overrides)

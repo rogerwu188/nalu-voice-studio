@@ -12,7 +12,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from .giggle_video_transport import seedance_image_payload
 from .models import RunStatus
-from .qingshan_compilers import ModelCompilerRegistry
+from .qingshan_compilers import ModelCompilationError, ModelCompilerRegistry, project_aspect_ratio
 from .repository import ConflictError, Repository
 
 
@@ -69,6 +69,13 @@ class VideoPreparationService:
             raise ConflictError("shot contract failed: " + "; ".join(failures))
         # This concrete transport is image-only. Never drop extra references to fit it.
         payload = seedance_image_payload(incoming.request)
+        try:
+            package_ratio = project_aspect_ratio(package)
+        except ModelCompilationError:
+            raise ConflictError("production package has an invalid project aspect ratio") from None
+        if (payload["aspect_ratio"] != package_ratio
+                or self.repository.get_project(run.project_id).aspect_ratio != package_ratio):
+            raise ConflictError("video aspect ratio differs from the confirmed project")
         raw = base64.b64decode(payload["start_frame"]["base64"], validate=True)
         try:
             if not raw.startswith((b"\x89PNG\r\n\x1a\n", b"\xff\xd8\xff")):

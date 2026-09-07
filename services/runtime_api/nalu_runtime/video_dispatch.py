@@ -4,6 +4,7 @@ import httpx
 
 from .giggle_video_transport import GiggleSeedanceImageTransport
 from .models import RemoteTaskState
+from .qingshan_compilers import ModelCompilationError, project_aspect_ratio
 from .reference_assets import validate_registered_reference
 from .remote_submitter import DurableRemoteTaskSubmitter
 from .repository import ConflictError, Repository
@@ -86,6 +87,11 @@ class VideoDispatchService:
         if package["production_policy"].get("estimated_budget_credits") != reservation["confirmed_run_budget_credits"]:
             raise ConflictError("package budget differs from confirmed budget")
         project = self.repository.get_project(run.project_id)
+        try:
+            if project.aspect_ratio != project_aspect_ratio(package):
+                raise ConflictError("project aspect ratio changed after production approval")
+        except ModelCompilationError:
+            raise ConflictError("production package aspect ratio is invalid") from None
         current_assets = self.repository.list_assets(run.project_id, episode.id)
         snapshots = {item["id"]: item for item in package.get("inherited_assets", [])}
         if not set(snapshots) <= {asset.id for asset in current_assets}:
