@@ -45,6 +45,31 @@ import SwiftUI
                     Task { await model.review(accept: false) }
                 }
                 .buttonStyle(.bordered).controlSize(.large).disabled(!model.canReview)
+                if referenceName == nil {
+                    if model.videoPreparation != nil {
+                        Text("视频任务资料已备好 · 尚未生成，等待费用确认").naluFont(.headline)
+                        Button("查看这个镜头的预计费用", systemImage: "creditcard") {
+                            Task {
+                                await model.observeVideoPrice()
+                                if let notice = model.notice { onRead(notice) }
+                            }
+                        }
+                        .buttonStyle(.bordered).controlSize(.large).disabled(model.busy)
+                        if let price = model.videoPrice {
+                            Text("公开价格估算：\(price.payload.estimated_credits) 积分 / \(price.payload.duration_seconds) 秒。不是实际扣费上限；尚未授权生成。")
+                                .naluFont(.body)
+                        }
+                    } else {
+                        Button("下一步：准备这个镜头的视频", systemImage: "film") {
+                            Task {
+                                await model.prepareVideo()
+                                if let notice = model.notice { onRead(notice) }
+                            }
+                        }
+                        .buttonStyle(.borderedProminent).controlSize(.large).disabled(!model.canPrepareVideo)
+                        Text("先确认“这张可以”。这一步只整理任务，不会扣费或发布。").naluFont(.body)
+                    }
+                }
                 if referenceName != nil {
                     Button("听听如何确认", systemImage: "speaker.wave.2") { onRead(permissionText) }
                         .buttonStyle(.bordered).controlSize(.large)

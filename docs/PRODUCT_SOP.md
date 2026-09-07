@@ -46,6 +46,9 @@ and commits under one SQLite writer lock. Real sequential production is still op
 professional SD2 start-image requests from the approved shot and accepted local
 frame, without user-entered technical fields. Native action/paid dispatch and
 continuous-shot lineage remain unfinished; no full SOP PASS follows from this.
+[Native accepted-frame preparation and public-price preview](qa/native-video-preparation-2026-09-07.md)
+are connected in source with saved-event recovery; current native CI/UI QA and
+explicit cost approval/dispatch are still required.
 
 AI plans now carry [typed director choices with native round-trip and plain-language readback](qa/structured-director-drafts-2026-09-07.md).
 User edits invalidate stale choices. A [version-bound director refresh backend](qa/director-refresh-2026-09-07.md)

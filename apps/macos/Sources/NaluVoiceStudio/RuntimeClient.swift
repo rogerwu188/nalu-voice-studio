@@ -220,6 +220,15 @@ actor RuntimeClient {
         try await get("v1/production-runs/\(runID)/shot-plans/current")
     }
 
+    func prepareReviewedVideo(runID: String, planID: String, draft: ReviewedVideoDraft) async throws -> FrameProductionEvent {
+        try await post("v1/production-runs/\(runID)/shot-plans/\(planID)/video-preparations", body: draft)
+    }
+
+    func observeVideoPrice(runID: String, preparationID: String) async throws -> VideoPriceObservation {
+        try await post("v1/production-runs/\(runID)/video-task-preparations/\(preparationID)/price-observations",
+                       body: [String: String]())
+    }
+
     func productionRun(runID: String) async throws -> ProductionRun {
         try await get("v1/production-runs/\(runID)")
     }

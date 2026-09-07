@@ -11,6 +11,9 @@ private final class FrameReviewProtocol: URLProtocol, @unchecked Sendable {
     static var preparation = Data()
     static var asset = Data()
     static var progress = Data()
+    static var shotPlan = Data()
+    static var videoPreparation = Data()
+    static var videoPrice = Data()
     static var eventsAfterAdvance: Data?
     static var fail = false
     override class func canInit(with request: URLRequest) -> Bool { true }
@@ -19,6 +22,9 @@ private final class FrameReviewProtocol: URLProtocol, @unchecked Sendable {
         Self.requests.append(request)
         let path = request.url!.path
         let body = path.hasSuffix("/events") ? Self.events : path.hasSuffix("/content") ? Self.image
+            : path.hasSuffix("/shot-plans/current") ? Self.shotPlan
+            : path.hasSuffix("/video-preparations") ? Self.videoPreparation
+            : path.hasSuffix("/price-observations") ? Self.videoPrice
             : (path.hasSuffix("/opening-frame-preparations") || path.hasSuffix("/reference-image-preparations")) ? Self.preparation
             : path.hasSuffix("/asset") ? Self.asset : path.hasSuffix("/advance") ? Self.progress : Self.review
         if path.hasSuffix("/advance"), let updated = Self.eventsAfterAdvance { Self.events = updated }
@@ -53,6 +59,8 @@ private final class FrameReviewProtocol: URLProtocol, @unchecked Sendable {
     private func setup() throws {
         FrameReviewProtocol.requests = []; FrameReviewProtocol.fail = false
         FrameReviewProtocol.asset = Data()
+        FrameReviewProtocol.shotPlan = Data(); FrameReviewProtocol.videoPreparation = Data()
+        FrameReviewProtocol.videoPrice = Data()
         FrameReviewProtocol.progress = Data(); FrameReviewProtocol.eventsAfterAdvance = nil
         FrameReviewProtocol.preparation = try JSONSerialization.data(withJSONObject:
             event("prep", "image_task_prepared", ["approved_plan_event_id": "plan", "approved_shot_index": 0,
@@ -67,6 +75,70 @@ private final class FrameReviewProtocol: URLProtocol, @unchecked Sendable {
                 "materialization_sha256": String(repeating: "a", count: 64), "image": ["sha256": sha]])])
         FrameReviewProtocol.review = try JSONSerialization.data(withJSONObject:
             event("review", "image_frame_reviewed", ["decision": "accept", "materialization_id": "material", "task_key": "E01-U01-entry"]))
+    }
+    @MainActor @Test func acceptedFramePreparesVideoWithoutKeysAndRecoversSavedPreparation() async throws {
+        try setup()
+        let sha = String(repeating: "b", count: 64)
+        let review = event("review", "image_frame_reviewed", ["decision": "accept", "user_approved": true,
+            "materialization_id": "material", "task_key": "E01-U01-entry", "approved_plan_event_id": "plan", "approved_plan_sha256": sha])
+        FrameReviewProtocol.review = try JSONSerialization.data(withJSONObject: review)
+        FrameReviewProtocol.shotPlan = try JSONSerialization.data(withJSONObject: ["id": "plan", "run_id": "run-one", "payload": [
+            "plan": ["summary": "合成测试", "shots": []], "approved": true, "plan_sha256": sha]])
+        let video = event("video-prep", "video_task_prepared", ["approved_plan_event_id": "plan", "approved_plan_sha256": sha,
+            "approved_shot_index": 0, "approved_frame_review_id": "review", "frame_materialization_id": "material",
+            "paid_approved": false, "generation_performed": false, "preparation_sha256": String(repeating: "c", count: 64)])
+        FrameReviewProtocol.videoPreparation = try JSONSerialization.data(withJSONObject: video)
+        let model = EpisodeFrameReviewModel(runID: "run-one", planID: "plan", shotIndex: 0, runtime: runtime(),
+            providerKey: { Issue.record("local video preparation must not read a key"); return nil })
+        await model.load()
+        #expect(!model.canPrepareVideo)
+        await model.review(accept: true)
+        #expect(model.canPrepareVideo)
+        FrameReviewProtocol.requests = []
+        await model.prepareVideo()
+        #expect(model.videoPreparation?.id == "video-prep")
+        #expect(!model.canReview && !model.canPrepareVideo)
+        #expect(FrameReviewProtocol.requests.map(\.httpMethod) == ["GET", "POST"])
+        #expect(FrameReviewProtocol.requests.last?.url?.path == "/v1/production-runs/run-one/shot-plans/plan/video-preparations")
+        #expect(FrameReviewProtocol.requests.allSatisfy {
+            $0.value(forHTTPHeaderField: "X-Nalu-Provider-Key") == nil && $0.value(forHTTPHeaderField: "X-Nalu-Writer-Key") == nil
+        })
+        FrameReviewProtocol.videoPrice = try JSONSerialization.data(withJSONObject: ["id": "quote", "run_id": "run-one",
+            "event_type": "video_price_observed", "payload": ["preparation_id": "video-prep",
+                "preparation_sha256": String(repeating: "c", count: 64), "estimated_credits": 312, "duration_seconds": 12,
+                "expires_at": ISO8601DateFormatter().string(from: Date().addingTimeInterval(3600)),
+                "published_price_observed": true, "provider_charge_cap_guaranteed": false, "generation_performed": false]])
+        await model.observeVideoPrice()
+        #expect(model.videoPrice?.payload.estimated_credits == 312)
+        #expect(FrameReviewProtocol.requests.last?.url?.path.hasSuffix("video-prep/price-observations") == true)
+        FrameReviewProtocol.fail = true
+        await model.observeVideoPrice()
+        #expect(model.videoPrice == nil && model.videoPreparation?.id == "video-prep")
+        FrameReviewProtocol.fail = false
+        var events = try JSONSerialization.jsonObject(with: FrameReviewProtocol.events) as! [[String: Any]]
+        events.append(review); events.append(video)
+        FrameReviewProtocol.events = try JSONSerialization.data(withJSONObject: events)
+        FrameReviewProtocol.requests = []
+        await model.load()
+        #expect(model.videoPreparation?.id == "video-prep")
+        #expect(!FrameReviewProtocol.requests.contains { $0.url?.path.hasSuffix("/video-preparations") == true })
+    }
+
+    @MainActor @Test func failedVideoPreparationKeepsAcceptedImageAndDoesNotSubmit() async throws {
+        try setup()
+        let model = EpisodeFrameReviewModel(runID: "run-one", planID: "plan", shotIndex: 0, runtime: runtime())
+        await model.load()
+        FrameReviewProtocol.review = try JSONSerialization.data(withJSONObject:
+            event("review", "image_frame_reviewed", ["decision": "accept", "user_approved": true,
+                "materialization_id": "material", "approved_plan_event_id": "plan", "approved_plan_sha256": String(repeating: "a", count: 64)]))
+        await model.review(accept: true)
+        FrameReviewProtocol.fail = true
+        FrameReviewProtocol.requests = []
+        await model.prepareVideo()
+        #expect(model.videoPreparation == nil)
+        #expect(model.latestReview?.id == "review" && model.imageData != nil)
+        #expect(model.canPrepareVideo)
+        #expect(FrameReviewProtocol.requests.count == 1 && FrameReviewProtocol.requests.first?.httpMethod == "GET")
     }
     @MainActor @Test func exactImageReviewDoesNotUseProviderCredentials() async throws {
         try setup()
