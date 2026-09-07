@@ -32,7 +32,12 @@ hash and browser-origin rejection. Related planning/library suite, including
 concurrent replay: 35 tests passed in 12.62 seconds. Ruff, OpenAPI backward
 compatibility and diff checks passed. No provider calls or real media generated.
 
-Remaining: replacement-run materialization/preflight and native orchestration
+Update: [same-run snapshot refresh](library-snapshot-refresh-2026-09-07.md)
+now supplies materialization/preflight and atomic package/plan handover without
+creating a replacement run. Native orchestration remains unfinished. The original
+design constraint below explains why ordinary run creation must not be reused.
+
+Original gap: replacement-run materialization/preflight and native orchestration
 must be implemented before this endpoint is user-reachable. The existing run
 creation path requires SCRIPT_APPROVED, while a successful initial preflight
 moves the episode to PREPRODUCTION. Do not reset the episode state or silently

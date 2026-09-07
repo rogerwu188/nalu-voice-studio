@@ -4676,6 +4676,40 @@
         "title": "LibraryEntityRevisionCreate",
         "type": "object"
       },
+      "LibrarySnapshotRefreshRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_library_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Expected Library Sha256",
+            "type": "string"
+          },
+          "expected_package_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Expected Package Sha256",
+            "type": "string"
+          },
+          "expected_plan_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Expected Plan Sha256",
+            "type": "string"
+          },
+          "source_event_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Source Event Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_event_id",
+          "expected_plan_sha256",
+          "expected_package_sha256",
+          "expected_library_sha256"
+        ],
+        "title": "LibrarySnapshotRefreshRequest",
+        "type": "object"
+      },
       "LocalVisualAnalysisResult": {
         "properties": {
           "analyzed_shot_count": {
@@ -13562,6 +13596,106 @@
           }
         },
         "summary": "Refresh Saved Image Task"
+      }
+    },
+    "/v1/production-runs/{run_id}/library-snapshot-refresh": {
+      "get": {
+        "operationId": "preview_confirmed_library_refresh_v1_production_runs__run_id__library_snapshot_refresh_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview Confirmed Library Refresh"
+      },
+      "post": {
+        "operationId": "refresh_confirmed_library_v1_production_runs__run_id__library_snapshot_refresh_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "origin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Origin"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LibrarySnapshotRefreshRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunEvent"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Refresh Confirmed Library"
       }
     },
     "/v1/production-runs/{run_id}/local-visual-analysis": {

@@ -6,13 +6,15 @@ import pytest
 from fastapi.testclient import TestClient
 from nalu_runtime.app import create_app
 from nalu_runtime.models import ProductionRun
+from nalu_runtime.qingshan_adapter import QingshanAdapterError
 from nalu_runtime.shot_planning import ShotPlan
 from nalu_runtime.video_preparation import digest
 
 
 @pytest.mark.parametrize("case", ["ok", "script", "assets", "policy", "continuity", "stale_library",
-                                  "stale_plan", "tampered", "prepared", "target_plan", "origin", "hash"])
-def test_library_snapshot_inherits_only_reviewed_creative_work(tmp_path, case):
+                                  "stale_plan", "tampered", "prepared", "target_plan", "origin", "hash",
+                                  "refresh", "refresh_recover", "refresh_prepared", "refresh_stale"])
+def test_library_snapshot_inherits_only_reviewed_creative_work(tmp_path, monkeypatch, case):
     db_path = tmp_path / "nalu.sqlite3"
     api = TestClient(create_app(db_path, tmp_path / "data"))
     repo = api.app.state.repository
@@ -47,6 +49,8 @@ def test_library_snapshot_inherits_only_reviewed_creative_work(tmp_path, case):
     new["package_sha256"] = digest({k: v for k, v in new.items() if k != "package_sha256"})
     paths = []
     for identity, package, created in [("source", old, "2026-09-01T00:00:00Z"), ("target", new, "2026-09-02T00:00:00Z")]:
+        if case.startswith("refresh") and identity == "target":
+            continue
         path = tmp_path / f"{identity}.json"
         path.write_text(json.dumps(package))
         paths.append(path)
@@ -71,6 +75,56 @@ def test_library_snapshot_inherits_only_reviewed_creative_work(tmp_path, case):
     if case == "target_plan":
         repo.append_run_event("target", "shot_plan_drafted", payload={})
     original_bytes = [path.read_bytes() for path in paths]
+    if case.startswith("refresh"):
+        production = api.app.state.production
+        calls = []
+        def preflight(path, workspace):
+            calls.append(path)
+            assert json.loads(path.read_text())["resolved_library"] == new["resolved_library"]
+            if case == "refresh_recover" and len(calls) == 1:
+                raise QingshanAdapterError("synthetic interrupted preflight")
+        monkeypatch.setattr(production.adapter, "materialize_workspace", lambda path: path.parent)
+        monkeypatch.setattr(production.adapter, "preflight", preflight)
+        body = {"source_event_id": source.id, "expected_plan_sha256": record["plan_sha256"],
+                "expected_package_sha256": old["package_sha256"],
+                "expected_library_sha256": digest(new["resolved_library"]) if case != "refresh_stale" else "0" * 64}
+        endpoint = "/v1/production-runs/source/library-snapshot-refresh"
+        if case == "refresh_prepared":
+            repo.append_run_event("source", "image_task_prepared", payload={})
+        if case == "refresh_recover":
+            assert api.post(endpoint, json=body).status_code == 409
+            assert repo.get_run("source").package_path == str(paths[0])
+            assert len(repo.list_run_events("source")) == 1
+        if case == "refresh":
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                results = list(pool.map(lambda _: api.post(endpoint, json=body), range(2)))
+            assert all(result.status_code == 200 for result in results)
+            assert results[0].json()["id"] == results[1].json()["id"]
+            response = results[0]
+        else:
+            response = api.post(endpoint, json=body)
+        if case in {"refresh_prepared", "refresh_stale"}:
+            assert response.status_code == 409, response.text
+            assert calls == []
+        else:
+            assert response.status_code == 200, response.text
+            assert response.json()["payload"]["plan"] == plan
+            assert response.json()["payload"]["paid_approved"] is False
+            assert repo.get_run("source").package_path != str(paths[0])
+            from pathlib import Path
+            refreshed = json.loads(Path(repo.get_run("source").package_path).read_text())
+            assert refreshed == new
+            restarted = TestClient(create_app(db_path, tmp_path / "data"))
+            # Successful replay must not need the adapter, a key or another preflight.
+            monkeypatch.setattr(restarted.app.state.production.adapter, "preflight",
+                                lambda *_: pytest.fail("replay must not rerun preflight"))
+            assert restarted.post(endpoint, json=body).json()["id"] == response.json()["id"]
+            assert len(set(calls)) == 1
+            assert len(repo.list_run_events("source")) == 2
+        assert [path.read_bytes() for path in paths] == original_bytes
+        with repo.db.connect() as db:
+            assert db.execute("SELECT COUNT(*) FROM production_runs").fetchone()[0] == 1
+        return
     body = {"source_run_id": "source", "source_event_id": source.id, "expected_plan_sha256": record["plan_sha256"],
             "expected_package_sha256": new["package_sha256"] if case != "hash" else "0" * 64}
     endpoint = "/v1/production-runs/target/shot-plan-inheritance"

@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "caf6da9e69f1ac372c1742452916eb1b5b5901f9",
-  "last_advanced_at": "2026-09-07T03:23:47Z",
+  "observed_head": "33bd1754757d316dadde8db655573a3a78225f1a",
+  "last_advanced_at": "2026-09-07T03:33:42Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Added local, transactional approved shot-plan inheritance between same-episode immutable snapshots when only the confirmed library changes. Preserves creative confirmation and rejects stale/cross-policy/downstream work; no provider calls, spending approval or package mutation. See docs/qa/shot-plan-snapshot-inheritance-2026-09-07.md. 35 related tests including concurrent replay passed in 12.62s; Ruff, OpenAPI backward compatibility and diff checks passed. Prior caf6da9 full CI 34078819933 succeeded; current checkpoint CI/native manual acceptance remain pending."
+    "summary": "Same-run library refresh now writes a separate immutable package, executes actual Qingshan materialization/preflight, and commits package pointer plus approved shot event atomically without episode reset or new run. GET preview supplies version-bound POST request. Original files/history preserved, no provider calls. See docs/qa/library-snapshot-refresh-2026-09-07.md. 46 related/progress tests including concurrent refresh passed in 16.75s. Ruff/OpenAPI compatibility/diff checks passed. Prior 33bd175 full CI 34079632124 succeeded; current CI/native acceptance pending."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Implement dedicated durable library snapshot refresh: original start_run requires SCRIPT_APPROVED but first preflight sets PREPRODUCTION. Preserve original episode/package and plan, materialize/preflight a replacement, atomically hand over current run authority and replay interrupted operations. Connect native confirmed-character handoff to refresh plus tested shot-plan inheritance, then compose reviewed assets/frame evidence into actual per-shot dispatch. Existing TTS; narrated/web-source scripts to sequential video/master/release remain the objective. No state-reset workaround or paid retry.",
+    "summary": "Connect native confirmed-character handoff to same-run library refresh GET/POST (do not create a replacement run or reset episode). Preserve selected run/project identity across async responses, reload the new approved plan before per-shot reference/frame preparation, and expose recoverable failure without asking for keys. Then compose reviewed assets/frame evidence into actual per-shot dispatch. Existing TTS; narrated/web-source scripts to sequential video/master/release remain the objective. No paid retry.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

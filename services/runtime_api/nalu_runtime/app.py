@@ -46,6 +46,7 @@ from .image_progress import ImageProgressResult, ImageProgressService
 from .image_review import ImageReviewRequest, ImageReviewService
 from .interactive_story import InteractiveStory, StoryAnswer, StoryInput
 from .interactive_writer_service import InteractiveWriterService, WriterGenerationRequest
+from .library_snapshot_refresh import LibrarySnapshotRefreshRequest, LibrarySnapshotRefreshService
 from .models import (
     ApprovalCreate,
     ApprovalRecord,
@@ -1181,6 +1182,17 @@ def create_app(
         if origin is not None:
             raise HTTPException(403, "native snapshot reconciliation required")
         return ShotPlanInheritanceService(repository).inherit(run_id, request)
+
+    @app.post("/v1/production-runs/{run_id}/library-snapshot-refresh", response_model=RunEvent)
+    def refresh_confirmed_library(run_id: str, request: LibrarySnapshotRefreshRequest,
+                                  origin: str | None = Header(default=None)):
+        if origin is not None:
+            raise HTTPException(403, "native confirmed-library refresh required")
+        return LibrarySnapshotRefreshService(production).refresh(run_id, request)
+
+    @app.get("/v1/production-runs/{run_id}/library-snapshot-refresh")
+    def preview_confirmed_library_refresh(run_id: str):
+        return LibrarySnapshotRefreshService(production).preview(run_id)
 
     @app.post("/v1/production-runs/{run_id}/shot-plans/{source_id}/character-cards", response_model=RunEvent)
     def prepare_shot_character_cards(run_id: str, source_id: str, request: ShotCharacterLibraryRequest):
