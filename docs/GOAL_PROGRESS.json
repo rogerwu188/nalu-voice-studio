@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "0a15e6813795af65166be774f5a050061d4430cf",
-  "last_advanced_at": "2026-09-07T02:17:17Z",
+  "observed_head": "e139e7f15e1cb46f427f2711e4f55064c04e5d3b",
+  "last_advanced_at": "2026-09-07T02:22:33Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Approved director choices now automatically populate creative fields in the actual video preparation path, rejecting changed camera/state/prop choices and never inventing visual QA. See docs/qa/reviewed-director-compilation-2026-09-07.md. 106 compiler/planning/paid-boundary tests passed in 49.40s before added integration assertions; final 21 compiler/planning tests passed in 15.94s with those assertions. Ruff/OpenAPI pass. Full current CI/native acceptance pending; 0a15e68 CI 34075561888 was pending when inspected."
+    "summary": "Video preparation now resolves reviewed character designs against sealed confirmed project identities, preserving visible/absent scope and rejecting missing, ambiguous or duplicate identities without dropping people. Planning receives confirmed character context. See docs/qa/shot-character-scope-2026-09-07.md. Final 27 targeted tests passed in 16.55s; Ruff/OpenAPI passed. Full Python execution session 91694 is running, poll existing handle. Prior 0a15e68 CI 34075561888 ARM/Intel/runtime passed and Universal queued."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Resolve reviewed visual-design identities versus the immutable pre-planning production package character catalog; bind actual approved project assets and complete visible/absent scope without dropping people or inventing zero-person scenes. Then compose actual frame bytes/evidence and reviewed director fields into a full per-shot preparation request, expose native continuation, and verify CI/real QA. Preserve both narrated-story and web-source script inputs, existing TTS and sequential video/master/release objective.",
+    "summary": "Poll existing full Python test session 91694; check actual current CI. Implement conversational confirmation of missing project characters and explicit immutable snapshot reconciliation when the run predates those characters, preserving plans and avoiding duplicate production. Then compose actual approved assets/frame evidence and reviewed contracts into full per-shot preparation and native continuation. Keep both narrated and web-source script paths, existing TTS and sequential video/master/release objective.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

@@ -147,6 +147,10 @@ class ShotPlanningService:
                    "visual_style": package.get("project", {}).get("visual_style"),
                    "aspect_ratio": package.get("project", {}).get("aspect_ratio"),
                    "assets": [{"id": a["id"], "kind": a["kind"], "name": a["name"]} for a in assets],
+                   "confirmed_characters": [
+                       {"entity_id": item["entity_id"], "name": item["revision"]["name"],
+                        "source_asset_ids": item["revision"].get("source_asset_ids", [])}
+                       for item in package.get("resolved_library", []) if item.get("kind") == "character"],
                    "schema": ShotPlan.model_json_schema()}
         body = json.dumps({"model": model, "store": False, "max_completion_tokens": 8000,
                            "response_format": {"type": "json_object"}, "messages": [

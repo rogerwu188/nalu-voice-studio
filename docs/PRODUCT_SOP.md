@@ -36,7 +36,9 @@ is connected in source with error-preservation tests awaiting CI. Full productio
 compilation and real/native acceptance remain unfinished; no SOP becomes PASS.
 
 Reviewed shots now [compile creative camera, state and prop fields into video preparation](qa/reviewed-director-compilation-2026-09-07.md).
-Full character-catalog/asset/frame binding and real dispatch remain unfinished.
+The [confirmed-character scope is now derived from the sealed project catalog](qa/shot-character-scope-2026-09-07.md).
+New-story character confirmation/snapshot reconciliation, full asset/frame binding
+and real dispatch remain unfinished.
 
 Core-path diagnosis: the interactive plan still lacks the complete
 [structured director contracts required by actual video submission](qa/interactive-director-contract-gap-2026-09-07.md).

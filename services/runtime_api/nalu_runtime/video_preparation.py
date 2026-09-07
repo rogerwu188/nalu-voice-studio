@@ -16,6 +16,7 @@ from .giggle_video_transport import seedance_image_payload
 from .models import RunStatus
 from .qingshan_compilers import ModelCompilationError, ModelCompilerRegistry, project_aspect_ratio
 from .repository import ConflictError, Repository
+from .shot_identity_scope import compile_identity_scope
 
 
 def digest(value: Any) -> str:
@@ -62,7 +63,7 @@ class VideoPreparationService:
             raise ConflictError("production package integrity failed") from None
         if package.get("production_policy", {}).get("requested_model") != run.requested_model:
             raise ConflictError("run model differs from production package")
-        plan_binding = self._plan_binding(run_id, incoming, package_sha)
+        plan_binding = self._plan_binding(run_id, incoming, package_sha, package)
         failures = ModelCompilerRegistry().validate_paid_boundary_request(
             run.requested_model, incoming.request,
             production_package=package, package_sha256=package_sha,
@@ -150,7 +151,7 @@ class VideoPreparationService:
         return {"approved_frame_review_id": review.id, "approved_frame_review_sha256": record["review_sha256"],
                 "frame_materialization_id": materialized.id}
 
-    def _plan_binding(self, run_id, incoming, package_sha):
+    def _plan_binding(self, run_id, incoming, package_sha, package=None):
         plans = [event for event in self.repository.list_run_events(run_id)
                  if event.event_type in {"shot_plan_drafted", "shot_plan_revised", "shot_plan_approved"}]
         if not plans:
@@ -183,6 +184,12 @@ class VideoPreparationService:
             raise ConflictError("video request does not preserve the reviewed shot and duration") from None
         if shot.get("director") is not None:
             apply_reviewed_director(incoming.request, DirectorDraft.model_validate(shot["director"]), index)
+            if package is not None:
+                scope = compile_identity_scope(record["plan"], shot, package, package_sha)
+                supplied = incoming.request.get("provider_scope_projection")
+                if supplied is not None and supplied != scope:
+                    raise ConflictError("provider scope differs from the reviewed project characters")
+                incoming.request["provider_scope_projection"] = scope
         elif record["plan"].get("visual_assets"):
             raise ConflictError("reviewed shot is missing its director choices; finish the creative revision first")
         return {"approved_plan_event_id": current.id, "approved_plan_sha256": expected,

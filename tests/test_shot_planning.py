@@ -86,7 +86,10 @@ def test_approved_script_to_durable_shot_plan(tmp_path, monkeypatch, case):
                                                           "summary_for_voice_review": "海边"})
     script = api.post(f"/v1/episodes/{episode['id']}/scripts/1/approve", json={"approved_by": "QA"}).json()
     package = {"project": {**project, "project_bible": {"private": "private-unapproved-memory"}},
-               "episode": episode, "approved_script": script, "inherited_assets": []}
+               "episode": episode, "approved_script": script, "inherited_assets": [],
+               "resolved_library": [{"entity_id": "person-grandma", "kind": "character", "stable_name": "外婆",
+                   "confirmed_revision": 1, "revision": {"entity_id": "person-grandma", "revision": 1,
+                       "name": "外婆", "source_asset_ids": []}}]}
     package["package_sha256"] = digest(package)
     path = tmp_path / "package.json"
     path.write_text(json.dumps(package))
@@ -205,14 +208,15 @@ def test_approved_script_to_durable_shot_plan(tmp_path, monkeypatch, case):
             "prompt": plan["shots"][1]["video_prompt"], "duration_seconds": 12},
             approved_plan_event_id=approved["id"], approved_plan_sha256=approved["payload"]["plan_sha256"])
         preparation_service = VideoPreparationService(reopened.app.state.repository)
-        binding = preparation_service._plan_binding(run.id, incoming, package["package_sha256"])
+        binding = preparation_service._plan_binding(run.id, incoming, package["package_sha256"], package)
         assert binding["approved_shot_index"] == 1
         assert incoming.request["camera_plan"] == plan["shots"][1]["director"]["camera"]
         assert incoming.request["camera_authority"]["selection_mode"] == "LOCKED"
+        assert incoming.request["provider_scope_projection"]["visible_character_ids"] == ["person-grandma"]
         assert "opening_anchor" not in incoming.request
         incoming.request["camera_plan"]["camera_side"] = "偷偷换了机位"
         with pytest.raises(ConflictError):
-            preparation_service._plan_binding(run.id, incoming, package["package_sha256"])
+            preparation_service._plan_binding(run.id, incoming, package["package_sha256"], package)
         frame = reopened.post(endpoint + f"/{approved['id']}/opening-frame-preparations", json={"shot_index": 0})
         assert frame.status_code == 200, frame.text
         assert frame.json()["payload"]["reference_design_plan"] == designs
