@@ -5,7 +5,6 @@ import SwiftUI
 // Extend the incumbent native Operate surface: no IDs, no professional form.
 @MainActor struct EpisodeAudioPanel: View {
     @State private var model: EpisodeAudioModel
-    @State private var chosen: [Int: String] = [:]
     @State private var showingConfirmation = false
     @State private var player: AVAudioPlayer?
     @State private var auditionTask: Task<Void, Never>?
@@ -37,16 +36,21 @@ import SwiftUI
                         Text(cue.dialogue_or_narration.isEmpty ? "这一段没有旁白文字。" : cue.dialogue_or_narration)
                             .fixedSize(horizontal: false, vertical: true)
                         Button("读一下这一段", systemImage: "speaker.wave.2") { stop(); onRead(cue.dialogue_or_narration) }
-                        Picker("使用哪段录音", selection: Binding(get: { chosen[cue.id] ?? "" }, set: { chosen[cue.id] = $0; stop() })) {
+                        Picker("使用哪段录音", selection: Binding(get: { model.selectedAssetID(cue.id) }, set: { model.select($0, for: cue.id); stop() })) {
                             Text("请选择录音").tag("")
                             ForEach(model.recordings) { recording in Text(recording.name).tag(recording.id) }
                         }.disabled(!model.loaded || model.busy || model.pending != nil)
                         if let recording = selected(cue.id) {
+                            Text("从录音第 \(model.sourceOffset(cue.id), specifier: "%.1f") 秒开始")
+                            ViewThatFits(in: .horizontal) {
+                                HStack { offsetControls(cue.id) }
+                                VStack(alignment: .leading) { offsetControls(cue.id) }
+                            }.disabled(model.busy || !model.loaded || model.pending != nil)
                             Button("试听这段录音", systemImage: "play.fill") { audition(recording, cue: cue) }
                                 .disabled(model.busy || !model.loaded)
                             Button("把录音用于这一段", systemImage: "link") {
                                 stop()
-                                if model.begin(shotIndex: cue.id, assetID: recording.id) {
+                                if model.begin(shotIndex: cue.id, assetID: recording.id, sourceIn: model.sourceOffset(cue.id)) {
                                     onRead(model.readback); showingConfirmation = true
                                 }
                             }.buttonStyle(.borderedProminent)
@@ -72,7 +76,13 @@ import SwiftUI
     }
 
     private func selected(_ index: Int) -> NaluAsset? {
-        model.recordings.first { $0.id == chosen[index] }
+        model.recordings.first { $0.id == model.selectedAssetID(index) }
+    }
+
+    @ViewBuilder private func offsetControls(_ index: Int) -> some View {
+        Button("早半秒") { stop(); model.setOffset(max(0, model.sourceOffset(index) - 0.5), for: index) }
+        Button("晚半秒") { stop(); model.setOffset(min(1800, model.sourceOffset(index) + 0.5), for: index) }
+        Button("从头开始") { stop(); model.setOffset(0, for: index) }
     }
 
     private func stop() {
@@ -83,6 +93,7 @@ import SwiftUI
 
     private func audition(_ recording: NaluAsset, cue: EpisodeSoundPlan.Cue) {
         stop(); playbackNotice = "正在读取录音…"
+        let sourceIn = model.sourceOffset(cue.id)
         auditionTask = Task {
             do {
                 let data = try await Task.detached(priority: .userInitiated) {
@@ -91,12 +102,15 @@ import SwiftUI
                 guard !Task.isCancelled else { return }
                 let audio = try AVAudioPlayer(data: data)
                 let duration = cue.end_seconds - cue.start_seconds
-                guard audio.duration.isFinite, audio.duration >= duration, audio.prepareToPlay(), audio.play() else {
+                guard sourceIn.isFinite, sourceIn >= 0, audio.duration.isFinite,
+                      audio.duration >= sourceIn + duration, audio.prepareToPlay() else {
                     throw LibrarySnapshotRefreshError.contextChanged
                 }
+                audio.currentTime = sourceIn
+                guard audio.play() else { throw LibrarySnapshotRefreshError.contextChanged }
                 player = audio; playing = true
                 playbackNotice = "正在试听：\(recording.name) · 第 \(cue.id + 1) 段"
-                while audio.isPlaying && audio.currentTime < duration {
+                while audio.isPlaying && audio.currentTime < sourceIn + duration {
                     try await Task.sleep(nanoseconds: 100_000_000)
                 }
                 audio.stop(); player = nil; playing = false

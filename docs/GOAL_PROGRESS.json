@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "867b42a",
-  "last_advanced_at": "2026-09-07T08:08:38Z",
+  "observed_head": "ec0e94769616edcb811d1d2c614fb3d677b6a4ff",
+  "last_advanced_at": "2026-09-07T08:13:04Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Native client now consumes exact sound-plan recording recovery, validates unique cues/context and usable assets, reconciles matching uncertain submissions by GET without another POST. Native restart/query/duplicate/reconciliation tests added, current CI required. Synthetic backend recovery passed in 10.03s, Ruff/diff passed. Parent 1751f3e CI 34098405655 running. Evidence docs/qa/recording-recovery-2026-09-07.md."
+    "summary": "Restored visible recording/offset with preserved unsaved adjustments and exact-segment audition/attachment. Native offset tests added; current CI/installed QA pending. Synthetic backend passed in 11.81s. Detected 1751f3e CI 34098405655 failure: abbreviated observed_head; ARM/Intel/Universal passed but Runtime audit failed and later tests skipped. Corrected full SHA; require progress audit before commits. Evidence docs/qa/recording-recovery-2026-09-07.md."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Restore visible picker and source offset from recovered takes, audition the exact recovered segment and add explicit listened-to decisions. Then speech-based subtitle alignment and authored final audio/master/release. Verify current CI and installed playback; synthetic tones and source audition are not final narration QA.",
+    "summary": "Verify corrected progress audit and current full CI; implement explicit listened-to audio-take decisions and connect to speech alignment/authored final audio/master/release. Verify installed exact-segment playback. Preserve two-source writing and existing TTS; source audition is not final narration QA.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

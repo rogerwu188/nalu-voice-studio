@@ -10,6 +10,24 @@ import Observation
     private(set) var pending: EpisodeAudioTakeDraft?
     private(set) var uncertain = false
     private(set) var attached: [Int: EpisodeAudioTake] = [:]
+    private var selections: [Int: String] = [:]
+    private var offsets: [Int: Double] = [:]
+    private var editedSelections = Set<Int>()
+
+    func selectedAssetID(_ index: Int) -> String { selections[index] ?? "" }
+    func sourceOffset(_ index: Int) -> Double { offsets[index] ?? 0 }
+
+    func select(_ assetID: String, for index: Int) {
+        guard loaded, !busy, pending == nil, sound.payload.cues.indices.contains(index),
+              assetID.isEmpty || recordings.contains(where: { $0.id == assetID }) else { return }
+        selections[index] = assetID; offsets[index] = 0; editedSelections.insert(index)
+    }
+
+    func setOffset(_ value: Double, for index: Int) {
+        guard loaded, !busy, pending == nil, sound.payload.cues.indices.contains(index),
+              value.isFinite, (0...1800).contains(value), !selectedAssetID(index).isEmpty else { return }
+        offsets[index] = value; editedSelections.insert(index)
+    }
     private(set) var readback = ""
     private(set) var notice = "请选择已经导入并授权的录音。这里只准备配音素材，还需要试听和核对字幕。"
 
@@ -44,6 +62,10 @@ import Observation
             }) else { throw LibrarySnapshotRefreshError.contextChanged }
             recordings = available
             attached = Dictionary(uniqueKeysWithValues: recovered.map { ($0.payload.shot_index, $0) })
+            for take in recovered where !editedSelections.contains(take.payload.shot_index) {
+                selections[take.payload.shot_index] = take.payload.asset_id
+                offsets[take.payload.shot_index] = take.payload.source_in_seconds
+            }
             loaded = true
             notice = recordings.isEmpty
                 ? "还没有可用的授权录音。请先通过资料入口添加音频并确认使用授权。"
@@ -86,6 +108,9 @@ import Observation
         do {
             let take = try await runtime.attachEpisodeAudio(sound: sound, draft: pending)
             attached[pending.shot_index] = take
+            selections[pending.shot_index] = take.payload.asset_id
+            offsets[pending.shot_index] = take.payload.source_in_seconds
+            editedSelections.remove(pending.shot_index)
             self.pending = nil; uncertain = false
             notice = "录音素材已绑定到这一段。下一步试听并核对实际说话与字幕，还没有确认最终配音。"
         } catch {

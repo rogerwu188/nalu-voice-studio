@@ -43,3 +43,21 @@ The model recovers bound records; restoring the visible picker/offset and
 auditioning exactly that recovered source segment still needs wiring. Final
 listened-to decisions, speech alignment, authored audio and master/release QA
 remain incomplete. Installed app has not been updated or visually verified.
+
+## Visible source-window recovery and CI regression
+
+The picker and audition now consume restored asset ID/source offset. Half-second
+earlier/later and reset buttons adjust the same start used for readback and
+attachment. Unsaved changes survive reload; pending operations prevent offset
+replacement. Playback seeks to that offset and stops at offset plus cue length,
+rejecting sources too short for the entire window. Native tests add nonzero
+recovery, pending guards, non-finite rejection and dirty offset preservation.
+Impeccable hardening preserves the existing controls and responsive grouping.
+
+Backend synthetic regression passed (1 test, 11.81s); Ruff/diff passed. CI
+34098405655 for 1751f3e finished FAILURE: ARM/Intel/Universal succeeded, but the
+Runtime goal-progress audit rejected abbreviated observed_head and skipped later
+Runtime tests. The progress file now uses a full SHA; run its audit before future
+commits. This is not a current full-CI PASS. Installed playback/accessibility and
+real production remain unverified. Next: audio-take listening decisions, actual
+alignment/sound and final master/release.

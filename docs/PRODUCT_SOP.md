@@ -31,7 +31,9 @@ The authoritative next action is in `docs/GOAL_PROGRESS.json`.
 [Recording recovery](qa/recording-recovery-2026-09-07.md) now reads saved per-cue
 attachments with live media/consent/edit revalidation and no new events. Native
 recovery now consumes those records and reconciles uncertain submissions by GET;
-visible picker/offset restoration, take decisions and final sound/master QA remain incomplete.
+visible picker/offset restoration now exists in source, while current native QA,
+take decisions and final sound/master QA remain incomplete. CI 34098405655 failed
+the progress-file full-SHA audit; the value is corrected but current CI must pass.
 
 [Native recording-selection state](qa/native-recording-selection-2026-09-07.md)
 now filters scoped authorized audio and supports readback/attach/retry. Visible

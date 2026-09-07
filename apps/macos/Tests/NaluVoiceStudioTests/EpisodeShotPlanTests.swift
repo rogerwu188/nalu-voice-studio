@@ -303,25 +303,35 @@ struct EpisodeShotPlanTests {
         ShotReviewProtocol.queued = [(200, try takeResponse())]
         await audioModel.confirm()
         #expect(audioModel.pending == nil && !audioModel.uncertain && audioModel.attached[0]?.id == "take")
+        takePayload["source_in_seconds"] = 0.5
         let takeHistory = try JSONSerialization.data(withJSONObject: [JSONSerialization.jsonObject(with: takeResponse())])
         ShotReviewProtocol.queued = [(200, try JSONEncoder().encode(audioRun)), (200, try JSONEncoder().encode(availableAudio)), (200, takeHistory)]
         let restoredAudio = EpisodeAudioModel(sound: cuePlan, runtime: runtime())
         let beforeTakeRecovery = ShotReviewProtocol.requests.count
         await restoredAudio.load()
         #expect(restoredAudio.loaded && restoredAudio.attached[0]?.id == "take")
+        #expect(restoredAudio.selectedAssetID(0) == "recording" && restoredAudio.sourceOffset(0) == 0.5)
         #expect(ShotReviewProtocol.requests.dropFirst(beforeTakeRecovery).allSatisfy { $0.httpMethod == "GET" })
         let recoveryURL = try #require(ShotReviewProtocol.requests.last?.url)
         #expect(URLComponents(url: recoveryURL, resolvingAgainstBaseURL: false)?.queryItems?.contains(
             URLQueryItem(name: "sound_plan_id", value: cuePlan.id)) == true)
-        #expect(restoredAudio.begin(shotIndex: 0, assetID: "recording"))
+        #expect(restoredAudio.begin(shotIndex: 0, assetID: "recording", sourceIn: restoredAudio.sourceOffset(0)))
         ShotReviewProtocol.queued = [(503, Data())]
         await restoredAudio.confirm()
         #expect(restoredAudio.uncertain)
+        restoredAudio.setOffset(2, for: 0)
+        #expect(restoredAudio.sourceOffset(0) == 0.5)
         ShotReviewProtocol.queued = [(200, try JSONEncoder().encode(audioRun)), (200, try JSONEncoder().encode(availableAudio)), (200, takeHistory)]
         let beforeResolve = ShotReviewProtocol.requests.count
         await restoredAudio.load()
         #expect(!restoredAudio.uncertain && restoredAudio.pending == nil && restoredAudio.attached[0]?.id == "take")
         #expect(ShotReviewProtocol.requests.dropFirst(beforeResolve).allSatisfy { $0.httpMethod == "GET" })
+        restoredAudio.setOffset(2, for: 0)
+        restoredAudio.setOffset(.nan, for: 0)
+        #expect(restoredAudio.sourceOffset(0) == 2)
+        ShotReviewProtocol.queued = [(200, try JSONEncoder().encode(audioRun)), (200, try JSONEncoder().encode(availableAudio)), (200, takeHistory)]
+        await restoredAudio.load()
+        #expect(restoredAudio.sourceOffset(0) == 2)
         let duplicateTakes = try JSONSerialization.data(withJSONObject: [JSONSerialization.jsonObject(with: takeResponse()),
                                                                        JSONSerialization.jsonObject(with: takeResponse())])
         ShotReviewProtocol.queued = [(200, duplicateTakes)]
