@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "3ba064fed3da9a2acf8d5a503664faaf2090072a",
-  "last_advanced_at": "2026-09-07T08:18:38Z",
+  "observed_head": "998d45e0ac74373bee0acc31dcfafc51e56b0ffe",
+  "last_advanced_at": "2026-09-07T08:27:51Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Added explicit audio-take accept/reject bound to exact current source window/edit with live decode/consent and versioned replay. No implied alignment/final mix/master approval. 26 workflow tests passed in 21.85s; Ruff/diff/progress audit passed and OpenAPI regenerated. Corrected-progress parent CI 34099649847 pending. Evidence docs/qa/audio-listening-decisions-2026-09-07.md."
+    "summary": "Refocused core two-source writing journey: synthetic HTTP coverage from narrated/page context through two drafts, episode-two-only revision, restart, receipt binding, explicit approval and independent production packages. 31 related tests passed in 16.46s. Parent CI 34100009067 runtime/Intel/ARM passed; Universal queued. Evidence docs/qa/two-source-writing-journey-2026-09-07.md. No full SOP upgrade or real-provider/native/master acceptance."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Connect native explicit listened-to take confirmation and recovery to audio review API, then exact accepted-source speech alignment/authored final audio/master/release. Verify current CI and installed exact-window audition/confirmation. Preserve two-source writing and existing TTS; synthetic attestations are not actual listening QA.",
+    "summary": "Continue two-source interactive script-to-episode production mainline without voice polish: verify latest CI, exercise installed source/script handoff where feasible, connect remaining actual postproduction take acceptance/alignment/final mix/master and controlled release. Hops 401 blocks real writer proof only; do not repeat paid/auth requests. Native listening confirmation/recovery remains an unblocked downstream implementation, not a reason to stall source/script work.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
