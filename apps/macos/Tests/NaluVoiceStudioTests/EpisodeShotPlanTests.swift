@@ -197,12 +197,27 @@ struct EpisodeShotPlanTests {
         recordedPayload["reviewed_by"] = pending.reviewed_by
         recordedPayload["confirmation"] = pending.confirmation
         recorded["payload"] = recordedPayload
-        ShotReviewProtocol.queued = [(200, try JSONSerialization.data(withJSONObject: recorded))]
+        ShotReviewProtocol.queued = [(200, try JSONSerialization.data(withJSONObject: recorded)), (503, Data())]
         await reviewModel.confirm()
         #expect(!reviewModel.uncertain && reviewModel.pending == nil && reviewModel.latest?.payload.edit_approved == true)
-        let resent = try JSONSerialization.jsonObject(with: ShotReviewProtocol.bodies.last!) as! [String: Any]
+        #expect(reviewModel.soundPreparationPending && reviewModel.notice.contains("不需要重新确认"))
+        let resent = try JSONSerialization.jsonObject(with: ShotReviewProtocol.bodies[ShotReviewProtocol.bodies.count - 2]) as! [String: Any]
         #expect(resent["confirmation"] as? String == pending.confirmation)
         #expect(resent["expected_review_id"] == nil)
+        var soundReceipt = try JSONSerialization.jsonObject(with: soundResponse(editID: "edit")) as! [String: Any]
+        var approvedSound = soundReceipt["payload"] as! [String: Any]
+        approvedSound["edit_approved"] = true
+        approvedSound["edit_review_id"] = "review"
+        approvedSound["caption_timing_basis"] = "APPROVED_EDIT_WINDOWS_NOT_SPEECH_ALIGNMENT"
+        soundReceipt["payload"] = approvedSound
+        ShotReviewProtocol.queued = [(200, try JSONSerialization.data(withJSONObject: soundReceipt))]
+        let beforeSoundRetry = ShotReviewProtocol.requests.count
+        await reviewModel.retrySoundPreparation()
+        #expect(!reviewModel.soundPreparationPending && reviewModel.latest?.id == "review")
+        #expect(ShotReviewProtocol.requests.count == beforeSoundRetry + 1)
+        #expect(ShotReviewProtocol.requests.last?.url?.path.hasSuffix("sound-plan-drafts") == true)
+        let approvedRequest = try JSONSerialization.jsonObject(with: ShotReviewProtocol.bodies.last!) as! [String: Any]
+        #expect(approvedRequest["expected_edit_review_id"] as? String == "review")
         let afterConfirmed = ShotReviewProtocol.requests.count
         #expect(reviewModel.begin(.reject))
         #expect(reviewModel.readback.contains("不会自动付费重做"))

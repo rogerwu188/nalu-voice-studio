@@ -52,6 +52,7 @@ struct EpisodeEditReviewEnvelope: Decodable {
     private(set) var latest: EpisodeEditReview?
     private(set) var pending: EpisodeEditReviewDraft?
     private(set) var uncertain = false
+    private(set) var soundPreparationPending = false
     private(set) var notice = "请先播放画面预览，再确认是否采用这个剪辑。"
 
     init(edit: EpisodeEditingEvent, picture: EpisodePicture, runtime: RuntimeClient = RuntimeClient()) {
@@ -73,6 +74,7 @@ struct EpisodeEditReviewEnvelope: Decodable {
             let result = try await runtime.latestEpisodeEditReview(edit: edit)
             guard !Task.isCancelled else { return }
             latest = result; loaded = true
+            if result?.payload.edit_approved != true { soundPreparationPending = false }
             // An uncertain POST is resolved only by its exact recorded decision.
             if let pending, uncertain {
                 if result?.payload.preview_id == pending.preview_id,
@@ -120,9 +122,30 @@ struct EpisodeEditReviewEnvelope: Decodable {
         do {
             latest = try await runtime.reviewEpisodeEdit(edit: edit, picture: picture, draft: pending)
             self.pending = nil; uncertain = false
+            soundPreparationPending = latest?.payload.edit_approved == true
             notice = latest?.payload.edit_approved == true
                 ? "已记录：采用这版画面剪辑和时长。下一步继续配音、字幕和成片检查。"
                 : "已记录：剪辑需要修改。原素材保留，没有自动重做。"
+            if soundPreparationPending { await prepareAcceptedSound() }
         } catch { notice = "确认结果还未核实。请重试同一确认或核对记录；已保存的剪辑不会丢失。" }
+    }
+
+    func retrySoundPreparation() async {
+        guard !busy, !uncertain, pending == nil, latest?.payload.edit_approved == true else { return }
+        busy = true
+        defer { busy = false }
+        await prepareAcceptedSound()
+    }
+
+    private func prepareAcceptedSound() async {
+        guard let latest, latest.payload.edit_approved else { return }
+        soundPreparationPending = true
+        do {
+            try await runtime.retimeEpisodeSound(edit: edit, review: latest)
+            soundPreparationPending = false
+            notice = "剪辑已采用，配音与字幕草稿已按确认的时长整理。下一步制作声音并核对字幕，还不是最终成片。"
+        } catch {
+            notice = "剪辑已采用并保存，但配音和字幕草稿暂未同步。可以重试准备后期，不需要重新确认剪辑。"
+        }
     }
 }

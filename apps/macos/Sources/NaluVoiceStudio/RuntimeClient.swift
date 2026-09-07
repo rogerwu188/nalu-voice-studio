@@ -247,8 +247,11 @@ actor RuntimeClient {
         return result
     }
 
-    func retimeEpisodeSound(edit: EpisodeEditingEvent) async throws {
-        struct Draft: Encodable { let expected_plan_sha256: String; let edit_id: String; let expected_edit_sha256: String }
+    func retimeEpisodeSound(edit: EpisodeEditingEvent, review: EpisodeEditReview? = nil) async throws {
+        struct Draft: Encodable {
+            let expected_plan_sha256: String; let edit_id: String; let expected_edit_sha256: String
+            let expected_edit_review_id: String?
+        }
         struct Receipt: Decodable {
             let run_id: String
             let event_type: String
@@ -264,22 +267,29 @@ actor RuntimeClient {
                 let captions_approved: Bool
                 let speech_alignment_verified: Bool
                 let edit_approved: Bool
+                let edit_review_id: String?
                 let generation_performed: Bool
                 let master_accepted: Bool
             }
         }
         guard edit.event_type == "postproduction_edit_drafted", let sha = edit.payload.edit_sha256,
               sha.count == 64 else { throw LibrarySnapshotRefreshError.contextChanged }
+        if let review {
+            try validateEpisodeEditReview(review, edit: edit)
+            guard review.payload.edit_approved else { throw LibrarySnapshotRefreshError.contextChanged }
+        }
         let receipt: Receipt = try await post("v1/production-runs/\(edit.run_id)/sound-plan-drafts",
-            body: Draft(expected_plan_sha256: edit.payload.plan_sha256, edit_id: edit.id, expected_edit_sha256: sha))
+            body: Draft(expected_plan_sha256: edit.payload.plan_sha256, edit_id: edit.id, expected_edit_sha256: sha,
+                        expected_edit_review_id: review?.id))
         let sound = receipt.payload
         guard !Task.isCancelled, receipt.run_id == edit.run_id, receipt.event_type == "episode_sound_plan_drafted",
               sound.edit_id == edit.id, sound.edit_sha256 == sha, sound.plan_id == edit.payload.plan_id,
               sound.plan_sha256 == edit.payload.plan_sha256,
               sound.duration_seconds == edit.payload.edited_duration_seconds,
-              sound.caption_timing_basis == "DRAFT_EDIT_WINDOWS_NOT_SPEECH_ALIGNMENT",
+              sound.caption_timing_basis == (review == nil ? "DRAFT_EDIT_WINDOWS_NOT_SPEECH_ALIGNMENT" : "APPROVED_EDIT_WINDOWS_NOT_SPEECH_ALIGNMENT"),
+              sound.edit_review_id == review?.id,
               !sound.audio_generated, !sound.captions_approved, !sound.speech_alignment_verified,
-              !sound.edit_approved, !sound.generation_performed, !sound.master_accepted else {
+              sound.edit_approved == (review != nil), !sound.generation_performed, !sound.master_accepted else {
             throw LibrarySnapshotRefreshError.contextChanged
         }
     }
