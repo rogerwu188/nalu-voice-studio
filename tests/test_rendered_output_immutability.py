@@ -1873,8 +1873,9 @@ def test_runtime_materializes_postproduction_and_recovers_after_state_commit_cra
     assert "sealed outputs cannot be rematerialized" in after_seal.text
 
 
+@pytest.mark.parametrize("cancel_phase", ["before_work", "encoded_segment", "durable_promotion"])
 def test_running_materialization_cancels_cooperatively_and_reaps_abandoned_stage(
-    tmp_path: Path,
+    tmp_path: Path, cancel_phase: str,
 ) -> None:
     api = client(tmp_path)
     _, episode, _ = approved_episode_with_library(api)
@@ -1901,13 +1902,31 @@ def test_running_materialization_cancels_cooperatively_and_reaps_abandoned_stage
     reached_probe = threading.Event()
     permit_probe = threading.Event()
     original_check = postproduction_materializer._raise_if_cancelled
+    original_encode = postproduction_materializer._encode_mp4
+
+    def pause_for_cancel():
+        if not reached_probe.is_set():
+            reached_probe.set()
+            if not permit_probe.wait(timeout=30):
+                raise AssertionError("cancellation test did not release materialization")
 
     def controlled_check(probe):
-        if probe is not None and not reached_probe.is_set():
-            reached_probe.set()
-            if not permit_probe.wait(timeout=5):
-                raise AssertionError("cancellation test did not release materialization")
+        if cancel_phase == "before_work" and probe is not None:
+            pause_for_cancel()
         original_check(probe)
+
+    def controlled_encode(path, **kwargs):
+        frames = original_encode(path, **kwargs)
+        if cancel_phase == "encoded_segment" and path.parent.name == "normalized-segments":
+            assert frames > 0 and path.stat().st_size > 0
+            pause_for_cancel()
+            original_check(kwargs.get("should_cancel"))
+        return frames
+
+    def controlled_promotion(path):
+        if cancel_phase == "durable_promotion":
+            assert (path / "materialization-result.json").is_file()
+            pause_for_cancel()
 
     with (
         patch.object(
@@ -1915,6 +1934,8 @@ def test_running_materialization_cancels_cooperatively_and_reaps_abandoned_stage
             "_raise_if_cancelled",
             side_effect=controlled_check,
         ),
+        patch.object(postproduction_materializer, "_encode_mp4", side_effect=controlled_encode),
+        patch.object(postproduction_materializer, "_after_durable_promotion", side_effect=controlled_promotion),
         ThreadPoolExecutor(max_workers=1) as pool,
     ):
         future = pool.submit(
@@ -1922,7 +1943,7 @@ def test_running_materialization_cancels_cooperatively_and_reaps_abandoned_stage
             f"/v1/production-runs/{run['id']}/postproduction-materializations",
             json=request,
         )
-        assert reached_probe.wait(timeout=5)
+        assert reached_probe.wait(timeout=30)
         cancelled = api.post(
             f"/v1/production-runs/{run['id']}/cancel",
             json={
@@ -1939,7 +1960,12 @@ def test_running_materialization_cancels_cooperatively_and_reaps_abandoned_stage
     assert "materialization was cancelled" in response.text
     assert api.get(f"/v1/production-runs/{run['id']}").json()["status"] == "cancelled"
     assert not list(exports.glob(".nalu-postproduction-*"))
-    assert not list((exports / "materialized").glob("*/materialization-result.json"))
+    durable_results = list((exports / "materialized").glob("*/materialization-result.json"))
+    assert len(durable_results) == (1 if cancel_phase == "durable_promotion" else 0)
+    # Fully committed bytes may survive cancellation, but must not advance the
+    # run or be re-encoded after explicit resume. Partial staging must be removed.
+    durable_bytes = {p: p.read_bytes() for result in durable_results
+                     for p in result.parent.rglob("*") if p.is_file()}
     events = api.get(f"/v1/production-runs/{run['id']}/events").json()
     assert sum(event["event_type"] == "run_cancelled" for event in events) == 1
     assert not any(event["event_type"] == "postproduction_materialized" for event in events)
@@ -1959,12 +1985,16 @@ def test_running_materialization_cancels_cooperatively_and_reaps_abandoned_stage
     abandoned.mkdir()
     (abandoned / "partial.wav").write_bytes(b"incomplete")
 
-    completed = api.post(
-        f"/v1/production-runs/{run['id']}/postproduction-materializations",
-        json=request,
-    )
+    with patch.object(postproduction_materializer, "_encode_mp4", wraps=original_encode) as resumed_encoder:
+        completed = api.post(
+            f"/v1/production-runs/{run['id']}/postproduction-materializations",
+            json=request,
+        )
+        if cancel_phase == "durable_promotion":
+            resumed_encoder.assert_not_called()
     assert completed.status_code == 201, completed.text
     assert not abandoned.exists()
+    assert all(p.read_bytes() == content for p, content in durable_bytes.items())
     assert api.get(f"/v1/production-runs/{run['id']}").json()["status"] == "qa_review"
     events = api.get(f"/v1/production-runs/{run['id']}/events").json()
     assert sum(event["event_type"] == "postproduction_materialized" for event in events) == 1

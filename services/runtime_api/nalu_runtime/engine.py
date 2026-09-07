@@ -483,6 +483,10 @@ class ProductionService:
             )
         except (KeyError, TypeError, ValueError, PostproductionMaterializationError) as exc:
             raise ConflictError(str(exc)) from exc
+        # Decode probes are throttled; the final state boundary must not reuse
+        # that cached answer after a cancellation during durable promotion.
+        if self.repository.get_run(run.id).status == RunStatus.CANCELLED:
+            raise ConflictError("postproduction materialization was cancelled")
         if request.adopted_dialogue_staging_id:
             EpisodeDialogueService(self.repository, self.data_root).validate_materialization(run_id, request)
         self.repository.mark_postproduction_materialized(

@@ -7,6 +7,10 @@ against the current main branch.
 
 ## Status vocabulary
 
+[Materialization cancellation/resume](qa/materialization-cancel-resume-2026-09-07.md)
+now exercises actual encoded-segment and durable-promotion interruption, not
+only pre-work cancellation. Installed native workflow and release remain open.
+
 [Actual adopted-dialogue render fixture](qa/adopted-dialogue-full-render-2026-09-07.md)
 now produces a QA-review video from two adopted synthetic shots and sound/caption
 inputs. This is not installed-user E2E, final content QA or release completion.
