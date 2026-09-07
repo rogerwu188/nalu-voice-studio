@@ -1380,7 +1380,7 @@ class InheritedContinuityResult(BaseModel):
     snapshot: ContinuitySnapshot | None = None
 
 
-class LibraryEntityRevisionCreate(BaseModel):
+class LibraryEntityRevisionContent(BaseModel):
     name: str = Field(min_length=1, max_length=160)
     description: str = Field(default="", max_length=10000)
     attributes: dict[str, Any] = Field(default_factory=dict)
@@ -1398,11 +1398,15 @@ class LibraryEntityRevisionCreate(BaseModel):
         return self
 
 
-class LibraryEntityCreate(LibraryEntityRevisionCreate):
+class LibraryEntityCreate(LibraryEntityRevisionContent):
     kind: LibraryEntityKind
 
 
-class LibraryEntityRevision(LibraryEntityRevisionCreate):
+class LibraryEntityRevisionCreate(LibraryEntityRevisionContent):
+    expected_current_revision: int | None = Field(default=None, ge=1)
+
+
+class LibraryEntityRevision(LibraryEntityRevisionContent):
     entity_id: str
     revision: int
     created_at: str

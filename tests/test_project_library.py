@@ -1,4 +1,5 @@
 import json
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -7,6 +8,35 @@ from nalu_runtime.app import create_app
 
 def client(tmp_path: Path) -> TestClient:
     return TestClient(create_app(tmp_path / "test.sqlite3", tmp_path / "data"))
+
+
+def test_version_bound_voice_correction_replays_and_preserves_confirmed_history(tmp_path):
+    api = client(tmp_path)
+    project = api.post("/v1/projects", json={"title": "语音修改"}).json()
+    person = api.post(f"/v1/projects/{project['id']}/library-entities", json=library_payload("character", "外婆")).json()
+    confirm(api, person["id"], 1)
+    request = {"name": " 外婆 ", "description": "老人重新完整描述的人物特点", "attributes": {},
+               "source_channel": "voice", "change_summary": "用户口述修改，需要重新确认", "expected_current_revision": 1}
+    endpoint = f"/v1/library-entities/{person['id']}/revisions"
+    result = api.post(endpoint, json=request)
+    assert result.status_code == 201, result.text
+    assert result.json()["current_revision"] == 2
+    assert result.json()["confirmed_revision"] == 1
+    restarted = client(tmp_path)
+    replay = restarted.post(endpoint, json=request)
+    assert replay.status_code == 201, replay.text
+    assert replay.json()["current_revision"] == 2
+    assert len(restarted.get(endpoint).json()) == 2
+    assert restarted.post(endpoint, json={**request, "description": "过期请求想覆盖"}).status_code == 409
+    assert restarted.app.state.repository.get_library_revision(person["id"], 1).description == "外婆的项目级设定"
+    # Two different corrections from the same heard revision cannot both win.
+    def edit(description):
+        return restarted.post(endpoint, json={**request, "expected_current_revision": 2, "description": description}).status_code
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        statuses = list(pool.map(edit, ["修改甲", "修改乙"]))
+    assert sorted(statuses) == [201, 409]
+    assert len(restarted.get(endpoint).json()) == 3
+    assert restarted.post(endpoint, json=request).status_code == 409
 
 
 def create_and_approve_script(api: TestClient, episode_id: str) -> None:

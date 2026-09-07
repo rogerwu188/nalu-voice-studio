@@ -1349,6 +1349,7 @@ struct LibraryEntityRevisionDraft: Codable, Sendable {
     let sourceMemoryIDs: [String]
     let sourceChannel: String
     let changeSummary: String
+    var expectedCurrentRevision: Int? = nil
 
     enum CodingKeys: String, CodingKey {
         case name, description, attributes
@@ -1356,6 +1357,7 @@ struct LibraryEntityRevisionDraft: Codable, Sendable {
         case sourceMemoryIDs = "source_memory_ids"
         case sourceChannel = "source_channel"
         case changeSummary = "change_summary"
+        case expectedCurrentRevision = "expected_current_revision"
     }
 }
 

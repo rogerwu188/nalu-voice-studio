@@ -4624,6 +4624,18 @@
             "title": "Description",
             "type": "string"
           },
+          "expected_current_revision": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Current Revision"
+          },
           "name": {
             "maxLength": 160,
             "minLength": 1,

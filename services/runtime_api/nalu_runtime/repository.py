@@ -6523,8 +6523,23 @@ class Repository:
     ) -> LibraryEntity:
         entity = self.get_library_entity(entity_id)
         self._validate_library_sources(entity.project_id, request)
-        revision, now = entity.current_revision + 1, utc_now()
+        now = utc_now()
         with self.db.connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            row = connection.execute("SELECT current_revision FROM library_entities WHERE id=?", (entity_id,)).fetchone()
+            current_revision = row["current_revision"]
+            expected = getattr(request, "expected_current_revision", None)
+            if expected is not None and current_revision != expected:
+                current = self.get_library_revision(entity_id, current_revision)
+                fields = set(LibraryEntityRevisionCreate.model_fields) - {"expected_current_revision"}
+                same_content = all(getattr(current, field) == (request.name.strip() if field == "name"
+                                                               else getattr(request, field)) for field in fields)
+                if current_revision == expected + 1 and same_content:
+                    # Replay only the immediate identical revision, never a later
+                    # edit or a new confirmation. No extra revision is created.
+                    return self.get_library_entity(entity_id)
+                raise ConflictError("library revision changed; preserve the correction and review the latest version")
+            revision = current_revision + 1
             connection.execute(
                 """INSERT INTO library_entity_revisions
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
