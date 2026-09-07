@@ -49,6 +49,10 @@ New shot plans now include a [source-bound reusable visual-reference design cata
 displayed/read aloud in native review and preserved through edits. Designs are not
 generated references; actual reference production and full QingShan gates remain open.
 
+Confirmed shots now [prepare reusable reference-image production dependencies](qa/reusable-reference-image-tasks-2026-09-07.md)
+through the existing image ledger, estimates and result-review path. Actual
+project-asset registration, live generation and video/release acceptance remain open.
+
 Confirmed shots now support [automatic local opening-image preparation](qa/reviewed-opening-image-preparation-2026-09-06.md)
 with exact source bindings, inherited reference checks and restart reuse. This is
 not paid image activation, native QA, continuous-frame handoff or finished production.

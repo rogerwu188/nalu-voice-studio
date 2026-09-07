@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "c09fd753a9e8cda880290067f8101fd477040980",
-  "last_advanced_at": "2026-09-07T00:48:13Z",
+  "observed_head": "968a4fdf96905de36d7486e803e3768e156d2c5a",
+  "last_advanced_at": "2026-09-07T00:53:53Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "New AI shot plans include source-bound reusable character/scene/prop designs, preserved through native edits and available in existing TTS readback. Confirmed opening-frame preparations identify unresolved designs without fabricating image assets or authority. Ruff/OpenAPI passed; full Python regression 552 passed in 107.70s with two dependency deprecation warnings. See docs/qa/visual-reference-design-plan-2026-09-07.md. Previous candidate c09fd75 CI 34070488317 is SUCCESS including ARM64/x86_64 Swift tests; this new catalogue still needs its own CI and native QA."
+    "summary": "Confirmed native shot selection now prepares shared character/scene/prop reference-image dependencies through the existing image ledger, estimate envelope and result-review services. New suite 8 passed including synthetic submit/query/materialize/review/restart; full regression 560 passed in 77.85s with two dependency deprecation warnings. Ruff/OpenAPI currency and backward compatibility passed. See docs/qa/reusable-reference-image-tasks-2026-09-07.md. Previous candidate 968a4fd CI 34071051850 ARM64 passed, other jobs still running at observation. Real generation, project-asset registration and native acceptance remain open."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Convert confirmed unresolved character/scene/prop designs into reusable project-scoped reference-image preparations and verified production, then connect references to opening frames, sequential video, master QA and controlled release. Complete exact image pricing/full QingShan contract authority and native progress orchestration without fabricated approval. Verify native behavior when the Mac is unlocked, preserving all existing apps/user data. Keep both narrated-story and named-web-source writing paths as the priority, using existing TTS. Preserve quarantined Hops writer attempt; no automatic paid retry.",
+    "summary": "Register accepted reference-image results as project assets with provenance and explicit permissions, and resolve these bindings into opening-frame inputs without rewriting the approved plan or resubmitting the reference. Complete real image pricing/full QingShan authority and native orchestration, then sequential video, master QA and controlled release. Verify native behavior when the Mac is unlocked, preserving existing apps/user data. Narrated-story and named-web-source interactive scripts remain the priority with existing TTS. Preserve quarantined Hops writer attempt; no automatic paid retry.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

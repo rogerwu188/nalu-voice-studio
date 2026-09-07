@@ -40,7 +40,7 @@ class ImageReviewService:
             saved = prepared.payload
             if saved.get("record_sha256") != digest({k: v for k, v in saved.items() if k != "record_sha256"}):
                 raise ConflictError("image preparation integrity failed")
-            source = ImagePreparationRequest.model_validate({key: saved[key] for key in ImagePreparationRequest.model_fields})
+            source = ImagePreparationRequest.model_validate({key: saved[key] for key in ImagePreparationRequest.model_fields if key in saved})
             current, _ = ImagePreparationService(self.repository, self.assets).materialize(run_id, source)
             if (current["preparation_sha256"] != saved.get("preparation_sha256")
                     or current["request_sha256"] != image["request_sha256"]

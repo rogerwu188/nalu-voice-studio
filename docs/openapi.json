@@ -3872,6 +3872,18 @@
             "pattern": "^[A-Za-z0-9_.:-]{1,120}$",
             "title": "Task Key",
             "type": "string"
+          },
+          "visual_asset_key": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Visual Asset Key"
           }
         },
         "required": [
