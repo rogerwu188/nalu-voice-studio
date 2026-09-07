@@ -273,6 +273,36 @@ struct EpisodeShotPlanTests {
         ShotReviewProtocol.queued = [(200, try takeResponse())]
         do { _ = try await runtime().attachEpisodeAudio(sound: cuePlan, draft: audioDraft)
             Issue.record("foreign recording response must not be adopted") } catch {}
+        let audioModel = EpisodeAudioModel(sound: cuePlan, runtime: runtime())
+        let audioRun = ProductionRun(id: "run", projectID: "project", seasonID: "season", episodeID: "episode",
+            status: "waiting_for_approval", dryRun: false, requestedModel: "seedance-2.0-pro",
+            estimatedBudgetCredits: nil, packagePath: "/synthetic/package", error: nil, createdAt: "now", updatedAt: "now")
+        func recordingFixture(id: String, episode: String?, consent: Bool) -> NaluAsset {
+            NaluAsset(id: id, projectID: "project", seasonID: nil, episodeID: episode, kind: "archive_audio",
+                name: "海边录音", localURI: "file:///synthetic/audio.wav", subjectName: "", metadata: ["sha256": .string(audioDraft.expected_asset_sha256)],
+                consentGranted: consent, consentScope: "project_only", guardianApproved: false, createdAt: "now")
+        }
+        let availableAudio = [recordingFixture(id: "recording", episode: "episode", consent: true),
+                              recordingFixture(id: "foreign", episode: "other-episode", consent: true),
+                              recordingFixture(id: "no-consent", episode: nil, consent: false)]
+        ShotReviewProtocol.queued = [(200, try JSONEncoder().encode(audioRun)), (200, try JSONEncoder().encode(availableAudio))]
+        let beforeAudioLoad = ShotReviewProtocol.requests.count
+        await audioModel.load()
+        #expect(audioModel.recordings.map(\.id) == ["recording"])
+        #expect(ShotReviewProtocol.requests.count == beforeAudioLoad + 2)
+        #expect(!audioModel.begin(shotIndex: 0, assetID: "foreign"))
+        #expect(audioModel.begin(shotIndex: 0, assetID: "recording"))
+        #expect(audioModel.readback.contains("海边录音"))
+        #expect(ShotReviewProtocol.requests.count == beforeAudioLoad + 2)
+        ShotReviewProtocol.queued = [(503, Data())]
+        await audioModel.confirm()
+        audioModel.cancelUnsubmitted()
+        #expect(audioModel.uncertain && audioModel.pending?.asset_id == "recording")
+        #expect(!audioModel.begin(shotIndex: 0, assetID: "recording"))
+        takePayload["asset_id"] = "recording"
+        ShotReviewProtocol.queued = [(200, try takeResponse())]
+        await audioModel.confirm()
+        #expect(audioModel.pending == nil && !audioModel.uncertain && audioModel.attached[0]?.id == "take")
         ShotReviewProtocol.queued = [(503, Data())]
         await restoredReview.load()
         #expect(!restoredReview.canPrepareSound)

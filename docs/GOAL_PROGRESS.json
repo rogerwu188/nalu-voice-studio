@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "e72c1f465a7a7b6c693ce4b1039ed9bea7f1508e",
-  "last_advanced_at": "2026-09-07T07:51:47Z",
+  "observed_head": "7b8a0be",
+  "last_advanced_at": "2026-09-07T07:56:09Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Native typed sound cues now retained after preparation; added exact recording-attachment transport with context/sample-count validation. Native cue-gap, preserved narration and foreign-recording tests added, not yet current-CI verified. Backend synthetic regression passed in 8.70s; Ruff/diff passed. Parent ba811ec full CI 34096325134 succeeded. Evidence docs/qa/native-audio-cue-transport-2026-09-07.md."
+    "summary": "Added native scoped recording selection model with GET-only load, readback, explicit attachment and retained uncertain retry. Native filtering/no-submit/503/retry tests added, current CI required. Synthetic backend regression passed in 8.94s; Ruff/diff passed. e72c1f4 CI 34097214521 remains in progress. Evidence docs/qa/native-recording-selection-2026-09-07.md."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Connect native sound cue/authorized recording selection to audio-take attachment; add listening and take selection, speech-based subtitle alignment and real authored sound layers before master/release QA. Verify current CI and installed native workflow. Preserve two-source writing and existing TTS; synthetic tones and timing tests are not real narration/E2E.",
+    "summary": "Attach visible cue/recording selection and actual audition to EpisodeAudioModel, add persisted take recovery/confirmation, speech-based alignment and authored audio/master/release. Verify current native CI and installed workflow. Preserve two-source writing and existing TTS; synthetic tones are not real narration QA.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
