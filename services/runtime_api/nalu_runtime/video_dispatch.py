@@ -42,7 +42,8 @@ class VideoDispatchService:
         prepared_request = VideoPreparationRequest(
             task_key=prepared["task_key"], request=prepared["request"],
             approved_plan_event_id=prepared.get("approved_plan_event_id"),
-            approved_plan_sha256=prepared.get("approved_plan_sha256"))
+            approved_plan_sha256=prepared.get("approved_plan_sha256"),
+            approved_frame_review_id=prepared.get("approved_frame_review_id"))
         verified = VideoPreparationService(self.repository).validate(run_id, prepared_request)
         if verified["preparation_sha256"] != reservation["preparation_sha256"]:
             raise ConflictError("prepared shot changed after approval")
@@ -57,6 +58,7 @@ class VideoDispatchService:
             if current_sha != package_sha:
                 raise ConflictError("package changed during dispatch")
             VideoPreparationService(self.repository)._plan_binding(run_id, prepared_request, current_sha)
+            VideoPreparationService(self.repository)._frame_binding(run_id, prepared_request, prepared["frame"]["sha256"])
             self._validate_current_context(run_id, current_package, reservation)
         transport = GiggleSeedanceImageTransport(lambda: secret, transport=self.transport, before_submit=before_submit)
         return self.submitter.submit_paid_task(

@@ -21,7 +21,7 @@ from nalu_runtime.remote_submitter import (
 from nalu_runtime.repository import ConflictError, utc_now
 
 
-@pytest.mark.parametrize("case", ["accepted", "uncertain", "cancelled", "script_changed", "price_changed", "package_changed", "cancel_during_dispatch", "concurrent", "plan_bound"])
+@pytest.mark.parametrize("case", ["accepted", "uncertain", "cancelled", "script_changed", "price_changed", "package_changed", "cancel_during_dispatch", "concurrent", "plan_bound", "frame_bound"])
 def test_reserved_shot_dispatch_revalidates_and_posts_once(tmp_path, case, monkeypatch):
     posts = []
     def provider(request):
@@ -70,13 +70,33 @@ def test_reserved_shot_dispatch_revalidates_and_posts_once(tmp_path, case, monke
     request["provider_scope_projection"]["production_package_sha256"] = package["package_sha256"]
     base = f"/v1/production-runs/{run.id}"
     preparation = {"task_key": "E01-U01", "request": request}
-    if case == "plan_bound":
+    if case in {"plan_bound", "frame_bound"}:
         record = {"approved": True, "production_package_sha256": package["package_sha256"],
                   "tasks": [{"task_key": "E01-U01", "shot_index": 0}],
                   "plan": {"shots": [{"video_prompt": "合成空房间光影镜头", "duration_seconds": 6}]}}
         record["plan_sha256"] = canonical_sha256(record)
         event = api.app.state.repository.append_run_event(run.id, "shot_plan_approved", payload=record)
         preparation.update(approved_plan_event_id=event.id, approved_plan_sha256=record["plan_sha256"])
+        if case == "frame_bound":
+            # Synthetic source chain; real professional/provider authority is not inferred from these fixtures.
+            repo = api.app.state.repository
+            source = {"run_id": run.id, "image_task_key": "E01-U01-entry", "request_sha256": "image-request",
+                      "approved_plan_event_id": event.id, "approved_plan_sha256": record["plan_sha256"]}
+            source["preparation_sha256"] = canonical_sha256(source)
+            source["record_sha256"] = canonical_sha256(source)
+            source_event = repo.append_run_event(run.id, "image_task_prepared", payload=source)
+            image = {"run_id": run.id, "task_key": "E01-U01-entry", "request_sha256": "image-request",
+                     "image": {"sha256": hashlib.sha256(frame).hexdigest()}}
+            image["materialization_sha256"] = canonical_sha256(image)
+            materialized = repo.append_run_event(run.id, "image_result_materialized", payload=image)
+            review = {"run_id": run.id, "task_key": "E01-U01-entry", "decision": "accept", "user_approved": True,
+                      "image_sha256": hashlib.sha256(frame).hexdigest(), "approved_plan_event_id": event.id,
+                      "approved_plan_sha256": record["plan_sha256"], "materialization_id": materialized.id,
+                      "materialization_sha256": image["materialization_sha256"], "preparation_id": source_event.id,
+                      "preparation_sha256": source["preparation_sha256"]}
+            review["review_sha256"] = canonical_sha256(review)
+            approved_frame = repo.append_run_event(run.id, "image_frame_reviewed", payload=review)
+            preparation["approved_frame_review_id"] = approved_frame.id
     prepared = api.post(base + "/video-task-preparations", json=preparation)
     assert prepared.status_code == 200, prepared.text
     prep_url = base + "/video-task-preparations/" + prepared.json()["id"]

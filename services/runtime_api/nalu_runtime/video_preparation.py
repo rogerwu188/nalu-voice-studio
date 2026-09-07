@@ -27,6 +27,7 @@ class VideoPreparationRequest(BaseModel):
     request: dict[str, Any]
     approved_plan_event_id: str | None = None
     approved_plan_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    approved_frame_review_id: str | None = None
 
 
 class VideoPreparationService:
@@ -85,6 +86,7 @@ class VideoPreparationService:
         ratio_width, ratio_height = (int(part) for part in payload["aspect_ratio"].split(":"))
         if abs(width / height - ratio_width / ratio_height) > 0.01:
             raise ConflictError("opening frame aspect ratio differs from the selected video ratio")
+        frame_binding = self._frame_binding(run_id, incoming, hashlib.sha256(raw).hexdigest())
         request_sha = digest(incoming.request)
         record = {"task_key": incoming.task_key, "request": incoming.request,
                   "request_sha256": request_sha, "production_package_sha256": package_sha,
@@ -93,8 +95,51 @@ class VideoPreparationService:
                   "paid_approved": False, "generation_performed": False,
                   "visual_semantics_verified": False}
         record.update(plan_binding)
+        record.update(frame_binding)
         record["preparation_sha256"] = digest(record)
         return record
+
+    def _frame_binding(self, run_id, incoming, frame_sha):
+        events = self.repository.list_run_events(run_id)
+        image_key = incoming.task_key + "-entry"
+        preparations = [event for event in events if event.event_type == "image_task_prepared"
+                        and event.payload.get("image_task_key") == image_key]
+        reviews = [event for event in events if event.event_type == "image_frame_reviewed"
+                   and event.payload.get("task_key") == image_key]
+        if not preparations and not reviews and not incoming.approved_frame_review_id:
+            return {}  # Professional imports still require their full opening-anchor contract.
+        if not reviews or incoming.approved_frame_review_id != reviews[-1].id:
+            raise ConflictError("video requires the current confirmed first-frame review")
+        review = reviews[-1]
+        record = review.payload
+        if (record.get("run_id") != run_id or record.get("decision") != "accept" or record.get("user_approved") is not True
+                or record.get("review_sha256") != digest({k: v for k, v in record.items() if k != "review_sha256"})
+                or record.get("image_sha256") != frame_sha
+                or record.get("approved_plan_event_id") != incoming.approved_plan_event_id
+                or record.get("approved_plan_sha256") != incoming.approved_plan_sha256):
+            raise ConflictError("first-frame approval no longer matches the video image or shot plan")
+        materialized = self.repository.get_run_event(record["materialization_id"])
+        image = materialized.payload
+        if (materialized.run_id != run_id or materialized.event_type != "image_result_materialized"
+                or image.get("run_id") != run_id or image.get("task_key") != image_key
+                or image.get("materialization_sha256") != record.get("materialization_sha256")
+                or image.get("materialization_sha256") != digest({k: v for k, v in image.items() if k != "materialization_sha256"})
+                or image.get("image", {}).get("sha256") != frame_sha):
+            raise ConflictError("first-frame materialization binding failed")
+        prepared = self.repository.get_run_event(record["preparation_id"])
+        source = prepared.payload
+        if (prepared.run_id != run_id or prepared.event_type != "image_task_prepared"
+                or source.get("run_id") != run_id or source.get("image_task_key") != image_key
+                or source.get("record_sha256") != digest({k: v for k, v in source.items() if k != "record_sha256"})
+                or source.get("preparation_sha256") != record.get("preparation_sha256")
+                or source.get("preparation_sha256") != digest({k: v for k, v in source.items()
+                    if k not in {"record_sha256", "preparation_sha256"}})
+                or source.get("approved_plan_event_id") != incoming.approved_plan_event_id
+                or source.get("approved_plan_sha256") != incoming.approved_plan_sha256
+                or source.get("request_sha256") != image.get("request_sha256")):
+            raise ConflictError("first-frame source binding failed")
+        return {"approved_frame_review_id": review.id, "approved_frame_review_sha256": record["review_sha256"],
+                "frame_materialization_id": materialized.id}
 
     def _plan_binding(self, run_id, incoming, package_sha):
         plans = [event for event in self.repository.list_run_events(run_id)

@@ -129,6 +129,8 @@ Native integration and professional visual QA remain open; user acceptance is no
 an automatically granted production, identity, spatial or paid-authorization PASS.
 The existing native shot panel now includes [inline first-frame preview/review source integration](qa/native-frame-review-2026-09-07.md).
 Compiled tests, packaged native screenshots and real production are still pending.
+Video preparation/dispatch now checks the [latest accepted frame and exact image bytes](qa/accepted-frame-video-binding-2026-09-07.md).
+This is tested source binding, not fulfilled professional image QA or real production.
 
 2026-09-06 native checkpoints on `4e03c16`, CI
 [34054486473](https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34054486473):

@@ -8956,6 +8956,17 @@
       "VideoPreparationRequest": {
         "additionalProperties": false,
         "properties": {
+          "approved_frame_review_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved Frame Review Id"
+          },
           "approved_plan_event_id": {
             "anyOf": [
               {

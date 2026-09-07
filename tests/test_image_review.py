@@ -11,8 +11,8 @@ from nalu_runtime.image_observation import ImageObservationService
 from nalu_runtime.image_preparation import ImagePreparationRequest, ImagePreparationService
 from nalu_runtime.image_submission import ImageSubmissionService
 from nalu_runtime.models import ProductionRun, RunStatus
-from nalu_runtime.repository import utc_now
-from nalu_runtime.video_preparation import digest
+from nalu_runtime.repository import ConflictError, utc_now
+from nalu_runtime.video_preparation import VideoPreparationRequest, VideoPreparationService, digest
 from test_image_download import png
 
 
@@ -83,6 +83,19 @@ def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypat
     assert record["user_approved"] == (case != "reject")
     assert record["image_sha256"] == materialized["payload"]["image"]["sha256"]
     assert record["visual_semantics_verified"] is False and record["paid_approved"] is False
+    video = VideoPreparationRequest(task_key="E01-U01", request={}, approved_plan_event_id=plan_event.id,
+        approved_plan_sha256=plan["plan_sha256"], approved_frame_review_id=result.json()["id"])
+    boundary = VideoPreparationService(repo)
+    frame_sha = materialized["payload"]["image"]["sha256"]
+    if case == "reject":
+        with pytest.raises(ConflictError):
+            boundary._frame_binding(run.id, video, frame_sha)
+    else:
+        assert boundary._frame_binding(run.id, video, frame_sha)["frame_materialization_id"] == materialized["id"]
+        with pytest.raises(ConflictError):
+            boundary._frame_binding(run.id, video, "0" * 64)
+        with pytest.raises(ConflictError):
+            boundary._frame_binding(run.id, video.model_copy(update={"approved_frame_review_id": None}), frame_sha)
     reopened = TestClient(create_app(db_path, root))
     assert reopened.post(endpoint + "/review", json=incoming).json()["id"] == result.json()["id"]
     changed = {**incoming, "decision": "reject" if incoming["decision"] == "accept" else "accept"}
@@ -90,3 +103,5 @@ def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypat
     changed["expected_review_event_id"] = result.json()["id"]
     assert reopened.post(endpoint + "/review", json=changed).status_code == 200
     assert reopened.post(endpoint + "/review", json=incoming).status_code == 409
+    with pytest.raises(ConflictError):
+        boundary._frame_binding(run.id, video, frame_sha)

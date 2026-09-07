@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "6ce796b0ccc50c10bdbe405f20da28b82c6b0ddd",
-  "last_advanced_at": "2026-09-07T00:10:20Z",
+  "observed_head": "26dddd69433ae95c34b7ef66fe81b880c98a6e6e",
+  "last_advanced_at": "2026-09-07T00:12:47Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Native confirmed-shot panel now includes exact-image preview and accept/reject controls with source scope isolation and byte SHA verification. Added URLProtocol tests; Swift parse passed. Local swift test failed before tests at PackageDescription manifest linking, not a compiled test pass. Evidence docs/qa/native-frame-review-2026-09-07.md. Backend review CI 34068807985 in progress, materialization CI 34068613752 cancelled at observation. Native CI/artifact inspection and skill finish review remain pending; no actual paid generation claimed."
+    "summary": "Video preparation/dispatch now carries exact latest accepted frame review and checks source/materialization/image hashes, including immediately before POST. Full local suite 499 passed in 64.61s; final frame/review subset 12 passed. Evidence docs/qa/accepted-frame-video-binding-2026-09-07.md. Native CI 34068985738 still pending; previous run 34068807985 runtime/ARM passed, Intel running at observation. Delay pushing this checkpoint until native run starts to avoid replacing its pending build. No actual generation/native QA claimed."
   },
   "next_action": {
     "sop": "SOP-04",
