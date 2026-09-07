@@ -12,7 +12,8 @@ struct FrameProductionEvent: Decodable, Sendable {
         id = try values.decode(String.self, forKey: .id)
         run_id = try values.decode(String.self, forKey: .run_id)
         event_type = try values.decode(String.self, forKey: .event_type)
-        if ["image_task_prepared", "image_result_materialized", "image_frame_reviewed", "reference_asset_registered"].contains(event_type) {
+        if ["image_task_prepared", "image_task_submitted", "image_submit_intent", "image_submit_unconfirmed",
+            "image_result_materialized", "image_frame_reviewed", "reference_asset_registered"].contains(event_type) {
             payload = try values.decode(Payload.self, forKey: .payload)
         } else { payload = Payload() }
     }
@@ -32,6 +33,15 @@ struct FrameProductionEvent: Decodable, Sendable {
         var image: ImageInfo?
     }
     struct ImageInfo: Decodable, Sendable { let sha256: String }
+}
+
+struct SavedImageProgress: Decodable, Sendable {
+    enum Phase: String, Decodable, Sendable { case waiting, provider_failed, ready_for_review }
+    let run_id: String
+    let submission_id: String
+    let phase: Phase
+    let materialization_id: String?
+    let generation_performed: Bool
 }
 
 struct FrameReviewDraft: Encodable, Sendable {
@@ -56,6 +66,7 @@ struct ReferencePermissionDraft: Encodable, Sendable {
     let shotIndex: Int
     let referenceKey: String?
     private let runtime: RuntimeClient
+    private let providerKey: () async throws -> String?
     var busy = false
     var loaded = false
     var imageData: Data?
@@ -65,8 +76,14 @@ struct ReferencePermissionDraft: Encodable, Sendable {
     var notice: String?
     var registeredAssetID: String?
 
-    init(runID: String, planID: String, shotIndex: Int, referenceKey: String? = nil, runtime: RuntimeClient = RuntimeClient()) {
+    init(runID: String, planID: String, shotIndex: Int, referenceKey: String? = nil, runtime: RuntimeClient = RuntimeClient(),
+         providerKey: @escaping () async throws -> String? = {
+             try await Task.detached {
+                 try KeychainSecretStore().secret(for: .seedance, allowAuthenticationUI: false)
+             }.value
+         }) {
         self.runID = runID; self.planID = planID; self.shotIndex = shotIndex; self.referenceKey = referenceKey; self.runtime = runtime
+        self.providerKey = providerKey
     }
 
     var canReview: Bool { !busy && imageData != nil && materialization != nil && preparation != nil }
@@ -80,7 +97,7 @@ struct ReferencePermissionDraft: Encodable, Sendable {
         // Old bytes must never remain actionable after a failed refresh.
         imageData = nil; materialization = nil; preparation = nil; latestReview = nil; registeredAssetID = nil
         do {
-            let events = try await runtime.frameProductionEvents(runID: runID)
+            var events = try await runtime.frameProductionEvents(runID: runID)
             guard !Task.isCancelled else { return }
             // Recompile locally even when an old record exists: newly registered
             // references change the request. This never submits a provider task.
@@ -92,12 +109,50 @@ struct ReferencePermissionDraft: Encodable, Sendable {
             }
             guard !Task.isCancelled else { return }
             guard prepared.run_id == runID, prepared.event_type == "image_task_prepared",
+                  prepared.payload.request_sha256?.isEmpty == false,
+                  prepared.payload.image_task_key?.isEmpty == false,
                   prepared.payload.approved_plan_event_id == planID,
                   (referenceKey != nil ? (prepared.payload.visual_asset_key == referenceKey && prepared.payload.purpose == "visual_reference")
                     : prepared.payload.approved_shot_index == shotIndex) else {
                 throw RuntimeError.requestFailed("首帧任务不属于当前镜头")
             }
             preparation = prepared
+            func matches(_ event: FrameProductionEvent) -> Bool {
+                event.run_id == runID && event.payload.request_sha256 == prepared.payload.request_sha256
+                    && event.payload.task_key == prepared.payload.image_task_key
+            }
+            if !events.contains(where: { $0.event_type == "image_result_materialized" && matches($0) }),
+               let submission = events.last(where: { ["image_task_submitted", "image_submit_intent", "image_submit_unconfirmed"].contains($0.event_type)
+                   && matches($0) }) {
+                guard submission.event_type == "image_task_submitted" else {
+                    loaded = true
+                    notice = "这次图片提交的结果还需要核对。不会重新提交，您的剧本和素材都还在。"
+                    return
+                }
+                guard let key = try await providerKey(), !key.isEmpty else {
+                    loaded = true
+                    notice = "原图片任务已保留，目前无法读取制作进度。不会重新生成；已有画面仍可查看。"
+                    return
+                }
+                guard !Task.isCancelled else { return }
+                let progress = try await runtime.advanceSavedImage(runID: runID, submissionID: submission.id, apiKey: key)
+                guard !Task.isCancelled else { return }
+                guard progress.run_id == runID, progress.submission_id == submission.id, !progress.generation_performed else {
+                    throw RuntimeError.requestFailed("图片进度与当前任务不一致")
+                }
+                guard progress.phase == .ready_for_review else {
+                    loaded = true
+                    notice = progress.phase == .waiting ? "图片还在制作中。稍后点“重新读取画面”可继续查看同一个任务，不会重复生成。"
+                        : "这次图片制作未成功。剧本和素材已保留，不会自动扣费重做。"
+                    return
+                }
+                events = try await runtime.frameProductionEvents(runID: runID)
+                guard !Task.isCancelled else { return }
+                guard events.contains(where: { $0.id == progress.materialization_id
+                    && $0.event_type == "image_result_materialized" && matches($0) }) else {
+                    throw RuntimeError.requestFailed("图片结果尚未核对成功")
+                }
+            }
             guard let saved = events.last(where: { $0.run_id == runID && $0.event_type == "image_result_materialized"
                 && $0.payload.request_sha256 == prepared.payload.request_sha256
                 && $0.payload.task_key == prepared.payload.image_task_key }),

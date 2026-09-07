@@ -224,6 +224,17 @@ actor RuntimeClient {
         try await get("v1/production-runs/\(runID)/events")
     }
 
+    func advanceSavedImage(runID: String, submissionID: String, apiKey: String) async throws -> SavedImageProgress {
+        var request = URLRequest(url: baseURL.appending(path:
+            "v1/production-runs/\(runID)/image-tasks/\(submissionID)/advance"))
+        request.httpMethod = "POST"
+        request.timeoutInterval = 120
+        request.setValue(apiKey, forHTTPHeaderField: "X-Nalu-Provider-Key")
+        let (data, response) = try await authorizedData(for: request)
+        try validate(response, data: data)
+        return try decoder.decode(SavedImageProgress.self, from: data)
+    }
+
     func prepareReviewedShotFrame(runID: String, planID: String, shotIndex: Int) async throws -> FrameProductionEvent {
         try await post("v1/production-runs/\(runID)/shot-plans/\(planID)/opening-frame-preparations",
                        body: ["shot_index": shotIndex])

@@ -10,6 +10,8 @@ private final class FrameReviewProtocol: URLProtocol, @unchecked Sendable {
     static var review = Data()
     static var preparation = Data()
     static var asset = Data()
+    static var progress = Data()
+    static var eventsAfterAdvance: Data?
     static var fail = false
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
@@ -18,7 +20,8 @@ private final class FrameReviewProtocol: URLProtocol, @unchecked Sendable {
         let path = request.url!.path
         let body = path.hasSuffix("/events") ? Self.events : path.hasSuffix("/content") ? Self.image
             : (path.hasSuffix("/opening-frame-preparations") || path.hasSuffix("/reference-image-preparations")) ? Self.preparation
-            : path.hasSuffix("/asset") ? Self.asset : Self.review
+            : path.hasSuffix("/asset") ? Self.asset : path.hasSuffix("/advance") ? Self.progress : Self.review
+        if path.hasSuffix("/advance"), let updated = Self.eventsAfterAdvance { Self.events = updated }
         client?.urlProtocol(self, didReceive: HTTPURLResponse(url: request.url!, statusCode: Self.fail ? 409 : 200,
             httpVersion: nil, headerFields: nil)!, cacheStoragePolicy: .notAllowed)
         client?.urlProtocol(self, didLoad: body)
@@ -50,6 +53,7 @@ private final class FrameReviewProtocol: URLProtocol, @unchecked Sendable {
     private func setup() throws {
         FrameReviewProtocol.requests = []; FrameReviewProtocol.fail = false
         FrameReviewProtocol.asset = Data()
+        FrameReviewProtocol.progress = Data(); FrameReviewProtocol.eventsAfterAdvance = nil
         FrameReviewProtocol.preparation = try JSONSerialization.data(withJSONObject:
             event("prep", "image_task_prepared", ["approved_plan_event_id": "plan", "approved_shot_index": 0,
                 "request_sha256": "request", "image_task_key": "E01-U01-entry"]))
@@ -165,5 +169,40 @@ private final class FrameReviewProtocol: URLProtocol, @unchecked Sendable {
         FrameReviewProtocol.fail = true
         await model.load()
         #expect(model.imageData == nil && !model.canRegister)
+    }
+
+    @MainActor @Test func savedImageTaskAdvancesWithoutResubmission() async throws {
+        for phase in ["ready_for_review", "waiting", "provider_failed", "wrong-run", "uncertain", "missing-key", "stale-request"] {
+            try setup()
+            FrameReviewProtocol.eventsAfterAdvance = FrameReviewProtocol.events
+            FrameReviewProtocol.events = try JSONSerialization.data(withJSONObject: [event("submitted",
+                phase == "uncertain" ? "image_submit_unconfirmed" : "image_task_submitted",
+                ["request_sha256": phase == "stale-request" ? "old-request" : "request", "task_key": "E01-U01-entry"])])
+            FrameReviewProtocol.progress = try JSONSerialization.data(withJSONObject: [
+                "run_id": phase == "wrong-run" ? "other-run" : "run-one", "submission_id": "submitted",
+                "phase": ["waiting", "provider_failed"].contains(phase) ? phase : "ready_for_review",
+                "materialization_id": "material", "generation_performed": false])
+            var keyReads = 0
+            let model = EpisodeFrameReviewModel(runID: "run-one", planID: "plan", shotIndex: 0, runtime: runtime(), providerKey: {
+                keyReads += 1
+                return phase == "missing-key" ? nil : "synthetic-query-key"
+            })
+            await model.load()
+            #expect(model.canReview == (phase == "ready_for_review"))
+            #expect(keyReads == (["uncertain", "stale-request"].contains(phase) ? 0 : 1))
+            let advances = FrameReviewProtocol.requests.filter { $0.url?.path.hasSuffix("/advance") == true }
+            #expect(advances.count == (["uncertain", "missing-key", "stale-request"].contains(phase) ? 0 : 1))
+            #expect(FrameReviewProtocol.requests.allSatisfy {
+                $0.value(forHTTPHeaderField: "X-Nalu-Provider-Key") == nil || $0.url?.path.hasSuffix("/advance") == true
+            })
+            #expect(!FrameReviewProtocol.requests.contains { $0.url?.path.hasSuffix("/submit") == true })
+            if phase == "ready_for_review" {
+                FrameReviewProtocol.requests = []
+                await model.load()
+                #expect(model.canReview)
+                #expect(keyReads == 1) // Saved bytes do not require another provider query or key read.
+                #expect(!FrameReviewProtocol.requests.contains { $0.url?.path.hasSuffix("/advance") == true })
+            }
+        }
     }
 }

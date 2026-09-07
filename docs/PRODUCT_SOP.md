@@ -28,6 +28,10 @@ completed user journey. Real writer/provider integration, native interaction,
 script revision handoff and the complete production demonstration remain open.
 The authoritative next action is in `docs/GOAL_PROGRESS.json`.
 
+The native frame/reference loader now [advances exact accepted image tasks into preview](qa/native-saved-image-progress-2026-09-07.md)
+instead of only checking for pre-downloaded files. Compilation, native interaction
+and real generation remain pending; this does not promote a SOP to PASS.
+
 Accepted image tasks now have [one-step progress to local frame review](qa/image-progress-advance-2026-09-07.md),
 including interrupted-download recovery without a replacement generation task.
 Native orchestration and real paid image activation still require completion;

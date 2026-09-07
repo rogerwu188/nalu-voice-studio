@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "883c9024e60a35106efb5834c4085bf9b0eec200",
-  "last_advanced_at": "2026-09-07T01:15:04Z",
+  "observed_head": "7ffeb9b49dfe1bc0b956e3af54e042b535a6b445",
+  "last_advanced_at": "2026-09-07T01:28:00Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Fixed video context rejection of valid reference assets generated after the original snapshot: only verified same-run/package registered outputs are accepted, while ordinary additions and revoked/foreign references are refused. Full final regression: 566 passed in 141.84s. Parent 7a81e03 CI 34071848678 passed; 883c902 CI still running and current change CI pending. Official public docs did not expose image rates; current in-app console requires login. User asked for image prices/console access, not keys. See docs/qa/generated-reference-video-handoff-2026-09-07.md. Native and real-provider acceptance remain open."
+    "summary": "Native frame/reference loading now advances an exact accepted image task through the existing query/download endpoint and reloads verified bytes for review. Cached images skip provider access; uncertain submissions never resubmit. New Swift protocol cases await compiled CI and native QA. See docs/qa/native-saved-image-progress-2026-09-07.md. Reference authority/pricing and real-provider end-to-end acceptance remain open. Previous 7ffeb9b handoff fix was pushed with 566 local tests passing; its CI remains pending."
   },
   "next_action": {
     "sop": "SOP-04",
