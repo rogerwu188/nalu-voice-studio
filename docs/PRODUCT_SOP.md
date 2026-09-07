@@ -28,6 +28,12 @@ completed user journey. Real writer/provider integration, native interaction,
 script revision handoff and the complete production demonstration remain open.
 The authoritative next action is in `docs/GOAL_PROGRESS.json`.
 
+The [native edit-confirmation controls](qa/native-edit-confirmation-state-2026-09-07.md)
+now connect the picture preview to explicit readback, adopt/reject and recovery.
+This is source-level integration with a passing synthetic backend regression,
+not installed user QA or final audio/caption/master acceptance. Current native
+CI and the full production/release journey remain required; no SOP is upgraded.
+
 [Library-only snapshot inheritance](qa/shot-plan-snapshot-inheritance-2026-09-07.md)
 preserves approved creative work without mutating original packages or copying
 provider tasks. [Same-run immutable library refresh](qa/library-snapshot-refresh-2026-09-07.md)

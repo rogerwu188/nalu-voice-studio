@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "a6169841579d23a0062d607823b1240275c22816",
-  "last_advanced_at": "2026-09-07T07:18:08Z",
+  "observed_head": "e94e7a15020bd200e37ca4e6af2e5f805a6a4b38",
+  "last_advanced_at": "2026-09-07T07:28:00Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Added native edit-confirmation state separating readback from explicit submission, retaining exact uncertain requests, preventing opposite/cancel replacement, and reconciling exact or superseding decisions by GET. Native tests added for 503/retry/no-submit behavior; current CI/installed UI not passed. Ruff/diff passed. Parent a616984 CI 34094480463 pending; 037c846 CI 34094090038 running. Evidence docs/qa/native-edit-confirmation-state-2026-09-07.md."
+    "summary": "Attached native edit confirmation below picture player with spoken readback, explicit adopt/reject, safe cancel, same-request retry and GET recovery. Extended cancel-without-POST native tests; current native CI and installed UI QA pending. Synthetic backend encode/review regression passed (1 test, 8.34s), Ruff/diff passed. a616984 full CI 34094480463 passed. Evidence docs/qa/native-edit-confirmation-state-2026-09-07.md."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Attach native edit-review state to visible preview with readback/accept/reject/retry controls; verify current CI and actual player/confirmation QA. Then use exact approved edit for real recordings/five audio layers/caption alignment/verified workspace and final master QA/release. Preserve two-source interactive writing and existing TTS; proxy/test attestations are not real E2E.",
+    "summary": "Verify native edit confirmation CI and installed player/confirmation QA when build available. Connect exact current approved edit to real recordings/five audio layers/caption alignment/verified workspace and final master QA/release. Preserve two-source interactive writing and existing TTS; proxy/test attestations are not real E2E. Local Swift toolchain unavailable and installed app not yet updated; continue safe downstream integration without pretending those gates passed.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

@@ -203,6 +203,13 @@ struct EpisodeShotPlanTests {
         let resent = try JSONSerialization.jsonObject(with: ShotReviewProtocol.bodies.last!) as! [String: Any]
         #expect(resent["confirmation"] as? String == pending.confirmation)
         #expect(resent["expected_review_id"] == nil)
+        let afterConfirmed = ShotReviewProtocol.requests.count
+        #expect(reviewModel.begin(.reject))
+        #expect(reviewModel.readback.contains("不会自动付费重做"))
+        reviewModel.cancelUnsubmitted()
+        #expect(reviewModel.pending == nil && !reviewModel.uncertain)
+        #expect(ShotReviewProtocol.requests.count == afterConfirmed)
+        #expect(reviewModel.latest?.payload.edit_approved == true)
     }
 
     @MainActor @Test func continuousPreparationCarriesPlanAndRejectsForeignTailResponse() async throws {

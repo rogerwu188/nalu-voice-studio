@@ -53,6 +53,10 @@ import SwiftUI
                     Button("从头播放剪辑预览", systemImage: "play.fill") {
                         player.seek(to: .zero); player.play()
                     }.buttonStyle(.borderedProminent).controlSize(.large)
+                    if let edit = model.saved, let picture = model.picture {
+                        EpisodeEditReviewPanel(edit: edit, picture: picture, onRead: onRead)
+                            .id(picture.receiptID + picture.editSHA)
+                    }
                 }
             }.padding(.vertical, 8)
         }.naluFont(.body).accessibilityIdentifier("nalu.episode.editing")
