@@ -1709,7 +1709,7 @@
             "type": "string"
           },
           "source_in_seconds": {
-            "default": 0,
+            "default": 0.0,
             "maximum": 1800.0,
             "minimum": 0.0,
             "title": "Source In Seconds",
@@ -13367,6 +13367,65 @@
       }
     },
     "/v1/production-runs/{run_id}/audio-takes": {
+      "get": {
+        "operationId": "recover_episode_audio_v1_production_runs__run_id__audio_takes_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sound_plan_id",
+            "required": true,
+            "schema": {
+              "title": "Sound Plan Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expected_sound_plan_sha256",
+            "required": true,
+            "schema": {
+              "title": "Expected Sound Plan Sha256",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RunEvent"
+                  },
+                  "title": "Response Recover Episode Audio V1 Production Runs  Run Id  Audio Takes Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Recover Episode Audio"
+      },
       "post": {
         "operationId": "attach_episode_audio_v1_production_runs__run_id__audio_takes_post",
         "parameters": [

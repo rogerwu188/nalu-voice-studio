@@ -398,9 +398,20 @@ def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypat
             assert not take.json()["payload"]["speech_alignment_verified"]
             assert not take.json()["payload"]["audio_approved"]
             assert reopened.post(take_url, json=take_request).json()["id"] == take.json()["id"]
+            assert reopened.post(take_url, json={**take_request, "source_in_seconds": 0.0}).json()["id"] == take.json()["id"]
             assert run.id in repo.asset_dependency_report(recording.id).production_run_ids
+            recovery_query = {"sound_plan_id": prepared_sound.json()["id"],
+                              "expected_sound_plan_sha256": approved_sound["sound_plan_sha256"]}
+            event_count = len(repo.list_run_events(run.id))
+            recovered_takes = reopened.get(take_url, params=recovery_query)
+            assert recovered_takes.status_code == 200, recovered_takes.text
+            assert [item["id"] for item in recovered_takes.json()] == [take.json()["id"]]
+            assert len(repo.list_run_events(run.id)) == event_count
+            assert api.get(take_url, params={**recovery_query, "expected_sound_plan_sha256": "0" * 64}).status_code == 409
             repo.revoke_asset_consent(recording.id, AssetConsentRevocationCreate(requested_by="synthetic-qa", reason="测试撤销"))
             assert reopened.post(take_url, json=take_request).status_code == 409
+            assert reopened.get(take_url, params=recovery_query).status_code == 409
+            assert len(repo.list_run_events(run.id)) == event_count
             assert api.post(retime_url, json={**retime, "expected_edit_review_id": rejected_edit.json()["id"]}).status_code == 409
             assert api.post(retime_url, json={"expected_plan_sha256": plan["plan_sha256"],
                             "expected_edit_review_id": reviewed_edit.json()["id"]}).status_code == 422

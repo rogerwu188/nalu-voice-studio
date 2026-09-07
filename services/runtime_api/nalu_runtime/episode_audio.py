@@ -21,14 +21,43 @@ class EpisodeAudioTakeRequest(BaseModel):
     shot_index: int = Field(strict=True, ge=0, le=119)
     asset_id: str = Field(min_length=1, max_length=160)
     expected_asset_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
-    source_in_seconds: float = Field(default=0, ge=0, le=1800)
+    source_in_seconds: float = Field(default=0.0, ge=0, le=1800)
 
 
 class EpisodeAudioService:
     def __init__(self, repository, data_root):
         self.repository, self.data_root = repository, Path(data_root).resolve()
 
-    def attach(self, run_id, request):
+    def recover(self, run_id, sound_plan_id, expected_sound_plan_sha256):
+        """Read saved candidates, never create a replacement for an invalid take."""
+        repo = self.repository
+        sound = repo.get_run_event(sound_plan_id)
+        plan = sound.payload
+        if (sound.run_id != run_id or sound.event_type != "episode_sound_plan_drafted"
+                or plan.get("sound_plan_sha256") != expected_sound_plan_sha256
+                or digest({k: v for k, v in plan.items() if k != "sound_plan_sha256"}) != expected_sound_plan_sha256
+                or plan.get("edit_approved") is not True):
+            raise ConflictError("recording recovery requires the exact approved sound plan")
+        EpisodeEditReviewService(repo, self.data_root).approved(
+            run_id, plan["edit_id"], plan["edit_sha256"], plan["edit_review_id"])
+        latest = {}
+        for event in repo.list_run_events(run_id):
+            if event.event_type != "episode_audio_take_attached" or event.payload.get("sound_plan_id") != sound_plan_id:
+                continue
+            payload = event.payload
+            if payload.get("take_sha256") != digest({k: v for k, v in payload.items() if k != "take_sha256"}):
+                raise ConflictError("saved recording attachment integrity failed")
+            latest[payload["shot_index"]] = event
+        result = []
+        for index in sorted(latest):
+            event = latest[index]
+            request = EpisodeAudioTakeRequest.model_validate({key: event.payload[key] for key in EpisodeAudioTakeRequest.model_fields})
+            if request.expected_sound_plan_sha256 != expected_sound_plan_sha256:
+                raise ConflictError("saved recording sound plan changed")
+            result.append(self.attach(run_id, request, _expected_event=event))
+        return result
+
+    def attach(self, run_id, request, *, _expected_event=None):
         repo = self.repository
         with repo.db.connect() as db:
             db.execute("BEGIN IMMEDIATE")
@@ -90,6 +119,14 @@ class EpisodeAudioService:
                       "speech_alignment_verified": False, "audio_approved": False,
                       "captions_approved": False, "master_accepted": False, "generation_performed": False}
             record["take_sha256"] = digest(record)
+            if _expected_event is not None:
+                # Old receipts encoded the omitted offset as integer 0. Its
+                # original digest was checked by recover; compare typed values
+                # without replacing that historical digest with float 0.0.
+                if ({k: v for k, v in _expected_event.payload.items() if k != "take_sha256"}
+                        != {k: v for k, v in record.items() if k != "take_sha256"}):
+                    raise ConflictError("recording or authorization changed after attachment")
+                return _expected_event
             for event in repo.list_run_events(run_id):
                 if event.event_type == "episode_audio_take_attached" and event.payload == record:
                     return event

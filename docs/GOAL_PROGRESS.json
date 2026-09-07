@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "6988066",
-  "last_advanced_at": "2026-09-07T08:00:44Z",
+  "observed_head": "1751f3ebefe12dba939efd232e014994fd8fb2c5",
+  "last_advanced_at": "2026-09-07T08:05:26Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Attached visible cue/authorized recording picker, source audition with bounded SHA-checked bytes and playback lifecycle, readback/attachment/retry controls. Native byte safety tests added; current CI/installed playback unverified. Synthetic backend regression passed in 8.88s, Ruff/diff passed. 7b8a0be CI 34097684986 running. Evidence docs/qa/native-recording-selection-2026-09-07.md."
+    "summary": "Added GET recording recovery with live media/consent/approved-edit revalidation and no event creation. Fixed zero-offset integer/float recovery mismatch. 26 workflow tests passed (30.38s), targeted zero/recovery regression passed (8.59s), Ruff/diff passed and OpenAPI regenerated. Parent 7b8a0be full CI 34097684986 succeeded. Evidence docs/qa/recording-recovery-2026-09-07.md."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Recover bound recordings across restart and add explicit listened-to take decisions/nonzero source offset, then speech-based subtitle alignment and authored audio/master/release. Verify current CI and installed audition/UI QA. Preserve two-source writing and existing TTS; source audition and synthetic tones are not final narration QA.",
+    "summary": "Consume GET recording recovery in native selection; reconcile uncertain attachments against exact saved results. Add listened-to take decisions/nonzero source offset, speech-based alignment and authored audio/master/release. Verify current CI and installed audition. Synthetic tones and source audition are not final narration QA.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

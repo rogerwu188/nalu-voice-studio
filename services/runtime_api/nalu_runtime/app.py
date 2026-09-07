@@ -1422,6 +1422,11 @@ def create_app(
             raise HTTPException(403, "native recording attachment required")
         return EpisodeAudioService(repository, data_root).attach(run_id, request)
 
+    @app.get("/v1/production-runs/{run_id}/audio-takes", response_model=list[RunEvent])
+    def recover_episode_audio(run_id: str, sound_plan_id: str,
+                              expected_sound_plan_sha256: str):
+        return EpisodeAudioService(repository, data_root).recover(run_id, sound_plan_id, expected_sound_plan_sha256)
+
     @app.post("/v1/production-runs/{run_id}/episode-edit-drafts/{edit_id}/picture-preview", response_class=Response,
               responses={200: {"content": {"video/mp4": {}}}})
     def preview_episode_edit(run_id: str, edit_id: str, request: EpisodePreviewRequest,
