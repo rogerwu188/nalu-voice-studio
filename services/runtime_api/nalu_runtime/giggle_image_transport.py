@@ -13,17 +13,36 @@ import httpx
 from .repository import ConflictError
 from .writer_transport import unique_object
 
+# Documented sizes at https://apidocs.giggle.pro/449072504e0 and /449072516e0.
+# Their 1K widescreen/portrait sizes are 3:2/2:3, not 16:9/9:16. Choose
+# the lowest documented matching-ratio tier, without silently cropping output.
+OPENING_IMAGE_PROFILES = {
+    "16:9": ("2K", 2048, 1152),
+    "9:16": ("2K", 1152, 2048),
+    "1:1": ("1K", 1024, 1024),
+    "4:3": ("1K", 1024, 768),
+    "3:4": ("1K", 768, 1024),
+}
+
+
+def opening_image_profile(aspect_ratio: str):
+    if aspect_ratio not in OPENING_IMAGE_PROFILES:
+        raise ConflictError("unsupported opening-image aspect ratio")
+    return OPENING_IMAGE_PROFILES[aspect_ratio]
+
 
 def image_payload(request: dict) -> tuple[str, dict]:
     required = {"prompt", "generate_count", "model", "aspect_ratio", "resolution", "watermark"}
     if (set(request) - required - {"reference_images"} or not required <= set(request)
             or request["model"] != "gpt-image-2-pro" or type(request["generate_count"]) is not int
             or request["generate_count"] != 1 or request["watermark"] is not False
-            or request["resolution"] != "1K"
+            or request["resolution"] not in {"1K", "2K"}
             or request["aspect_ratio"] not in {"16:9", "9:16", "1:1", "3:4", "4:3"}
             or not isinstance(request["prompt"], str) or not request["prompt"].strip()
             or len(request["prompt"]) > 10_000):
         raise ConflictError("unsupported or unbounded image request")
+    if request["aspect_ratio"] in {"16:9", "9:16"} and request["resolution"] == "1K":
+        raise ConflictError("documented 1K output does not match this ratio; prepare and review the 2K request")
     references = request.get("reference_images", [])
     if not isinstance(references, list) or len(references) > 9:
         raise ConflictError("unsupported reference image count")

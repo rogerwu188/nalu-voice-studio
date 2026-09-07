@@ -100,6 +100,8 @@ def test_confirmed_shot_compiles_opening_image_without_network(tmp_path, case):
         return
     assert result.status_code == 200, result.text
     record = result.json()["payload"]
+    assert record["resolution"] == "2K"
+    assert record["documented_dimensions"] == {"width": 1152, "height": 2048}
     assert "外婆尚未抬头" in record["prompt"] and "入镜状态：外婆站在岸边" in record["prompt"]
     assert record["paid_approved"] is False and record["generation_performed"] is False
     assert record["image_task_key"] == "E01-U01-entry"

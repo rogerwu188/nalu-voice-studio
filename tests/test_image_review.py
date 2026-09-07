@@ -51,6 +51,8 @@ def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypat
         approved_plan_sha256=plan["plan_sha256"])
     preparer = ImagePreparationService(repo, AssetService(repo, root))
     prepared = preparer.prepare(run.id, source)
+    assert prepared.payload["resolution"] == "1K"
+    assert prepared.payload["documented_dimensions"] == {"width": 1024, "height": 1024}
     _, request = preparer.materialize(run.id, source)
     binding = ImageSubmissionService(repo).submit(run.id, "E01-U01-entry", request, secret=lambda: "synthetic-key",
         authorize=lambda *args: None, transport=httpx.MockTransport(lambda _: httpx.Response(200,

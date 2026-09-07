@@ -8,13 +8,14 @@ from nalu_runtime.giggle_image_transport import (
     GiggleImageTransport,
     ImageAcceptanceUnconfirmed,
     image_payload,
+    opening_image_profile,
 )
 from nalu_runtime.repository import ConflictError
 
 
 def request():
     return {"prompt": "合成首帧：空房间的窗前，一束晨光。", "model": "gpt-image-2-pro",
-            "resolution": "1K", "aspect_ratio": "16:9", "generate_count": 1, "watermark": False}
+            "resolution": "2K", "aspect_ratio": "16:9", "generate_count": 1, "watermark": False}
 
 
 @pytest.mark.parametrize("mode", ["text", "reference", "unauthorized", "http_error", "missing_id", "secret_echo", "duplicate_json", "redirect"])
@@ -68,3 +69,14 @@ def test_fixed_image_transport_has_mandatory_authority_and_no_retry(mode):
 def test_unsupported_image_payload_is_rejected_locally(patch):
     with pytest.raises(ConflictError):
         image_payload({**request(), **patch})
+
+
+@pytest.mark.parametrize("ratio", ["16:9", "9:16", "1:1", "4:3", "3:4"])
+def test_automatic_profile_matches_documented_ratio(ratio):
+    resolution, width, height = opening_image_profile(ratio)
+    numerator, denominator = map(int, ratio.split(":"))
+    assert width * denominator == height * numerator
+    assert image_payload({**request(), "aspect_ratio": ratio, "resolution": resolution})[1]["resolution"] == resolution
+    if ratio in {"16:9", "9:16"}:
+        with pytest.raises(ConflictError, match="1K output does not match"):
+            image_payload({**request(), "aspect_ratio": ratio, "resolution": "1K"})

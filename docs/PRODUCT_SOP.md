@@ -37,6 +37,10 @@ Image preparations also support [shared image/video estimate reservations](qa/sh
 This does not verify provider prices, grant QingShan contract approval or enable
 an otherwise unavailable paid image submission path.
 
+Opening-frame preparation now [selects a documented matching-ratio resolution](qa/image-resolution-profile-2026-09-07.md)
+instead of always requesting 1K. This changes request/approval hashes and is not
+permission to upgrade an existing paid intent or bypass actual frame checks.
+
 Confirmed shots now support [automatic local opening-image preparation](qa/reviewed-opening-image-preparation-2026-09-06.md)
 with exact source bindings, inherited reference checks and restart reuse. This is
 not paid image activation, native QA, continuous-frame handoff or finished production.
