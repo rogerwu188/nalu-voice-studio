@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "26dddd69433ae95c34b7ef66fe81b880c98a6e6e",
-  "last_advanced_at": "2026-09-07T00:12:47Z",
+  "observed_head": "15dfb2063c7b4321ba9324cbe936ce137b2e571b",
+  "last_advanced_at": "2026-09-07T00:21:28Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Video preparation/dispatch now carries exact latest accepted frame review and checks source/materialization/image hashes, including immediately before POST. Full local suite 499 passed in 64.61s; final frame/review subset 12 passed. Evidence docs/qa/accepted-frame-video-binding-2026-09-07.md. Native CI 34068985738 still pending; previous run 34068807985 runtime/ARM passed, Intel running at observation. Delay pushing this checkpoint until native run starts to avoid replacing its pending build. No actual generation/native QA claimed."
+    "summary": "Accepted-frame dispatch binding 15dfb20 is pushed; CI 34069325621 pending at observation. Native candidate 26dddd6 CI 34068985738 runtime/ARM passed, full workflow still running. ARM artifact 9999962862 checksum and deep-strict ad-hoc signature verified; isolated launch requested on port 18789. See docs/qa/frame-review-package-2026-09-07.md for exact paths and candidate distinction. No native interaction, real generation or full product acceptance claimed."
   },
   "next_action": {
     "sop": "SOP-04",
