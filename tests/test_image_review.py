@@ -16,7 +16,9 @@ from nalu_runtime.video_preparation import VideoPreparationRequest, VideoPrepara
 from test_image_download import png
 
 
-@pytest.mark.parametrize("case", ["accept", "reject", "stale_image", "changed_file", "changed_plan", "downstream", "restart"])
+@pytest.mark.parametrize("case", ["accept", "reject", "stale_image", "changed_file", "changed_plan", "downstream", "restart",
+                                  "other_shot_prepared", "same_shot_prepared", "other_shot_budget", "same_shot_budget",
+                                  "other_shot_remote", "same_shot_remote"])
 def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypatch, case):
     db_path, root = tmp_path / "db", tmp_path / "data"
     api = TestClient(create_app(db_path, root))
@@ -76,8 +78,17 @@ def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypat
     elif case in {"changed_plan", "downstream"}:
         repo.append_run_event_once(run.id, "shot_plan_revised" if case == "changed_plan" else "video_task_prepared",
             dedupe_key="fixture", dedupe_value=case, message="Synthetic changed context", payload={"fixture": case})
+    elif case in {"other_shot_prepared", "same_shot_prepared", "other_shot_budget", "same_shot_budget"}:
+        repo.append_run_event(run.id, "video_estimate_reserved" if case.endswith("budget") else "video_task_prepared",
+                              payload={"task_key": "E01-U02" if case.startswith("other") else "E01-U01"})
+    elif case in {"other_shot_remote", "same_shot_remote"}:
+        with repo.db.connect() as db:
+            db.execute("INSERT INTO remote_task_bindings VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                       ("synthetic-video", run.id, "E01-U02" if case.startswith("other") else "E01-U01",
+                        "giggle", run.requested_model, "0" * 64, "1" * 64, "submitted",
+                        "synthetic-video-id", None, None, "{}", "unknown", None, now, now))
     result = api.post(endpoint + "/review", json=incoming)
-    if case in {"stale_image", "changed_file", "changed_plan", "downstream"}:
+    if case in {"stale_image", "changed_file", "changed_plan", "downstream", "same_shot_prepared", "same_shot_budget", "same_shot_remote"}:
         assert result.status_code == 409, result.text
         return
     assert result.status_code == 200, result.text

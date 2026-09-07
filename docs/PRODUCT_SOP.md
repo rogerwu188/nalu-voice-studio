@@ -37,6 +37,11 @@ pointer and approved plan without resetting the episode or creating another run.
 is connected in source, preserving unsaved edits during refresh. Native CI/UI QA
 and real production remain unfinished; neither SOP is PASS.
 
+[Per-shot frame review](qa/per-shot-frame-review-2026-09-07.md) no longer blocks
+the next independent shot merely because another shot entered video preparation.
+Same-shot/shared-reference protection remains, and video preparation now validates
+and commits under one SQLite writer lock. Real sequential production is still open.
+
 AI plans now carry [typed director choices with native round-trip and plain-language readback](qa/structured-director-drafts-2026-09-07.md).
 User edits invalidate stale choices. A [version-bound director refresh backend](qa/director-refresh-2026-09-07.md)
 now fills missing choices without rewriting user descriptions, with restart and

@@ -15,7 +15,7 @@ from .director_draft import DirectorDraft
 from .giggle_video_transport import seedance_image_payload
 from .models import RunStatus
 from .qingshan_compilers import ModelCompilationError, ModelCompilerRegistry, project_aspect_ratio
-from .repository import ConflictError, Repository
+from .repository import ConflictError, Repository, encode, new_id, utc_now
 from .shot_identity_scope import compile_identity_scope
 
 
@@ -38,12 +38,23 @@ class VideoPreparationService:
         self.repository = repository
 
     def prepare(self, run_id: str, incoming: VideoPreparationRequest):
-        record = self.validate(run_id, incoming)
-        return self.repository.append_run_event_once(
-            run_id, "video_task_prepared", dedupe_key="preparation_sha256",
-            dedupe_value=record["preparation_sha256"],
-            message="Exact shot and opening image saved for review; no provider submission.", payload=record,
-        )
+        # Validation and recording must share the writer lock with image review
+        # and library refresh. Otherwise a frame can be rejected or a package
+        # replaced between validation and the event that protects it.
+        with self.repository.db.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            record = self.validate(run_id, incoming)
+            rows = db.execute("SELECT id, payload_json FROM run_events WHERE run_id=? AND event_type='video_task_prepared'",
+                              (run_id,)).fetchall()
+            for row in rows:
+                if json.loads(row["payload_json"]).get("preparation_sha256") == record["preparation_sha256"]:
+                    return self.repository.get_run_event(row["id"])
+            identity, now = new_id("evt"), utc_now()
+            sequence = db.execute("SELECT COALESCE(MAX(sequence),0)+1 FROM run_events WHERE run_id=?", (run_id,)).fetchone()[0]
+            db.execute("INSERT INTO run_events VALUES (?,?,?,?,?,?,?,?,?)", (identity, run_id, sequence,
+                "video_task_prepared", None, None, "Exact shot and opening image saved for review; no provider submission.",
+                encode(record), now))
+        return self.repository.get_run_event(identity)
 
     def validate(self, run_id: str, incoming: VideoPreparationRequest):
         run = self.repository.get_run(run_id)

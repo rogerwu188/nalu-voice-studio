@@ -61,9 +61,19 @@ class ImageReviewService:
                 return self.repository.get_run_event(latest["id"])
             if incoming.expected_review_event_id != (latest["id"] if latest else None):
                 raise ConflictError("frame review changed; reload before another decision")
-            if any(row["event_type"] in {"video_task_prepared", "video_estimate_reserved"} for row in rows):
+            # Entry images belong to one shot. Preparing that shot must not
+            # prevent the user from reviewing a different shot in the episode.
+            # Shared references and legacy records without task identity remain
+            # conservatively protected across the whole run.
+            image_key = image["task_key"]
+            video_key = (image_key.removesuffix("-entry")
+                         if source.visual_asset_key is None and image_key == source.task_key + "-entry" else None)
+            if any(row["event_type"] in {"video_task_prepared", "video_estimate_reserved"}
+                   and (video_key is None or json.loads(row["payload_json"]).get("task_key") in {None, video_key})
+                   for row in rows):
                 raise ConflictError("video preparation has started; reconcile downstream work before changing frame review")
-            if db.execute("SELECT 1 FROM remote_task_bindings WHERE run_id=? LIMIT 1", (run_id,)).fetchone():
+            if db.execute("SELECT 1 FROM remote_task_bindings WHERE run_id=? AND (? IS NULL OR task_key=?) LIMIT 1",
+                          (run_id, video_key, video_key)).fetchone():
                 raise ConflictError("provider video work exists; reconcile before changing frame review")
             record = {"run_id": run_id, "task_key": image["task_key"], "materialization_id": materialization_id,
                       "materialization_sha256": image["materialization_sha256"], "image_sha256": image["image"]["sha256"],

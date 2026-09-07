@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "c2312cef3da3887734cfbeda63248552fa9a8d59",
-  "last_advanced_at": "2026-09-07T03:42:20Z",
+  "observed_head": "0f8c5369373d414c28ea574d1b8c8af027e21fb9",
+  "last_advanced_at": "2026-09-07T03:48:22Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Native character review now carries verified run/project context and automatically refreshes the snapshot after all confirmations, then reloads the exact approved plan. Existing control retries; no key/model call. Refresh signals preserve unsaved shot edits and suppress stale preparation controls. See docs/qa/native-library-snapshot-refresh-2026-09-07.md. 22 backend tests passed in 11.34s; Ruff/diff passed. Native tests added; local Swift manifest linker failed before compilation. Current native CI/UI QA required. Prior c2312ce CI 34080172455 was in progress when inspected."
+    "summary": "Fixed run-wide frame review lock that prevented sequential shots: only same-shot video preparations/reservations/bindings block entry review; shared references and unknown legacy identity remain conservative. Video preparation now validates and records under the SQLite writer lock to prevent concurrent frame rejection/package refresh races. See docs/qa/per-shot-frame-review-2026-09-07.md. 37 related/progress tests passed in 8.05s; Ruff/diff passed. Prior c2312ce full CI succeeded; native 0f8c536 CI 34080624095 running. Current CI and real video/native QA acceptance remain pending."
   },
   "next_action": {
     "sop": "SOP-04",
