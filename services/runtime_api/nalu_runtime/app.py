@@ -191,6 +191,7 @@ from .video_budget import VideoBudgetApproval, VideoBudgetService
 from .video_dispatch import VideoDispatchService
 from .video_download import VideoDownloadError
 from .video_materialization import VideoMaterializationService
+from .video_review import VideoReviewRequest, VideoReviewService
 from .video_preparation import VideoPreparationRequest, VideoPreparationService
 from .video_pricing import VideoPricingService
 from .writer_provider import (
@@ -1358,6 +1359,13 @@ def create_app(
             return VideoMaterializationService(repository, data_root).materialize(run_id, observation_id, result_index)
         except VideoDownloadError as exc:
             raise HTTPException(502, str(exc)) from None
+
+    @app.post("/v1/production-runs/{run_id}/video-results/{materialization_id}/reviews", response_model=RunEvent)
+    def review_saved_video(run_id: str, materialization_id: str, request: VideoReviewRequest,
+                           origin: str | None = Header(default=None)):
+        if origin is not None:
+            raise HTTPException(403, "native video review required")
+        return VideoReviewService(repository, data_root).review(run_id, materialization_id, request)
 
     @app.get("/v1/production-runs/{run_id}/video-results/{materialization_id}/content", response_class=Response,
              responses={200: {"content": {"video/mp4": {}}}})

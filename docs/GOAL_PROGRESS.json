@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "6614ec4467a907d83b29f70499a16f7bdb158031",
-  "last_advanced_at": "2026-09-07T05:28:20Z",
+  "observed_head": "186f25471becacdbb323a09dff113c6134a88f16",
+  "last_advanced_at": "2026-09-07T05:35:15Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Wired native candidate panel into existing submitted-shot controls: local receipt restoration, explicit provider status query, immutable download recovery and AVKit playback of size/hash-checked private temporary MP4. Added pending/error/no-repeat tests; backend materialization/progress 15 passed in 4.99s. Parent 6614ec4 CI 34086687185 running; 5186ad1 full CI 34086218843 succeeded. New native CI and installed-app playback QA required. See docs/qa/native-video-playback-2026-09-07.md; no SOP closes."
+    "summary": "Added version-bound video adoption/rejection backend with exact media/current preparation validation, duration/aspect checks, CAS and concurrent replay. 41 tests passed in 11.65s including actual plan/frame/preparation validators through synthetic MP4 acceptance. No real provider generation or human QA. See docs/qa/video-shot-review-2026-09-07.md. Native review controls, continuous tail frames and full E2E remain open. Parent native bridge 6614ec4 full CI 34086687185 succeeded; playback CI pending at initial check."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Connect existing tasks/{binding}/refresh and new video-observations/{id}/materialize plus video-results/{id}/content to native candidate playback/review. Reuse stored results after restart; never repeat generation to recover downloads. Add accepted-video/tail-frame lineage for continuous next shots, then episode QA/master/release. Current candidate tests are synthetic, not E2E. Voice-only final confirmation and image-price/Hops access gaps remain. Preserve full two-source interactive-script to multi-episode objective and existing TTS.",
+    "summary": "Connect persisted video_shot_reviewed decisions to native playback with current review-ID recovery. Add accepted-video tail-frame extraction and lineage for continuous next shots, then episode QA/master/release. Verify playback CI and installed-app behavior. Tests so far use synthetic media, not real E2E. Preserve two-source interactive-script to multi-episode objective and existing TTS; image pricing/Hops access gaps remain.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

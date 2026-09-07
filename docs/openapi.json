@@ -9709,6 +9709,62 @@
         "title": "VideoPreparationRequest",
         "type": "object"
       },
+      "VideoReviewRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "confirmation": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Confirmation",
+            "type": "string"
+          },
+          "decision": {
+            "enum": [
+              "accept",
+              "reject"
+            ],
+            "title": "Decision",
+            "type": "string"
+          },
+          "expected_materialization_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Expected Materialization Sha256",
+            "type": "string"
+          },
+          "expected_review_event_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Review Event Id"
+          },
+          "preparation_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Preparation Id",
+            "type": "string"
+          },
+          "reviewed_by": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Reviewed By",
+            "type": "string"
+          }
+        },
+        "required": [
+          "preparation_id",
+          "expected_materialization_sha256",
+          "decision",
+          "reviewed_by",
+          "confirmation"
+        ],
+        "title": "VideoReviewRequest",
+        "type": "object"
+      },
       "VisualAssetDraft": {
         "additionalProperties": false,
         "properties": {
@@ -15748,6 +15804,80 @@
           }
         },
         "summary": "Preview Saved Video"
+      }
+    },
+    "/v1/production-runs/{run_id}/video-results/{materialization_id}/reviews": {
+      "post": {
+        "operationId": "review_saved_video_v1_production_runs__run_id__video_results__materialization_id__reviews_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "materialization_id",
+            "required": true,
+            "schema": {
+              "title": "Materialization Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "origin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Origin"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VideoReviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunEvent"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Review Saved Video"
       }
     },
     "/v1/production-runs/{run_id}/video-task-preparations": {

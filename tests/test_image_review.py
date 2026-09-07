@@ -143,6 +143,29 @@ def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypat
         reopened = TestClient(create_app(db_path, root))
         assert reopened.post(url, json=request).json()["id"] == prepared_video.json()["id"]
         assert len([event for event in repo.list_run_events(run.id) if event.event_type == "video_task_prepared"]) == 1
+        # Synthetic provider observation, but real plan/frame/video validation:
+        # no monkeypatch of VideoPreparationService for this acceptance chain.
+        from nalu_runtime.task_observation_service import TaskObservationService
+        from test_video_download import mp4
+        with repo.db.connect() as db:
+            db.execute("INSERT INTO remote_task_bindings VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                       ("review-video", run.id, video_record["task_key"], "giggle", run.requested_model,
+                        "0" * 64, video_record["request_sha256"], "submitted", "synthetic-video-id",
+                        None, None, "{}", "unknown", None, now, now))
+        observation = TaskObservationService(repo).refresh(run.id, "review-video", SimpleNamespace(query=lambda _: GiggleTaskObservation(
+            "synthetic-video-id", "completed", ("https://example.org/video.mp4",), "d" * 64)))
+        video_bytes = mp4(frames=12 * shot["duration_seconds"])
+        monkeypatch.setattr("nalu_runtime.video_materialization.download_video", lambda _: video_bytes)
+        candidate = api.post(f"/v1/production-runs/{run.id}/video-observations/{observation.id}/materialize")
+        assert candidate.status_code == 200, candidate.text
+        receipt = candidate.json()
+        accepted = api.post(f"/v1/production-runs/{run.id}/video-results/{receipt['id']}/reviews", json={
+            "preparation_id": prepared_video.json()["id"],
+            "expected_materialization_sha256": receipt["payload"]["materialization_sha256"],
+            "decision": "accept", "reviewed_by": "synthetic-qa", "confirmation": "采用这个镜头"})
+        assert accepted.status_code == 200, accepted.text
+        assert accepted.json()["payload"]["approved_plan_event_id"] == plan_event.id
+        assert accepted.json()["payload"]["master_accepted"] is False
         return
     video = VideoPreparationRequest(task_key="E01-U01", request={}, approved_plan_event_id=plan_event.id,
         approved_plan_sha256=plan["plan_sha256"], approved_frame_review_id=result.json()["id"])
