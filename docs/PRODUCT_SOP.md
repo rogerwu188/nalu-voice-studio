@@ -69,6 +69,10 @@ decodes a short provider MP4 into immutable local candidate storage, with task
 lineage and restart/concurrency checks. Native playback/review, accepted tail-frame
 handoff and full episode/master acceptance remain unfinished.
 
+[Native candidate bridge](qa/native-video-candidate-bridge-2026-09-07.md) adds
+typed existing-task query and download recovery without generation retry. Native
+playback/review wiring and real end-to-end acceptance are still IN_PROGRESS.
+
 AI plans now carry [typed director choices with native round-trip and plain-language readback](qa/structured-director-drafts-2026-09-07.md).
 User edits invalidate stale choices. A [version-bound director refresh backend](qa/director-refresh-2026-09-07.md)
 now fills missing choices without rewriting user descriptions, with restart and

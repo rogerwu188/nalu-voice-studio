@@ -276,6 +276,59 @@ actor RuntimeClient {
         return saved
     }
 
+    /// Query only the already-bound provider task. Never resubmit generation.
+    func refreshVideoTask(_ binding: VideoSubmissionObservation, apiKey: String) async throws -> VideoTaskObservation {
+        guard let taskID = binding.provider_task_id, !taskID.isEmpty else {
+            throw LibrarySnapshotRefreshError.contextChanged
+        }
+        var request = URLRequest(url: baseURL.appending(path:
+            "v1/production-runs/\(binding.run_id)/tasks/\(binding.id)/refresh"))
+        request.httpMethod = "POST"
+        request.setValue(apiKey, forHTTPHeaderField: "X-Nalu-Provider-Key")
+        let (data, response) = try await authorizedData(for: request)
+        try validate(response, data: data)
+        let saved = try decoder.decode(VideoTaskObservation.self, from: data)
+        guard saved.run_id == binding.run_id, saved.event_type == "provider_task_observed",
+              saved.payload.binding_id == binding.id, saved.payload.task_id == taskID,
+              ["pending", "processing", "completed", "failed", "error"].contains(saved.payload.status),
+              !saved.payload.billing_verified, !saved.payload.generation_performed,
+              !saved.payload.master_accepted, !Task.isCancelled else {
+            throw LibrarySnapshotRefreshError.contextChanged
+        }
+        return saved
+    }
+
+    /// Download recovery is a separate idempotent operation without a provider key.
+    func materializeVideo(_ observation: VideoTaskObservation, binding: VideoSubmissionObservation,
+                          resultIndex: Int = 0) async throws -> VideoCandidate {
+        guard observation.run_id == binding.run_id, observation.event_type == "provider_task_observed",
+              observation.payload.binding_id == binding.id,
+              observation.payload.task_id == binding.provider_task_id,
+              observation.payload.status == "completed", (0..<4).contains(resultIndex),
+              observation.payload.result_urls.indices.contains(resultIndex),
+              !observation.payload.billing_verified, !observation.payload.generation_performed,
+              !observation.payload.master_accepted else { throw LibrarySnapshotRefreshError.contextChanged }
+        var components = URLComponents(url: baseURL.appending(path:
+            "v1/production-runs/\(binding.run_id)/video-observations/\(observation.id)/materialize"),
+            resolvingAgainstBaseURL: false)!
+        components.queryItems = [URLQueryItem(name: "result_index", value: String(resultIndex))]
+        var request = URLRequest(url: components.url!)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 180
+        let (data, response) = try await authorizedData(for: request)
+        try validate(response, data: data)
+        let saved = try decoder.decode(VideoCandidate.self, from: data)
+        guard saved.run_id == binding.run_id, saved.event_type == "video_result_materialized",
+              saved.payload.observation_id == observation.id,
+              saved.payload.observation_sha256 == observation.payload.observation_sha256,
+              saved.payload.binding_id == binding.id, saved.payload.result_index == resultIndex,
+              saved.payload.task_key == binding.task_key, saved.payload.request_sha256 == binding.request_sha256,
+              saved.payload.video_downloaded, !saved.payload.generation_performed,
+              !saved.payload.billing_verified, !saved.payload.visual_semantics_verified,
+              !saved.payload.master_accepted, !Task.isCancelled else { throw LibrarySnapshotRefreshError.contextChanged }
+        return saved
+    }
+
     private func validateVideoSubmission(_ saved: VideoSubmissionObservation, reservation: VideoCostReservation) throws {
         guard saved.run_id == reservation.run_id, saved.task_key == reservation.payload.task_key,
               saved.request_sha256 == reservation.payload.request_sha256, !Task.isCancelled else {
