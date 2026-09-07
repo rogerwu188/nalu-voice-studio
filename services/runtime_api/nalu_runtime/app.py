@@ -31,6 +31,7 @@ from .episode_audio_review import (
     EpisodeAudioReviewRequest,
     EpisodeAudioReviewService,
 )
+from .episode_dialogue import EpisodeDialogueService
 from .episode_edit_review import EpisodeEditReviewRequest, EpisodeEditReviewService
 from .episode_preview import EpisodePreviewRequest, EpisodePreviewService
 from .episode_sound_plan import EpisodeSoundPlanRequest, EpisodeSoundPlanService
@@ -1437,6 +1438,19 @@ def create_app(
     def recover_episode_audio(run_id: str, sound_plan_id: str,
                               expected_sound_plan_sha256: str):
         return EpisodeAudioService(repository, data_root).recover(run_id, sound_plan_id, expected_sound_plan_sha256)
+
+    @app.get("/v1/production-runs/{run_id}/adopted-dialogue", response_class=Response)
+    def export_episode_dialogue(run_id: str, sound_plan_id: str,
+                                expected_sound_plan_sha256: str = Query(pattern=r"^[a-f0-9]{64}$"),
+                                artifact: str = Query(default="audio", pattern="^(audio|captions)$")):
+        audio, captions, lineage = EpisodeDialogueService(repository, data_root).build(
+            run_id, sound_plan_id, expected_sound_plan_sha256)
+        raw = audio if artifact == "audio" else captions
+        sha = lineage["dialogue_sha256" if artifact == "audio" else "captions_sha256"]
+        return Response(raw, media_type="audio/wav" if artifact == "audio" else "text/vtt",
+            headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff",
+                     "X-Nalu-Artifact-SHA256": sha, "X-Nalu-Sound-Plan-ID": sound_plan_id,
+                     "X-Nalu-Master-Accepted": "false"})
 
     @app.post("/v1/production-runs/{run_id}/audio-takes/{take_id}/transcripts", response_model=RunEvent)
     def save_recording_transcript(run_id: str, take_id: str, request: RecordingTranscriptRequest,

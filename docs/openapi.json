@@ -13660,6 +13660,68 @@
         "summary": "Stage Accepted Episode"
       }
     },
+    "/v1/production-runs/{run_id}/adopted-dialogue": {
+      "get": {
+        "operationId": "export_episode_dialogue_v1_production_runs__run_id__adopted_dialogue_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sound_plan_id",
+            "required": true,
+            "schema": {
+              "title": "Sound Plan Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expected_sound_plan_sha256",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-f0-9]{64}$",
+              "title": "Expected Sound Plan Sha256",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "artifact",
+            "required": false,
+            "schema": {
+              "default": "audio",
+              "pattern": "^(audio|captions)$",
+              "title": "Artifact",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Episode Dialogue"
+      }
+    },
     "/v1/production-runs/{run_id}/audio-takes": {
       "get": {
         "operationId": "recover_episode_audio_v1_production_runs__run_id__audio_takes_get",

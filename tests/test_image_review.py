@@ -491,6 +491,10 @@ def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypat
             assert restored_caption.status_code == 200, restored_caption.text
             assert restored_caption.json()["latest_review"]["id"] == caption_saved.json()["id"]
             assert restored_caption.json()["captions_approved"] is True
+            from nalu_runtime.episode_dialogue import EpisodeDialogueService
+            with pytest.raises(ConflictError, match="every cue"):
+                EpisodeDialogueService(repo, root).build(run.id, prepared_sound.json()["id"],
+                    approved_sound["sound_plan_sha256"])
             vtt_url = f"{transcript_url}/{transcript_saved.json()['id']}/accepted-captions"
             vtt_query = {**caption_query, "expected_caption_review_id": caption_saved.json()["id"]}
             vtt = reopened.get(vtt_url, params=vtt_query)

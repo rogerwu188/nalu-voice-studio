@@ -7,6 +7,10 @@ against the current main branch.
 
 ## Status vocabulary
 
+[Episode dialogue assembly](qa/episode-dialogue-assembly-2026-09-07.md) combines
+current adopted cue audio/captions. Full service success QA, persisted staging
+and final mix/master integration are still open.
+
 [Adopted caption export](qa/accepted-caption-export-2026-09-07.md) provides one
 confirmed recording's episode-timed WebVTT. Full audio/subtitle staging and
 final-master integration remain IN_PROGRESS.

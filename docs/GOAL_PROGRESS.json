@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "e9359e4a369712d4dd5df108074c70d16ea8eea3",
-  "last_advanced_at": "2026-09-07T09:39:42Z",
+  "observed_head": "cab755818c1a991d93b7dc9479a0c490e86844a7",
+  "last_advanced_at": "2026-09-07T09:43:19Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -30,7 +30,7 @@
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Accepted per-recording WebVTT export implemented (6 tests passed 22.43s), evidence docs/qa/accepted-caption-export-2026-09-07.md. Next combine current cue captions and PCM into episode-wide postproduction inputs with lineage, then final materializer/master/release. Resolve native CI 34106778965 (in progress) and installed QA; preserve two-source writing/TTS and do not repeat Hops 401 requests.",
+    "summary": "Episode dialogue/caption assembler and local export added; six PCM tests and missing-cue managed-media check pass. Next add full two-cue service/API success and stale-source tests, persist staged lineage for materializer, then final mix/master/release. Evidence docs/qa/episode-dialogue-assembly-2026-09-07.md. UI CI 34106778965 ARM/runtime pass, Intel running. Native/installed QA still pending; preserve two-source writing/TTS, no Hops 401 retries.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
