@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "7f97adc27570b9c2a14dbd5992f25a7cca6b538f",
-  "last_advanced_at": "2026-09-07T03:04:54Z",
+  "observed_head": "2e70126e97f263e10ec8c62868fd49330b29c909",
+  "last_advanced_at": "2026-09-07T03:10:35Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Character correction API now checks expected revision inside a SQLite write transaction, replays an immediate identical correction without duplication and preserves confirmed history. Native request DTO/encoding test added. See docs/qa/version-bound-character-corrections-2026-09-07.md. 23 planning/library tests passed in 37.55s; Ruff/OpenAPI compatibility passed. Prior 7f97adc full CI 34076575924 and 87087e7 CI 34076128700 succeeded. Current native correction flow and CI pending."
+    "summary": "Native character correction now captures a revised complete description, retains identity/source links and expected version, saves/readbacks a new draft and requires confirmation. Active-conversation retry preserves the request; project-generation guards prevent stale response adoption. See docs/qa/native-character-correction-2026-09-07.md. 23 backend tests passed in 13.35s; Ruff/diff checks passed. Native helper tests added but current Swift CI/manual QA pending. Prior 2e70126 CI 34078486993 ARM passed, Intel/runtime still running when inspected."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Implement voice character-correction state using expectedCurrentRevision: retain sources, save a new draft, read it back and require explicit confirmation; handle failures without losing correction or crossing projects. Then reconcile immutable production snapshots after character confirmation, preserving shot plans and avoiding duplicate tasks. Compose actual approved assets/frame evidence into native per-shot production. Check current CI/native QA. Keep narrated/web-source scripts, existing TTS and sequential video/master/release objective.",
+    "summary": "Check current native CI and verify spoken correction/confirmation when UI accessible. Reconcile immutable production snapshots after confirmed character changes while retaining approved shot plans and avoiding duplicate tasks. Compose actual approved assets/frame evidence and reviewed contracts into native per-shot production. Keep narrated/web-source scripts, existing TTS and sequential video/master/release objective. Do not claim unsent dictation is durable across application termination.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

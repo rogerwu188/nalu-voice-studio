@@ -12,6 +12,8 @@ private enum LibraryIntakeStep {
     case name
     case description
     case confirmation
+    case correctionDescription
+    case correctionRetry
 }
 
 private enum HookReviewVoiceStep {
@@ -97,6 +99,9 @@ final class VoiceInterviewViewModel {
     private var libraryIntakeStep: LibraryIntakeStep?
     private var libraryIntakeEntityID: String?
     private var shotCharacterReviewQueue: [String] = []
+    private var libraryCorrectionEntity: LibraryEntity?
+    private var pendingLibraryCorrection: LibraryEntityRevisionDraft?
+    private var libraryCorrectionSaving = false
     private var hookReviewVoiceStep: HookReviewVoiceStep?
     private var hookReviewShouldCapture = false
     var draftProjectID: String?
@@ -745,6 +750,10 @@ final class VoiceInterviewViewModel {
     }
 
     private func handleLibraryIntakeAnswer(_ spoken: String, step: LibraryIntakeStep) {
+        guard !libraryCorrectionSaving else {
+            speechPlayback.speak("正在保存您刚才的修改，请稍等。旧资料仍然保留。", rate: comfortPreferences.speechRate)
+            return
+        }
         switch step {
         case .name:
             libraryDraftName = spoken
@@ -766,6 +775,16 @@ final class VoiceInterviewViewModel {
                 speechPlayback.speak(prompt, rate: comfortPreferences.speechRate)
             }
         case .confirmation:
+            if LibraryVoiceCorrection.requestsChange(spoken), let id = libraryIntakeEntityID,
+               let entity = libraryEntities.first(where: { $0.id == id }) {
+                libraryCorrectionEntity = entity
+                pendingLibraryCorrection = nil
+                libraryIntakeStep = .correctionDescription
+                let prompt = "好的，先不确认。请把\(entity.current.name)修改后的完整描述说一遍；我会另存新版本，再读给您听，原来的资料保留。"
+                messages.append(.init(speaker: .nalu, text: prompt))
+                speechPlayback.speak(prompt, rate: comfortPreferences.speechRate)
+                return
+            }
             let entityID = libraryIntakeEntityID
             libraryIntakeEntityID = nil
             libraryIntakeStep = nil
@@ -778,6 +797,61 @@ final class VoiceInterviewViewModel {
                 return
             }
             if let entityID { Task { await confirmLibraryEntity(entityID, reviewChannel: "voice") } }
+        case .correctionDescription:
+            if ["取消修改", "先不改了"].contains(where: spoken.contains) {
+                libraryCorrectionEntity = nil
+                pendingLibraryCorrection = nil
+                libraryIntakeStep = .confirmation
+                return
+            }
+            guard let entity = libraryCorrectionEntity,
+                  let draft = LibraryVoiceCorrection.draft(for: entity, description: spoken) else {
+                speechPlayback.speak("请说一段完整的人物描述，长度控制在一万字以内。", rate: comfortPreferences.speechRate)
+                return
+            }
+            pendingLibraryCorrection = draft
+            Task { await saveLibraryVoiceCorrection() }
+        case .correctionRetry:
+            if spoken.contains("重试") || spoken.contains("再保存") {
+                Task { await saveLibraryVoiceCorrection() }
+            } else if spoken.contains("取消修改") {
+                pendingLibraryCorrection = nil
+                libraryCorrectionEntity = nil
+                libraryIntakeEntityID = nil
+                libraryIntakeStep = nil
+                shotCharacterReviewQueue = []
+            } else {
+                speechPlayback.speak("刚才的修改仍保留在这次对话里。您可以说“重试保存”，或者“取消修改”。", rate: comfortPreferences.speechRate)
+            }
+        }
+    }
+
+    private func saveLibraryVoiceCorrection() async {
+        guard !libraryCorrectionSaving, let entity = libraryCorrectionEntity,
+              selectedProjectID == entity.projectID, let draft = pendingLibraryCorrection else { return }
+        let generation = projectSelectionGeneration
+        libraryCorrectionSaving = true
+        defer { if projectSelectionGeneration == generation { libraryCorrectionSaving = false } }
+        do {
+            let updated = try await runtime.createLibraryRevision(entityID: entity.id, draft: draft)
+            guard projectSelectionGeneration == generation, selectedProjectID == entity.projectID else { return }
+            guard updated.id == entity.id, updated.projectID == entity.projectID,
+                  updated.currentRevision == entity.currentRevision + 1,
+                  updated.current.description == draft.description else { throw URLError(.badServerResponse) }
+            if let index = libraryEntities.firstIndex(where: { $0.id == updated.id }) { libraryEntities[index] = updated }
+            pendingLibraryCorrection = nil
+            libraryCorrectionEntity = nil
+            libraryIntakeEntityID = updated.id
+            libraryIntakeStep = .confirmation
+            let prompt = "修改已另存第\(updated.currentRevision)版：\(updated.current.name)，\(updated.current.description)。正确请说“我确认这份项目设定”；还要改可以说“我要修改”。旧版本仍然保留。"
+            messages.append(.init(speaker: .nalu, text: prompt))
+            speechPlayback.speak(prompt, rate: comfortPreferences.speechRate)
+        } catch {
+            guard projectSelectionGeneration == generation else { return }
+            libraryIntakeStep = .correctionRetry
+            let prompt = "这次修改还没有确认保存成功，可能是资料版本发生变化。您刚才说的是：\(draft.description)。内容仍保留在这次对话里，可以说“重试保存”；不会覆盖后来的修改。"
+            messages.append(.init(speaker: .nalu, text: prompt))
+            speechPlayback.speak(prompt, rate: comfortPreferences.speechRate)
         }
     }
 
@@ -802,6 +876,9 @@ final class VoiceInterviewViewModel {
         shotCharacterReviewQueue = []
         libraryIntakeEntityID = nil
         libraryIntakeStep = nil
+        libraryCorrectionEntity = nil
+        pendingLibraryCorrection = nil
+        libraryCorrectionSaving = false
         let isDocumentary = selectedProject?.creativeFormat == "documentary_series"
         pendingVoiceRunCancellationID = nil
         memoryConflictReports = [:]
