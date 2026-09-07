@@ -50,6 +50,11 @@ continuous-shot lineage remain unfinished; no full SOP PASS follows from this.
 are connected in source with saved-event recovery; current native CI/UI QA and
 explicit cost approval/dispatch are still required.
 
+[Explicit preflight-to-production authorization](qa/production-authorization-2026-09-07.md)
+now preserves the same run and confirmed plan while creating a separately preflighted
+budget-authorized package. Native readback/action is not connected yet; per-task
+cost approval, dispatch and real production QA remain required. No SOP becomes PASS.
+
 AI plans now carry [typed director choices with native round-trip and plain-language readback](qa/structured-director-drafts-2026-09-07.md).
 User edits invalidate stale choices. A [version-bound director refresh backend](qa/director-refresh-2026-09-07.md)
 now fills missing choices without rewriting user descriptions, with restart and

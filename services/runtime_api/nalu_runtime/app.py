@@ -166,6 +166,7 @@ from .models import (
     WriterReceiptReconciliation,
 )
 from .privacy_service import ProjectPrivacyService
+from .production_authorization import ProductionAuthorizationRequest, ProductionAuthorizationService
 from .publication_learning import (
     DisabledPublicationLearningVerifier,
     PublicationLearningVerifier,
@@ -1201,6 +1202,13 @@ def create_app(
     @app.get("/v1/production-runs/{run_id}/library-snapshot-refresh")
     def preview_confirmed_library_refresh(run_id: str):
         return LibrarySnapshotRefreshService(production).preview(run_id)
+
+    @app.post("/v1/production-runs/{run_id}/production-authorization", response_model=RunEvent)
+    def authorize_preflight_production(run_id: str, request: ProductionAuthorizationRequest,
+                                      origin: str | None = Header(default=None)):
+        if origin is not None:
+            raise HTTPException(403, "native explicit production authorization required")
+        return ProductionAuthorizationService(production).authorize(run_id, request)
 
     @app.post("/v1/production-runs/{run_id}/shot-plans/{source_id}/character-cards", response_model=RunEvent)
     def prepare_shot_character_cards(run_id: str, source_id: str, request: ShotCharacterLibraryRequest):

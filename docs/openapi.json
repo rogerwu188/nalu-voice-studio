@@ -6048,6 +6048,59 @@
         "title": "PostproductionShotSource",
         "type": "object"
       },
+      "ProductionAuthorizationRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "approved_by": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Approved By",
+            "type": "string"
+          },
+          "confirmation": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Confirmation",
+            "type": "string"
+          },
+          "confirmed_run_budget_credits": {
+            "exclusiveMinimum": 0.0,
+            "title": "Confirmed Run Budget Credits",
+            "type": "integer"
+          },
+          "expected_package_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Expected Package Sha256",
+            "type": "string"
+          },
+          "expected_plan_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Expected Plan Sha256",
+            "type": "string"
+          },
+          "guardian_approval": {
+            "default": false,
+            "title": "Guardian Approval",
+            "type": "boolean"
+          },
+          "source_event_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Source Event Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_event_id",
+          "expected_plan_sha256",
+          "expected_package_sha256",
+          "confirmed_run_budget_credits",
+          "approved_by",
+          "confirmation"
+        ],
+        "title": "ProductionAuthorizationRequest",
+        "type": "object"
+      },
       "ProductionCompletionRequest": {
         "additionalProperties": false,
         "properties": {
@@ -14004,6 +14057,71 @@
           }
         },
         "summary": "Postproduction Repair Plan"
+      }
+    },
+    "/v1/production-runs/{run_id}/production-authorization": {
+      "post": {
+        "operationId": "authorize_preflight_production_v1_production_runs__run_id__production_authorization_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "origin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Origin"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductionAuthorizationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunEvent"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Authorize Preflight Production"
       }
     },
     "/v1/production-runs/{run_id}/publication-dry-runs": {

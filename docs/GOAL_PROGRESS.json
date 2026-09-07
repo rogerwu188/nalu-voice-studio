@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "cb1c10d5822cba8293b27b6d2cf1382e33c8c83f",
-  "last_advanced_at": "2026-09-07T04:04:01Z",
+  "observed_head": "040a149e28fd286a0c522fc0f809da871b3a95bb",
+  "last_advanced_at": "2026-09-07T04:18:45Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Native accepted-frame panel now prepares video via the reviewed-shot endpoint, validates returned run/plan/review/materialization, and recovers saved preparation from events without repeat creation. Added public-price preview with bound hash/expiry checks and TTS, explicitly not cost approval or charge cap. Failures retain accepted image/task and clear stale quotes. See docs/qa/native-video-preparation-2026-09-07.md. 31 backend/frame/price/progress tests passed in 10.87s; Ruff/diff passed. Native tests added, current macOS CI/UI QA pending. Prior 97b0d62 full CI 34080974999 succeeded; cb1c10d CI running."
+    "summary": "Found native production remained dry-run, making downstream cost approval unreachable. Added explicit same-run authorization endpoint bound to approved plan/package and positive confirmed budget, guardian policy, immutable separately preflighted package and atomic plan/run update. Preserves original script and plan; no paid call. Durable request replay and downstream-effect locks; old local image preparations cannot reuse stale bindings. See docs/qa/production-authorization-2026-09-07.md. Native authorization action and actual production remain unfinished. Prior cb1c10d CI 34081413828 succeeded; 040a149 CI running."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Verify current native CI; connect explicit cost approval/guardian policy to durable video-budget reservation and protected dispatch from the prepared-frame panel. Public-price preview is not approval or provider charge cap. Preserve run/plan/preparation/quote identity and reconcile uncertain submissions instead of retrying. Continue prior tail-frame lineage, prop visual evidence, other transports and real native source-to-master/release QA. Existing TTS and full multi-episode objective unchanged.",
+    "summary": "Connect native plain-language episode-budget readback and explicit confirmation to production-authorization before image/video cost approval. Refresh current plan after authorization without dropping user work; no assumed budget or automatic charge. Then connect per-task public-price approval/reservation and durable dispatch. Verify current native CI. Continue tail-frame lineage, prop visual evidence, other transports and real native source-to-master/release QA. Existing TTS and full multi-episode objective unchanged.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
