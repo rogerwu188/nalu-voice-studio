@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "05141f846b186249861fb66fa5abf6b3f5a73da6",
-  "last_advanced_at": "2026-09-07T00:38:29Z",
+  "observed_head": "c09fd753a9e8cda880290067f8101fd477040980",
+  "last_advanced_at": "2026-09-07T00:48:13Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Native confirmed-shot selection now automatically creates missing local opening-frame preparation using only shot index and current plan ID. Runtime resolves technical identifiers, validates context and reuses durable preparation; no provider credential or paid generation. Full Python suite 539 passed in 73.54s; Ruff/OpenAPI passed. Swift tests added but local parse hit CommandLineTools SwiftBridging module conflict; compiled/native QA pending. See docs/qa/native-automatic-frame-preparation-2026-09-07.md. Last observed CI 34070060214 running, 34070263375 pending."
+    "summary": "New AI shot plans include source-bound reusable character/scene/prop designs, preserved through native edits and available in existing TTS readback. Confirmed opening-frame preparations identify unresolved designs without fabricating image assets or authority. Ruff/OpenAPI passed; full Python regression 552 passed in 107.70s with two dependency deprecation warnings. See docs/qa/visual-reference-design-plan-2026-09-07.md. Previous candidate c09fd75 CI 34070488317 is SUCCESS including ARM64/x86_64 Swift tests; this new catalogue still needs its own CI and native QA."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Continue exact cost/full QingShan image-contract authority and native orchestration for the new advance endpoint; never fabricate approval to activate generation. Once the Mac is unlocked, verify the already-running frame-review app on isolated port 18789, without relaunching or replacing user data. Continue accepted-frame video preparation and previous-final-frame handoff, then real story/source-to-master/release. Preserve the quarantined Hops writer attempt; no automatic paid retry.",
+    "summary": "Convert confirmed unresolved character/scene/prop designs into reusable project-scoped reference-image preparations and verified production, then connect references to opening frames, sequential video, master QA and controlled release. Complete exact image pricing/full QingShan contract authority and native progress orchestration without fabricated approval. Verify native behavior when the Mac is unlocked, preserving all existing apps/user data. Keep both narrated-story and named-web-source writing paths as the priority, using existing TTS. Preserve quarantined Hops writer attempt; no automatic paid retry.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

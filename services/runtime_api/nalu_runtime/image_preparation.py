@@ -148,6 +148,11 @@ class ImagePreparationService:
                   "reference_manifest": manifest, "endpoint": endpoint,
                   "request_sha256": hashlib.sha256(endpoint.encode() + b"\0" + raw_request).hexdigest(),
                   "paid_approved": False, "generation_performed": False, "visual_semantics_verified": False}
+        if plan.visual_assets:
+            selected = [item for item in plan.visual_assets if item.key in shot.visual_asset_keys]
+            record["reference_design_plan"] = [item.model_dump() for item in selected]
+            record["unmaterialized_visual_asset_keys"] = [item.key for item in selected if not item.existing_asset_id]
+            record["reference_designs_materialized"] = not record["unmaterialized_visual_asset_keys"]
         record["preparation_sha256"] = digest(record)
         return record, payload
 

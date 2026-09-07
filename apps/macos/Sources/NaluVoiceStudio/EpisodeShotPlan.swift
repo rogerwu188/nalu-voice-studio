@@ -14,6 +14,7 @@ struct EpisodeShot: Codable, Equatable {
     var image_prompt: String
     var video_prompt: String
     var reference_asset_ids: [String]
+    var visual_asset_keys: [String]? = nil
     var transition: String
 
     var readback: String {
@@ -21,9 +22,32 @@ struct EpisodeShot: Codable, Equatable {
     }
 }
 
+struct EpisodeVisualAsset: Codable, Equatable {
+    var key: String
+    var kind: String
+    var name: String
+    var description: String
+    var source_excerpt: String
+    var existing_asset_id: String?
+}
+
 struct EpisodeShotPlan: Codable, Equatable {
     var summary: String
     var shots: [EpisodeShot]
+    // Optional decoding preserves old saved plans; new designs survive edits.
+    var visual_assets: [EpisodeVisualAsset]? = nil
+
+    func assetReadback(for index: Int) -> String {
+        guard shots.indices.contains(index) else { return "" }
+        let keys = Set(shots[index].visual_asset_keys ?? [])
+        let selected = (visual_assets ?? []).filter { keys.contains($0.key) }
+        guard !selected.isEmpty else { return "" }
+        let details = selected.map { asset in
+            let role = asset.kind == "character_image" ? "人物" : asset.kind == "scene_reference" ? "场景" : "道具"
+            return "\(role)：\(asset.name)。\(asset.description)"
+        }.joined(separator: "\n")
+        return "这个镜头需要准备的素材：\n" + details + "\n这些是待制作的设计，不是已生成的图片；人物授权和费用仍需另外确认。"
+    }
 }
 
 struct EpisodeShotPlanEvent: Decodable {

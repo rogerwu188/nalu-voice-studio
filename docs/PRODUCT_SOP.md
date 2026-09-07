@@ -45,6 +45,10 @@ The native confirmed-shot view now [automatically prepares missing local frame t
 without asking users for task identifiers or hashes. Compiled/native acceptance
 and actual provider activation remain incomplete.
 
+New shot plans now include a [source-bound reusable visual-reference design catalogue](qa/visual-reference-design-plan-2026-09-07.md),
+displayed/read aloud in native review and preserved through edits. Designs are not
+generated references; actual reference production and full QingShan gates remain open.
+
 Confirmed shots now support [automatic local opening-image preparation](qa/reviewed-opening-image-preparation-2026-09-06.md)
 with exact source bindings, inherited reference checks and restart reuse. This is
 not paid image activation, native QA, continuous-frame handoff or finished production.

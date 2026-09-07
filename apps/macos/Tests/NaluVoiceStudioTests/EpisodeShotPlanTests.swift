@@ -71,4 +71,20 @@ struct EpisodeShotPlanTests {
         #expect(body["action"] as? String == "approve")
         #expect(body["paid_generation_approved"] == nil)
     }
+
+    @Test func referenceDesignsSurviveEditingAndReadbackWithoutBecomingAssets() throws {
+        let old = try JSONDecoder().decode(EpisodeShotPlanEvent.self, from: fixture()).payload.plan
+        #expect(old.visual_assets == nil && old.assetReadback(for: 0).isEmpty)
+        var plan = old
+        plan.visual_assets = [.init(key: "grandma", kind: "character_image", name: "外婆", description: "外貌待确认",
+                                    source_excerpt: "外婆看海", existing_asset_id: nil)]
+        plan.shots[0].visual_asset_keys = ["grandma"]
+        plan.shots[0].video_prompt = "保留这个修改"
+        let restored = try JSONDecoder().decode(EpisodeShotPlan.self, from: JSONEncoder().encode(plan))
+        #expect(restored == plan)
+        #expect(restored.shots[0].reference_asset_ids.isEmpty)
+        #expect(restored.assetReadback(for: 0).contains("外婆"))
+        #expect(restored.assetReadback(for: 0).contains("不是已生成的图片"))
+        #expect(restored.assetReadback(for: 99).isEmpty)
+    }
 }

@@ -75,6 +75,8 @@ class ShotReviewService:
             if db.execute("SELECT 1 FROM remote_task_bindings WHERE run_id = ? LIMIT 1", (run_id,)).fetchone():
                 raise ConflictError("provider task exists; do not overwrite its creative source")
             plan = request.plan if request.action == "revise" else ShotPlan.model_validate(payload["plan"])
+            if payload["plan"].get("visual_assets") and not plan.visual_assets:
+                raise ConflictError("visual asset designs were lost by this edit; preserve the current design plan")
             tasks = planner.tasks_for_plan(plan, episode, script, package.get("inherited_assets", []))
             approved = request.action == "approve"
             for task in tasks:

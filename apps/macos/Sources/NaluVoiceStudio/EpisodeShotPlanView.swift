@@ -39,8 +39,11 @@ import SwiftUI
                     if plan.shots.indices.contains(selectedShot) {
                         let shot = plan.shots[selectedShot]
                         Text("剧本原文：\(shot.source_excerpt)").naluFont(.body).textSelection(.enabled)
+                        if !plan.assetReadback(for: selectedShot).isEmpty {
+                            Text(plan.assetReadback(for: selectedShot)).naluFont(.body).textSelection(.enabled)
+                        }
                         Button("听听这个镜头", systemImage: "speaker.wave.2") {
-                            onRead(shot.readback + "拍摄描述：" + shot.video_prompt)
+                            onRead(shot.readback + "拍摄描述：" + shot.video_prompt + "\n" + plan.assetReadback(for: selectedShot))
                         }
                         .buttonStyle(.bordered).controlSize(.large)
                         Text("想拍成什么样？可以直接修改下面的话。")

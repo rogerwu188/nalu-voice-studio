@@ -10,14 +10,22 @@ from nalu_runtime.video_preparation import digest
 
 
 @pytest.mark.parametrize("case", ["ok", "duration", "source", "asset", "authority", "http_failure", "continuity",
-                                  "continuous_ok", "blank", "package_changed"])
+                                  "continuous_ok", "blank", "package_changed", "missing_designs"])
 def test_approved_script_to_durable_shot_plan(tmp_path, case):
     calls = []
     shot = {"source_excerpt": "外婆看海。", "scene": "海边", "duration_seconds": 12,
             "entry_state": "外婆站在岸边", "action": "抬头看海", "exit_state": "面朝海面",
             "camera": "中景缓推", "dialogue_or_narration": "我又回来了。", "sound": "连续海浪声",
             "image_prompt": "横向构图，外婆站在岸边，尚未抬头。", "video_prompt": "外婆抬头看海，保持人物和光线一致。",
-            "reference_asset_ids": [], "transition": "scene_start"}
+            "reference_asset_ids": [], "visual_asset_keys": ["grandma", "beach"], "transition": "scene_start"}
+    designs = [
+        {"key": "grandma", "kind": "character_image", "name": "外婆", "description": "外貌和服装待确认",
+         "source_excerpt": "外婆看海。", "existing_asset_id": None},
+        {"key": "beach", "kind": "scene_reference", "name": "海边", "description": "空旷的岸边，时段待确认",
+         "source_excerpt": "外婆看海。", "existing_asset_id": None},
+    ]
+    if case == "missing_designs":
+        designs = []
     if case == "duration":
         shot["duration_seconds"] = 11
     if case == "source":
@@ -43,7 +51,7 @@ def test_approved_script_to_durable_shot_plan(tmp_path, case):
             path.write_text("broken package")
         return httpx.Response(401 if case == "http_failure" else 200, json={
             "id": "synthetic-planner-task", "model": "fixture-model", "choices": [{"finish_reason": "stop", "message": {
-                "content": json.dumps({"summary": "回到海边", "shots": [shot, second_shot]})}}]})
+                "content": json.dumps({"summary": "回到海边", "shots": [shot, second_shot], "visual_assets": designs})}}]})
     db_path = tmp_path / "planner.sqlite3"
     api = TestClient(create_app(db_path, tmp_path / "data", writer_http_transport=httpx.MockTransport(serve)))
     project = api.post("/v1/projects", json={"title": "合成分镜测试"}).json()
@@ -74,6 +82,7 @@ def test_approved_script_to_durable_shot_plan(tmp_path, case):
         assert first.json()["payload"]["frames_generated"] is False
         assert [task["task_key"] for task in first.json()["payload"]["tasks"]] == ["E01-U01", "E01-U02"]
         assert first.json()["payload"]["tasks"][-1]["end_seconds"] == 24
+        assert first.json()["payload"]["tasks"][0]["reference_designs_to_create"] == ["grandma", "beach"]
         assert "synthetic-key" not in first.text
         if case == "continuous_ok":
             assert first.json()["payload"]["tasks"][1]["previous_task_key"] == "E01-U01"
@@ -96,6 +105,11 @@ def test_approved_script_to_durable_shot_plan(tmp_path, case):
         invalid = json.loads(json.dumps(edit))
         invalid["plan"]["shots"][0]["source_excerpt"] = "不是本集剧本的内容"
         assert restarted.post(review_url, json=invalid).status_code == 409
+        lost_designs = json.loads(json.dumps(edit))
+        lost_designs["plan"].pop("visual_assets")
+        for item in lost_designs["plan"]["shots"]:
+            item.pop("visual_asset_keys")
+        assert restarted.post(review_url, json=lost_designs).status_code == 409
         modified = restarted.post(review_url, json=edit)
         assert modified.status_code == 200, modified.text
         modified = modified.json()
@@ -110,6 +124,7 @@ def test_approved_script_to_durable_shot_plan(tmp_path, case):
         assert approved.status_code == 200, approved.text
         approved = approved.json()
         assert approved["payload"]["approved"] is True
+        assert approved["payload"]["plan"]["visual_assets"] == designs
         assert approved["payload"]["paid_approved"] is False
         assert approved["payload"]["tasks"][0]["state"] == "awaiting_entry_frame"
         assert approved["payload"]["plan"]["shots"][0]["camera"] == plan["shots"][0]["camera"]
@@ -117,6 +132,11 @@ def test_approved_script_to_durable_shot_plan(tmp_path, case):
         reopened = TestClient(create_app(db_path, tmp_path / "data", writer_http_transport=httpx.MockTransport(serve)))
         assert reopened.get(current_url).json()["id"] == approved["id"]
         assert reopened.post(confirm_url, json=confirm).json()["id"] == approved["id"]
+        frame = reopened.post(endpoint + f"/{approved['id']}/opening-frame-preparations", json={"shot_index": 0})
+        assert frame.status_code == 200, frame.text
+        assert frame.json()["payload"]["reference_design_plan"] == designs
+        assert frame.json()["payload"]["unmaterialized_visual_asset_keys"] == ["grandma", "beach"]
+        assert frame.json()["payload"]["reference_designs_materialized"] is False
         for kind in ("video_task_prepared", "image_submit_intent", "image_submit_unconfirmed", "image_task_submitted"):
             reopened.app.state.repository.append_run_event_once(run.id, kind, dedupe_key="test_id",
                 dedupe_value="synthetic-downstream", message="Synthetic downstream lock", payload={"test_id": "synthetic-downstream"})
