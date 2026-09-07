@@ -8,6 +8,7 @@ import httpx
 from fastapi import Body, FastAPI, Header, HTTPException, Query, Response
 from fastapi.responses import FileResponse, JSONResponse
 
+from .accepted_episode import AcceptedEpisodeService
 from .asset_service import AssetService
 from .continuity import audit_continuity
 from .database import Database
@@ -1400,6 +1401,12 @@ def create_app(
             raise HTTPException(403, "native video preview required")
         _, raw = VideoMaterializationService(repository, data_root).read_saved(run_id, materialization_id)
         return Response(content=raw, media_type="video/mp4", headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"})
+
+    @app.post("/v1/production-runs/{run_id}/accepted-episode-inputs", response_model=RunEvent)
+    def stage_accepted_episode(run_id: str, origin: str | None = Header(default=None)):
+        if origin is not None:
+            raise HTTPException(403, "native episode staging required")
+        return AcceptedEpisodeService(repository, data_root).stage(run_id)
 
     @app.post(
         "/v1/production-runs/{run_id}/postproduction-materializations",

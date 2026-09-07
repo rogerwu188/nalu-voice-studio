@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "646a2cda7273cb1b50ced111e8c5a8d49b9225ca",
-  "last_advanced_at": "2026-09-07T06:06:57Z",
+  "observed_head": "bf5d9a691239ac35ce0c1fad0031f446749bbcdc",
+  "last_advanced_at": "2026-09-07T06:14:26Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Connected selected continuous shots to native automatic previous-adoption/tail preparation and existing price/cost/dispatch controls. Backend resolves professional IDs; users enter none. 32 regressions passed in 12.75s and full Ruff passes; native URLProtocol tests added awaiting CI. c3405fb full CI 34088470406 succeeded; parent 646a2cd CI 34089059572 pending. See docs/qa/native-continuous-shot-entry-2026-09-07.md. Actual native and real episode E2E remain unfinished."
+    "summary": "Added native-only ordered accepted episode video staging with exact current review/preparation/media validation, managed private atomic copies and corruption/restart checks. 33 regressions passed in 15.64s; Ruff/OpenAPI passed. No audio/caption/master or run-state acceptance fabricated. Parent bf5d9a6 CI 34089503454 pending; see docs/qa/accepted-episode-inputs-2026-09-07.md. Full postproduction and real E2E remain unfinished."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Verify native review/continuation CI and installed-app behavior; connect accepted shot videos to episode postproduction inputs, then actual episode QA/master/release. Current two-shot evidence is synthetic, not real E2E. Preserve two-source interactive-script to multi-episode objective and existing TTS; image pricing/Hops access gaps remain.",
+    "summary": "Integrate accepted episode input staging with native postproduction, verified Qingshan workspace/receipt contracts, five audio layers and captions, then render/QA/master/release. Verify current native CI and installed-app behavior. Current two-shot staging evidence is synthetic, not real E2E. Preserve two-source interactive-script to multi-episode objective and existing TTS; image pricing/Hops access gaps remain.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

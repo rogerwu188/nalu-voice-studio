@@ -19,7 +19,7 @@ from test_image_download import png
 
 @pytest.mark.parametrize("case", ["accept", "reject", "stale_image", "changed_file", "changed_plan", "downstream", "restart",
                                   "other_shot_prepared", "same_shot_prepared", "other_shot_budget", "same_shot_budget",
-                                  "other_shot_remote", "same_shot_remote", "video_assemble", "video_missing_director", "video_unknown_prior", "video_wrong_index",
+                                  "other_shot_remote", "same_shot_remote", "video_assemble", "video_assemble_stage", "video_missing_director", "video_unknown_prior", "video_wrong_index",
                                   "video_script_changed", "video_frame_rejected"])
 def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypatch, case):
     db_path, root = tmp_path / "db", tmp_path / "data"
@@ -40,6 +40,9 @@ def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypat
         package["resolved_library"] = []
     package["package_sha256"] = digest(package)
     path = tmp_path / "package.json"
+    if case == "video_assemble_stage":
+        path = root / "runs/run_frame_review/production-package.json"
+        path.parent.mkdir(parents=True)
     path.write_text(json.dumps(package))
     now = utc_now()
     run = ProductionRun(id="run_frame_review", project_id=project["id"], season_id=season["id"], episode_id=episode["id"],
@@ -65,7 +68,7 @@ def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypat
     if case.startswith("video_"):
         plan["tasks"] = [{"task_key": "E01-U01", "shot_index": 0}]
         plan["script_revision"] = script["revision"]
-    if case == "video_assemble":
+    if case in {"video_assemble", "video_assemble_stage"}:
         shot["duration_seconds"] = 8
         continuation = {**shot, "duration_seconds": 7, "transition": "continuous", "entry_state": shot["exit_state"]}
         plan["plan"]["shots"].append(continuation)
@@ -135,7 +138,7 @@ def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypat
             assert api.post(endpoint + "/review", json={**incoming, "decision": "reject",
                 "expected_review_event_id": result.json()["id"]}).status_code == 200
         prepared_video = api.post(url, json=request)
-        if case != "video_assemble":
+        if case not in {"video_assemble", "video_assemble_stage"}:
             assert prepared_video.status_code == 409, prepared_video.text
             assert not any(event.event_type == "video_task_prepared" for event in repo.list_run_events(run.id))
             return
@@ -190,6 +193,39 @@ def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypat
         assert api.post(url, json={**next_request, "approved_tail_id": None,
                                   "approved_frame_review_id": result.json()["id"]}).status_code == 409
         assert api.post(url, json={**next_request, "shot_index": 0}).status_code == 409
+        if case == "video_assemble_stage":
+            staging = f"/v1/production-runs/{run.id}/accepted-episode-inputs"
+            assert api.post(staging).status_code == 409  # Second video still missing.
+            second_record = following.json()["payload"]
+            with repo.db.connect() as db:
+                db.execute("INSERT INTO remote_task_bindings VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                           ("second-video", run.id, second_record["task_key"], "giggle", run.requested_model,
+                            "0" * 64, second_record["request_sha256"], "submitted", "synthetic-second-video",
+                            None, None, "{}", "unknown", None, now, now))
+            observed2 = TaskObservationService(repo).refresh(run.id, "second-video", SimpleNamespace(query=lambda _: GiggleTaskObservation(
+                "synthetic-second-video", "completed", ("https://example.org/second.mp4",), "e" * 64)))
+            second_bytes = mp4(frames=12 * 7)
+            monkeypatch.setattr("nalu_runtime.video_materialization.download_video", lambda _: second_bytes)
+            second = api.post(f"/v1/production-runs/{run.id}/video-observations/{observed2.id}/materialize").json()
+            adopted2 = api.post(f"/v1/production-runs/{run.id}/video-results/{second['id']}/reviews", json={
+                "preparation_id": following.json()["id"],
+                "expected_materialization_sha256": second["payload"]["materialization_sha256"],
+                "decision": "accept", "reviewed_by": "synthetic-qa", "confirmation": "采用第二镜头"})
+            assert adopted2.status_code == 200, adopted2.text
+            assert api.post(staging, headers={"Origin": "https://example.org"}).status_code == 403
+            staged = api.post(staging)
+            assert staged.status_code == 200, staged.text
+            payload = staged.json()["payload"]
+            assert [s["shot_id"] for s in payload["shots"]] == ["E01-U01", "E01-U02"]
+            assert [s["source_out_seconds"] for s in payload["shots"]] == [8, 7]
+            assert payload["master_accepted"] is False and payload["audio_complete"] is False
+            files = [path.parent / "qingshan-workspace/exports" / s["source_relative_path"] for s in payload["shots"]]
+            assert [file.read_bytes() for file in files] == [video_bytes, second_bytes]
+            assert all(file.stat().st_mode & 0o777 == 0o600 for file in files)
+            assert reopened.post(staging).json()["id"] == staged.json()["id"]
+            files[0].write_bytes(b"corrupted")
+            assert reopened.post(staging).status_code == 409
+            return
         revoked = api.post(f"/v1/production-runs/{run.id}/video-results/{receipt['id']}/reviews", json={
             "preparation_id": prepared_video.json()["id"],
             "expected_materialization_sha256": receipt["payload"]["materialization_sha256"],

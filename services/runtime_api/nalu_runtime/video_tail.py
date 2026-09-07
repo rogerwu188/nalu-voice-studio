@@ -15,7 +15,7 @@ class VideoTailService:
     def __init__(self, repository, data_root):
         self.repository, self.data_root = repository, data_root
 
-    def _derive(self, run_id, review_id):
+    def accepted_video(self, run_id, review_id):
         repo = self.repository
         review = repo.get_run_event(review_id)
         decision = review.payload
@@ -43,6 +43,11 @@ class VideoTailService:
         validated = VideoPreparationService(repo, self.data_root).validate(run_id, request)
         if validated["preparation_sha256"] != decision["preparation_sha256"]:
             raise ConflictError("accepted shot inputs changed")
+        return review, media, raw
+
+    def _derive(self, run_id, review_id):
+        review, media, raw = self.accepted_video(run_id, review_id)
+        decision = review.payload
         # read_saved already performs bounded full video decoding. Decode the
         # same in-memory bytes, never seek to a guessed end or generate a frame.
         try:

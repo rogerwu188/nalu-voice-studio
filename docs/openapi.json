@@ -13077,6 +13077,61 @@
         "summary": "Get Run"
       }
     },
+    "/v1/production-runs/{run_id}/accepted-episode-inputs": {
+      "post": {
+        "operationId": "stage_accepted_episode_v1_production_runs__run_id__accepted_episode_inputs_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "origin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Origin"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunEvent"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Stage Accepted Episode"
+      }
+    },
     "/v1/production-runs/{run_id}/cancel": {
       "post": {
         "operationId": "cancel_run_v1_production_runs__run_id__cancel_post",
