@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "83a3defb225ce30993bb92a2091d5f374143885c",
-  "last_advanced_at": "2026-09-07T07:04:00Z",
+  "observed_head": "bbdc64849b9b9eb7a26fe72735294edab2afb854",
+  "last_advanced_at": "2026-09-07T07:08:10Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Connected native edited-preview download/player: exact edit/header/content hash, bounded private file, AVFoundation playability/duration, user-started playback and stale/cancel/exit cleanup. Native validator tests added, current CI/installed playback QA pending. Actual backend preview fixture passed in 4.38s; Ruff/diff passed. 503c6fb full CI 34092538522 succeeded; 83a3def CI 34093298594 running. Evidence docs/qa/native-edited-preview-player-2026-09-07.md."
+    "summary": "Journaled actual preview receipts and implemented explicit exact-preview edit accept/reject with current-source validation, review compare-and-swap and restart replay. Actual two-shot encode/review fixture passed in 4.95s; Ruff passed and OpenAPI updated. Review preserves 15-second plan vs 13-second edit and denies final audio/master approval. Native confirmation/current CI/real user QA still required. Evidence docs/qa/explicit-edit-review-2026-09-07.md."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Verify current native CI and installed edited-preview playback/UX; add explicit edit and changed-duration confirmation tied to the viewed version. Continue real recordings/five audio layers/caption alignment/verified workspace to final render/master QA/release. Proxy preview has no audio and is not a master. Preserve two-source interactive writing and existing TTS.",
+    "summary": "Preserve preview receipt identity in native download/player and connect explicit readback/accept/reject with latest-review recovery; verify current native CI and actual player/user-flow QA. Then use exact approved edit for real recordings/five audio layers/caption alignment/verified workspace and final master QA/release. Proxy viewing and backend test attestations are not real E2E. Preserve two-source interactive writing and existing TTS.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

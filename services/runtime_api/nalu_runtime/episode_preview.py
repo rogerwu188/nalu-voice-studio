@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from .models import PostproductionShotSource
 from .postproduction_materializer import _encode_mp4, _safe_input, _selected_frames
-from .repository import ConflictError
+from .repository import ConflictError, encode, new_id, utc_now
 from .shot_review import ShotReviewService
 from .video_preparation import digest
 from .video_tail import VideoTailService
@@ -101,4 +101,23 @@ class EpisodePreviewService:
             # A changed plan, decision, source file or cancellation invalidates the result.
             self.inputs(run_id, edit_id, expected_sha)
             raw = output.read_bytes()
-        return raw, hashlib.sha256(raw).hexdigest()
+        sha = hashlib.sha256(raw).hexdigest()
+        record = {"edit_id": edit_id, "edit_sha256": expected_sha, "preview_sha256": sha,
+                  "byte_size": len(raw), "frame_count": count, "duration_seconds": count / 24,
+                  "width": width, "height": height, "audio": "none", "master_accepted": False,
+                  "generation_performed": False, "viewing_verified": False}
+        record["receipt_sha256"] = digest(record)
+        with self.repository.db.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            self.inputs(run_id, edit_id, expected_sha)
+            previous = [e for e in self.repository.list_run_events(run_id)
+                        if e.event_type == "episode_picture_preview_rendered" and e.payload == record]
+            if previous:
+                identity = previous[-1].id
+            else:
+                identity = new_id("evt")
+                sequence = db.execute("SELECT COALESCE(MAX(sequence),0)+1 FROM run_events WHERE run_id=?", (run_id,)).fetchone()[0]
+                db.execute("INSERT INTO run_events VALUES (?,?,?,?,?,?,?,?,?)", (identity, run_id, sequence,
+                    "episode_picture_preview_rendered", None, None,
+                    "Picture-only proxy rendered; user viewing and approval are not inferred.", encode(record), utc_now()))
+        return raw, sha, identity

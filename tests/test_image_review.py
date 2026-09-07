@@ -323,6 +323,30 @@ def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypat
                 assert len(frames) == 312
                 assert abs(float(frames[-1].time) - 311 / 24) < 0.001
                 assert not player.streams.audio
+            picture_id = picture.headers["X-Nalu-Preview-Receipt-ID"]
+            picture_record = repo.get_run_event(picture_id)
+            assert picture_record.payload["viewing_verified"] is False
+            edit_review_url = f"{edit_url}/{edit.json()['id']}/reviews"
+            edit_review = {"expected_edit_sha256": editing["edit_sha256"], "preview_id": picture_id,
+                "expected_preview_sha256": picture.headers["X-Nalu-Preview-SHA256"],
+                "decision": "reject", "reviewed_by": "synthetic-qa", "confirmation": "合成预览待修改"}
+            assert api.post(edit_review_url, json=edit_review, headers={"Origin": "https://example.org"}).status_code == 403
+            assert api.post(edit_review_url, json={**edit_review, "expected_preview_sha256": "0" * 64}).status_code == 409
+            rejected_edit = api.post(edit_review_url, json=edit_review)
+            assert rejected_edit.status_code == 200, rejected_edit.text
+            assert rejected_edit.json()["payload"]["edit_approved"] is False
+            assert reopened.post(edit_review_url, json=edit_review).json()["id"] == rejected_edit.json()["id"]
+            assert api.post(edit_review_url, json={**edit_review, "decision": "accept"}).status_code == 409
+            accepted_edit_request = {**edit_review, "decision": "accept", "expected_review_id": rejected_edit.json()["id"],
+                                     "confirmation": "合成确认13秒画面剪辑，非成片验收"}
+            reviewed_edit = api.post(edit_review_url, json=accepted_edit_request)
+            assert reviewed_edit.status_code == 200, reviewed_edit.text
+            decision = reviewed_edit.json()["payload"]
+            assert decision["edit_approved"] is True
+            assert decision["duration_confirmed_seconds"] == 13 and decision["original_planned_seconds"] == 15
+            assert not decision["audio_approved"] and not decision["captions_approved"] and not decision["master_accepted"]
+            assert reopened.post(edit_review_url, json=accepted_edit_request).json()["id"] == reviewed_edit.json()["id"]
+            assert api.post(edit_review_url, json=edit_review).status_code == 409
             retime_url = f"/v1/production-runs/{run.id}/sound-plan-drafts"
             retime = {"expected_plan_sha256": plan["plan_sha256"], "edit_id": edit.json()["id"],
                       "expected_edit_sha256": editing["edit_sha256"]}
@@ -340,6 +364,7 @@ def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypat
             assert reopened.post(staging).status_code == 409
             assert reopened.post(edit_url, json=edit_request).status_code == 409
             assert reopened.post(preview_url, json=preview_request).status_code in {400, 409}
+            assert reopened.post(edit_review_url, json=accepted_edit_request).status_code == 409
             return
         revoked = api.post(f"/v1/production-runs/{run.id}/video-results/{receipt['id']}/reviews", json={
             "preparation_id": prepared_video.json()["id"],

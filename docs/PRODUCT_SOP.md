@@ -141,6 +141,11 @@ now verifies downloaded local proxy identity and AVFoundation playability/durati
 before exposing user-started playback. Native CI and installed-player QA remain
 required; preview does not approve the edit or the master.
 
+[Explicit preview-bound edit decisions](qa/explicit-edit-review-2026-09-07.md)
+now journal actual proxy identity and accept/reject with exact-version replay/CAS.
+Native confirmation and downstream approved-edit use remain open. Rendering is
+not viewing proof; picture approval does not approve final audio or release.
+
 AI plans now carry [typed director choices with native round-trip and plain-language readback](qa/structured-director-drafts-2026-09-07.md).
 User edits invalidate stale choices. A [version-bound director refresh backend](qa/director-refresh-2026-09-07.md)
 now fills missing choices without rewriting user descriptions, with restart and

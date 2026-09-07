@@ -25,6 +25,7 @@ from .development_result import (
 )
 from .director_refresh import DirectorRefreshRequest, DirectorRefreshService
 from .engine import ProductionService
+from .episode_edit_review import EpisodeEditReviewRequest, EpisodeEditReviewService
 from .episode_preview import EpisodePreviewRequest, EpisodePreviewService
 from .episode_sound_plan import EpisodeSoundPlanRequest, EpisodeSoundPlanService
 from .feedback_export import (
@@ -1420,12 +1421,23 @@ def create_app(
         if origin is not None:
             raise HTTPException(403, "native picture preview required")
         try:
-            raw, sha = EpisodePreviewService(repository, data_root).render(run_id, edit_id, request.expected_edit_sha256)
+            raw, sha, receipt_id = EpisodePreviewService(repository, data_root).render(run_id, edit_id, request.expected_edit_sha256)
         except PostproductionMaterializationError as exc:
             raise HTTPException(409, "picture preview could not read or render the current edited sources") from exc
         return Response(content=raw, media_type="video/mp4", headers={"Cache-Control": "no-store",
             "X-Content-Type-Options": "nosniff", "X-Nalu-Edit-SHA256": request.expected_edit_sha256,
-            "X-Nalu-Preview-SHA256": sha, "X-Nalu-Preview-Audio": "none", "X-Nalu-Master-Accepted": "false"})
+            "X-Nalu-Preview-SHA256": sha, "X-Nalu-Preview-Receipt-ID": receipt_id,
+            "X-Nalu-Preview-Audio": "none", "X-Nalu-Master-Accepted": "false"})
+
+    @app.post("/v1/production-runs/{run_id}/episode-edit-drafts/{edit_id}/reviews", response_model=RunEvent)
+    def review_episode_edit(run_id: str, edit_id: str, request: EpisodeEditReviewRequest,
+                             origin: str | None = Header(default=None)):
+        if origin is not None:
+            raise HTTPException(403, "native edit review required")
+        try:
+            return EpisodeEditReviewService(repository, data_root).review(run_id, edit_id, request)
+        except PostproductionMaterializationError as exc:
+            raise HTTPException(409, "edited source changed; reload before confirming") from exc
 
     @app.post("/v1/production-runs/{run_id}/episode-edit-drafts", response_model=RunEvent)
     def draft_episode_edit(run_id: str, request: EpisodeEditRequest, origin: str | None = Header(default=None)):
