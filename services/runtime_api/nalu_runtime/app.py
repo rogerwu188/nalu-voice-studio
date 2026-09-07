@@ -189,6 +189,8 @@ from .storage_diagnostics import inspect_storage
 from .task_observation_service import TaskObservationService
 from .video_budget import VideoBudgetApproval, VideoBudgetService
 from .video_dispatch import VideoDispatchService
+from .video_download import VideoDownloadError
+from .video_materialization import VideoMaterializationService
 from .video_preparation import VideoPreparationRequest, VideoPreparationService
 from .video_pricing import VideoPricingService
 from .writer_provider import (
@@ -1346,6 +1348,24 @@ def create_app(
                 GiggleTaskQuery(lambda: provider_key, transport=task_query_http_transport))
         except GiggleTaskQueryError as exc:
             raise HTTPException(502, str(exc)) from None
+
+    @app.post("/v1/production-runs/{run_id}/video-observations/{observation_id}/materialize", response_model=RunEvent)
+    def materialize_video_result(run_id: str, observation_id: str, result_index: int = Query(default=0, ge=0, le=3),
+                                 origin: str | None = Header(default=None)):
+        if origin is not None:
+            raise HTTPException(403, "native video retrieval required")
+        try:
+            return VideoMaterializationService(repository, data_root).materialize(run_id, observation_id, result_index)
+        except VideoDownloadError as exc:
+            raise HTTPException(502, str(exc)) from None
+
+    @app.get("/v1/production-runs/{run_id}/video-results/{materialization_id}/content", response_class=Response,
+             responses={200: {"content": {"video/mp4": {}}}})
+    def preview_saved_video(run_id: str, materialization_id: str, origin: str | None = Header(default=None)):
+        if origin is not None:
+            raise HTTPException(403, "native video preview required")
+        _, raw = VideoMaterializationService(repository, data_root).read_saved(run_id, materialization_id)
+        return Response(content=raw, media_type="video/mp4", headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"})
 
     @app.post(
         "/v1/production-runs/{run_id}/postproduction-materializations",

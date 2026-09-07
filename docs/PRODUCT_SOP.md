@@ -64,6 +64,11 @@ now connects them in source with explicit price readback/confirmation and saved
 reservation recovery. Current native CI/UI QA and real per-episode video/master/
 release acceptance remain open.
 
+[Bound video retrieval](qa/video-materialization-2026-09-07.md) now downloads and
+decodes a short provider MP4 into immutable local candidate storage, with task
+lineage and restart/concurrency checks. Native playback/review, accepted tail-frame
+handoff and full episode/master acceptance remain unfinished.
+
 AI plans now carry [typed director choices with native round-trip and plain-language readback](qa/structured-director-drafts-2026-09-07.md).
 User edits invalidate stale choices. A [version-bound director refresh backend](qa/director-refresh-2026-09-07.md)
 now fills missing choices without rewriting user descriptions, with restart and

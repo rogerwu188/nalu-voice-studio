@@ -15478,6 +15478,82 @@
         "summary": "Refresh Saved Task"
       }
     },
+    "/v1/production-runs/{run_id}/video-observations/{observation_id}/materialize": {
+      "post": {
+        "operationId": "materialize_video_result_v1_production_runs__run_id__video_observations__observation_id__materialize_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "observation_id",
+            "required": true,
+            "schema": {
+              "title": "Observation Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "result_index",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 3,
+              "minimum": 0,
+              "title": "Result Index",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "origin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Origin"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunEvent"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Materialize Video Result"
+      }
+    },
     "/v1/production-runs/{run_id}/video-reservations/{reservation_id}/submission": {
       "get": {
         "operationId": "observe_reserved_video_v1_production_runs__run_id__video_reservations__reservation_id__submission_get",
@@ -15612,6 +15688,66 @@
           }
         },
         "summary": "Submit Reserved Video"
+      }
+    },
+    "/v1/production-runs/{run_id}/video-results/{materialization_id}/content": {
+      "get": {
+        "operationId": "preview_saved_video_v1_production_runs__run_id__video_results__materialization_id__content_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "materialization_id",
+            "required": true,
+            "schema": {
+              "title": "Materialization Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "origin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Origin"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "video/mp4": {}
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview Saved Video"
       }
     },
     "/v1/production-runs/{run_id}/video-task-preparations": {
