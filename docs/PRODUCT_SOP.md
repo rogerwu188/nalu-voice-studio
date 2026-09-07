@@ -37,7 +37,9 @@ compilation and real/native acceptance remain unfinished; no SOP becomes PASS.
 
 Reviewed shots now [compile creative camera, state and prop fields into video preparation](qa/reviewed-director-compilation-2026-09-07.md).
 The [confirmed-character scope is now derived from the sealed project catalog](qa/shot-character-scope-2026-09-07.md).
-New-story character confirmation/snapshot reconciliation, full asset/frame binding
+New-story [character cards can now be prepared locally from the approved plan](qa/shot-character-cards-2026-09-07.md),
+without overwriting family facts or auto-confirming identities. Native conversational
+confirmation/snapshot reconciliation, full asset/frame binding
 and real dispatch remain unfinished.
 
 Core-path diagnosis: the interactive plan still lacks the complete

@@ -177,6 +177,7 @@ from .release_evidence import (
 from .remote_submitter import DurableRemoteTaskSubmitter
 from .repository import ConflictError, NotFoundError, Repository
 from .semantic_recognizer import LocalSemanticRecognizer
+from .shot_character_library import ShotCharacterLibraryRequest, ShotCharacterLibraryService
 from .shot_planning import ShotPlanningRequest, ShotPlanningService, validate_plan
 from .shot_review import ShotReviewRequest, ShotReviewService
 from .source_reader import read_public_source, source_failure_code
@@ -1172,6 +1173,10 @@ def create_app(
     @app.get("/v1/production-runs/{run_id}/shot-plans/current", response_model=RunEvent | None)
     def current_shot_plan(run_id: str):
         return ShotReviewService(repository).current(run_id)
+
+    @app.post("/v1/production-runs/{run_id}/shot-plans/{source_id}/character-cards", response_model=RunEvent)
+    def prepare_shot_character_cards(run_id: str, source_id: str, request: ShotCharacterLibraryRequest):
+        return ShotCharacterLibraryService(repository).prepare(run_id, source_id, request)
 
     @app.post("/v1/production-runs/{run_id}/shot-plans/{source_id}/review", response_model=RunEvent)
     def review_shot_plan(run_id: str, source_id: str, request: ShotReviewRequest):

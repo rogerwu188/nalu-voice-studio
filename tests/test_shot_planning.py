@@ -142,6 +142,8 @@ def test_approved_script_to_durable_shot_plan(tmp_path, monkeypatch, case):
         assert modified["payload"]["approved"] is False
         assert modified["payload"]["source_event_id"] == source["id"]
         assert restarted.post(review_url, json=edit).json()["id"] == modified["id"]
+        assert restarted.post(endpoint + f"/{modified['id']}/character-cards", json={
+            "expected_plan_sha256": modified["payload"]["plan_sha256"]}).status_code == 409
         if case.startswith("refresh"):
             refresh_url = endpoint + f"/{modified['id']}/director-refresh"
             refresh_body = {"model": "fixture-model", "expected_plan_sha256": modified["payload"]["plan_sha256"]}
@@ -202,6 +204,29 @@ def test_approved_script_to_durable_shot_plan(tmp_path, monkeypatch, case):
         reopened = TestClient(create_app(db_path, tmp_path / "data", writer_http_transport=httpx.MockTransport(serve)))
         assert reopened.get(current_url).json()["id"] == approved["id"]
         assert reopened.post(confirm_url, json=confirm).json()["id"] == approved["id"]
+        cards_url = endpoint + f"/{approved['id']}/character-cards"
+        if case == "continuous_ok":
+            existing_person = reopened.post(f"/v1/projects/{run.project_id}/library-entities", json={
+                "kind": "character", "name": "外婆", "description": "用户原来讲过的家庭事实，不能覆盖",
+                "source_channel": "voice", "change_summary": "合成测试的既有人物"})
+            assert existing_person.status_code == 201, existing_person.text
+        package_before = path.read_bytes()
+        cards_request = {"expected_plan_sha256": approved["payload"]["plan_sha256"]}
+        assert reopened.post(cards_url, json={"expected_plan_sha256": "0" * 64}).status_code == 409
+        cards = reopened.post(cards_url, json=cards_request)
+        assert cards.status_code == 200, cards.text
+        assert reopened.post(cards_url, json=cards_request).json()["id"] == cards.json()["id"]
+        card_payload = cards.json()["payload"]
+        assert card_payload["characters_auto_confirmed"] is False
+        assert ("沿用" if case == "continuous_ok" else "草稿") in card_payload["readback"]
+        assert len(card_payload["bindings"]) == 1
+        entity = reopened.app.state.repository.get_library_entity(card_payload["bindings"][0]["entity_id"])
+        assert entity.current.name == "外婆" and entity.confirmed_revision is None
+        if case == "continuous_ok":
+            assert entity.id == existing_person.json()["id"]
+            assert entity.current.description == "用户原来讲过的家庭事实，不能覆盖"
+        assert len(reopened.app.state.repository.list_library_entities(run.project_id)) == 1
+        assert path.read_bytes() == package_before
         # The real preparation path derives technical fields from the exact
         # approved shot instead of asking the native user to build a contract.
         incoming = VideoPreparationRequest(task_key="E01-U02", request={

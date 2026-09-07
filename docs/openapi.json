@@ -8870,6 +8870,21 @@
         "title": "SemanticMediaQARequest",
         "type": "object"
       },
+      "ShotCharacterLibraryRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_plan_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Expected Plan Sha256",
+            "type": "string"
+          }
+        },
+        "required": [
+          "expected_plan_sha256"
+        ],
+        "title": "ShotCharacterLibraryRequest",
+        "type": "object"
+      },
       "ShotDraft": {
         "additionalProperties": false,
         "properties": {
@@ -14708,6 +14723,64 @@
           }
         },
         "summary": "Prepare Reviewed Reference"
+      }
+    },
+    "/v1/production-runs/{run_id}/shot-plans/{source_id}/character-cards": {
+      "post": {
+        "operationId": "prepare_shot_character_cards_v1_production_runs__run_id__shot_plans__source_id__character_cards_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "source_id",
+            "required": true,
+            "schema": {
+              "title": "Source Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShotCharacterLibraryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunEvent"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Prepare Shot Character Cards"
       }
     },
     "/v1/production-runs/{run_id}/shot-plans/{source_id}/director-refresh": {
