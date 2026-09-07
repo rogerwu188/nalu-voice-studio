@@ -105,6 +105,12 @@ reuses cost/dispatch controls. New native CI, actual app QA and real E2E remain 
 currently adopted shot videos in plan order for the postproduction source contract.
 Audio, subtitles, workspace/receipt integration and rendered master QA remain open.
 
+[Confirmed episode sound/caption drafts](qa/episode-sound-plan-2026-09-07.md)
+now derive shot-timed narration and sound needs locally. Recordings, authorization,
+speech alignment and caption approval are not fabricated. Staged video windows
+are explicitly unedited; actual editorial selection must satisfy the existing
+whole-provider-passthrough prohibition before rendering. Neither handoff is PASS.
+
 AI plans now carry [typed director choices with native round-trip and plain-language readback](qa/structured-director-drafts-2026-09-07.md).
 User edits invalidate stale choices. A [version-bound director refresh backend](qa/director-refresh-2026-09-07.md)
 now fills missing choices without rewriting user descriptions, with restart and

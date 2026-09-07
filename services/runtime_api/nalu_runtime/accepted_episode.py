@@ -94,6 +94,8 @@ class AcceptedEpisodeService:
                       "plan_sha256": plan.payload["plan_sha256"], "production_package_sha256": package["package_sha256"],
                       "items": items, "shots": sources, "generation_performed": False, "master_accepted": False,
                       "audio_complete": False, "captions_complete": False, "professional_qa_complete": False}
+            record["editorial_selection_complete"] = False
+            record["source_windows_are_unedited"] = True
             record["input_sha256"] = digest(record)
             for event in events:
                 if event.event_type == "postproduction_shot_inputs_staged" and event.payload == record:

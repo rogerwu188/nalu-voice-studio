@@ -20,7 +20,8 @@ from test_image_download import png
 @pytest.mark.parametrize("case", ["accept", "reject", "stale_image", "changed_file", "changed_plan", "downstream", "restart",
                                   "other_shot_prepared", "same_shot_prepared", "other_shot_budget", "same_shot_budget",
                                   "other_shot_remote", "same_shot_remote", "video_assemble", "video_assemble_stage", "video_missing_director", "video_unknown_prior", "video_wrong_index",
-                                  "video_script_changed", "video_frame_rejected"])
+                                  "video_script_changed", "video_frame_rejected", "video_sound", "video_sound_empty",
+                                  "video_sound_changed", "video_sound_script", "video_sound_archive", "video_sound_hash"])
 def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypatch, case):
     db_path, root = tmp_path / "db", tmp_path / "data"
     api = TestClient(create_app(db_path, root))
@@ -68,14 +69,64 @@ def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypat
     if case.startswith("video_"):
         plan["tasks"] = [{"task_key": "E01-U01", "shot_index": 0}]
         plan["script_revision"] = script["revision"]
-    if case in {"video_assemble", "video_assemble_stage"}:
+    if case in {"video_assemble", "video_assemble_stage"} or case.startswith("video_sound"):
         shot["duration_seconds"] = 8
         continuation = {**shot, "duration_seconds": 7, "transition": "continuous", "entry_state": shot["exit_state"]}
         plan["plan"]["shots"].append(continuation)
         plan["tasks"].append({"task_key": "E01-U02", "shot_index": 1})
+    if case.startswith("video_sound") and case != "video_sound_empty":
+        shot["dialogue_or_narration"] = "第一句：<不是字幕标签>。"
+        continuation["dialogue_or_narration"] = "第二句：海浪拍岸。"
     plan["plan_sha256"] = digest(plan)
     plan_event = repo.append_run_event_once(run.id, "shot_plan_approved", dedupe_key="plan_sha256",
         dedupe_value=plan["plan_sha256"], message="Synthetic confirmed shot fixture", payload=plan)
+    if case.startswith("video_sound"):
+        endpoint = f"/v1/production-runs/{run.id}/sound-plan-drafts"
+        incoming = {"expected_plan_sha256": plan["plan_sha256"]}
+        assert api.post(endpoint, json=incoming, headers={"Origin": "https://example.org"}).status_code == 403
+        assert api.post(endpoint, json={**incoming, "api_key": "must-not-send"}).status_code == 422
+        assert api.post(endpoint, json={"expected_plan_sha256": "bad"}).status_code == 422
+        if case == "video_sound_changed":
+            repo.append_run_event(run.id, "shot_plan_revised", payload={"fixture": "newer"})
+        elif case == "video_sound_script":
+            api.post(f"/v1/episodes/{episode['id']}/scripts", json={"content": "新的故事。", "source_transcript": "新的故事。",
+                "summary_for_voice_review": "新故事"})
+            assert api.post(f"/v1/episodes/{episode['id']}/scripts/2/approve", json={"approved_by": "QA"}).status_code == 200
+        elif case == "video_sound_archive":
+            assert api.post(f"/v1/projects/{project['id']}/archive", json={"archived": True}).status_code == 200
+        elif case == "video_sound_hash":
+            incoming["expected_plan_sha256"] = "0" * 64
+        response = api.post(endpoint, json=incoming)
+        if case not in {"video_sound", "video_sound_empty"}:
+            assert response.status_code == 409, response.text
+            assert not any(e.event_type == "episode_sound_plan_drafted" for e in repo.list_run_events(run.id))
+            return
+        assert response.status_code == 200, response.text
+        result = response.json()
+        payload = result["payload"]
+        assert payload["duration_seconds"] == 15
+        assert [(c["start_seconds"], c["end_seconds"]) for c in payload["cues"]] == [(0, 8), (8, 15)]
+        assert payload["required_audio_layers"] == ["dialogue", "ambience", "foley", "music", "sfx"]
+        for key in ("audio_generated", "voice_authorized", "speech_alignment_verified", "captions_approved", "master_accepted", "generation_performed"):
+            assert payload[key] is False
+        assert all(c["recorded_audio_sha256"] is None and not c["voice_authorized"] for c in payload["cues"])
+        if case == "video_sound_empty":
+            assert payload["caption_srt_draft"] == ""
+        else:
+            assert payload["caption_srt_draft"] == (
+                "1\n00:00:00,000 --> 00:00:08,000\n第一句：&lt;不是字幕标签&gt;。\n\n"
+                "2\n00:00:08,000 --> 00:00:15,000\n第二句：海浪拍岸。\n")
+        restarted = TestClient(create_app(db_path, root))
+        assert restarted.post(endpoint, json=incoming).json()["id"] == result["id"]
+        from concurrent.futures import ThreadPoolExecutor
+
+        from nalu_runtime.episode_sound_plan import EpisodeSoundPlanService
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            repeated = list(pool.map(lambda _: EpisodeSoundPlanService(repo).prepare(run.id, plan["plan_sha256"]).id, range(2)))
+        assert repeated == [result["id"], result["id"]]
+        assert len([e for e in repo.list_run_events(run.id) if e.event_type == "episode_sound_plan_drafted"]) == 1
+        assert repo.get_run(run.id).status == RunStatus.WAITING_FOR_APPROVAL
+        return
     source = ImagePreparationRequest(task_key="E01-U01", approved_plan_event_id=plan_event.id,
         approved_plan_sha256=plan["plan_sha256"])
     preparer = ImagePreparationService(repo, AssetService(repo, root))
@@ -219,6 +270,7 @@ def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypat
             assert [s["shot_id"] for s in payload["shots"]] == ["E01-U01", "E01-U02"]
             assert [s["source_out_seconds"] for s in payload["shots"]] == [8, 7]
             assert payload["master_accepted"] is False and payload["audio_complete"] is False
+            assert payload["editorial_selection_complete"] is False and payload["source_windows_are_unedited"] is True
             files = [path.parent / "qingshan-workspace/exports" / s["source_relative_path"] for s in payload["shots"]]
             assert [file.read_bytes() for file in files] == [video_bytes, second_bytes]
             assert all(file.stat().st_mode & 0o777 == 0o600 for file in files)

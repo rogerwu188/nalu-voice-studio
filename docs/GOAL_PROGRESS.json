@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "bf5d9a691239ac35ce0c1fad0031f446749bbcdc",
-  "last_advanced_at": "2026-09-07T06:14:26Z",
+  "observed_head": "af11563e35f0a7ebbf57e3ef3fa345bb4dab2f07",
+  "last_advanced_at": "2026-09-07T06:26:35Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Added native-only ordered accepted episode video staging with exact current review/preparation/media validation, managed private atomic copies and corruption/restart checks. 33 regressions passed in 15.64s; Ruff/OpenAPI passed. No audio/caption/master or run-state acceptance fabricated. Parent bf5d9a6 CI 34089503454 pending; see docs/qa/accepted-episode-inputs-2026-09-07.md. Full postproduction and real E2E remain unfinished."
+    "summary": "Added current-confirmed-plan sound/caption draft API with exact script/snapshot/duration binding, restart/concurrent deduplication and explicit no-audio/no-alignment/no-approval flags. Staging now explicitly marks full source windows unedited: Qingshan whole-provider passthrough gate remains enforced. 50 regressions passed in 13.16s; CI-scope Ruff passed; OpenAPI regenerated. Parent af11563 CI 34090041530 succeeded. See docs/qa/episode-sound-plan-2026-09-07.md. Current CI/native and real production remain unfinished."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Integrate accepted episode input staging with native postproduction, verified Qingshan workspace/receipt contracts, five audio layers and captions, then render/QA/master/release. Verify current native CI and installed-app behavior. Current two-shot staging evidence is synthetic, not real E2E. Preserve two-source interactive-script to multi-episode objective and existing TTS; image pricing/Hops access gaps remain.",
+    "summary": "Resolve actual editorial selection/retiming against Qingshan whole-provider-media passthrough prohibition; full staged windows are not render-ready. Connect saved sound/caption drafts to real authorized recordings, five audio layers, aligned subtitles and verified workspace/receipts; integrate native postproduction then render/QA/master/release. Verify current CI and installed-app behavior. Synthetic tests are not real E2E; preserve two-source interactive writing and existing TTS.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

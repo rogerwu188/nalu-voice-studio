@@ -1911,6 +1911,21 @@
         "title": "EpisodeProductionProgress",
         "type": "object"
       },
+      "EpisodeSoundPlanRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_plan_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Expected Plan Sha256",
+            "type": "string"
+          }
+        },
+        "required": [
+          "expected_plan_sha256"
+        ],
+        "title": "EpisodeSoundPlanRequest",
+        "type": "object"
+      },
       "EpisodeStatus": {
         "enum": [
           "planned",
@@ -15633,6 +15648,71 @@
           }
         },
         "summary": "Review Shot Plan"
+      }
+    },
+    "/v1/production-runs/{run_id}/sound-plan-drafts": {
+      "post": {
+        "operationId": "prepare_episode_sound_plan_v1_production_runs__run_id__sound_plan_drafts_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "origin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Origin"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EpisodeSoundPlanRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunEvent"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Prepare Episode Sound Plan"
       }
     },
     "/v1/production-runs/{run_id}/tasks/{binding_id}/refresh": {

@@ -25,6 +25,7 @@ from .development_result import (
 )
 from .director_refresh import DirectorRefreshRequest, DirectorRefreshService
 from .engine import ProductionService
+from .episode_sound_plan import EpisodeSoundPlanRequest, EpisodeSoundPlanService
 from .feedback_export import (
     DisabledIssueTrackerReconciliationVerifier,
     DisabledIssueTrackerTransport,
@@ -1401,6 +1402,13 @@ def create_app(
             raise HTTPException(403, "native video preview required")
         _, raw = VideoMaterializationService(repository, data_root).read_saved(run_id, materialization_id)
         return Response(content=raw, media_type="video/mp4", headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"})
+
+    @app.post("/v1/production-runs/{run_id}/sound-plan-drafts", response_model=RunEvent)
+    def prepare_episode_sound_plan(run_id: str, request: EpisodeSoundPlanRequest,
+                                   origin: str | None = Header(default=None)):
+        if origin is not None:
+            raise HTTPException(403, "native sound planning required")
+        return EpisodeSoundPlanService(repository).prepare(run_id, request.expected_plan_sha256)
 
     @app.post("/v1/production-runs/{run_id}/accepted-episode-inputs", response_model=RunEvent)
     def stage_accepted_episode(run_id: str, origin: str | None = Header(default=None)):

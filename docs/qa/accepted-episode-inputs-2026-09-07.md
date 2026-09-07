@@ -23,3 +23,8 @@ Still required: connect native staging, verified Qingshan workspace/receipt inpu
 audio layers and subtitles, RUNNING/QA transition, real materializer execution,
 semantic QA, sealing and controlled release. This is not completed postproduction.
 Current CI required; parent bf5d9a6 CI 34089503454 pending at check.
+
+Follow-up: af11563 CI 34090041530 passed. Staging windows are full unedited sources,
+not a render-ready timeline: Qingshan forbids whole-provider-video passthrough.
+Explicit editorial-selection-incomplete flags and the remaining sound/caption
+work are documented in [sound-plan evidence](episode-sound-plan-2026-09-07.md).
