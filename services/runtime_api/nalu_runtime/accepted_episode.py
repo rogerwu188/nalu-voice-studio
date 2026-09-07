@@ -4,6 +4,8 @@ import os
 import tempfile
 from pathlib import Path
 
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
 from .models import PostproductionShotSource
 from .repository import ConflictError, encode, new_id, utc_now
 from .secure_files import secure_directory, sync_directory
@@ -14,15 +16,36 @@ from .video_preparation import digest
 from .video_tail import VideoTailService
 
 
+class EpisodeCut(BaseModel):
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
+    shot_index: int = Field(strict=True, ge=0, le=119)
+    source_in_seconds: float = Field(ge=0)
+    source_out_seconds: float = Field(gt=0)
+
+    @model_validator(mode="after")
+    def positive_window(self):
+        if self.source_out_seconds <= self.source_in_seconds:
+            raise ValueError("cut must have positive duration")
+        return self
+
+
+class EpisodeEditRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    expected_input_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    cuts: list[EpisodeCut] = Field(min_length=1, max_length=120)
+
+
 class AcceptedEpisodeService:
     def __init__(self, repository, data_root):
         self.repository, self.data_root = repository, Path(data_root).resolve()
 
-    def stage(self, run_id):
+    def stage(self, run_id, selection: EpisodeEditRequest | None = None):
         repo = self.repository
         with repo.db.connect() as db:
             db.execute("BEGIN IMMEDIATE")
             run = repo.get_run(run_id)
+            if repo.get_project(run.project_id).archived_at:
+                raise ConflictError("archived project is read-only")
             package = ShotPlanningService(repo)._package(run)
             plan = ShotReviewService(repo).current(run_id)
             if (plan is None or plan.event_type != "shot_plan_approved" or plan.payload.get("approved") is not True
@@ -50,6 +73,7 @@ class AcceptedEpisodeService:
                 item = {"shot_index": index, "task_key": task, "review_id": review.id,
                         "review_sha256": review.payload["review_sha256"], "materialization_id": media.id,
                         "video_sha256": media.payload["video"]["sha256"], "duration_seconds": shot.duration_seconds,
+                        "source_duration_seconds": media.payload["video"]["duration_seconds"],
                         "provider_task_id": repo.get_remote_task_binding(media.payload["binding_id"]).provider_task_id}
                 items.append(item)
             if sum(item["duration_seconds"] for item in items) > 1800:
@@ -97,11 +121,43 @@ class AcceptedEpisodeService:
             record["editorial_selection_complete"] = False
             record["source_windows_are_unedited"] = True
             record["input_sha256"] = digest(record)
+            event_type = "postproduction_shot_inputs_staged"
+            if selection is not None:
+                if selection.expected_input_sha256 != record["input_sha256"]:
+                    raise ConflictError("adopted episode inputs changed before editing")
+                if [cut.shot_index for cut in selection.cuts] != list(range(len(items))):
+                    raise ConflictError("edit must cover every shot once in confirmed order")
+                edited, timeline, cursor = [], [], 0
+                for cut, source, item in zip(selection.cuts, sources, items, strict=True):
+                    if cut.source_out_seconds > item["source_duration_seconds"]:
+                        raise ConflictError("edit exceeds the adopted source video")
+                    # Match the downstream lineage QA's 50 ms whole-source guard.
+                    if cut.source_in_seconds <= 0.05 and cut.source_out_seconds >= item["source_duration_seconds"] - 0.05:
+                        raise ConflictError("choose an editorial window; whole-provider passthrough is forbidden")
+                    frames = round((cut.source_out_seconds - cut.source_in_seconds) * 24)
+                    if frames < 1:
+                        raise ConflictError("edit is shorter than one output frame")
+                    duration = frames / 24
+                    if cut.source_in_seconds + duration > item["source_duration_seconds"]:
+                        raise ConflictError("frame-rounded edit exceeds the source")
+                    edited.append(PostproductionShotSource.model_validate({**source,
+                        "source_in_seconds": cut.source_in_seconds, "source_out_seconds": cut.source_out_seconds}).model_dump())
+                    timeline.append({"shot_index": cut.shot_index, "start_seconds": cursor,
+                                     "duration_seconds": duration, "frame_count": frames})
+                    cursor += duration
+                source_input_sha256 = record.pop("input_sha256")
+                record = {**record, "shots": edited, "source_input_sha256": source_input_sha256,
+                          "timeline": timeline, "frame_rate": 24, "edited_duration_seconds": cursor,
+                          "planned_duration_seconds": sum(item["duration_seconds"] for item in items),
+                          "source_windows_are_unedited": False, "editorial_selection_complete": True,
+                          "edit_approved": False, "captions_require_retiming": True}
+                record["edit_sha256"] = digest(record)
+                event_type = "postproduction_edit_drafted"
             for event in events:
-                if event.event_type == "postproduction_shot_inputs_staged" and event.payload == record:
+                if event.event_type == event_type and event.payload == record:
                     return event
             event_id = new_id("evt")
             sequence = db.execute("SELECT COALESCE(MAX(sequence),0)+1 FROM run_events WHERE run_id=?", (run_id,)).fetchone()[0]
             db.execute("INSERT INTO run_events VALUES (?,?,?,?,?,?,?,?,?)", (event_id, run_id, sequence,
-                "postproduction_shot_inputs_staged", None, None, "Adopted episode videos staged; audio, captions and QA remain required.", encode(record), utc_now()))
+                event_type, None, None, "Episode video inputs prepared; edit approval, audio, captions and QA remain required.", encode(record), utc_now()))
         return repo.get_run_event(event_id)

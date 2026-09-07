@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "af11563e35f0a7ebbf57e3ef3fa345bb4dab2f07",
-  "last_advanced_at": "2026-09-07T06:26:35Z",
+  "observed_head": "c6881bd3bb0bec62eb38db03188fbc6bdcb566fd",
+  "last_advanced_at": "2026-09-07T06:33:21Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Added current-confirmed-plan sound/caption draft API with exact script/snapshot/duration binding, restart/concurrent deduplication and explicit no-audio/no-alignment/no-approval flags. Staging now explicitly marks full source windows unedited: Qingshan whole-provider passthrough gate remains enforced. 50 regressions passed in 13.16s; CI-scope Ruff passed; OpenAPI regenerated. Parent af11563 CI 34090041530 succeeded. See docs/qa/episode-sound-plan-2026-09-07.md. Current CI/native and real production remain unfinished."
+    "summary": "Added version-bound adopted-video edit-draft endpoint with complete ordered source windows, decoded source-duration guards, actual 24fps timelines and restart/corruption checks. Nine focused tests passed in 11.43s, including actual renderer decoding of 168+144 selected frames and existing whole-provider passthrough rejection. Ruff passed; OpenAPI regenerated. Parent c6881bd CI 34091013930 in progress. Evidence docs/qa/episode-editorial-windows-2026-09-07.md; native controls, approval, retiming and real postproduction remain incomplete."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Resolve actual editorial selection/retiming against Qingshan whole-provider-media passthrough prohibition; full staged windows are not render-ready. Connect saved sound/caption drafts to real authorized recordings, five audio layers, aligned subtitles and verified workspace/receipts; integrate native postproduction then render/QA/master/release. Verify current CI and installed-app behavior. Synthetic tests are not real E2E; preserve two-source interactive writing and existing TTS.",
+    "summary": "Connect native plain-language episode editing/preview/confirmation to saved adopted-media windows, preserving changed-duration approval and retiming sound/captions. Then integrate authorized recordings, five audio layers and verified workspace/receipts to render/QA/master/release. Verify current CI and installed-app behavior. Backend edit drafts and synthetic decoder tests are not real E2E; preserve two-source interactive writing and existing TTS.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

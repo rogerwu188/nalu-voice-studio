@@ -8,7 +8,7 @@ import httpx
 from fastapi import Body, FastAPI, Header, HTTPException, Query, Response
 from fastapi.responses import FileResponse, JSONResponse
 
-from .accepted_episode import AcceptedEpisodeService
+from .accepted_episode import AcceptedEpisodeService, EpisodeEditRequest
 from .asset_service import AssetService
 from .continuity import audit_continuity
 from .database import Database
@@ -1409,6 +1409,12 @@ def create_app(
         if origin is not None:
             raise HTTPException(403, "native sound planning required")
         return EpisodeSoundPlanService(repository).prepare(run_id, request.expected_plan_sha256)
+
+    @app.post("/v1/production-runs/{run_id}/episode-edit-drafts", response_model=RunEvent)
+    def draft_episode_edit(run_id: str, request: EpisodeEditRequest, origin: str | None = Header(default=None)):
+        if origin is not None:
+            raise HTTPException(403, "native episode editing required")
+        return AcceptedEpisodeService(repository, data_root).stage(run_id, request)
 
     @app.post("/v1/production-runs/{run_id}/accepted-episode-inputs", response_model=RunEvent)
     def stage_accepted_episode(run_id: str, origin: str | None = Header(default=None)):

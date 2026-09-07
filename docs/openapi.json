@@ -1715,6 +1715,59 @@
         "title": "EpisodeCreate",
         "type": "object"
       },
+      "EpisodeCut": {
+        "additionalProperties": false,
+        "properties": {
+          "shot_index": {
+            "maximum": 119.0,
+            "minimum": 0.0,
+            "title": "Shot Index",
+            "type": "integer"
+          },
+          "source_in_seconds": {
+            "minimum": 0.0,
+            "title": "Source In Seconds",
+            "type": "number"
+          },
+          "source_out_seconds": {
+            "exclusiveMinimum": 0.0,
+            "title": "Source Out Seconds",
+            "type": "number"
+          }
+        },
+        "required": [
+          "shot_index",
+          "source_in_seconds",
+          "source_out_seconds"
+        ],
+        "title": "EpisodeCut",
+        "type": "object"
+      },
+      "EpisodeEditRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "cuts": {
+            "items": {
+              "$ref": "#/components/schemas/EpisodeCut"
+            },
+            "maxItems": 120,
+            "minItems": 1,
+            "title": "Cuts",
+            "type": "array"
+          },
+          "expected_input_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Expected Input Sha256",
+            "type": "string"
+          }
+        },
+        "required": [
+          "expected_input_sha256",
+          "cuts"
+        ],
+        "title": "EpisodeEditRequest",
+        "type": "object"
+      },
       "EpisodeEvent": {
         "properties": {
           "created_at": {
@@ -13319,6 +13372,71 @@
           }
         },
         "summary": "Decoded Media Qa"
+      }
+    },
+    "/v1/production-runs/{run_id}/episode-edit-drafts": {
+      "post": {
+        "operationId": "draft_episode_edit_v1_production_runs__run_id__episode_edit_drafts_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "origin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Origin"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EpisodeEditRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunEvent"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Draft Episode Edit"
       }
     },
     "/v1/production-runs/{run_id}/events": {

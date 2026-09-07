@@ -111,6 +111,11 @@ speech alignment and caption approval are not fabricated. Staged video windows
 are explicitly unedited; actual editorial selection must satisfy the existing
 whole-provider-passthrough prohibition before rendering. Neither handoff is PASS.
 
+[Adopted-video editorial windows](qa/episode-editorial-windows-2026-09-07.md)
+now produce version-bound trimmed source inputs and actual frame-count timelines,
+tested with the renderer's decoder. Native editing/confirmation, changed-duration
+approval, retimed audio/captions and real complete rendering remain open.
+
 AI plans now carry [typed director choices with native round-trip and plain-language readback](qa/structured-director-drafts-2026-09-07.md).
 User edits invalidate stale choices. A [version-bound director refresh backend](qa/director-refresh-2026-09-07.md)
 now fills missing choices without rewriting user descriptions, with restart and

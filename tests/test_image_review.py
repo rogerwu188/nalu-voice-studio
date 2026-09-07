@@ -275,8 +275,37 @@ def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypat
             assert [file.read_bytes() for file in files] == [video_bytes, second_bytes]
             assert all(file.stat().st_mode & 0o777 == 0o600 for file in files)
             assert reopened.post(staging).json()["id"] == staged.json()["id"]
+            edit_url = f"/v1/production-runs/{run.id}/episode-edit-drafts"
+            cuts = [{"shot_index": 0, "source_in_seconds": 0.5, "source_out_seconds": 7.5},
+                    {"shot_index": 1, "source_in_seconds": 0.5, "source_out_seconds": 6.5}]
+            edit_request = {"expected_input_sha256": payload["input_sha256"], "cuts": cuts}
+            assert api.post(edit_url, json=edit_request, headers={"Origin": "https://example.org"}).status_code == 403
+            assert api.post(edit_url, json={**edit_request, "expected_input_sha256": "0" * 64}).status_code == 409
+            for invalid_cuts in (cuts[:1], cuts[::-1], [cuts[0], cuts[0]],
+                    [{**cuts[0], "source_in_seconds": 0, "source_out_seconds": 8}, cuts[1]],
+                    [{**cuts[0], "source_out_seconds": 9}, cuts[1]],
+                    [{**cuts[0], "source_out_seconds": 0.501}, cuts[1]]):
+                assert api.post(edit_url, json={**edit_request, "cuts": invalid_cuts}).status_code == 409
+            edit = api.post(edit_url, json=edit_request)
+            assert edit.status_code == 200, edit.text
+            editing = edit.json()["payload"]
+            assert editing["edited_duration_seconds"] == 13 and editing["planned_duration_seconds"] == 15
+            assert [s["source_in_seconds"] for s in editing["shots"]] == [0.5, 0.5]
+            assert [s["start_seconds"] for s in editing["timeline"]] == [0, 7]
+            assert editing["editorial_selection_complete"] is True and editing["edit_approved"] is False
+            assert editing["captions_require_retiming"] is True and editing["master_accepted"] is False
+            from nalu_runtime.postproduction_materializer import _selected_frames
+            # Exercise the actual renderer's source-window decoder, not a mocked edit.
+            for file, cut, timing in zip(files, cuts, editing["timeline"], strict=True):
+                decoded = sum(1 for _ in _selected_frames(file, start_seconds=cut["source_in_seconds"],
+                    duration_seconds=timing["duration_seconds"], frame_rate=24, width=128, height=128,
+                    pixel_format="yuv420p"))
+                assert decoded == timing["frame_count"]
+            assert reopened.post(edit_url, json=edit_request).json()["id"] == edit.json()["id"]
+            assert [file.read_bytes() for file in files] == [video_bytes, second_bytes]
             files[0].write_bytes(b"corrupted")
             assert reopened.post(staging).status_code == 409
+            assert reopened.post(edit_url, json=edit_request).status_code == 409
             return
         revoked = api.post(f"/v1/production-runs/{run.id}/video-results/{receipt['id']}/reviews", json={
             "preparation_id": prepared_video.json()["id"],
