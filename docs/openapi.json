@@ -2059,6 +2059,19 @@
             ],
             "title": "Edit Id"
           },
+          "expected_edit_review_id": {
+            "anyOf": [
+              {
+                "maxLength": 160,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Edit Review Id"
+          },
           "expected_edit_sha256": {
             "anyOf": [
               {

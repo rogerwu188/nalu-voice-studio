@@ -28,6 +28,11 @@ completed user journey. Real writer/provider integration, native interaction,
 script revision handoff and the complete production demonstration remain open.
 The authoritative next action is in `docs/GOAL_PROGRESS.json`.
 
+[Approved-edit sound handoff](qa/approved-edit-sound-handoff-2026-09-07.md) now
+binds sound/caption drafts to a current accepted edit and verified preview receipt.
+This confirms picture timing only; actual audio, aligned subtitles, native
+handoff, master and release acceptance remain incomplete.
+
 The [native edit-confirmation controls](qa/native-edit-confirmation-state-2026-09-07.md)
 now connect the picture preview to explicit readback, adopt/reject and recovery.
 This is source-level integration with a passing synthetic backend regression,

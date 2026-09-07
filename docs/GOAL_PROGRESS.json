@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "e94e7a15020bd200e37ca4e6af2e5f805a6a4b38",
-  "last_advanced_at": "2026-09-07T07:28:00Z",
+  "observed_head": "85fbb03e5f4d1ac1be6836e632a2d37cc3d880ee",
+  "last_advanced_at": "2026-09-07T07:31:50Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Attached native edit confirmation below picture player with spoken readback, explicit adopt/reject, safe cancel, same-request retry and GET recovery. Extended cancel-without-POST native tests; current native CI and installed UI QA pending. Synthetic backend encode/review regression passed (1 test, 8.34s), Ruff/diff passed. a616984 full CI 34094480463 passed. Evidence docs/qa/native-edit-confirmation-state-2026-09-07.md."
+    "summary": "Backend sound/caption drafts can now bind exact current accepted edit review and rendered receipt with source revalidation. Rejects stale/rejected decisions and preserves draft-only audio/caption/master flags. 26 image-review workflow tests passed in 21.23s; Ruff passed and OpenAPI regenerated. Native controls CI 34095637430 pending, state CI 34094904074 running. Evidence docs/qa/approved-edit-sound-handoff-2026-09-07.md."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Verify native edit confirmation CI and installed player/confirmation QA when build available. Connect exact current approved edit to real recordings/five audio layers/caption alignment/verified workspace and final master QA/release. Preserve two-source interactive writing and existing TTS; proxy/test attestations are not real E2E. Local Swift toolchain unavailable and installed app not yet updated; continue safe downstream integration without pretending those gates passed.",
+    "summary": "Connect approved-edit sound timing to native post-confirmation orchestration, preserve partial failures, verify current CI and installed player QA when build available. Then actual authorized recordings/five sound layers, caption alignment, verified workspace and master/release QA. Preserve two-source writing and existing TTS. Synthetic timing tests do not constitute real E2E; installed app not updated.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

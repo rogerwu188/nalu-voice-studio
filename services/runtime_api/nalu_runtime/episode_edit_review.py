@@ -24,6 +24,31 @@ class EpisodeEditReviewService:
     def __init__(self, repository, data_root):
         self.repository, self.data_root = repository, data_root
 
+    def approved(self, run_id, edit_id, edit_sha256, review_id):
+        """Resolve current approved timing; caller holds the writer transaction."""
+        edit, _, _, _ = EpisodePreviewService(self.repository, self.data_root).inputs(run_id, edit_id, edit_sha256)
+        reviews = [event for event in self.repository.list_run_events(run_id)
+                   if event.event_type == "postproduction_edit_reviewed" and event.payload.get("edit_id") == edit_id]
+        current = reviews[-1] if reviews else None
+        if current is None or current.id != review_id:
+            raise ConflictError("reload the current edit confirmation before postproduction")
+        payload = current.payload
+        if (payload.get("review_sha256") != digest({k: v for k, v in payload.items() if k != "review_sha256"})
+                or payload.get("decision") != "accept" or payload.get("edit_approved") is not True
+                or payload.get("edit_sha256") != edit_sha256
+                or payload.get("duration_confirmed_seconds") != edit.payload["edited_duration_seconds"]):
+            raise ConflictError("postproduction requires an intact accepted edit confirmation")
+        preview = self.repository.get_run_event(payload["preview_id"])
+        receipt = preview.payload
+        if (preview.run_id != run_id or preview.event_type != "episode_picture_preview_rendered"
+                or receipt.get("receipt_sha256") != digest({k: v for k, v in receipt.items() if k != "receipt_sha256"})
+                or receipt.get("receipt_sha256") != payload.get("preview_receipt_sha256")
+                or receipt.get("preview_sha256") != payload.get("preview_sha256")
+                or receipt.get("edit_id") != edit_id or receipt.get("edit_sha256") != edit_sha256
+                or receipt.get("duration_seconds") != payload["duration_confirmed_seconds"]):
+            raise ConflictError("confirmed preview receipt changed before postproduction")
+        return current
+
     def review(self, run_id, edit_id, request):
         repo = self.repository
         request_sha = digest({"edit_id": edit_id, "request": request.model_dump()})

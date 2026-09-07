@@ -357,9 +357,27 @@ def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypat
             assert [(cue["start_seconds"], cue["end_seconds"]) for cue in sound["cues"]] == [(0, 7), (7, 13)]
             assert sound["edit_approved"] is False and sound["speech_alignment_verified"] is False
             assert reopened.post(retime_url, json=retime).json()["id"] == retimed.json()["id"]
+            approved_timing = {**retime, "expected_edit_review_id": reviewed_edit.json()["id"]}
+            prepared_sound = api.post(retime_url, json=approved_timing)
+            assert prepared_sound.status_code == 200, prepared_sound.text
+            approved_sound = prepared_sound.json()["payload"]
+            assert approved_sound["edit_approved"] is True
+            assert approved_sound["edit_review_sha256"] == decision["review_sha256"]
+            assert approved_sound["caption_timing_basis"] == "APPROVED_EDIT_WINDOWS_NOT_SPEECH_ALIGNMENT"
+            assert approved_sound["duration_seconds"] == 13
+            assert not any(approved_sound[key] for key in ("audio_generated", "voice_authorized",
+                           "speech_alignment_verified", "captions_approved", "master_accepted", "generation_performed"))
+            assert reopened.post(retime_url, json=approved_timing).json()["id"] == prepared_sound.json()["id"]
+            assert api.post(retime_url, json={**retime, "expected_edit_review_id": rejected_edit.json()["id"]}).status_code == 409
+            assert api.post(retime_url, json={"expected_plan_sha256": plan["plan_sha256"],
+                            "expected_edit_review_id": reviewed_edit.json()["id"]}).status_code == 422
             assert api.post(retime_url, json={**retime, "expected_edit_sha256": "0" * 64}).status_code == 409
             assert api.post(retime_url, json={"expected_plan_sha256": plan["plan_sha256"], "edit_id": edit.json()["id"]}).status_code == 422
             assert [file.read_bytes() for file in files] == [video_bytes, second_bytes]
+            reject_again = api.post(edit_review_url, json={**edit_review, "expected_review_id": reviewed_edit.json()["id"]})
+            assert reject_again.status_code == 200, reject_again.text
+            assert reopened.post(retime_url, json=approved_timing).status_code == 409
+            assert api.post(retime_url, json={**retime, "expected_edit_review_id": reject_again.json()["id"]}).status_code == 409
             files[0].write_bytes(b"corrupted")
             assert reopened.post(staging).status_code == 409
             assert reopened.post(edit_url, json=edit_request).status_code == 409

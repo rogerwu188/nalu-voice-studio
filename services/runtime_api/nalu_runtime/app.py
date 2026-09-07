@@ -1412,7 +1412,8 @@ def create_app(
         if origin is not None:
             raise HTTPException(403, "native sound planning required")
         return EpisodeSoundPlanService(repository, data_root).prepare(run_id, request.expected_plan_sha256,
-            edit_id=request.edit_id, expected_edit_sha256=request.expected_edit_sha256)
+            edit_id=request.edit_id, expected_edit_sha256=request.expected_edit_sha256,
+            expected_edit_review_id=request.expected_edit_review_id)
 
     @app.post("/v1/production-runs/{run_id}/episode-edit-drafts/{edit_id}/picture-preview", response_class=Response,
               responses={200: {"content": {"video/mp4": {}}}})

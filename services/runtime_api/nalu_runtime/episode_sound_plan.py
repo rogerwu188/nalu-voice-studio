@@ -15,11 +15,14 @@ class EpisodeSoundPlanRequest(BaseModel):
     expected_plan_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     edit_id: str | None = Field(default=None, min_length=1, max_length=160)
     expected_edit_sha256: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
+    expected_edit_review_id: str | None = Field(default=None, min_length=1, max_length=160)
 
     @model_validator(mode="after")
     def paired_edit(self):
         if (self.edit_id is None) != (self.expected_edit_sha256 is None):
             raise ValueError("edited timing requires both the edit ID and its hash")
+        if self.expected_edit_review_id is not None and self.edit_id is None:
+            raise ValueError("approved timing requires the exact edit identity")
         return self
 
 
@@ -36,7 +39,8 @@ class EpisodeSoundPlanService:
         self.repository = repository
         self.data_root = data_root
 
-    def prepare(self, run_id, expected_plan_sha256, *, edit_id=None, expected_edit_sha256=None):
+    def prepare(self, run_id, expected_plan_sha256, *, edit_id=None, expected_edit_sha256=None,
+                expected_edit_review_id=None):
         repo = self.repository
         with repo.db.connect() as db:
             db.execute("BEGIN IMMEDIATE")
@@ -63,6 +67,9 @@ class EpisodeSoundPlanService:
             if sum(shot.duration_seconds for shot in plan.shots) != episode.target_seconds:
                 raise ConflictError("confirmed shot duration differs from the episode")
             edit = None
+            edit_review = None
+            if expected_edit_review_id is not None and edit_id is None:
+                raise ConflictError("approved sound timing requires an edit")
             durations = [shot.duration_seconds for shot in plan.shots]
             if edit_id is not None:
                 from .video_tail import VideoTailService
@@ -83,6 +90,10 @@ class EpisodeSoundPlanService:
                     if review.payload["review_sha256"] != item["review_sha256"] or media.id != item["materialization_id"]:
                         raise ConflictError("adopted media changed before retiming")
                 durations = [entry["frame_count"] / edit.payload["frame_rate"] for entry in timeline]
+                if expected_edit_review_id is not None:
+                    from .episode_edit_review import EpisodeEditReviewService
+                    edit_review = EpisodeEditReviewService(repo, self.data_root).approved(
+                        run_id, edit_id, expected_edit_sha256, expected_edit_review_id)
             cues, captions, cursor = [], [], 0
             for index, shot in enumerate(plan.shots):
                 end = cursor + durations[index]
@@ -104,6 +115,10 @@ class EpisodeSoundPlanService:
                 record.update(edit_id=edit.id, edit_sha256=expected_edit_sha256, edit_approved=False,
                               planned_duration_seconds=episode.target_seconds,
                               caption_timing_basis="DRAFT_EDIT_WINDOWS_NOT_SPEECH_ALIGNMENT")
+            if edit_review is not None:
+                record.update(edit_approved=True, edit_review_id=edit_review.id,
+                              edit_review_sha256=edit_review.payload["review_sha256"],
+                              caption_timing_basis="APPROVED_EDIT_WINDOWS_NOT_SPEECH_ALIGNMENT")
             record["sound_plan_sha256"] = digest(record)
             for previous in repo.list_run_events(run_id):
                 if previous.event_type == "episode_sound_plan_drafted" and previous.payload == record:
