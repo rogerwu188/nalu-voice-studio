@@ -7839,6 +7839,124 @@
         "title": "PublicationReconciliationRecord",
         "type": "object"
       },
+      "RecordingTranscriptRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_review_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Expected Review Id",
+            "type": "string"
+          },
+          "expected_take_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Expected Take Sha256",
+            "type": "string"
+          },
+          "generated_at": {
+            "format": "date-time",
+            "title": "Generated At",
+            "type": "string"
+          },
+          "local_recognition": {
+            "const": true,
+            "title": "Local Recognition",
+            "type": "boolean"
+          },
+          "recognizer_id": {
+            "const": "apple-speech-on-device",
+            "title": "Recognizer Id",
+            "type": "string"
+          },
+          "recognizer_version": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Recognizer Version",
+            "type": "string"
+          },
+          "sample_count": {
+            "maximum": 14400000.0,
+            "minimum": 1.0,
+            "title": "Sample Count",
+            "type": "integer"
+          },
+          "segments": {
+            "items": {
+              "$ref": "#/components/schemas/RecordingWord"
+            },
+            "maxItems": 4000,
+            "minItems": 1,
+            "title": "Segments",
+            "type": "array"
+          },
+          "source_audio_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Source Audio Sha256",
+            "type": "string"
+          },
+          "transcript": {
+            "maxLength": 24000,
+            "minLength": 1,
+            "title": "Transcript",
+            "type": "string"
+          }
+        },
+        "required": [
+          "expected_take_sha256",
+          "expected_review_id",
+          "source_audio_sha256",
+          "sample_count",
+          "transcript",
+          "segments",
+          "recognizer_id",
+          "recognizer_version",
+          "generated_at",
+          "local_recognition"
+        ],
+        "title": "RecordingTranscriptRequest",
+        "type": "object"
+      },
+      "RecordingWord": {
+        "additionalProperties": false,
+        "properties": {
+          "confidence": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence"
+          },
+          "end_seconds": {
+            "exclusiveMinimum": 0.0,
+            "title": "End Seconds",
+            "type": "number"
+          },
+          "start_seconds": {
+            "minimum": 0.0,
+            "title": "Start Seconds",
+            "type": "number"
+          },
+          "text": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "start_seconds",
+          "end_seconds",
+          "text"
+        ],
+        "title": "RecordingWord",
+        "type": "object"
+      },
       "ReferenceAssetConfirmation": {
         "additionalProperties": false,
         "properties": {
@@ -13773,6 +13891,155 @@
           }
         },
         "summary": "Review Episode Audio"
+      }
+    },
+    "/v1/production-runs/{run_id}/audio-takes/{take_id}/transcripts": {
+      "get": {
+        "operationId": "recover_recording_transcript_v1_production_runs__run_id__audio_takes__take_id__transcripts_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "take_id",
+            "required": true,
+            "schema": {
+              "title": "Take Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expected_take_sha256",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-f0-9]{64}$",
+              "title": "Expected Take Sha256",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expected_review_id",
+            "required": true,
+            "schema": {
+              "maxLength": 160,
+              "minLength": 1,
+              "title": "Expected Review Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/RunEvent"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Recover Recording Transcript V1 Production Runs  Run Id  Audio Takes  Take Id  Transcripts Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Recover Recording Transcript"
+      },
+      "post": {
+        "operationId": "save_recording_transcript_v1_production_runs__run_id__audio_takes__take_id__transcripts_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "take_id",
+            "required": true,
+            "schema": {
+              "title": "Take Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "origin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Origin"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordingTranscriptRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunEvent"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Save Recording Transcript"
       }
     },
     "/v1/production-runs/{run_id}/cancel": {

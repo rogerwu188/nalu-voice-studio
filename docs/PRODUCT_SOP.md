@@ -28,6 +28,11 @@ completed user journey. Real writer/provider integration, native interaction,
 script revision handoff and the complete production demonstration remain open.
 The authoritative next action is in `docs/GOAL_PROGRESS.json`.
 
+[Persisted recording transcripts](qa/persisted-recording-transcript-2026-09-07.md)
+now bind timed drafts in SQLite to actual accepted PCM and revalidate on recovery.
+Native consumption, explicit subtitle review and final mix/master remain open;
+client-reported recognition is not verified subtitle or alignment acceptance.
+
 [Recording transcription bridge](qa/recording-transcription-2026-09-07.md) now
 reuses local Apple Speech for accepted PCM and produces bounded timed drafts.
 Visible initiation, persisted review, live ASR QA and final captions/master remain

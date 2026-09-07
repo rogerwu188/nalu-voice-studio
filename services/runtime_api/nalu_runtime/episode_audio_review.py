@@ -93,11 +93,12 @@ class EpisodeAudioReviewService:
                 latest_review=latest, applies_to_current_take=applies,
                 take_approved=bool(applies and latest.payload.get("take_approved") is True))
 
-    def accepted_audio(self, run_id, take_id, expected_take_sha256, expected_review_id):
+    def accepted_audio(self, run_id, take_id, expected_take_sha256, expected_review_id, *, _db=None):
         """Decode the exact accepted source window, without padding or cloning."""
         repo = self.repository
-        with repo.db.connect() as db:
-            db.execute("BEGIN IMMEDIATE")
+        with (nullcontext(_db) if _db is not None else repo.db.connect()) as db:
+            if _db is None:
+                db.execute("BEGIN IMMEDIATE")
             recovered = self.recover(run_id, take_id, expected_take_sha256, _db=db)
             if (not recovered.take_approved or recovered.latest_review is None
                     or recovered.latest_review.id != expected_review_id):

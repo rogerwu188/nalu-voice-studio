@@ -34,6 +34,7 @@ from .episode_audio_review import (
 from .episode_edit_review import EpisodeEditReviewRequest, EpisodeEditReviewService
 from .episode_preview import EpisodePreviewRequest, EpisodePreviewService
 from .episode_sound_plan import EpisodeSoundPlanRequest, EpisodeSoundPlanService
+from .episode_transcript import RecordingTranscriptRequest, RecordingTranscriptService
 from .feedback_export import (
     DisabledIssueTrackerReconciliationVerifier,
     DisabledIssueTrackerTransport,
@@ -1431,6 +1432,20 @@ def create_app(
     def recover_episode_audio(run_id: str, sound_plan_id: str,
                               expected_sound_plan_sha256: str):
         return EpisodeAudioService(repository, data_root).recover(run_id, sound_plan_id, expected_sound_plan_sha256)
+
+    @app.post("/v1/production-runs/{run_id}/audio-takes/{take_id}/transcripts", response_model=RunEvent)
+    def save_recording_transcript(run_id: str, take_id: str, request: RecordingTranscriptRequest,
+                                  origin: str | None = Header(default=None)):
+        if origin is not None:
+            raise HTTPException(403, "native recording transcript required")
+        return RecordingTranscriptService(repository, data_root).save(run_id, take_id, request)
+
+    @app.get("/v1/production-runs/{run_id}/audio-takes/{take_id}/transcripts", response_model=RunEvent | None)
+    def recover_recording_transcript(run_id: str, take_id: str,
+                                     expected_take_sha256: str = Query(pattern=r"^[a-f0-9]{64}$"),
+                                     expected_review_id: str = Query(min_length=1, max_length=160)):
+        return RecordingTranscriptService(repository, data_root).recover(
+            run_id, take_id, expected_take_sha256, expected_review_id)
 
     @app.post("/v1/production-runs/{run_id}/audio-takes/{take_id}/reviews", response_model=RunEvent)
     def review_episode_audio(run_id: str, take_id: str, request: EpisodeAudioReviewRequest,

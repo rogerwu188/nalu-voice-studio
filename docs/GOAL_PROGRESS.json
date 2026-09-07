@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "842f683c4c9160935c436a7bda5aded97fca8366",
-  "last_advanced_at": "2026-09-07T09:01:59Z",
+  "observed_head": "17ec427d18cbf4e343468c628be8fc1864417fe8",
+  "last_advanced_at": "2026-09-07T09:07:02Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Added local accepted-recording ASR bridge and model orchestration with private temporary input cleanup, bounded timed draft validation and post-recognition approval recheck. Native injected-recognizer tests added; execution pending CI. Backend export fixture passed in 25.34s; CI 34102388611 fully passed. Evidence docs/qa/recording-transcription-2026-09-07.md. Visible trigger, persisted subtitle review, ASR cancellation/live QA and final master/release remain incomplete."
+    "summary": "Added SQLite timed-transcript draft save/recovery bound to actual accepted PCM hash, take and review. Exact replay is idempotent; current consent/approval and intervals revalidated. 26 workflow tests passed in 29.42s; Ruff/OpenAPI/diff passed. CI 34103363309 Runtime/ARM passed, Intel running. Evidence docs/qa/persisted-recording-transcript-2026-09-07.md. Native persistence consumption, subtitle review, live ASR and final master/release remain incomplete."
   },
   "next_action": {
     "sop": "SOP-04",

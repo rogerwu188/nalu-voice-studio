@@ -449,11 +449,33 @@ def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypat
             assert reopened.get(accepted_audio_url, params=accepted_audio_query).content == exported_audio.content
             assert len(repo.list_run_events(run.id)) == after_accept
             assert api.get(accepted_audio_url, params={**accepted_audio_query, "expected_review_id": "wrong"}).status_code == 409
+            transcript_url = f"{take_url}/{take.json()['id']}/transcripts"
+            transcript_request = {**accepted_audio_query,
+                "source_audio_sha256": exported_audio.headers["x-nalu-audio-sha256"],
+                "sample_count": take.json()["payload"]["decoded_sample_count"], "transcript": "合成转写",
+                "segments": [{"start_seconds": 0.1, "end_seconds": 0.8, "text": "合成转写", "confidence": 0.9}],
+                "recognizer_id": "apple-speech-on-device", "recognizer_version": "synthetic-fixture",
+                "generated_at": "2026-09-07T09:00:00Z", "local_recognition": True}
+            assert reopened.get(transcript_url, params=accepted_audio_query).json() is None
+            assert api.post(transcript_url, json=transcript_request, headers={"Origin": "https://example.org"}).status_code == 403
+            assert api.post(transcript_url, json={**transcript_request, "source_audio_sha256": "0" * 64}).status_code == 409
+            assert api.post(transcript_url, json={**transcript_request,
+                "segments": [{"start_seconds": 0.1, "end_seconds": 500, "text": "越界"}]}).status_code == 422
+            transcript_saved = api.post(transcript_url, json=transcript_request)
+            assert transcript_saved.status_code == 200, transcript_saved.text
+            assert transcript_saved.json()["payload"]["recognition_evidence"] == "CLIENT_REPORTED_LOCAL_ASR_DRAFT"
+            assert transcript_saved.json()["payload"]["captions_approved"] is False
+            transcript_event_count = len(repo.list_run_events(run.id))
+            assert reopened.post(transcript_url, json=transcript_request).json()["id"] == transcript_saved.json()["id"]
+            assert reopened.get(transcript_url, params=accepted_audio_query).json()["id"] == transcript_saved.json()["id"]
+            assert len(repo.list_run_events(run.id)) == transcript_event_count
             assert api.post(listening_url, json={**listening_request, "decision": "reject"}).status_code == 409
             rejected_listening = api.post(listening_url, json={**listening_request, "decision": "reject",
                                          "expected_review_id": listened.json()["id"]})
             assert rejected_listening.status_code == 200, rejected_listening.text
             assert rejected_listening.json()["payload"]["take_approved"] is False
+            assert reopened.get(transcript_url, params=accepted_audio_query).status_code == 409
+            assert reopened.post(transcript_url, json=transcript_request).status_code == 409
             assert reopened.get(accepted_audio_url, params=accepted_audio_query).status_code == 409
             assert reopened.post(listening_url, json=listening_request).status_code == 409
             recovered_rejection = reopened.get(listening_url, params=listening_query).json()
