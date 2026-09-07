@@ -5,6 +5,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from .episode_audio import EpisodeAudioService
+from .models import RunEvent
 from .repository import ConflictError, encode, new_id, utc_now
 from .video_preparation import digest
 
@@ -18,9 +19,69 @@ class EpisodeAudioReviewRequest(BaseModel):
     confirmation: str = Field(min_length=1, max_length=2000)
 
 
+class EpisodeAudioReviewRecovery(BaseModel):
+    current_take_id: str
+    current_take_sha256: str
+    latest_review: RunEvent | None
+    applies_to_current_take: bool
+    take_approved: bool
+
+
 class EpisodeAudioReviewService:
     def __init__(self, repository, data_root):
         self.repository, self.data_root = repository, data_root
+
+    def recover(self, run_id, take_id, expected_take_sha256):
+        repo = self.repository
+        with repo.db.connect() as db:
+            # Serialize the source/consent check and decision snapshot without
+            # appending an event or replaying the user's confirmation.
+            db.execute("BEGIN IMMEDIATE")
+            take = repo.get_run_event(take_id)
+            p = take.payload
+            if (take.run_id != run_id or take.event_type != "episode_audio_take_attached"
+                    or p.get("take_sha256") != expected_take_sha256
+                    or digest({k: v for k, v in p.items() if k != "take_sha256"}) != expected_take_sha256):
+                raise ConflictError("listening recovery requires the exact recording take")
+            current = EpisodeAudioService(repo, self.data_root).recover(
+                run_id, p["sound_plan_id"], p["expected_sound_plan_sha256"], _db=db)
+            if not any(item.id == take_id for item in current):
+                raise ConflictError("recording changed; recover the current take first")
+            reviews = [event for event in repo.list_run_events(run_id)
+                       if event.event_type == "episode_audio_take_reviewed"
+                       and event.payload.get("sound_plan_id") == p["sound_plan_id"]
+                       and event.payload.get("shot_index") == p["shot_index"]]
+            latest = reviews[-1] if reviews else None
+            applies = False
+            if latest:
+                r = latest.payload
+                if r.get("review_sha256") != digest({k: v for k, v in r.items() if k != "review_sha256"}):
+                    raise ConflictError("saved listening review integrity failed")
+                reviewed_take = repo.get_run_event(r["take_id"])
+                original = reviewed_take.payload
+                if (reviewed_take.run_id != run_id or reviewed_take.event_type != "episode_audio_take_attached"
+                        or r["take_sha256"] != original.get("take_sha256")
+                        or original.get("take_sha256") != digest({k: v for k, v in original.items() if k != "take_sha256"})
+                        or r["sound_plan_id"] != original.get("sound_plan_id")
+                        or r["shot_index"] != original.get("shot_index")
+                        or any(r.get(review_key) != original.get(take_key) for review_key, take_key in (
+                            ("sound_plan_sha256", "expected_sound_plan_sha256"),
+                            ("edit_review_id", "edit_review_id"), ("edit_sha256", "edit_sha256"),
+                            ("asset_id", "asset_id"), ("asset_sha256", "expected_asset_sha256"),
+                            ("source_in_seconds", "source_in_seconds"), ("duration_seconds", "duration_seconds")))
+                        or r.get("listening_evidence") != "USER_ATTESTATION_NOT_PLAYBACK_TELEMETRY"
+                        or r["decision"] not in {"accept", "reject"}
+                        or r["take_approved"] != (r["decision"] == "accept")
+                        or any(r.get(key) is not False for key in (
+                            "speech_alignment_verified", "final_mix_approved", "captions_approved",
+                            "master_accepted", "generation_performed"))):
+                    raise ConflictError("saved listening review belongs to another recording")
+                applies = r["take_id"] == take_id and r["take_sha256"] == expected_take_sha256
+            # An older take's decision is retained only as the CAS predecessor,
+            # never as approval of the replacement recording.
+            return EpisodeAudioReviewRecovery(current_take_id=take_id, current_take_sha256=expected_take_sha256,
+                latest_review=latest, applies_to_current_take=applies,
+                take_approved=bool(applies and latest.payload.get("take_approved") is True))
 
     def review(self, run_id, take_id, request):
         repo = self.repository

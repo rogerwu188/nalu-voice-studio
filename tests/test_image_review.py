@@ -412,6 +412,12 @@ def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypat
             listening_request = {"expected_take_sha256": take.json()["payload"]["take_sha256"],
                                  "decision": "accept", "reviewed_by": "synthetic-qa",
                                  "confirmation": "合成试听确认，仅测试，并非实际旁白验收"}
+            listening_query = {"expected_take_sha256": listening_request["expected_take_sha256"]}
+            empty_review = reopened.get(listening_url, params=listening_query)
+            assert empty_review.status_code == 200, empty_review.text
+            assert empty_review.json()["latest_review"] is None
+            assert empty_review.json()["take_approved"] is False
+            assert api.get(listening_url, params={"expected_take_sha256": "0" * 64}).status_code == 409
             assert api.post(listening_url, json=listening_request, headers={"Origin": "https://example.org"}).status_code == 403
             assert api.post(listening_url, json={**listening_request, "expected_take_sha256": "0" * 64}).status_code == 409
             listened = api.post(listening_url, json=listening_request)
@@ -421,17 +427,43 @@ def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypat
             assert not any(listened.json()["payload"][key] for key in ("speech_alignment_verified", "final_mix_approved",
                            "captions_approved", "master_accepted", "generation_performed"))
             assert reopened.post(listening_url, json=listening_request).json()["id"] == listened.json()["id"]
+            after_accept = len(repo.list_run_events(run.id))
+            for _ in range(2):
+                recovered_review = reopened.get(listening_url, params=listening_query)
+                assert recovered_review.status_code == 200, recovered_review.text
+                assert recovered_review.json()["latest_review"]["id"] == listened.json()["id"]
+                assert recovered_review.json()["applies_to_current_take"] is True
+                assert recovered_review.json()["take_approved"] is True
+            assert len(repo.list_run_events(run.id)) == after_accept
             assert api.post(listening_url, json={**listening_request, "decision": "reject"}).status_code == 409
             rejected_listening = api.post(listening_url, json={**listening_request, "decision": "reject",
                                          "expected_review_id": listened.json()["id"]})
             assert rejected_listening.status_code == 200, rejected_listening.text
             assert rejected_listening.json()["payload"]["take_approved"] is False
             assert reopened.post(listening_url, json=listening_request).status_code == 409
+            recovered_rejection = reopened.get(listening_url, params=listening_query).json()
+            assert recovered_rejection["latest_review"]["id"] == rejected_listening.json()["id"]
+            assert recovered_rejection["take_approved"] is False
+            accepted_again = api.post(listening_url, json={**listening_request,
+                "expected_review_id": rejected_listening.json()["id"]})
+            assert accepted_again.status_code == 200, accepted_again.text
+            replacement = api.post(take_url, json={**take_request, "source_in_seconds": 0.5})
+            assert replacement.status_code == 200, replacement.text
+            replacement_url = f"{take_url}/{replacement.json()['id']}/reviews"
+            replacement_query = {"expected_take_sha256": replacement.json()["payload"]["take_sha256"]}
+            assert reopened.get(listening_url, params=listening_query).status_code == 409
+            replacement_review = reopened.get(replacement_url, params=replacement_query).json()
+            assert replacement_review["latest_review"]["id"] == accepted_again.json()["id"]
+            assert replacement_review["latest_review"]["payload"]["take_approved"] is True
+            assert replacement_review["current_take_id"] == replacement.json()["id"]
+            assert replacement_review["applies_to_current_take"] is False
+            assert replacement_review["take_approved"] is False
             event_count = len(repo.list_run_events(run.id))
             repo.revoke_asset_consent(recording.id, AssetConsentRevocationCreate(requested_by="synthetic-qa", reason="测试撤销"))
             assert reopened.post(take_url, json=take_request).status_code == 409
             assert reopened.get(take_url, params=recovery_query).status_code == 409
             assert reopened.post(listening_url, json=listening_request).status_code == 409
+            assert reopened.get(replacement_url, params=replacement_query).status_code == 409
             assert len(repo.list_run_events(run.id)) == event_count
             assert api.post(retime_url, json={**retime, "expected_edit_review_id": rejected_edit.json()["id"]}).status_code == 409
             assert api.post(retime_url, json={"expected_plan_sha256": plan["plan_sha256"],

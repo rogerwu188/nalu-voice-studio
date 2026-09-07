@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "73e11c8024115ae7a0a1d6abf576ea7a2258e60c",
-  "last_advanced_at": "2026-09-07T08:34:38Z",
+  "observed_head": "5d10fe5425c93afa84bc15ab80055b194979a9ae",
+  "last_advanced_at": "2026-09-07T08:38:51Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Native typed listening transport now binds exact take/source window and prior review ID, rejecting mismatches and implied final approval. Added native request/response fixture cases; native CI pending. Backend workflow 26 tests passed in 20.46s. CI 34100009067 fully successful; parent 34100873064 running. Evidence docs/qa/native-audio-listening-transport-2026-09-07.md. Visible controls/recovery and real master QA remain incomplete."
+    "summary": "Added read-only listening decision recovery with current take/media/consent revalidation and explicit separation of historical review versus current approval. Accepted old recordings cannot approve replacement offsets. 26 workflow tests passed in 21.14s; Ruff/OpenAPI/diff checks passed. Parent CI 34101343116 running. Evidence docs/qa/listening-recovery-2026-09-07.md. Native recovery/controls and actual final sound/master/release remain incomplete."
   },
   "next_action": {
     "sop": "SOP-04",

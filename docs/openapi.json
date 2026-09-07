@@ -1677,6 +1677,45 @@
         "title": "Episode",
         "type": "object"
       },
+      "EpisodeAudioReviewRecovery": {
+        "properties": {
+          "applies_to_current_take": {
+            "title": "Applies To Current Take",
+            "type": "boolean"
+          },
+          "current_take_id": {
+            "title": "Current Take Id",
+            "type": "string"
+          },
+          "current_take_sha256": {
+            "title": "Current Take Sha256",
+            "type": "string"
+          },
+          "latest_review": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RunEvent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "take_approved": {
+            "title": "Take Approved",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "current_take_id",
+          "current_take_sha256",
+          "latest_review",
+          "applies_to_current_take",
+          "take_approved"
+        ],
+        "title": "EpisodeAudioReviewRecovery",
+        "type": "object"
+      },
       "EpisodeAudioReviewRequest": {
         "additionalProperties": false,
         "properties": {
@@ -13542,6 +13581,62 @@
       }
     },
     "/v1/production-runs/{run_id}/audio-takes/{take_id}/reviews": {
+      "get": {
+        "operationId": "recover_episode_audio_reviews_v1_production_runs__run_id__audio_takes__take_id__reviews_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "take_id",
+            "required": true,
+            "schema": {
+              "title": "Take Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expected_take_sha256",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-f0-9]{64}$",
+              "title": "Expected Take Sha256",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EpisodeAudioReviewRecovery"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Recover Episode Audio Reviews"
+      },
       "post": {
         "operationId": "review_episode_audio_v1_production_runs__run_id__audio_takes__take_id__reviews_post",
         "parameters": [
