@@ -24,3 +24,9 @@ The later accepted-frame dispatch binding is commit
 `15dfb2063c7b4321ba9324cbe936ce137b2e571b`, confirmed pushed to main; its CI
 `34069325621` was pending. It is **not** included in this older native artifact.
 No real writer retry, provider generation or publication was performed here.
+
+Native follow-up: the loopback readiness probe could not connect; the subsequent
+native-app inspection reported that the Mac is locked and could not be unlocked
+automatically. Manual unlock is required for native interaction QA. This is not
+evidence of an app crash or failed frame workflow. Do not repeat launches or mark
+the native check PASS; continue safe backend work while the screen is unavailable.
