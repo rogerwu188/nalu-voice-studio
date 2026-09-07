@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "7a81e0312b8ac704568634e5e8c6e4f17ad25401",
-  "last_advanced_at": "2026-09-07T01:09:03Z",
+  "observed_head": "883c9024e60a35106efb5834c4085bf9b0eec200",
+  "last_advanced_at": "2026-09-07T01:15:04Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,16 +25,24 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Native one-reference-at-a-time review and separate project-use/guardian confirmation now call the existing image review and durable asset registration paths, then refresh opening frames. Existing TTS preserved. Full Python regression 566 passed in 78.63s, two dependency warnings. Swift lifecycle/permission tests added but CI/native acceptance pending. See docs/qa/native-reference-review-registration-2026-09-07.md. Prior 876142a CI 34071632998 running, 7a81e03 CI 34071848678 pending at observation. No real creation/release acceptance claimed."
+    "summary": "Fixed video context rejection of valid reference assets generated after the original snapshot: only verified same-run/package registered outputs are accepted, while ordinary additions and revoked/foreign references are refused. Full final regression: 566 passed in 141.84s. Parent 7a81e03 CI 34071848678 passed; 883c902 CI still running and current change CI pending. Official public docs did not expose image rates; current in-app console requires login. User asked for image prices/console access, not keys. See docs/qa/generated-reference-video-handoff-2026-09-07.md. Native and real-provider acceptance remain open."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Verify compiled native reference review/permission/registration and activate actual reference/entry-image production through authoritative pricing and full QingShan contracts; connect native accepted-task progress. Then complete sequential video, master QA and controlled release. Preserve existing apps/user data. Narrated-story and named-web-source interactive scripts remain the priority with existing TTS. Preserve quarantined Hops writer attempt; no automatic paid retry or invented authority.",
+    "summary": "Build concrete reference-production authority against its actual QingShan asset-factory path; do not misapply shot/keyframe-only spatial contracts to reference generation. Obtain verified image rates and explicit spending confirmation before activation. Compile full keyframe contracts separately, connect native task progress and verify compiled native UI, then real sequential video/master/release. Keep narrated/online-source writing priority, existing TTS and quarantined Hops attempt; no automatic paid retry or invented authority.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
   "blocking_conditions": [
+    {
+      "id": "image-price-and-console-access",
+      "sops": ["SOP-08", "SOP-12"],
+      "requires_user_authorization": true,
+      "continue_other_work": true,
+      "evidence": "docs/qa/generated-reference-video-handoff-2026-09-07.md",
+      "detail": "Official public pricing inspected on 2026-09-07 did not list gpt-image-2-pro 1K/2K rates; current in-app developer console is not logged in. Requested applicable rates or login, not another API key. Do not infer rate or issue paid discovery calls."
+    },
     {
       "id": "configured-hops-writer-http-401",
       "sops": ["SOP-04", "SOP-08"],

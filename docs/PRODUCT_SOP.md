@@ -65,6 +65,10 @@ Native users can now [review references and separately confirm project use](qa/n
 with existing TTS readback and guardian confirmation for child projects. Compilation,
 packaged interaction, pure-voice QA and real generation remain unverified.
 
+Video context validation now [accepts verified references generated within its approved run](qa/generated-reference-video-handoff-2026-09-07.md)
+instead of rejecting every post-snapshot asset. This does not bypass full compiler,
+price, frame approval or real-provider acceptance requirements.
+
 Confirmed shots now support [automatic local opening-image preparation](qa/reviewed-opening-image-preparation-2026-09-06.md)
 with exact source bindings, inherited reference checks and restart reuse. This is
 not paid image activation, native QA, continuous-frame handoff or finished production.

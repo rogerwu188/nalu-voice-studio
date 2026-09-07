@@ -4,6 +4,7 @@ import httpx
 
 from .giggle_video_transport import GiggleSeedanceImageTransport
 from .models import RemoteTaskState
+from .reference_assets import validate_registered_reference
 from .remote_submitter import DurableRemoteTaskSubmitter
 from .repository import ConflictError, Repository
 from .video_budget import VideoBudgetApproval, VideoBudgetService
@@ -87,9 +88,30 @@ class VideoDispatchService:
         project = self.repository.get_project(run.project_id)
         current_assets = self.repository.list_assets(run.project_id, episode.id)
         snapshots = {item["id"]: item for item in package.get("inherited_assets", [])}
-        if set(snapshots) != {asset.id for asset in current_assets}:
+        if not set(snapshots) <= {asset.id for asset in current_assets}:
             raise ConflictError("episode assets changed; prepare and review again")
         for asset in current_assets:
+            if asset.id not in snapshots:
+                # References generated inside this confirmed production run are
+                # outputs, not an unreviewed replacement of its initial inputs.
+                source = asset.metadata.get("generation_provenance")
+                if (not isinstance(source, dict) or source.get("run_id") != run_id
+                        or asset.season_id is not None or asset.episode_id is not None):
+                    raise ConflictError("unreviewed asset added after production approval")
+                validate_registered_reference(self.repository, asset)
+                review = self.repository.get_run_event(source["review_id"])
+                preparation = self.repository.get_run_event(review.payload["preparation_id"])
+                if (preparation.run_id != run_id or preparation.payload.get("purpose") != "visual_reference"
+                        or preparation.payload.get("record_sha256") != digest({k: v for k, v in preparation.payload.items() if k != "record_sha256"})
+                        or preparation.payload.get("preparation_sha256") != digest({k: v for k, v in preparation.payload.items()
+                            if k not in {"record_sha256", "preparation_sha256"}})
+                        or preparation.payload.get("production_package_sha256") != reservation["production_package_sha256"]
+                        or preparation.payload.get("preparation_sha256") != source.get("preparation_sha256")
+                        or preparation.payload.get("design_sha256") != source.get("design_sha256")
+                        or preparation.payload.get("design", {}).get("kind") != asset.kind):
+                    raise ConflictError("generated reference does not belong to the approved production package")
+                snapshots[asset.id] = asset.model_dump(mode="json", exclude={"consent_granted_by", "consent_statement"})
+            validate_registered_reference(self.repository, asset)
             if asset.kind in {"character_image", "voice_reference"} and (
                 not asset.consent_granted or (project.audience_mode == "child" and not asset.guardian_approved)
             ):

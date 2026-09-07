@@ -1,4 +1,5 @@
 import base64
+import json
 from copy import deepcopy
 from types import SimpleNamespace
 
@@ -13,6 +14,7 @@ from nalu_runtime.image_preparation import ImagePreparationRequest, ImagePrepara
 from nalu_runtime.image_submission import ImageSubmissionService
 from nalu_runtime.reference_assets import validate_registered_reference
 from nalu_runtime.repository import ConflictError
+from nalu_runtime.video_dispatch import VideoDispatchService
 from nalu_runtime.video_preparation import digest
 from test_image_budget import prepared_image
 from test_image_download import png
@@ -139,6 +141,14 @@ def test_reference_request_uses_existing_durable_submission_download_and_review(
     assert provenance["identity_qa_verified"] is False and provenance["authentic_historical_photo"] is False
     assert provenance["review_id"] == result.json()["id"]
     validate_registered_reference(repo, repo.get_asset(asset["id"]))
+    dispatch_package = json.loads((tmp_path / "package.json").read_text())
+    dispatch_package.update(season={"id": run.season_id}, production_policy={"estimated_budget_credits": 100},
+                            resolved_library=repo.resolved_project_library(run.project_id))
+    dispatch_reservation = {"production_package_sha256": dispatch_package["package_sha256"], "confirmed_run_budget_credits": 100}
+    VideoDispatchService(repo, None)._validate_current_context(run.id, dispatch_package, dispatch_reservation)
+    with pytest.raises(ConflictError):
+        VideoDispatchService(repo, None)._validate_current_context(run.id, dispatch_package,
+            {**dispatch_reservation, "production_package_sha256": "0" * 64})
     opening_endpoint = f"/v1/production-runs/{run.id}/shot-plans/{plan.id}/opening-frame-preparations"
     frame_prepared = api.post(opening_endpoint, json={"shot_index": 0})
     assert frame_prepared.status_code == 200, frame_prepared.text
@@ -170,6 +180,14 @@ def test_reference_request_uses_existing_durable_submission_download_and_review(
     assert len(repo.list_assets(run.project_id)) == 1 and len(calls) == 1
     if registration_case in {"revoked", "changed_bytes"}:
         assert api.post(opening_endpoint, json={"shot_index": 0}).status_code == 409
+    if registration_case == "revoked":
+        with pytest.raises(ConflictError):
+            VideoDispatchService(repo, None)._validate_current_context(run.id, dispatch_package, dispatch_reservation)
+    if registration_case == "normal":
+        with repo.db.connect() as db:
+            db.execute("UPDATE assets SET metadata_json='{}' WHERE id=?", (asset["id"],))
+        with pytest.raises(ConflictError):
+            VideoDispatchService(repo, None)._validate_current_context(run.id, dispatch_package, dispatch_reservation)
 
 
 @pytest.mark.parametrize("case", ["unknown", "wrong_task", "stale", "cancelled", "style_changed", "unapproved"])
