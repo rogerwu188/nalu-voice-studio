@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "037c846494ef792ed81c8764f85fdfb12e2c457a",
-  "last_advanced_at": "2026-09-07T07:13:11Z",
+  "observed_head": "a6169841579d23a0062d607823b1240275c22816",
+  "last_advanced_at": "2026-09-07T07:18:08Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Native preview download now preserves actual receipt ID/content/edit hashes with playback and lifecycle cleanup. Added typed exact-preview edit review submit/recovery transport and native tests for request binding/foreign response/header guards. Native tests await CI/local toolchain unavailable; backend actual encode/review fixture passed in 7.71s, Ruff/diff passed. Parent 037c846 CI 34094090038 running. Evidence docs/qa/native-edit-review-transport-2026-09-07.md."
+    "summary": "Added native edit-confirmation state separating readback from explicit submission, retaining exact uncertain requests, preventing opposite/cancel replacement, and reconciling exact or superseding decisions by GET. Native tests added for 503/retry/no-submit behavior; current CI/installed UI not passed. Ruff/diff passed. Parent a616984 CI 34094480463 pending; 037c846 CI 34094090038 running. Evidence docs/qa/native-edit-confirmation-state-2026-09-07.md."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Connect native explicit readback/accept/reject controls and uncertain-submit retry state to preserved preview receipt, with latest-review recovery. Verify current native CI and actual playback/confirmation QA. Then use exact approved edit for real recordings/five audio layers/caption alignment/verified workspace and final master QA/release. Preserve two-source interactive writing and existing TTS; proxy/test attestations are not real E2E.",
+    "summary": "Attach native edit-review state to visible preview with readback/accept/reject/retry controls; verify current CI and actual player/confirmation QA. Then use exact approved edit for real recordings/five audio layers/caption alignment/verified workspace and final master QA/release. Preserve two-source interactive writing and existing TTS; proxy/test attestations are not real E2E.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

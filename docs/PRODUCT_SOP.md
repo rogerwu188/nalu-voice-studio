@@ -151,6 +151,10 @@ now preserves rendered receipt identity through download/playback and supports
 exact-version decision submission and recovery. Explicit native controls and
 current CI/installed QA remain unfinished; no automatic approval is introduced.
 
+[Native edit-confirmation state](qa/native-edit-confirmation-state-2026-09-07.md)
+now separates readback from submission and retains uncertain requests through
+retry/recovery. Attaching the controls and verifying native execution remain open.
+
 AI plans now carry [typed director choices with native round-trip and plain-language readback](qa/structured-director-drafts-2026-09-07.md).
 User edits invalidate stale choices. A [version-bound director refresh backend](qa/director-refresh-2026-09-07.md)
 now fills missing choices without rewriting user descriptions, with restart and

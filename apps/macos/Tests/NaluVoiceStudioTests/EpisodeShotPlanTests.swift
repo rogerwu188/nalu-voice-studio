@@ -177,6 +177,32 @@ struct EpisodeShotPlanTests {
         #expect(sentReview["expected_preview_sha256"] as? String == picture.sha256)
         #expect(ShotReviewProtocol.requests.last?.url?.path.hasSuffix("episode-edit-drafts/edit/reviews") == true)
         #expect(ShotReviewProtocol.requests.last?.value(forHTTPHeaderField: "X-Nalu-Provider-Key") == nil)
+        ShotReviewProtocol.queued = [(200, Data("[]".utf8)), (503, Data()), (200, Data("[]".utf8))]
+        let reviewModel = EpisodeEditReviewModel(edit: edit, picture: picture, runtime: runtime())
+        #expect(!reviewModel.begin(.accept))
+        await reviewModel.load()
+        let requestCount = ShotReviewProtocol.requests.count
+        #expect(reviewModel.begin(.accept))
+        #expect(reviewModel.readback.contains("不会自动发行"))
+        #expect(ShotReviewProtocol.requests.count == requestCount)
+        let pending = try #require(reviewModel.pending)
+        await reviewModel.confirm()
+        #expect(reviewModel.uncertain && reviewModel.pending != nil)
+        reviewModel.cancelUnsubmitted()
+        #expect(reviewModel.pending != nil && !reviewModel.begin(.reject))
+        await reviewModel.load()
+        #expect(reviewModel.uncertain && reviewModel.pending != nil)
+        var recorded = try JSONSerialization.jsonObject(with: reviewResponse()) as! [String: Any]
+        var recordedPayload = recorded["payload"] as! [String: Any]
+        recordedPayload["reviewed_by"] = pending.reviewed_by
+        recordedPayload["confirmation"] = pending.confirmation
+        recorded["payload"] = recordedPayload
+        ShotReviewProtocol.queued = [(200, try JSONSerialization.data(withJSONObject: recorded))]
+        await reviewModel.confirm()
+        #expect(!reviewModel.uncertain && reviewModel.pending == nil && reviewModel.latest?.payload.edit_approved == true)
+        let resent = try JSONSerialization.jsonObject(with: ShotReviewProtocol.bodies.last!) as! [String: Any]
+        #expect(resent["confirmation"] as? String == pending.confirmation)
+        #expect(resent["expected_review_id"] == nil)
     }
 
     @MainActor @Test func continuousPreparationCarriesPlanAndRejectsForeignTailResponse() async throws {
