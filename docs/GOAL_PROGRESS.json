@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "6ee2b4a234749282afe540b9e0137cac4c3f7efd",
-  "last_advanced_at": "2026-09-06T23:58:31Z",
+  "observed_head": "1c329e941c7149e01f34d6756f2ae6b89f47a4a0",
+  "last_advanced_at": "2026-09-07T00:02:55Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Saved accepted image tasks now have a read-only query endpoint with receipt/request identity checks, cancellation reconciliation and restart observation deduplication. Secret-bearing result URLs are rejected. Targeted tests 24 passed; full regression 479 passed in 68.44s, Ruff and backward-compatible OpenAPI passed. Evidence docs/qa/saved-image-task-observation-2026-09-06.md. Prior preparation commit 6ee2b4a CI 34068288256 pending; durable ledger CI 34068055510 in progress at observation. No real image, download, visual approval, billing or native polling claimed."
+    "summary": "Saved completed image observations now download through a bounded credential-free public-IP-pinned reader and persist immutable run-local PNG/JPEG files with receipt/request bindings. Targeted tests 12 passed; full regression 491 passed in 63.48s; Ruff/OpenAPI compatibility passed. Evidence docs/qa/image-result-materialization-2026-09-07.md. Durable ledger CI 34068055510 succeeded; preparation CI 34068288256 cancelled (not PASS); observation CI 34068416205 queued at observation. No real provider image, visual approval, billing or native activation claimed."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Connect prepared images to exact cost approval and full QingShan paid image contracts and durable submission. Saved image query is now implemented; next add bounded result retrieval/local storage and native first-frame review, plus reviewed previous-final-frame handoff. Pinned submit_giggle_image_manifest.validate_task requires identity/scene references, role/spatial and entry-state contracts; do not fabricate PASS from prompt text. Continue full video compilation and real story/source-to-master/release; preserve isolated QA app and quarantined Hops attempt.",
+    "summary": "Connect locally materialized images to native preview and exact visual first-frame confirmation, then video preparation and reviewed previous-final-frame handoff. Paid image activation still needs exact cost approval/full QingShan contracts; do not fabricate identity/scene/role/spatial/entry PASS. Image-specific backup/import reconciliation remains unverified. Continue full real story/source-to-master/release; preserve isolated QA app and quarantined Hops attempt.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

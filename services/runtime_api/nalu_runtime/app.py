@@ -31,6 +31,8 @@ from .feedback_export import (
     IssueTrackerTransport,
 )
 from .giggle_task_query import GiggleTaskQuery, GiggleTaskQueryError
+from .image_download import ImageDownloadError
+from .image_materialization import ImageMaterializationService
 from .image_observation import ImageObservationService
 from .image_preparation import ImagePreparationRequest, ImagePreparationService
 from .interactive_story import InteractiveStory, StoryAnswer, StoryInput
@@ -1174,6 +1176,16 @@ def create_app(
             raise HTTPException(403, "native provider credential required")
         return VideoDispatchService(repository, remote_task_submitter, video_http_transport).dispatch(
             run_id, reservation_id, provider_key)
+
+    @app.post("/v1/production-runs/{run_id}/image-observations/{observation_id}/materialize", response_model=RunEvent)
+    def materialize_image_result(run_id: str, observation_id: str, result_index: int = Query(default=0, ge=0, le=3),
+                                 origin: str | None = Header(default=None)) -> RunEvent:
+        if origin is not None:
+            raise HTTPException(403, "native image download required")
+        try:
+            return ImageMaterializationService(repository, data_root).materialize(run_id, observation_id, result_index)
+        except ImageDownloadError as exc:
+            raise HTTPException(502, str(exc)) from None
 
     @app.post("/v1/production-runs/{run_id}/image-tasks/{submission_id}/refresh", response_model=RunEvent)
     def refresh_saved_image_task(

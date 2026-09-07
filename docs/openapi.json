@@ -12363,6 +12363,82 @@
         "summary": "Get Run Events"
       }
     },
+    "/v1/production-runs/{run_id}/image-observations/{observation_id}/materialize": {
+      "post": {
+        "operationId": "materialize_image_result_v1_production_runs__run_id__image_observations__observation_id__materialize_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "observation_id",
+            "required": true,
+            "schema": {
+              "title": "Observation Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "result_index",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 3,
+              "minimum": 0,
+              "title": "Result Index",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "origin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Origin"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunEvent"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Materialize Image Result"
+      }
+    },
     "/v1/production-runs/{run_id}/image-task-preparations": {
       "post": {
         "operationId": "prepare_image_task_v1_production_runs__run_id__image_task_preparations_post",
