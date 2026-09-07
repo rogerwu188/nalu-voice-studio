@@ -5,8 +5,8 @@ import pytest
 from fastapi.testclient import TestClient
 from nalu_runtime.app import create_app
 from nalu_runtime.models import ProductionRun, RunStatus
-from nalu_runtime.repository import utc_now
-from nalu_runtime.video_preparation import digest
+from nalu_runtime.repository import ConflictError, utc_now
+from nalu_runtime.video_preparation import VideoPreparationRequest, VideoPreparationService, digest
 from test_director_draft import director_fixture
 
 
@@ -151,7 +151,6 @@ def test_approved_script_to_durable_shot_plan(tmp_path, monkeypatch, case):
             with repo.db.connect() as db:
                 db.execute("DELETE FROM run_events WHERE run_id=? AND event_type='image_submit_intent'", (run.id,))
             if case == "refresh_recover":
-                from nalu_runtime.repository import ConflictError
                 from nalu_runtime.shot_review import ShotReviewService
                 original_review = ShotReviewService.review
                 def interrupted_save(*args, **kwargs):
@@ -200,6 +199,20 @@ def test_approved_script_to_durable_shot_plan(tmp_path, monkeypatch, case):
         reopened = TestClient(create_app(db_path, tmp_path / "data", writer_http_transport=httpx.MockTransport(serve)))
         assert reopened.get(current_url).json()["id"] == approved["id"]
         assert reopened.post(confirm_url, json=confirm).json()["id"] == approved["id"]
+        # The real preparation path derives technical fields from the exact
+        # approved shot instead of asking the native user to build a contract.
+        incoming = VideoPreparationRequest(task_key="E01-U02", request={
+            "prompt": plan["shots"][1]["video_prompt"], "duration_seconds": 12},
+            approved_plan_event_id=approved["id"], approved_plan_sha256=approved["payload"]["plan_sha256"])
+        preparation_service = VideoPreparationService(reopened.app.state.repository)
+        binding = preparation_service._plan_binding(run.id, incoming, package["package_sha256"])
+        assert binding["approved_shot_index"] == 1
+        assert incoming.request["camera_plan"] == plan["shots"][1]["director"]["camera"]
+        assert incoming.request["camera_authority"]["selection_mode"] == "LOCKED"
+        assert "opening_anchor" not in incoming.request
+        incoming.request["camera_plan"]["camera_side"] = "偷偷换了机位"
+        with pytest.raises(ConflictError):
+            preparation_service._plan_binding(run.id, incoming, package["package_sha256"])
         frame = reopened.post(endpoint + f"/{approved['id']}/opening-frame-preparations", json={"shot_index": 0})
         assert frame.status_code == 200, frame.text
         assert frame.json()["payload"]["reference_design_plan"] == designs

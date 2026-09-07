@@ -10,6 +10,8 @@ from typing import Any
 import av
 from pydantic import BaseModel, ConfigDict, Field
 
+from .director_contract import apply_reviewed_director
+from .director_draft import DirectorDraft
 from .giggle_video_transport import seedance_image_payload
 from .models import RunStatus
 from .qingshan_compilers import ModelCompilationError, ModelCompilerRegistry, project_aspect_ratio
@@ -179,5 +181,9 @@ class VideoPreparationService:
                 raise ValueError("request differs from reviewed shot")
         except (ValueError, TypeError, KeyError, IndexError):
             raise ConflictError("video request does not preserve the reviewed shot and duration") from None
+        if shot.get("director") is not None:
+            apply_reviewed_director(incoming.request, DirectorDraft.model_validate(shot["director"]), index)
+        elif record["plan"].get("visual_assets"):
+            raise ConflictError("reviewed shot is missing its director choices; finish the creative revision first")
         return {"approved_plan_event_id": current.id, "approved_plan_sha256": expected,
                 "approved_shot_index": index}

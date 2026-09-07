@@ -35,7 +35,10 @@ concurrent-edit protection. [Native save-to-refresh orchestration](qa/native-dir
 is connected in source with error-preservation tests awaiting CI. Full production
 compilation and real/native acceptance remain unfinished; no SOP becomes PASS.
 
-Core-path diagnosis: the interactive plan still lacks the
+Reviewed shots now [compile creative camera, state and prop fields into video preparation](qa/reviewed-director-compilation-2026-09-07.md).
+Full character-catalog/asset/frame binding and real dispatch remain unfinished.
+
+Core-path diagnosis: the interactive plan still lacks the complete
 [structured director contracts required by actual video submission](qa/interactive-director-contract-gap-2026-09-07.md).
 This is unfinished implementation, not merely missing credentials/prices. It must
 be compiled from reviewed creative choices and separate real visual evidence.
