@@ -23,6 +23,12 @@ stale request. These are synthetic protocol fixtures, not provider evidence.
 Swift execution is pending CI because the local toolchain failure was already
 verified. Native app interaction and real provider results remain unverified.
 
+Runtime progress/reference regression: 29 passed in 22.46s. Source commit
+`9250389` was pushed; its cumulative CI is
+[34072890819](https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34072890819)
+(pending at 2026-09-07T01:24:10Z). The queued predecessor run for `7ffeb9b`
+was superseded/cancelled, not passed. No current-candidate CI completion is claimed.
+
 The preceding native reference commit `883c902` passed both Swift test jobs in CI
 run 34072165394; the complete run was still active when inspected. This does not
 verify the new progress code. No paid image/video call occurred in this checkpoint.

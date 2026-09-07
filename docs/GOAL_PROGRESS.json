@@ -12,7 +12,7 @@
     "WAITING_AUTHORIZATION": 0
   },
   "observed_head": "7ffeb9b49dfe1bc0b956e3af54e042b535a6b445",
-  "last_advanced_at": "2026-09-07T01:28:00Z",
+  "last_advanced_at": "2026-09-07T01:24:10Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
