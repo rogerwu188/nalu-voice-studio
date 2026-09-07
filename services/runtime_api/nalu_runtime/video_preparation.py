@@ -31,11 +31,12 @@ class VideoPreparationRequest(BaseModel):
     approved_plan_event_id: str | None = None
     approved_plan_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
     approved_frame_review_id: str | None = None
+    approved_tail_id: str | None = None
 
 
 class VideoPreparationService:
-    def __init__(self, repository: Repository):
-        self.repository = repository
+    def __init__(self, repository: Repository, data_root=None):
+        self.repository, self.data_root = repository, data_root
 
     def prepare(self, run_id: str, incoming: VideoPreparationRequest):
         # Validation and recording must share the writer lock with image review
@@ -121,6 +122,8 @@ class VideoPreparationService:
         return record
 
     def _frame_binding(self, run_id, incoming, frame_sha):
+        if incoming.approved_tail_id:
+            return self._tail_binding(run_id, incoming, frame_sha)
         events = self.repository.list_run_events(run_id)
         image_key = incoming.task_key + "-entry"
         preparations = [event for event in events if event.event_type == "image_task_prepared"
@@ -162,6 +165,36 @@ class VideoPreparationService:
         return {"approved_frame_review_id": review.id, "approved_frame_review_sha256": record["review_sha256"],
                 "frame_materialization_id": materialized.id}
 
+    def _tail_binding(self, run_id, incoming, frame_sha):
+        from .video_tail import VideoTailService
+        if self.data_root is None or incoming.approved_frame_review_id:
+            raise ConflictError("continuation requires local tail validation, not a new image approval")
+        plan = self.repository.get_run_event(incoming.approved_plan_event_id)
+        if plan.run_id != run_id or plan.event_type != "shot_plan_approved":
+            raise ConflictError("continuation requires the approved local shot plan")
+        tasks = plan.payload.get("tasks", [])
+        matches = [t for t in tasks if t.get("task_key") == incoming.task_key]
+        if len(matches) != 1 or type(matches[0].get("shot_index")) is not int or matches[0]["shot_index"] < 1:
+            raise ConflictError("continuation has no preceding shot")
+        index = matches[0]["shot_index"]
+        previous = [t for t in tasks if t.get("shot_index") == index - 1]
+        tail = self.repository.get_run_event(incoming.approved_tail_id)
+        # Validate acyclic decreasing shot lineage before recursively reading tails.
+        if len(previous) != 1 or tail.run_id != run_id or tail.event_type != "video_tail_extracted" or tail.payload.get("task_key") != previous[0]["task_key"]:
+            raise ConflictError("tail must come from the immediately preceding shot")
+        review = self.repository.get_run_event(tail.payload["review_id"])
+        if review.payload.get("approved_plan_event_id") != plan.id or review.payload.get("approved_plan_sha256") != incoming.approved_plan_sha256:
+            raise ConflictError("previous video belongs to another plan revision")
+        tail, _ = VideoTailService(self.repository, self.data_root).read_saved(run_id, tail.id)
+        anchor = incoming.request.get("opening_anchor", {})
+        if (plan.payload["plan"]["shots"][index].get("transition") != "continuous"
+                or incoming.request.get("shot_role") != "SAME_SCENE_CONTINUATION"
+                or anchor != {"kind": "PREVIOUS_ACCEPTED_FINAL_FRAME", "source_task_id": previous[0]["task_key"],
+                              "source_receipt_sha256": tail.payload["tail_sha256"], "frame_sha256": tail.payload["frame_sha256"]}
+                or frame_sha != tail.payload["frame_sha256"]):
+            raise ConflictError("continuation opening image differs from the accepted final frame")
+        return {"approved_tail_id": tail.id, "approved_tail_sha256": tail.payload["tail_sha256"]}
+
     def _plan_binding(self, run_id, incoming, package_sha, package=None):
         plans = [event for event in self.repository.list_run_events(run_id)
                  if event.event_type in {"shot_plan_drafted", "shot_plan_revised", "shot_plan_approved"}]
@@ -196,6 +229,8 @@ class VideoPreparationService:
             if type(index) is not int or index < 0:
                 raise ValueError("invalid index")
             shot = record["plan"]["shots"][index]
+            if (shot.get("transition") == "continuous") != bool(incoming.approved_tail_id):
+                raise ConflictError("continuous shots require their preceding accepted tail")
             prompt = shot["video_prompt"]
             if (not isinstance(prompt, str) or not prompt.strip()
                     or prompt not in incoming.request.get("prompt", "")

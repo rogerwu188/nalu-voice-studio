@@ -8115,10 +8115,30 @@
         "additionalProperties": false,
         "properties": {
           "approved_frame_review_id": {
-            "maxLength": 160,
-            "minLength": 1,
-            "title": "Approved Frame Review Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 160,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved Frame Review Id"
+          },
+          "approved_tail_id": {
+            "anyOf": [
+              {
+                "maxLength": 160,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved Tail Id"
           },
           "expected_plan_sha256": {
             "pattern": "^[a-f0-9]{64}$",
@@ -8134,8 +8154,7 @@
         },
         "required": [
           "expected_plan_sha256",
-          "shot_index",
-          "approved_frame_review_id"
+          "shot_index"
         ],
         "title": "ReviewedVideoRequest",
         "type": "object"
@@ -9690,6 +9709,17 @@
               }
             ],
             "title": "Approved Plan Sha256"
+          },
+          "approved_tail_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved Tail Id"
           },
           "request": {
             "additionalProperties": true,

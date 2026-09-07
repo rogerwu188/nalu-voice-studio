@@ -16,7 +16,8 @@ class ReviewedVideoRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     expected_plan_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     shot_index: int = Field(strict=True, ge=0, le=119)
-    approved_frame_review_id: str = Field(min_length=1, max_length=160)
+    approved_frame_review_id: str | None = Field(default=None, min_length=1, max_length=160)
+    approved_tail_id: str | None = Field(default=None, min_length=1, max_length=160)
 
 
 class ReviewedVideoService:
@@ -27,7 +28,7 @@ class ReviewedVideoService:
         request = self.compose(run_id, plan_id, incoming)
         # This revalidates under the same writer lock as frame decisions and
         # snapshot refresh. No provider submission or spending approval occurs.
-        return VideoPreparationService(self.repository).prepare(run_id, request)
+        return VideoPreparationService(self.repository, self.data_root).prepare(run_id, request)
 
     def compose(self, run_id, plan_id, incoming: ReviewedVideoRequest):
         repo = self.repository
@@ -54,7 +55,9 @@ class ReviewedVideoService:
         if shot.director is None:
             raise ConflictError("finish and confirm this shot's camera and action choices first")
         if shot.transition == "continuous":
-            raise ConflictError("continuous shot requires the previous accepted final frame, not a newly generated opening image")
+            return self._continuation(run, plan_id, incoming, record, package, shot)
+        if incoming.approved_tail_id or not incoming.approved_frame_review_id:
+            raise ConflictError("scene-first shot requires its confirmed opening image")
         tasks = [task for task in record.get("tasks", []) if task.get("shot_index") == incoming.shot_index]
         if len(tasks) != 1:
             raise ConflictError("reviewed shot task identity is missing or ambiguous")
@@ -92,3 +95,29 @@ class ReviewedVideoService:
         # Do not manufacture prop visual QA or previous-episode continuity evidence.
         return VideoPreparationRequest(task_key=task_key, request=request, approved_plan_event_id=plan_id,
             approved_plan_sha256=incoming.expected_plan_sha256, approved_frame_review_id=review.id)
+
+    def _continuation(self, run, plan_id, incoming, record, package, shot):
+        from .video_tail import VideoTailService
+        if not incoming.approved_tail_id or incoming.approved_frame_review_id:
+            raise ConflictError("continuous shot requires the previous accepted final frame")
+        tasks = [t for t in record.get("tasks", []) if t.get("shot_index") == incoming.shot_index]
+        if len(tasks) != 1:
+            raise ConflictError("reviewed shot task is missing")
+        tail, raw = VideoTailService(self.repository, self.data_root).read_saved(run.id, incoming.approved_tail_id)
+        compiler = ModelCompilerRegistry().compiler_for(run.requested_model)
+        if compiler.model != "seedance-2.0-pro":
+            raise ConflictError("this model requires its own concrete reviewed video transport")
+        request = {"model": compiler.model, "provider_model_id": compiler.model,
+                   "adapter_id": compiler.adapter_id, "profile_id": compiler.profile_id,
+                   "prompt": shot.video_prompt, "duration_seconds": shot.duration_seconds,
+                   "native_resolution_contract": compiler.native_resolution,
+                   "delivery_resolution_contract": compiler.native_resolution,
+                   "native_resolution_must_remain_honestly_labeled": True, "silent_upscale_forbidden": True,
+                   "shot_role": "SAME_SCENE_CONTINUATION", "opening_anchor": {
+                       "kind": "PREVIOUS_ACCEPTED_FINAL_FRAME", "source_task_id": tail.payload["task_key"],
+                       "source_receipt_sha256": tail.payload["tail_sha256"], "frame_sha256": tail.payload["frame_sha256"]},
+                   "video_transport": {"mode": "image_to_video_start_frame", "aspect_ratio": project_aspect_ratio(package),
+                                       "start_frame": {"base64": base64.b64encode(raw).decode()}}}
+        return VideoPreparationRequest(task_key=tasks[0]["task_key"], request=request,
+            approved_plan_event_id=plan_id, approved_plan_sha256=incoming.expected_plan_sha256,
+            approved_tail_id=tail.id)

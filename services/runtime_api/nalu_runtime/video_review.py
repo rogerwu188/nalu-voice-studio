@@ -39,7 +39,7 @@ class VideoReviewService:
                     or saved.get("preparation_sha256") != digest({k: v for k, v in saved.items() if k != "preparation_sha256"})):
                 raise ConflictError("video preparation integrity failed")
             source = VideoPreparationRequest.model_validate({k: saved[k] for k in VideoPreparationRequest.model_fields if k in saved})
-            current = VideoPreparationService(repo).validate(run_id, source)
+            current = VideoPreparationService(repo, self.data_root).validate(run_id, source)
             if (current["preparation_sha256"] != saved["preparation_sha256"]
                     or current["request_sha256"] != media["request_sha256"] or current["task_key"] != media["task_key"]):
                 raise ConflictError("video no longer matches this shot's confirmed production inputs")

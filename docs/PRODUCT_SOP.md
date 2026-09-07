@@ -85,6 +85,10 @@ Native decision controls, tail-frame continuity and professional QA remain open.
 the actual decoded final frame with current-review validation and replay. The
 continuous-shot compiler/dispatcher still needs to consume this lineage.
 
+[Continuous shot tail input](qa/continuous-shot-tail-input-2026-09-07.md) now
+connects that lineage to preparation and pre-dispatch validation. The synthetic
+two-shot chain is covered; native controls and real continuation QA remain open.
+
 AI plans now carry [typed director choices with native round-trip and plain-language readback](qa/structured-director-drafts-2026-09-07.md).
 User edits invalidate stale choices. A [version-bound director refresh backend](qa/director-refresh-2026-09-07.md)
 now fills missing choices without rewriting user descriptions, with restart and

@@ -191,10 +191,10 @@ from .video_budget import VideoBudgetApproval, VideoBudgetService
 from .video_dispatch import VideoDispatchService
 from .video_download import VideoDownloadError
 from .video_materialization import VideoMaterializationService
-from .video_review import VideoReviewRequest, VideoReviewService
-from .video_tail import VideoTailService
 from .video_preparation import VideoPreparationRequest, VideoPreparationService
 from .video_pricing import VideoPricingService
+from .video_review import VideoReviewRequest, VideoReviewService
+from .video_tail import VideoTailService
 from .writer_provider import (
     DisabledWriterProviderVerifier,
     WriterProviderVerifier,
@@ -1151,7 +1151,7 @@ def create_app(
 
     @app.post("/v1/production-runs/{run_id}/video-task-preparations", response_model=RunEvent)
     def prepare_video_task(run_id: str, request: VideoPreparationRequest) -> RunEvent:
-        return VideoPreparationService(repository).prepare(run_id, request)
+        return VideoPreparationService(repository, data_root).prepare(run_id, request)
 
     @app.post("/v1/production-runs/{run_id}/shot-plans/{plan_id}/video-preparations", response_model=RunEvent)
     def prepare_reviewed_video(run_id: str, plan_id: str, request: ReviewedVideoRequest,
@@ -1270,7 +1270,7 @@ def create_app(
         if (origin is not None or not provider_key or not provider_key.strip() or len(provider_key) > 1024
                 or "\r" in provider_key or "\n" in provider_key):
             raise HTTPException(403, "native provider credential required")
-        return VideoDispatchService(repository, remote_task_submitter, video_http_transport).dispatch(
+        return VideoDispatchService(repository, remote_task_submitter, video_http_transport, data_root=data_root).dispatch(
             run_id, reservation_id, provider_key)
 
     @app.get("/v1/production-runs/{run_id}/image-results/{materialization_id}/content", response_class=Response,

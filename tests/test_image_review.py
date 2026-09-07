@@ -65,6 +65,11 @@ def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypat
     if case.startswith("video_"):
         plan["tasks"] = [{"task_key": "E01-U01", "shot_index": 0}]
         plan["script_revision"] = script["revision"]
+    if case == "video_assemble":
+        shot["duration_seconds"] = 8
+        continuation = {**shot, "duration_seconds": 7, "transition": "continuous", "entry_state": shot["exit_state"]}
+        plan["plan"]["shots"].append(continuation)
+        plan["tasks"].append({"task_key": "E01-U02", "shot_index": 1})
     plan["plan_sha256"] = digest(plan)
     plan_event = repo.append_run_event_once(run.id, "shot_plan_approved", dedupe_key="plan_sha256",
         dedupe_value=plan["plan_sha256"], message="Synthetic confirmed shot fixture", payload=plan)
@@ -169,6 +174,22 @@ def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypat
         tail = api.post(f"/v1/production-runs/{run.id}/video-reviews/{accepted.json()['id']}/tail-frame")
         assert tail.status_code == 200, tail.text
         assert tail.json()["payload"]["frame_index"] == 12 * shot["duration_seconds"] - 1
+        next_request = {"expected_plan_sha256": plan["plan_sha256"], "shot_index": 1, "approved_tail_id": tail.json()["id"]}
+        following = api.post(url, json=next_request)
+        assert following.status_code == 200, following.text
+        assert following.json()["payload"]["request"]["shot_role"] == "SAME_SCENE_CONTINUATION"
+        assert following.json()["payload"]["frame"]["sha256"] == tail.json()["payload"]["frame_sha256"]
+        assert reopened.post(url, json=next_request).json()["id"] == following.json()["id"]
+        assert api.post(url, json={**next_request, "approved_tail_id": None,
+                                  "approved_frame_review_id": result.json()["id"]}).status_code == 409
+        assert api.post(url, json={**next_request, "shot_index": 0}).status_code == 409
+        revoked = api.post(f"/v1/production-runs/{run.id}/video-results/{receipt['id']}/reviews", json={
+            "preparation_id": prepared_video.json()["id"],
+            "expected_materialization_sha256": receipt["payload"]["materialization_sha256"],
+            "expected_review_event_id": accepted.json()["id"],
+            "decision": "reject", "reviewed_by": "synthetic-qa", "confirmation": "不采用这个镜头"})
+        assert revoked.status_code == 200, revoked.text
+        assert reopened.post(url, json=next_request).status_code == 409
         return
     video = VideoPreparationRequest(task_key="E01-U01", request={}, approved_plan_event_id=plan_event.id,
         approved_plan_sha256=plan["plan_sha256"], approved_frame_review_id=result.json()["id"])

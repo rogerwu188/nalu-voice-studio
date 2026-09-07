@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "f6e89d6a3c597e2edf882fa83dd0183f10fd51dc",
-  "last_advanced_at": "2026-09-07T05:39:56Z",
+  "observed_head": "9eaad65d427da2f3ffc75e6f0192dd60353617e5",
+  "last_advanced_at": "2026-09-07T05:50:30Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Added accepted-video final-frame derivation/preview with exact review/media/preparation lineage, stale decision rejection, restart and concurrency reuse. Existing PyAV PNG encoder; no new dependency. 32 tests passed in 11.47s including pixel equality to actual final frame and full synthetic preparation/review/tail chain. Native playback 186f254 CI 34087011213 succeeded; f6e89d6 CI 34087400061 running at check. See docs/qa/accepted-video-tail-2026-09-07.md. Continuous-shot consumption and full E2E remain unfinished."
+    "summary": "Connected exact accepted-tail input to continuous reviewed video preparation and pre-dispatch validation. Added synthetic two-shot frame/video/adoption/tail/next-preparation coverage and stale-adoption rejection. Fixed f6e89d6 CI 34087400061 app.py import-order regression; full Ruff passes. Related regression: 135 passed in 55.54s; OpenAPI regenerated. See docs/qa/continuous-shot-tail-input-2026-09-07.md. Native adoption controls, real continuation and full E2E remain unfinished."
   },
   "next_action": {
     "sop": "SOP-04",

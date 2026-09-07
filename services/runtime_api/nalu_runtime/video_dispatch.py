@@ -14,8 +14,9 @@ from .video_preparation import VideoPreparationRequest, VideoPreparationService,
 
 class VideoDispatchService:
     def __init__(self, repository: Repository, submitter: DurableRemoteTaskSubmitter,
-                 transport: httpx.BaseTransport | None = None):
+                 transport: httpx.BaseTransport | None = None, data_root=None):
         self.repository, self.submitter, self.transport = repository, submitter, transport
+        self.data_root = data_root
 
     def _reservation(self, run_id: str, reservation_id: str):
         event = self.repository.get_run_event(reservation_id)
@@ -56,8 +57,8 @@ class VideoDispatchService:
             task_key=prepared["task_key"], request=prepared["request"],
             approved_plan_event_id=prepared.get("approved_plan_event_id"),
             approved_plan_sha256=prepared.get("approved_plan_sha256"),
-            approved_frame_review_id=prepared.get("approved_frame_review_id"))
-        verified = VideoPreparationService(self.repository).validate(run_id, prepared_request)
+            approved_frame_review_id=prepared.get("approved_frame_review_id"), approved_tail_id=prepared.get("approved_tail_id"))
+        verified = VideoPreparationService(self.repository, self.data_root).validate(run_id, prepared_request)
         if verified["preparation_sha256"] != reservation["preparation_sha256"]:
             raise ConflictError("prepared shot changed after approval")
         package_sha, package = self.submitter._authorized_package(run_id, "seedance-2.0-pro")
@@ -71,7 +72,7 @@ class VideoDispatchService:
             if current_sha != package_sha:
                 raise ConflictError("package changed during dispatch")
             VideoPreparationService(self.repository)._plan_binding(run_id, prepared_request, current_sha)
-            VideoPreparationService(self.repository)._frame_binding(run_id, prepared_request, prepared["frame"]["sha256"])
+            VideoPreparationService(self.repository, self.data_root)._frame_binding(run_id, prepared_request, prepared["frame"]["sha256"])
             self._validate_current_context(run_id, current_package, reservation)
         transport = GiggleSeedanceImageTransport(lambda: secret, transport=self.transport, before_submit=before_submit)
         return self.submitter.submit_paid_task(

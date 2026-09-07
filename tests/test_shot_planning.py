@@ -233,6 +233,12 @@ def test_approved_script_to_durable_shot_plan(tmp_path, monkeypatch, case):
             "prompt": plan["shots"][1]["video_prompt"], "duration_seconds": 12},
             approved_plan_event_id=approved["id"], approved_plan_sha256=approved["payload"]["plan_sha256"])
         preparation_service = VideoPreparationService(reopened.app.state.repository)
+        if case == "continuous_ok":
+            with pytest.raises(ConflictError, match="preceding accepted tail"):
+                preparation_service._plan_binding(run.id, incoming, package["package_sha256"], package)
+            # This test exercises plan/director compilation only. Actual tail
+            # validation is covered by the two-shot image/video integration test.
+            incoming.approved_tail_id = "synthetic-plan-only-tail"
         binding = preparation_service._plan_binding(run.id, incoming, package["package_sha256"], package)
         assert binding["approved_shot_index"] == 1
         assert incoming.request["camera_plan"] == plan["shots"][1]["director"]["camera"]
