@@ -65,6 +65,11 @@ import SwiftUI
                         }
                     }
                 }
+                if let receipt = model.transcriptReceipt {
+                    RecordingCaptionPanel(transcript: receipt, onRead: onRead)
+                        .id(receipt.id)
+                        .disabled(model.busy || model.pending != nil)
+                }
             }
         }.naluFont(.body).buttonStyle(.bordered).controlSize(.large)
             .accessibilityIdentifier("nalu.episode.audio.review")

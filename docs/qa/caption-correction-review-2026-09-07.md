@@ -31,3 +31,17 @@ current approval. Added native boundary/serialization test source. Native tests
 have NOT run locally (existing Swift toolchain blocker); CI is required. Ruff,
 progress-file audit and diff checks passed; these do not prove Swift execution.
 Next wire the interaction state and visible correction controls.
+
+Native UI follow-up: RecordingCaptionModel/Panel now connect recovery, retained
+text corrections, readback, explicit confirmation and exact pending-request
+retry inside the adopted-recording panel. Timing remains unchanged during text
+correction. Initial recovery restores previously corrected timing/text; later
+refresh preserves local edits. Cancel before any submission unlocks editing;
+uncertain submissions remain retained for reconciliation/retry. Source change
+recreates the panel using transcript ID. Impeccable hardening guided retained
+inputs, explicit labels and existing native large-button styling.
+
+Validation in this follow-up is source review, Ruff and diff checks only. Local
+Swift compiler remains blocked; CI and installed keyboard/VoiceOver/long-text
+QA, model state tests and voice-driven correction are still outstanding. No
+claim that these controls are deployed to the installed application.
