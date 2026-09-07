@@ -7,10 +7,22 @@ private final class ShotReviewProtocol: URLProtocol, @unchecked Sendable {
     static var response = Data()
     static var status = 200
     static var queued: [(Int, Data)] = []
+    static var bodies: [Data] = []
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
     override func startLoading() {
         Self.requests.append(request)
+        var body = request.httpBody ?? Data()
+        if body.isEmpty, let stream = request.httpBodyStream {
+            stream.open(); defer { stream.close() }
+            var buffer = [UInt8](repeating: 0, count: 4096)
+            while true {
+                let count = stream.read(&buffer, maxLength: buffer.count)
+                if count <= 0 { break }
+                body.append(contentsOf: buffer.prefix(count))
+            }
+        }
+        Self.bodies.append(body)
         let next = Self.queued.isEmpty ? (Self.status, Self.response) : Self.queued.removeFirst()
         client?.urlProtocol(self, didReceive: HTTPURLResponse(url: request.url!, statusCode: next.0,
             httpVersion: nil, headerFields: nil)!, cacheStoragePolicy: .notAllowed)
@@ -22,6 +34,45 @@ private final class ShotReviewProtocol: URLProtocol, @unchecked Sendable {
 
 @Suite(.serialized)
 struct EpisodeShotPlanTests {
+    @MainActor @Test func videoDecisionRecoveryAndSubmissionPreserveExactCandidate() async throws {
+        let binding = VideoSubmissionObservation(id: "binding", run_id: "run", task_key: "shot",
+            request_sha256: "request", state: "submitted", provider_task_id: "task")
+        let candidateData = try JSONSerialization.data(withJSONObject: ["id": "candidate", "run_id": "run", "event_type": "video_result_materialized",
+            "payload": ["observation_id": "obs", "observation_sha256": "obs-sha", "binding_id": "binding", "result_index": 0,
+                "task_key": "shot", "request_sha256": "request", "materialization_sha256": "materialization",
+                "video": ["sha256": "video", "byte_size": 128], "video_downloaded": true, "generation_performed": false,
+                "billing_verified": false, "visual_semantics_verified": false, "master_accepted": false]])
+        let candidate = try JSONDecoder().decode(VideoCandidate.self, from: candidateData)
+        func receipt(candidateID: String = "candidate", accepted: Bool = true) -> [String: Any] {
+            ["id": "review", "run_id": "run", "event_type": "video_shot_reviewed", "payload": [
+                "task_key": "shot", "materialization_id": candidateID, "materialization_sha256": "materialization",
+                "video_sha256": "video", "preparation_id": "prep", "preparation_sha256": "prep-sha", "request_sha256": "request",
+                "binding_id": "binding", "decision": "accept", "reviewed_by": "user", "confirmation": "采用这个镜头",
+                "user_approved": accepted, "visual_semantics_verified": false, "audio_verified": false,
+                "billing_verified": false, "master_accepted": false, "generation_performed": false]]
+        }
+        let draft = VideoReviewDraft(preparation_id: "prep", expected_materialization_sha256: "materialization",
+            expected_review_event_id: "previous", decision: .accept, reviewed_by: "user", confirmation: "采用这个镜头")
+        ShotReviewProtocol.requests = []
+        ShotReviewProtocol.bodies = []
+        ShotReviewProtocol.queued = [(200, try JSONSerialization.data(withJSONObject: [receipt()])),
+            (200, try JSONSerialization.data(withJSONObject: receipt())),
+            (200, try JSONSerialization.data(withJSONObject: receipt(candidateID: "foreign"))),
+            (200, try JSONSerialization.data(withJSONObject: [receipt(accepted: false)]))]
+        let client = runtime()
+        let previous = try await client.latestVideoReview(binding)
+        #expect(previous?.id == "review")
+        let saved = try await client.reviewVideo(candidate, binding: binding, draft: draft)
+        #expect(saved.payload.user_approved)
+        do { _ = try await client.reviewVideo(candidate, binding: binding, draft: draft); Issue.record("foreign candidate") } catch {}
+        do { _ = try await client.latestVideoReview(binding); Issue.record("inconsistent decision") } catch {}
+        #expect(ShotReviewProtocol.requests.map(\.httpMethod) == ["GET", "POST", "POST", "GET"])
+        #expect(ShotReviewProtocol.requests[1].url?.path.hasSuffix("video-results/candidate/reviews") == true)
+        #expect(ShotReviewProtocol.requests.allSatisfy { $0.value(forHTTPHeaderField: "X-Nalu-Provider-Key") == nil })
+        let body = try JSONSerialization.jsonObject(with: ShotReviewProtocol.bodies[1]) as! [String: Any]
+        #expect(body["expected_review_event_id"] as? String == "previous")
+    }
+
     @MainActor @Test func previewOpeningIsLocalAndPendingQueryDoesNotGenerate() async throws {
         let binding = VideoSubmissionObservation(id: "binding", run_id: "run", task_key: "shot",
             request_sha256: "request", state: "submitted", provider_task_id: "provider-task")

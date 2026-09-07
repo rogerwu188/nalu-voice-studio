@@ -329,6 +329,46 @@ actor RuntimeClient {
         return saved
     }
 
+    /// A shot's latest review can refer to a different candidate. Preserve its
+    /// ID for compare-and-swap; do not pretend the current preview was adopted.
+    func latestVideoReview(_ binding: VideoSubmissionObservation) async throws -> VideoReviewReceipt? {
+        let events: [VideoReviewEnvelope] = try await get("v1/production-runs/\(binding.run_id)/events")
+        let latest = events.compactMap(\.review).last { $0.payload.task_key == binding.task_key }
+        if let latest { try validateVideoReview(latest, binding: binding) }
+        return latest
+    }
+
+    func reviewVideo(_ candidate: VideoCandidate, binding: VideoSubmissionObservation,
+                     draft: VideoReviewDraft) async throws -> VideoReviewReceipt {
+        try validateVideoCandidate(candidate, binding: binding)
+        guard let digest = candidate.payload.materialization_sha256,
+              draft.expected_materialization_sha256 == digest,
+              candidate.payload.video != nil else { throw LibrarySnapshotRefreshError.contextChanged }
+        let saved: VideoReviewReceipt = try await post(
+            "v1/production-runs/\(binding.run_id)/video-results/\(candidate.id)/reviews", body: draft)
+        try validateVideoReview(saved, binding: binding)
+        guard saved.payload.materialization_id == candidate.id,
+              saved.payload.materialization_sha256 == digest,
+              saved.payload.video_sha256 == candidate.payload.video?.sha256,
+              saved.payload.preparation_id == draft.preparation_id,
+              saved.payload.decision == draft.decision,
+              saved.payload.reviewed_by == draft.reviewed_by,
+              saved.payload.confirmation == draft.confirmation else { throw LibrarySnapshotRefreshError.contextChanged }
+        return saved
+    }
+
+    private func validateVideoReview(_ review: VideoReviewReceipt, binding: VideoSubmissionObservation) throws {
+        guard review.run_id == binding.run_id, review.event_type == "video_shot_reviewed",
+              review.payload.binding_id == binding.id, review.payload.task_key == binding.task_key,
+              review.payload.request_sha256 == binding.request_sha256,
+              review.payload.user_approved == (review.payload.decision == .accept),
+              !review.payload.visual_semantics_verified, !review.payload.audio_verified,
+              !review.payload.billing_verified, !review.payload.master_accepted,
+              !review.payload.generation_performed, !Task.isCancelled else {
+            throw LibrarySnapshotRefreshError.contextChanged
+        }
+    }
+
     func savedVideoCandidates(_ binding: VideoSubmissionObservation) async throws -> [VideoCandidate] {
         let events: [VideoCandidateEnvelope] = try await get("v1/production-runs/\(binding.run_id)/events")
         let saved = events.compactMap(\.candidate).filter { $0.payload.binding_id == binding.id }

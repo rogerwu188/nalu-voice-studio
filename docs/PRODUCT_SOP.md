@@ -89,6 +89,10 @@ continuous-shot compiler/dispatcher still needs to consume this lineage.
 connects that lineage to preparation and pre-dispatch validation. The synthetic
 two-shot chain is covered; native controls and real continuation QA remain open.
 
+[Native video review bridge](qa/native-video-review-bridge-2026-09-07.md) now
+reads/submits exact candidate decisions with previous-review concurrency guards.
+Native adoption controls, installed-app and real media acceptance remain open.
+
 AI plans now carry [typed director choices with native round-trip and plain-language readback](qa/structured-director-drafts-2026-09-07.md).
 User edits invalidate stale choices. A [version-bound director refresh backend](qa/director-refresh-2026-09-07.md)
 now fills missing choices without rewriting user descriptions, with restart and

@@ -109,6 +109,7 @@ struct VideoCandidate: Decodable, Sendable {
         let billing_verified: Bool
         let visual_semantics_verified: Bool
         let master_accepted: Bool
+        let materialization_sha256: String?
         let video: Media?
     }
     struct Media: Decodable, Sendable {

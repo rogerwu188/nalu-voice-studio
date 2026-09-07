@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "9eaad65d427da2f3ffc75e6f0192dd60353617e5",
-  "last_advanced_at": "2026-09-07T05:50:30Z",
+  "observed_head": "c3405fb18115277a3651a0959a6f9a8b1c481f85",
+  "last_advanced_at": "2026-09-07T05:55:29Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Connected exact accepted-tail input to continuous reviewed video preparation and pre-dispatch validation. Added synthetic two-shot frame/video/adoption/tail/next-preparation coverage and stale-adoption rejection. Fixed f6e89d6 CI 34087400061 app.py import-order regression; full Ruff passes. Related regression: 135 passed in 55.54s; OpenAPI regenerated. See docs/qa/continuous-shot-tail-input-2026-09-07.md. Native adoption controls, real continuation and full E2E remain unfinished."
+    "summary": "Added native typed video adoption/rejection submission and latest-decision recovery, with exact candidate/binding/decision checks and previous-review CAS payload. URLProtocol tests added; native CI required. Backend image/video/progress 32 passed in 15.12s. Parent c3405fb CI 34088470406 running; 9eaad65 failure was prior import sorting already fixed. See docs/qa/native-video-review-bridge-2026-09-07.md. Native controls, actual playback and real E2E remain unfinished."
   },
   "next_action": {
     "sop": "SOP-04",
