@@ -53,6 +53,7 @@ struct EpisodeEditReviewEnvelope: Decodable {
     private(set) var pending: EpisodeEditReviewDraft?
     private(set) var uncertain = false
     private(set) var soundPreparationPending = false
+    private(set) var soundPlan: EpisodeSoundPlan?
     private(set) var notice = "请先播放画面预览，再确认是否采用这个剪辑。"
 
     var canPrepareSound: Bool {
@@ -78,7 +79,8 @@ struct EpisodeEditReviewEnvelope: Decodable {
             let result = try await runtime.latestEpisodeEditReview(edit: edit)
             guard !Task.isCancelled else { return }
             latest = result; loaded = true
-            if result?.payload.edit_approved != true { soundPreparationPending = false }
+            if result?.payload.edit_approved != true { soundPreparationPending = false; soundPlan = nil }
+            if soundPlan?.payload.edit_review_id != result?.id { soundPlan = nil }
             // An uncertain POST is resolved only by its exact recorded decision.
             if let pending, uncertain {
                 if result?.payload.preview_id == pending.preview_id,
@@ -126,6 +128,7 @@ struct EpisodeEditReviewEnvelope: Decodable {
         do {
             latest = try await runtime.reviewEpisodeEdit(edit: edit, picture: picture, draft: pending)
             self.pending = nil; uncertain = false
+            soundPlan = nil
             soundPreparationPending = latest?.payload.edit_approved == true
             notice = latest?.payload.edit_approved == true
                 ? "已记录：采用这版画面剪辑和时长。下一步继续配音、字幕和成片检查。"
@@ -145,7 +148,7 @@ struct EpisodeEditReviewEnvelope: Decodable {
         guard let latest, latest.payload.edit_approved else { return }
         soundPreparationPending = true
         do {
-            try await runtime.retimeEpisodeSound(edit: edit, review: latest)
+            soundPlan = try await runtime.retimeEpisodeSound(edit: edit, review: latest)
             soundPreparationPending = false
             notice = "剪辑已采用，配音与字幕草稿已按确认的时长整理。下一步制作声音并核对字幕，还不是最终成片。"
         } catch {

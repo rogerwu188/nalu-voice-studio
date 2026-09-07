@@ -247,30 +247,11 @@ actor RuntimeClient {
         return result
     }
 
-    func retimeEpisodeSound(edit: EpisodeEditingEvent, review: EpisodeEditReview? = nil) async throws {
+    @discardableResult
+    func retimeEpisodeSound(edit: EpisodeEditingEvent, review: EpisodeEditReview? = nil) async throws -> EpisodeSoundPlan {
         struct Draft: Encodable {
             let expected_plan_sha256: String; let edit_id: String; let expected_edit_sha256: String
             let expected_edit_review_id: String?
-        }
-        struct Receipt: Decodable {
-            let run_id: String
-            let event_type: String
-            let payload: Payload
-            struct Payload: Decodable {
-                let edit_id: String
-                let edit_sha256: String
-                let plan_id: String
-                let plan_sha256: String
-                let duration_seconds: Double
-                let caption_timing_basis: String
-                let audio_generated: Bool
-                let captions_approved: Bool
-                let speech_alignment_verified: Bool
-                let edit_approved: Bool
-                let edit_review_id: String?
-                let generation_performed: Bool
-                let master_accepted: Bool
-            }
         }
         guard edit.event_type == "postproduction_edit_drafted", let sha = edit.payload.edit_sha256,
               sha.count == 64 else { throw LibrarySnapshotRefreshError.contextChanged }
@@ -278,10 +259,11 @@ actor RuntimeClient {
             try validateEpisodeEditReview(review, edit: edit)
             guard review.payload.edit_approved else { throw LibrarySnapshotRefreshError.contextChanged }
         }
-        let receipt: Receipt = try await post("v1/production-runs/\(edit.run_id)/sound-plan-drafts",
+        let receipt: EpisodeSoundPlan = try await post("v1/production-runs/\(edit.run_id)/sound-plan-drafts",
             body: Draft(expected_plan_sha256: edit.payload.plan_sha256, edit_id: edit.id, expected_edit_sha256: sha,
                         expected_edit_review_id: review?.id))
         let sound = receipt.payload
+        try receipt.validateCueWindows()
         guard !Task.isCancelled, receipt.run_id == edit.run_id, receipt.event_type == "episode_sound_plan_drafted",
               sound.edit_id == edit.id, sound.edit_sha256 == sha, sound.plan_id == edit.payload.plan_id,
               sound.plan_sha256 == edit.payload.plan_sha256,
@@ -292,6 +274,7 @@ actor RuntimeClient {
               sound.edit_approved == (review != nil), !sound.generation_performed, !sound.master_accepted else {
             throw LibrarySnapshotRefreshError.contextChanged
         }
+        return receipt
     }
 
     func latestEpisodeEdit(inputs: EpisodeEditingEvent) async throws -> EpisodeEditingEvent? {
@@ -301,6 +284,38 @@ actor RuntimeClient {
         guard let latest = edits.last(where: { $0.payload.plan_id == inputs.payload.plan_id }) else { return nil }
         try validateSavedEpisodeEdit(latest, inputs: inputs)
         return latest
+    }
+
+    func attachEpisodeAudio(sound: EpisodeSoundPlan, draft: EpisodeAudioTakeDraft) async throws -> EpisodeAudioTake {
+        try sound.validateCueWindows()
+        guard sound.event_type == "episode_sound_plan_drafted", sound.payload.edit_approved,
+              let reviewID = sound.payload.edit_review_id, !reviewID.isEmpty,
+              draft.sound_plan_id == sound.id, draft.expected_sound_plan_sha256 == sound.payload.sound_plan_sha256,
+              sound.payload.cues.indices.contains(draft.shot_index), !draft.asset_id.isEmpty,
+              draft.expected_asset_sha256.count == 64,
+              draft.expected_asset_sha256.allSatisfy({ "0123456789abcdef".contains($0) }),
+              draft.source_in_seconds.isFinite, (0...1800).contains(draft.source_in_seconds) else {
+            throw LibrarySnapshotRefreshError.contextChanged
+        }
+        let result: EpisodeAudioTake = try await post("v1/production-runs/\(sound.run_id)/audio-takes", body: draft)
+        let take = result.payload
+        let cue = sound.payload.cues[draft.shot_index]
+        let duration = cue.end_seconds - cue.start_seconds
+        guard !Task.isCancelled, !result.id.isEmpty, result.run_id == sound.run_id,
+              result.event_type == "episode_audio_take_attached", take.sound_plan_id == sound.id,
+              take.expected_sound_plan_sha256 == sound.payload.sound_plan_sha256,
+              take.shot_index == draft.shot_index, take.asset_id == draft.asset_id,
+              take.expected_asset_sha256 == draft.expected_asset_sha256,
+              take.source_in_seconds == draft.source_in_seconds, take.edit_review_id == reviewID,
+              take.edit_sha256 == sound.payload.edit_sha256, take.start_seconds == cue.start_seconds,
+              abs(take.duration_seconds - duration) < 0.000001,
+              take.decoded_sample_count == Int((duration * 48000).rounded()),
+              take.sample_rate_hz == 48000, take.channels == 2,
+              !take.audio_approved, !take.speech_alignment_verified, !take.captions_approved,
+              !take.master_accepted, !take.generation_performed else {
+            throw LibrarySnapshotRefreshError.contextChanged
+        }
+        return result
     }
 
     private func validateSavedEpisodeEdit(_ result: EpisodeEditingEvent, inputs: EpisodeEditingEvent) throws {

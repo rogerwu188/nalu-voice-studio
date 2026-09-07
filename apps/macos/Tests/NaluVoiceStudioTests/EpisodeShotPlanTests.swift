@@ -129,8 +129,11 @@ struct EpisodeShotPlanTests {
             #expect(invalid.saved == nil && invalid.inputs == nil && invalid.cuts.isEmpty)
         }
         func soundResponse(editID: String) throws -> Data {
-            try JSONSerialization.data(withJSONObject: ["run_id": "run", "event_type": "episode_sound_plan_drafted",
+            try JSONSerialization.data(withJSONObject: ["id": "sound", "run_id": "run", "event_type": "episode_sound_plan_drafted",
                 "payload": ["edit_id": editID, "edit_sha256": String(repeating: "b", count: 64),
+                    "episode_id": "episode", "sound_plan_sha256": String(repeating: "d", count: 64),
+                    "caption_srt_draft": "", "cues": [["shot_index": 0, "start_seconds": 0.0, "end_seconds": 7.5,
+                        "dialogue_or_narration": "海浪拍岸。", "sound_direction": "海浪"]],
                     "plan_id": "plan", "plan_sha256": "plan-sha", "duration_seconds": 7.5,
                     "caption_timing_basis": "DRAFT_EDIT_WINDOWS_NOT_SPEECH_ALIGNMENT",
                     "audio_generated": false, "captions_approved": false, "speech_alignment_verified": false,
@@ -214,6 +217,7 @@ struct EpisodeShotPlanTests {
         let beforeSoundRetry = ShotReviewProtocol.requests.count
         await reviewModel.retrySoundPreparation()
         #expect(!reviewModel.soundPreparationPending && reviewModel.latest?.id == "review")
+        #expect(reviewModel.soundPlan?.id == "sound" && reviewModel.soundPlan?.payload.cues.first?.dialogue_or_narration == "海浪拍岸。")
         #expect(ShotReviewProtocol.requests.count == beforeSoundRetry + 1)
         #expect(ShotReviewProtocol.requests.last?.url?.path.hasSuffix("sound-plan-drafts") == true)
         let approvedRequest = try JSONSerialization.jsonObject(with: ShotReviewProtocol.bodies.last!) as! [String: Any]
@@ -238,6 +242,37 @@ struct EpisodeShotPlanTests {
         await restoredReview.retrySoundPreparation()
         #expect(restoredReview.latest?.id == "review" && !restoredReview.soundPreparationPending)
         #expect(ShotReviewProtocol.requests.last?.url?.path.hasSuffix("sound-plan-drafts") == true)
+        let cuePlan = try #require(restoredReview.soundPlan)
+        var brokenSound = soundReceipt
+        var brokenPayload = approvedSound
+        brokenPayload["cues"] = [["shot_index": 0, "start_seconds": 1.0, "end_seconds": 7.5,
+            "dialogue_or_narration": "海浪拍岸。", "sound_direction": "海浪"]]
+        brokenSound["payload"] = brokenPayload
+        let invalidCuePlan = try JSONDecoder().decode(EpisodeSoundPlan.self,
+            from: JSONSerialization.data(withJSONObject: brokenSound))
+        do { try invalidCuePlan.validateCueWindows(); Issue.record("cue gaps must not drive recording attachment") } catch {}
+        let audioDraft = EpisodeAudioTakeDraft(sound_plan_id: cuePlan.id,
+            expected_sound_plan_sha256: cuePlan.payload.sound_plan_sha256, shot_index: 0,
+            asset_id: "recording", expected_asset_sha256: String(repeating: "e", count: 64), source_in_seconds: 0)
+        var takePayload: [String: Any] = ["sound_plan_id": "sound", "expected_sound_plan_sha256": cuePlan.payload.sound_plan_sha256,
+            "shot_index": 0, "asset_id": "recording", "expected_asset_sha256": audioDraft.expected_asset_sha256,
+            "source_in_seconds": 0, "edit_review_id": "review", "edit_sha256": cuePlan.payload.edit_sha256,
+            "start_seconds": 0, "duration_seconds": 7.5, "decoded_sample_count": 360000, "sample_rate_hz": 48000,
+            "channels": 2, "speech_alignment_verified": false, "audio_approved": false,
+            "captions_approved": false, "master_accepted": false, "generation_performed": false]
+        func takeResponse() throws -> Data {
+            try JSONSerialization.data(withJSONObject: ["id": "take", "run_id": "run",
+                "event_type": "episode_audio_take_attached", "payload": takePayload])
+        }
+        ShotReviewProtocol.queued = [(200, try takeResponse())]
+        let attached = try await runtime().attachEpisodeAudio(sound: cuePlan, draft: audioDraft)
+        #expect(attached.id == "take")
+        #expect(ShotReviewProtocol.requests.last?.url?.path.hasSuffix("audio-takes") == true)
+        #expect(ShotReviewProtocol.requests.last?.value(forHTTPHeaderField: "X-Nalu-Provider-Key") == nil)
+        takePayload["asset_id"] = "foreign"
+        ShotReviewProtocol.queued = [(200, try takeResponse())]
+        do { _ = try await runtime().attachEpisodeAudio(sound: cuePlan, draft: audioDraft)
+            Issue.record("foreign recording response must not be adopted") } catch {}
         ShotReviewProtocol.queued = [(503, Data())]
         await restoredReview.load()
         #expect(!restoredReview.canPrepareSound)

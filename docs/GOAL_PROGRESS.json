@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "b6602cb",
-  "last_advanced_at": "2026-09-07T07:46:27Z",
+  "observed_head": "e72c1f465a7a7b6c693ce4b1039ed9bea7f1508e",
+  "last_advanced_at": "2026-09-07T07:51:47Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Added actual managed audio attachment to approved-edit cues with decode/coverage/hash checks, live consent/scope verification, idempotent replay and run asset dependency. 26 workflow tests passed in 20.09s including synthetic WAV, short source, wrong hash and revoked consent. Ruff/OpenAPI/diff passed; current CI/native QA unverified. Evidence docs/qa/episode-audio-attachment-2026-09-07.md."
+    "summary": "Native typed sound cues now retained after preparation; added exact recording-attachment transport with context/sample-count validation. Native cue-gap, preserved narration and foreign-recording tests added, not yet current-CI verified. Backend synthetic regression passed in 8.70s; Ruff/diff passed. Parent ba811ec full CI 34096325134 succeeded. Evidence docs/qa/native-audio-cue-transport-2026-09-07.md."
   },
   "next_action": {
     "sop": "SOP-04",
