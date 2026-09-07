@@ -491,11 +491,22 @@ def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypat
             assert restored_caption.status_code == 200, restored_caption.text
             assert restored_caption.json()["latest_review"]["id"] == caption_saved.json()["id"]
             assert restored_caption.json()["captions_approved"] is True
+            vtt_url = f"{transcript_url}/{transcript_saved.json()['id']}/accepted-captions"
+            vtt_query = {**caption_query, "expected_caption_review_id": caption_saved.json()["id"]}
+            vtt = reopened.get(vtt_url, params=vtt_query)
+            assert vtt.status_code == 200, vtt.text
+            assert "00:00:00.100 --> 00:00:00.800\n修正后的字幕" in vtt.text
+            assert vtt.headers["x-nalu-captions-sha256"] == hashlib.sha256(vtt.content).hexdigest()
+            assert vtt.headers["x-nalu-master-accepted"] == "false"
+            assert vtt.headers["cache-control"] == "no-store"
+            assert reopened.get(vtt_url, params=vtt_query).content == vtt.content
+            assert reopened.get(vtt_url, params={**vtt_query, "expected_caption_review_id": "old"}).status_code == 409
             assert len(repo.list_run_events(run.id)) == caption_count
             assert api.post(caption_url, json={**caption_request, "confirmation": "另一次修正"}).status_code == 409
             newer_transcript = api.post(transcript_url, json={**transcript_request, "transcript": "新转写"})
             assert newer_transcript.status_code == 200
             assert reopened.get(caption_url, params=caption_query).status_code == 409
+            assert reopened.get(vtt_url, params=vtt_query).status_code == 409
             newer_caption_url = f"{transcript_url}/{newer_transcript.json()['id']}/reviews"
             newer_query = {"expected_transcript_sha256": newer_transcript.json()["payload"]["transcript_sha256"]}
             historical_caption = reopened.get(newer_caption_url, params=newer_query).json()

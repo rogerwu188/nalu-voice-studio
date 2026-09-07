@@ -14128,6 +14128,77 @@
         "summary": "Save Recording Transcript"
       }
     },
+    "/v1/production-runs/{run_id}/audio-takes/{take_id}/transcripts/{transcript_id}/accepted-captions": {
+      "get": {
+        "operationId": "export_caption_review_v1_production_runs__run_id__audio_takes__take_id__transcripts__transcript_id__accepted_captions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "take_id",
+            "required": true,
+            "schema": {
+              "title": "Take Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "transcript_id",
+            "required": true,
+            "schema": {
+              "title": "Transcript Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expected_transcript_sha256",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-f0-9]{64}$",
+              "title": "Expected Transcript Sha256",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expected_caption_review_id",
+            "required": true,
+            "schema": {
+              "maxLength": 160,
+              "minLength": 1,
+              "title": "Expected Caption Review Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Caption Review"
+      }
+    },
     "/v1/production-runs/{run_id}/audio-takes/{take_id}/transcripts/{transcript_id}/reviews": {
       "get": {
         "operationId": "recover_caption_review_v1_production_runs__run_id__audio_takes__take_id__transcripts__transcript_id__reviews_get",

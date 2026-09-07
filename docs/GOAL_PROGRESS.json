@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "113e2fb9eac8af84ae66383477fcaed0c5326781",
-  "last_advanced_at": "2026-09-07T09:36:47Z",
+  "observed_head": "e9359e4a369712d4dd5df108074c70d16ea8eea3",
+  "last_advanced_at": "2026-09-07T09:39:42Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -30,7 +30,7 @@
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Caption state test scenarios added (cancel, exact retry, reopen, edit preservation and GET reconciliation); execution pending native CI. CI 34106043111 on c1640ce passed all four jobs; UI CI 34106778965 in progress. Next resolve current CI and connect adopted recording/caption exports to postproduction_materializer inputs for final mix/master/release. Installed QA and voice corrections remain pending. Evidence docs/qa/caption-correction-review-2026-09-07.md; do not repeat Hops 401 requests.",
+    "summary": "Accepted per-recording WebVTT export implemented (6 tests passed 22.43s), evidence docs/qa/accepted-caption-export-2026-09-07.md. Next combine current cue captions and PCM into episode-wide postproduction inputs with lineage, then final materializer/master/release. Resolve native CI 34106778965 (in progress) and installed QA; preserve two-source writing/TTS and do not repeat Hops 401 requests.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

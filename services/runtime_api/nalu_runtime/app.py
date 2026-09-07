@@ -1458,6 +1458,17 @@ def create_app(
         return RecordingTranscriptService(repository, data_root).recover_review(
             run_id, take_id, transcript_id, expected_transcript_sha256)
 
+    @app.get("/v1/production-runs/{run_id}/audio-takes/{take_id}/transcripts/{transcript_id}/accepted-captions", response_class=Response)
+    def export_caption_review(run_id: str, take_id: str, transcript_id: str,
+                              expected_transcript_sha256: str = Query(pattern=r"^[a-f0-9]{64}$"),
+                              expected_caption_review_id: str = Query(min_length=1, max_length=160)):
+        raw, sha = RecordingTranscriptService(repository, data_root).accepted_captions(
+            run_id, take_id, transcript_id, expected_transcript_sha256, expected_caption_review_id)
+        return Response(raw, media_type="text/vtt", headers={"Cache-Control": "no-store",
+            "X-Content-Type-Options": "nosniff", "X-Nalu-Captions-SHA256": sha,
+            "X-Nalu-Caption-Review-ID": expected_caption_review_id, "X-Nalu-Transcript-ID": transcript_id,
+            "X-Nalu-Master-Accepted": "false"})
+
     @app.get("/v1/production-runs/{run_id}/audio-takes/{take_id}/transcripts", response_model=RunEvent | None)
     def recover_recording_transcript(run_id: str, take_id: str,
                                      expected_take_sha256: str = Query(pattern=r"^[a-f0-9]{64}$"),

@@ -7,6 +7,10 @@ against the current main branch.
 
 ## Status vocabulary
 
+[Adopted caption export](qa/accepted-caption-export-2026-09-07.md) provides one
+confirmed recording's episode-timed WebVTT. Full audio/subtitle staging and
+final-master integration remain IN_PROGRESS.
+
 Latest caption correction checkpoint: [backend confirmation evidence](qa/caption-correction-review-2026-09-07.md).
 Native correction, final-master integration and installed QA remain incomplete;
 this checkpoint does not promote any SOP to PASS.

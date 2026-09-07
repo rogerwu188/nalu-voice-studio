@@ -1,5 +1,8 @@
 """Persist unapproved timed transcript drafts bound to actual adopted PCM."""
 
+import hashlib
+import html
+import math
 from contextlib import nullcontext
 from typing import Literal
 
@@ -9,6 +12,31 @@ from .episode_audio_review import EpisodeAudioReviewService
 from .models import RunEvent
 from .repository import ConflictError, encode, new_id, utc_now
 from .video_preparation import digest
+
+
+def caption_vtt(segments, offset):
+    if not isinstance(offset, (int, float)) or not math.isfinite(offset) or not 0 <= offset <= 1800:
+        raise ConflictError("caption timeline offset is invalid")
+
+    def stamp(milliseconds):
+        hours, rest = divmod(milliseconds, 3_600_000)
+        minutes, rest = divmod(rest, 60_000)
+        seconds, ms = divmod(rest, 1000)
+        return f"{hours:02}:{minutes:02}:{seconds:02}.{ms:03}"
+
+    lines = ["WEBVTT", ""]
+    previous_end = 0
+    for index, segment in enumerate(segments):
+        start = round((offset + segment["start_seconds"]) * 1000)
+        end = round((offset + segment["end_seconds"]) * 1000)
+        if not previous_end <= start < end <= 1_800_000:
+            raise ConflictError("caption times cannot be represented on the episode timeline")
+        text = html.escape(" ".join(segment["text"].split()), quote=False)
+        if not text or "\x00" in text:
+            raise ConflictError("caption text is invalid")
+        lines.extend([str(index + 1), f"{stamp(start)} --> {stamp(end)}", text, ""])
+        previous_end = end
+    return ("\n".join(lines) + "\n").encode("utf-8")
 
 
 class RecordingWord(BaseModel):
@@ -87,10 +115,11 @@ class RecordingTranscriptService:
                 encode(payload), utc_now()))
         return repo.get_run_event(identity)
 
-    def recover_review(self, run_id, take_id, transcript_id, expected_transcript_sha256):
+    def recover_review(self, run_id, take_id, transcript_id, expected_transcript_sha256, *, _db=None):
         repo = self.repository
-        with repo.db.connect() as db:
-            db.execute("BEGIN IMMEDIATE")
+        with (repo.db.connect() if _db is None else nullcontext(_db)) as db:
+            if _db is None:
+                db.execute("BEGIN IMMEDIATE")
             events = repo.list_run_events(run_id)
             source = next((e for e in events if e.id == transcript_id
                            and e.event_type == "episode_recording_transcribed"
@@ -131,6 +160,20 @@ class RecordingTranscriptService:
                 applies = bound.id == transcript_id
             return TranscriptReviewRecovery(current_transcript_id=transcript_id, latest_review=latest,
                                             applies_to_current_transcript=applies, captions_approved=applies)
+
+    def accepted_captions(self, run_id, take_id, transcript_id, expected_transcript_sha256, expected_caption_review_id):
+        """Export one adopted recording's captions on the episode timeline."""
+        repo = self.repository
+        with repo.db.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            state = self.recover_review(run_id, take_id, transcript_id, expected_transcript_sha256, _db=db)
+            if (not state.captions_approved or state.latest_review is None
+                    or state.latest_review.id != expected_caption_review_id):
+                raise ConflictError("current caption confirmation is required")
+            take = next(e for e in repo.list_run_events(run_id) if e.id == take_id)
+            offset = take.payload["start_seconds"]
+            raw = caption_vtt(state.latest_review.payload["segments"], offset)
+            return raw, hashlib.sha256(raw).hexdigest()
 
     def recover(self, run_id, take_id, expected_take_sha256, expected_review_id, *, _db=None):
         repo = self.repository
