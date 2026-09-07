@@ -351,6 +351,10 @@ struct EpisodeShotPlanTests {
         ShotReviewProtocol.queued = [(200, try recoveredListening(listeningResponse()))]
         await listeningModel.load()
         #expect(listeningModel.loaded && listeningModel.latest?.take_approved == false)
+        let beforeUnapprovedASR = ShotReviewProtocol.requests.count
+        await listeningModel.prepareTranscript()
+        #expect(listeningModel.transcript == nil)
+        #expect(ShotReviewProtocol.requests.count == beforeUnapprovedASR)
         #expect(listeningModel.begin(.reject))
         #expect(listeningModel.pending?.expected_review_id == "listening")
         listeningModel.cancelUnsubmitted()

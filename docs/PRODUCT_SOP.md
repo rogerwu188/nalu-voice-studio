@@ -28,6 +28,11 @@ completed user journey. Real writer/provider integration, native interaction,
 script revision handoff and the complete production demonstration remain open.
 The authoritative next action is in `docs/GOAL_PROGRESS.json`.
 
+[Recording transcription bridge](qa/recording-transcription-2026-09-07.md) now
+reuses local Apple Speech for accepted PCM and produces bounded timed drafts.
+Visible initiation, persisted review, live ASR QA and final captions/master remain
+incomplete; no automatic subtitle/alignment approval follows from recognition.
+
 [Native accepted-audio transport](qa/native-accepted-audio-2026-09-07.md) now reads
 approved PCM with exact identity/format/sample validation. Downstream alignment
 and playback call sites, current CI, installed QA and final master remain open.

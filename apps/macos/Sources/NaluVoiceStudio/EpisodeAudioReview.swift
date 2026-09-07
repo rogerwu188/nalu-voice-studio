@@ -59,6 +59,7 @@ struct EpisodeAudioReview: Decodable, Sendable {
     private(set) var latest: EpisodeAudioReviewRecovery?
     private(set) var pending: EpisodeAudioReviewDraft?
     private(set) var uncertain = false
+    private(set) var transcript: EpisodeRecordingTranscript?
     private(set) var notice = "请先试听这段录音，再确认是否采用。还需要字幕和成片检查。"
 
     init(sound: EpisodeSoundPlan, take: EpisodeAudioTake, runtime: RuntimeClient = RuntimeClient()) {
@@ -80,6 +81,7 @@ struct EpisodeAudioReview: Decodable, Sendable {
             let recovered = try await runtime.recoverEpisodeAudioReview(sound: sound, take: take)
             guard !Task.isCancelled else { return }
             latest = recovered; loaded = true
+            if !recovered.take_approved || transcript?.reviewID != recovered.latest_review?.id { transcript = nil }
             if let pending, uncertain, recovered.applies_to_current_take,
                let review = recovered.latest_review,
                review.payload.decision == pending.decision,
@@ -119,10 +121,32 @@ struct EpisodeAudioReview: Decodable, Sendable {
             let review = try await runtime.reviewEpisodeAudio(sound: sound, take: take, draft: pending)
             latest = EpisodeAudioReviewRecovery(current_take_id: take.id, current_take_sha256: take.payload.take_sha256,
                 latest_review: review, applies_to_current_take: true, take_approved: review.payload.take_approved)
+            transcript = nil
             self.pending = nil; uncertain = false; loaded = true
             notice = review.payload.take_approved
                 ? "录音采用已保存。接下来核对字幕和混音，不会自动发行。"
                 : "已记录需要调整。原录音和剪辑都保留。"
         } catch { notice = "确认是否保存还未核实。请先核对保存结果，或重试同一确认。" }
+    }
+
+    func prepareTranscript() async {
+        guard loaded, !busy, pending == nil, !uncertain, latest?.take_approved == true,
+              let reviewID = latest?.latest_review?.id else { return }
+        busy = true; transcript = nil
+        notice = "正在用本机识别已采用录音，准备带时间的字幕草稿；不会上传云端。"
+        defer { busy = false }
+        do {
+            let audio = try await runtime.downloadAcceptedEpisodeAudio(sound: sound, take: take, expectedReviewID: reviewID)
+            let draft = try await EpisodeRecordingTranscriber().transcribe(audio)
+            // Recognition can take time: never adopt results after a changed
+            // recording decision or revoked source authorization.
+            let recovered = try await runtime.recoverEpisodeAudioReview(sound: sound, take: take)
+            guard !Task.isCancelled, recovered.take_approved,
+                  recovered.latest_review?.id == reviewID else { throw LibrarySnapshotRefreshError.contextChanged }
+            latest = recovered; transcript = draft
+            notice = "已整理带时间的字幕草稿，请核对实际说话内容。还没有确认字幕或成片。"
+        } catch {
+            notice = "本机字幕识别未完成，或录音确认已变化。原录音保留；核对记录后可重试，不会改用云端。"
+        }
     }
 }
