@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "340c4402cf65e06f8160ef93fedf3cf4939940fb",
-  "last_advanced_at": "2026-09-07T04:35:41Z",
+  "observed_head": "04049bf3607679b0106bb09ed5faee21ec7eb8f4",
+  "last_advanced_at": "2026-09-07T05:04:58Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Added typed native video cost reservation, explicit dispatch and credential-free observation calls with exact receipt binding. New runtime GET submission endpoint reads durable SQLite state after lost responses/restart without provider call or repeat submission; existing dispatch shares binding checks. Browser-origin video cost approval rejected. 97 dispatch/pricing/progress tests passed in 20.82s; Ruff/OpenAPI/diff passed. Native tests added, UI connection still required. See docs/qa/video-submission-recovery-2026-09-07.md. Prior 340c440 ARM native tests/build passed in CI 34083297991; full CI not yet observed complete."
+    "summary": "Accepted-frame UI now connects video cost review, explicit native/guardian confirmation, durable reservation and dispatch; rechecks existing binding before key access/POST. Load and restart recover saved reservation/submission via GET; uncertain response blocks automatic retry. Added model tests for no-POST review, explicit submit, duplicate prevention, restart recovery and dry/unreadable gating. 97 backend regressions passed in 20.51s. Current native compilation/UI QA pending due local Swift manifest linker failure. See docs/qa/native-video-generation-panel-2026-09-07.md. Prior 04049bf and 340c440 full CI succeeded."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Connect VideoCostApproval/VideoCostReservation and RuntimeClient reserveVideoCost/submitReservedVideo/observeVideoSubmission to accepted-frame panel. Read back exact current price and run budget, require explicit user/guardian confirmation, recover saved reservations and uncertain submissions via GET without automatic POST. Verify current native CI/UI. Image pricing remains externally unverified; no guessed rates or paid discovery. Continue tail-frame lineage, prop visual evidence, real per-episode generation, masters and release; full objective and existing TTS unchanged.",
+    "summary": "Verify current VideoGenerationPanel native CI/tests and installed-app QA. Continue from submitted task into safe provider observation, video materialization/review and accepted tail-frame lineage for sequential shots, then episode QA/master/release. Connect voice-only final shot confirmation without assuming consent. Image pricing remains externally unverified; no guessed rates or paid discovery. Preserve full two-source interactive-script to multi-episode production objective and existing TTS.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

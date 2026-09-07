@@ -248,6 +248,11 @@ actor RuntimeClient {
         return saved
     }
 
+    func savedVideoReservations(runID: String) async throws -> [VideoCostReservation] {
+        let events: [VideoReservationEnvelope] = try await get("v1/production-runs/\(runID)/events")
+        return events.compactMap(\.reservation)
+    }
+
     /// Explicit submission only. Recovery uses observeVideoSubmission, never an
     /// automatic repeat POST. The runtime retains the durable single-attempt key.
     func submitReservedVideo(_ reservation: VideoCostReservation, apiKey: String) async throws -> VideoSubmissionObservation {

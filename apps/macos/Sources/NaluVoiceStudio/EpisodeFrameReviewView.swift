@@ -46,8 +46,8 @@ import SwiftUI
                 }
                 .buttonStyle(.bordered).controlSize(.large).disabled(!model.canReview)
                 if referenceName == nil {
-                    if model.videoPreparation != nil {
-                        Text("视频任务资料已备好 · 尚未生成，等待费用确认").naluFont(.headline)
+                    if let prepared = model.videoPreparation {
+                        Text("视频任务资料已备好").naluFont(.headline)
                         Button("查看这个镜头的预计费用", systemImage: "creditcard") {
                             Task {
                                 await model.observeVideoPrice()
@@ -56,9 +56,11 @@ import SwiftUI
                         }
                         .buttonStyle(.bordered).controlSize(.large).disabled(model.busy)
                         if let price = model.videoPrice {
-                            Text("公开价格估算：\(price.payload.estimated_credits) 积分 / \(price.payload.duration_seconds) 秒。不是实际扣费上限；尚未授权生成。")
-                                .naluFont(.body)
+                            Text("公开价格估算：\(price.payload.estimated_credits) 积分 / \(price.payload.duration_seconds) 秒。不是实际扣费上限；提交状态见下方。").naluFont(.body)
                         }
+                        VideoGenerationPanel(prepared: prepared, price: model.videoPrice,
+                            guardianRequired: guardianRequired, onRead: onRead)
+                            .id(prepared.id)
                     } else {
                         Button("下一步：准备这个镜头的视频", systemImage: "film") {
                             Task {

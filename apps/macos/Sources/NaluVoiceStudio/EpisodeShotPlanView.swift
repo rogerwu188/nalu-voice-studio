@@ -81,7 +81,8 @@ import SwiftUI
                                     guardianRequired: guardianRequired, onRead: onRead, onRegistered: { referenceRevision += 1 })
                                     .id("\(event.id)-\(selectedShot)-references")
                             }
-                            EpisodeFrameReviewView(runID: model.runID, planID: event.id, shotIndex: selectedShot, onRead: onRead)
+                            EpisodeFrameReviewView(runID: model.runID, planID: event.id, shotIndex: selectedShot,
+                                guardianRequired: guardianRequired, onRead: onRead)
                                 .id("\(model.runID)-\(event.id)-\(selectedShot)-\(referenceRevision)")
                         }
                     }
