@@ -8058,6 +8058,35 @@
         "title": "ReviewedShotFrameRequest",
         "type": "object"
       },
+      "ReviewedVideoRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "approved_frame_review_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Approved Frame Review Id",
+            "type": "string"
+          },
+          "expected_plan_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Expected Plan Sha256",
+            "type": "string"
+          },
+          "shot_index": {
+            "maximum": 119.0,
+            "minimum": 0.0,
+            "title": "Shot Index",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expected_plan_sha256",
+          "shot_index",
+          "approved_frame_review_id"
+        ],
+        "title": "ReviewedVideoRequest",
+        "type": "object"
+      },
       "RollbackRehearsalEvidence": {
         "properties": {
           "evidence_sha256": {
@@ -14969,6 +14998,80 @@
           }
         },
         "summary": "Prepare Reviewed Reference"
+      }
+    },
+    "/v1/production-runs/{run_id}/shot-plans/{plan_id}/video-preparations": {
+      "post": {
+        "operationId": "prepare_reviewed_video_v1_production_runs__run_id__shot_plans__plan_id__video_preparations_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "plan_id",
+            "required": true,
+            "schema": {
+              "title": "Plan Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "origin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Origin"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewedVideoRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunEvent"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Prepare Reviewed Video"
       }
     },
     "/v1/production-runs/{run_id}/shot-plans/{source_id}/character-cards": {

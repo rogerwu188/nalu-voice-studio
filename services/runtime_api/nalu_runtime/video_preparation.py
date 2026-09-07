@@ -177,6 +177,16 @@ class VideoPreparationService:
                 or incoming.approved_plan_sha256 != expected or record.get("plan_sha256") != expected
                 or record.get("production_package_sha256") != package_sha):
             raise ConflictError("current shot plan must be confirmed and bound to this request")
+        if package is not None and record.get("script_revision") is not None:
+            run = self.repository.get_run(run_id)
+            episode = self.repository.get_episode(run.episode_id)
+            script = package.get("approved_script", {})
+            if (record["script_revision"] != episode.approved_script_revision
+                    or script.get("revision") != episode.approved_script_revision):
+                raise ConflictError("approved script changed after shot review")
+            saved = self.repository.get_script(episode.id, episode.approved_script_revision)
+            if not saved.approved_at or saved.content != script.get("content"):
+                raise ConflictError("approved script no longer matches the production package")
         try:
             tasks = record["tasks"]
             matches = [task for task in tasks if task["task_key"] == incoming.task_key]

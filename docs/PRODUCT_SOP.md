@@ -42,6 +42,11 @@ the next independent shot merely because another shot entered video preparation.
 Same-shot/shared-reference protection remains, and video preparation now validates
 and commits under one SQLite writer lock. Real sequential production is still open.
 
+[Reviewed video assembly](qa/reviewed-video-assembly-2026-09-07.md) now resolves
+professional SD2 start-image requests from the approved shot and accepted local
+frame, without user-entered technical fields. Native action/paid dispatch and
+continuous-shot lineage remain unfinished; no full SOP PASS follows from this.
+
 AI plans now carry [typed director choices with native round-trip and plain-language readback](qa/structured-director-drafts-2026-09-07.md).
 User edits invalidate stale choices. A [version-bound director refresh backend](qa/director-refresh-2026-09-07.md)
 now fills missing choices without rewriting user descriptions, with restart and

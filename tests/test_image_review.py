@@ -13,12 +13,14 @@ from nalu_runtime.image_submission import ImageSubmissionService
 from nalu_runtime.models import ProductionRun, RunStatus
 from nalu_runtime.repository import ConflictError, utc_now
 from nalu_runtime.video_preparation import VideoPreparationRequest, VideoPreparationService, digest
+from test_director_draft import director_fixture
 from test_image_download import png
 
 
 @pytest.mark.parametrize("case", ["accept", "reject", "stale_image", "changed_file", "changed_plan", "downstream", "restart",
                                   "other_shot_prepared", "same_shot_prepared", "other_shot_budget", "same_shot_budget",
-                                  "other_shot_remote", "same_shot_remote"])
+                                  "other_shot_remote", "same_shot_remote", "video_assemble", "video_missing_director", "video_unknown_prior", "video_wrong_index",
+                                  "video_script_changed", "video_frame_rejected"])
 def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypatch, case):
     db_path, root = tmp_path / "db", tmp_path / "data"
     api = TestClient(create_app(db_path, root))
@@ -28,10 +30,14 @@ def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypat
     episode_response = api.post(f"/v1/seasons/{season['id']}/episodes", json={"title": "海边", "episode_number": 1, "target_seconds": 15})
     assert episode_response.status_code == 201, episode_response.text
     episode = episode_response.json()
-    api.post(f"/v1/episodes/{episode['id']}/scripts", json={"content": "外婆看海。", "source_transcript": "外婆看海。",
+    story = "海浪拍岸。" if case.startswith("video_") else "外婆看海。"
+    api.post(f"/v1/episodes/{episode['id']}/scripts", json={"content": story, "source_transcript": story,
         "summary_for_voice_review": "海边"})
     script = api.post(f"/v1/episodes/{episode['id']}/scripts/1/approve", json={"approved_by": "QA"}).json()
     package = {"project": project, "episode": episode, "approved_script": script, "inherited_assets": []}
+    if case.startswith("video_"):
+        package["production_policy"] = {"requested_model": "seedance-2.0-pro"}
+        package["resolved_library"] = []
     package["package_sha256"] = digest(package)
     path = tmp_path / "package.json"
     path.write_text(json.dumps(package))
@@ -44,8 +50,21 @@ def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypat
         "action": "抬头看海", "exit_state": "面朝海面", "camera": "中景", "dialogue_or_narration": "我又回来了。",
         "sound": "海浪", "image_prompt": "外婆尚未抬头", "video_prompt": "外婆抬头看海",
         "reference_asset_ids": [], "transition": "scene_start"}
+    if case.startswith("video_"):
+        # Synthetic contract assembly fixture, not semantic approval of this image.
+        shot.update(source_excerpt=story, entry_state="海浪尚未抵岸", action="海浪前进", exit_state="海浪抵岸",
+                    dialogue_or_narration="", image_prompt="海浪尚未抵岸，无人物", video_prompt="海浪拍岸，无人物")
+        shot["director"] = {**director_fixture(), "visible_character_counts": {}, "prior_event_relation": "RESOLVED"}
+        shot["director"]["state_delta"] = {"mode": "CHANGE", "dimensions": [{"dimension": "POSITION", "entry": "离岸", "exit": "抵岸"}]}
+        if case == "video_missing_director":
+            shot["director"] = None
+        if case == "video_unknown_prior":
+            shot["director"]["prior_event_relation"] = "UNKNOWN"
     plan = {"plan": {"summary": "海边", "shots": [shot]}, "approved": True,
         "production_package_sha256": package["package_sha256"]}
+    if case.startswith("video_"):
+        plan["tasks"] = [{"task_key": "E01-U01", "shot_index": 0}]
+        plan["script_revision"] = script["revision"]
     plan["plan_sha256"] = digest(plan)
     plan_event = repo.append_run_event_once(run.id, "shot_plan_approved", dedupe_key="plan_sha256",
         dedupe_value=plan["plan_sha256"], message="Synthetic confirmed shot fixture", payload=plan)
@@ -96,6 +115,35 @@ def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypat
     assert record["user_approved"] == (case != "reject")
     assert record["image_sha256"] == materialized["payload"]["image"]["sha256"]
     assert record["visual_semantics_verified"] is False and record["paid_approved"] is False
+    if case.startswith("video_"):
+        request = {"expected_plan_sha256": plan["plan_sha256"], "shot_index": 1 if case == "video_wrong_index" else 0,
+                   "approved_frame_review_id": result.json()["id"]}
+        url = f"/v1/production-runs/{run.id}/shot-plans/{plan_event.id}/video-preparations"
+        assert api.post(url, json=request, headers={"Origin": "https://untrusted.invalid"}).status_code == 403
+        if case == "video_script_changed":
+            revision = api.post(f"/v1/episodes/{episode['id']}/scripts", json={
+                "content": "改成傍晚的海浪。", "summary_for_voice_review": "改成傍晚"})
+            assert revision.status_code == 201, revision.text
+            assert api.post(f"/v1/episodes/{episode['id']}/scripts/{revision.json()['revision']}/approve",
+                            json={"approved_by": "QA"}).status_code == 200
+        if case == "video_frame_rejected":
+            assert api.post(endpoint + "/review", json={**incoming, "decision": "reject",
+                "expected_review_event_id": result.json()["id"]}).status_code == 200
+        prepared_video = api.post(url, json=request)
+        if case != "video_assemble":
+            assert prepared_video.status_code == 409, prepared_video.text
+            assert not any(event.event_type == "video_task_prepared" for event in repo.list_run_events(run.id))
+            return
+        assert prepared_video.status_code == 200, prepared_video.text
+        video_record = prepared_video.json()["payload"]
+        assert video_record["request"]["prompt"] == shot["video_prompt"]
+        assert video_record["request"]["camera_plan"] == shot["director"]["camera"]
+        assert video_record["frame"]["sha256"] == record["image_sha256"]
+        assert video_record["generation_performed"] is False and video_record["paid_approved"] is False
+        reopened = TestClient(create_app(db_path, root))
+        assert reopened.post(url, json=request).json()["id"] == prepared_video.json()["id"]
+        assert len([event for event in repo.list_run_events(run.id) if event.event_type == "video_task_prepared"]) == 1
+        return
     video = VideoPreparationRequest(task_key="E01-U01", request={}, approved_plan_event_id=plan_event.id,
         approved_plan_sha256=plan["plan_sha256"], approved_frame_review_id=result.json()["id"])
     boundary = VideoPreparationService(repo)

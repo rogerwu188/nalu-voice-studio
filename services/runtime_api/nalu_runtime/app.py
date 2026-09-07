@@ -177,6 +177,7 @@ from .release_evidence import (
 )
 from .remote_submitter import DurableRemoteTaskSubmitter
 from .repository import ConflictError, NotFoundError, Repository
+from .reviewed_video import ReviewedVideoRequest, ReviewedVideoService
 from .semantic_recognizer import LocalSemanticRecognizer
 from .shot_character_library import ShotCharacterLibraryRequest, ShotCharacterLibraryService
 from .shot_plan_inheritance import ShotPlanInheritanceRequest, ShotPlanInheritanceService
@@ -1146,6 +1147,13 @@ def create_app(
     @app.post("/v1/production-runs/{run_id}/video-task-preparations", response_model=RunEvent)
     def prepare_video_task(run_id: str, request: VideoPreparationRequest) -> RunEvent:
         return VideoPreparationService(repository).prepare(run_id, request)
+
+    @app.post("/v1/production-runs/{run_id}/shot-plans/{plan_id}/video-preparations", response_model=RunEvent)
+    def prepare_reviewed_video(run_id: str, plan_id: str, request: ReviewedVideoRequest,
+                               origin: str | None = Header(default=None)):
+        if origin is not None:
+            raise HTTPException(403, "native reviewed-shot selection required")
+        return ReviewedVideoService(repository, data_root).prepare(run_id, plan_id, request)
 
     @app.post("/v1/production-runs/{run_id}/image-task-preparations", response_model=RunEvent)
     def prepare_image_task(run_id: str, request: ImagePreparationRequest) -> RunEvent:

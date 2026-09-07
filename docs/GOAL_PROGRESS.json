@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "0f8c5369373d414c28ea574d1b8c8af027e21fb9",
-  "last_advanced_at": "2026-09-07T03:48:22Z",
+  "observed_head": "97b0d624268293563ccd9a8eeb59ee05a98008ca",
+  "last_advanced_at": "2026-09-07T03:55:59Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Fixed run-wide frame review lock that prevented sequential shots: only same-shot video preparations/reservations/bindings block entry review; shared references and unknown legacy identity remain conservative. Video preparation now validates and records under the SQLite writer lock to prevent concurrent frame rejection/package refresh races. See docs/qa/per-shot-frame-review-2026-09-07.md. 37 related/progress tests passed in 8.05s; Ruff/diff passed. Prior c2312ce full CI succeeded; native 0f8c536 CI 34080624095 running. Current CI and real video/native QA acceptance remain pending."
+    "summary": "Added reviewed video preparation endpoint taking only shot index, plan digest and accepted frame review. It reads verified local frame bytes, compiles SD2 transport with reviewed director/scope, validates current script and records preparation atomically without keys or spending. See docs/qa/reviewed-video-assembly-2026-09-07.md. 120 related tests passed in 29.23s; final six assembly tests including script-change/frame-rejection passed in 3.77s. Ruff/OpenAPI compatibility/diff passed. Prior native 0f8c536 full CI 34080624095 succeeded. Current CI/native UI and real production pending; continuous anchors/prop visual evidence/other transports not complete."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Check current native CI and actual confirmation-to-refresh handoff when desktop access is available. Continue composing approved reference assets, accepted frame evidence, reviewed director and identity contracts into concrete per-shot video dispatch and sequential episode progress. Verify the native frame/reference path uses the refreshed package/plan; do not reset episodes or duplicate tasks. Existing TTS, narrated/web-source scripts to masters/controlled release remain the full objective; no unauthorized paid retries.",
+    "summary": "Connect native accepted opening-frame action to reviewed-video preparation endpoint, preserve exact selected run/plan/review, then expose current price review and protected dispatch without professional forms. Verify native CI and actual handoff when desktop available. Extend prior accepted tail-frame lineage for continuous shots and real prop visual evidence; retain other model transport gaps. Existing TTS, narrated/web-source scripts through sequential episodes, masters and controlled release remain full objective. No unauthorized paid retries.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
