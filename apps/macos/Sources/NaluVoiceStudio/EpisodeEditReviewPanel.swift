@@ -13,11 +13,20 @@ import SwiftUI
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(model.notice).naluFont(.body).fixedSize(horizontal: false, vertical: true)
-            if model.busy { ProgressView("正在保存或核对剪辑决定") }
+            if model.busy { ProgressView("正在核对剪辑或准备后期草稿") }
             if model.pending == nil {
-                Button("看过了，采用这个剪辑", systemImage: "checkmark.circle") { begin(.accept) }
-                    .buttonStyle(.borderedProminent).controlSize(.large)
-                    .disabled(!model.loaded || model.busy)
+                if model.latest?.payload.edit_approved == true {
+                    Button(model.soundPreparationPending ? "重试准备配音和字幕" : "继续准备配音和字幕",
+                           systemImage: "waveform") {
+                        Task { await model.retrySoundPreparation(); onRead(model.notice) }
+                    }.buttonStyle(.borderedProminent).controlSize(.large)
+                        .disabled(!model.canPrepareSound)
+                        .accessibilityIdentifier("nalu.episode.prepare-sound")
+                } else {
+                    Button("看过了，采用这个剪辑", systemImage: "checkmark.circle") { begin(.accept) }
+                        .buttonStyle(.borderedProminent).controlSize(.large)
+                        .disabled(!model.loaded || model.busy)
+                }
                 Button("这个剪辑还要修改", systemImage: "pencil") { begin(.reject) }
                     .buttonStyle(.bordered).controlSize(.large)
                     .disabled(!model.loaded || model.busy)

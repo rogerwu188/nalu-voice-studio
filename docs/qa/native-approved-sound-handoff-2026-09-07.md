@@ -23,3 +23,30 @@ caption alignment, master or release was produced by this checkpoint.
 
 Next: expose postproduction retry/recovery without another edit confirmation,
 verify native CI and installed QA, and continue actual sound/caption/master work.
+
+## Visible recovery checkpoint
+
+The preview panel now replaces the already-accepted edit action with “继续准备
+配音和字幕”, or “重试准备配音和字幕” after partial failure. This uses the
+sound-only retry method and reads its result aloud using the incumbent callback.
+It does not resubmit the edit decision. The user can still explicitly request a
+different edit. Controls remain native, large and consistent with the adjacent
+VideoReviewPanel; status text wraps and a busy indicator labels ongoing work.
+Impeccable hardening guidance informed disabled/recovery states, not a redesign.
+
+On reopening the preview panel, the existing read-only confirmation load restores
+the accepted review and enables the same continuation control. A failed reload
+disables continuation even if an earlier in-memory acceptance remains. Newly
+added native tests verify GET-only restoration, sound-only continuation and no
+request after failed recovery. Opening the panel never starts paid production.
+
+Checks: synthetic backend preview/review regression passed again (1 test, 7.69s),
+scoped Ruff and diff passed. State-model CI 34094904074 remains in progress;
+ba811ec CI 34096325134 was pending at inspection. No current UI screenshot or
+VoiceOver/keyboard/installed QA is claimed because the local build toolchain
+remains unavailable; native tests still need current CI. These controls prepare
+timing drafts only, not actual recordings or an accepted master.
+
+Next: connect real authored audio inputs and subtitle alignment to the approved
+timing; verify current CI and installed native workflow without treating this
+checkpoint as product completion.

@@ -30,8 +30,9 @@ The authoritative next action is in `docs/GOAL_PROGRESS.json`.
 
 [Native approved-sound orchestration](qa/native-approved-sound-handoff-2026-09-07.md)
 now follows explicit picture acceptance with exact-review timing preparation.
-Partial failure preserves the accepted edit. Visible retry/restart recovery,
-current native QA and actual sound/subtitle/master production remain open.
+Partial failure preserves the accepted edit. Visible sound-only retry and
+GET-based recovery now exist in the preview panel source; current native QA and
+actual sound/subtitle/master production remain open.
 
 [Approved-edit sound handoff](qa/approved-edit-sound-handoff-2026-09-07.md) now
 binds sound/caption drafts to a current accepted edit and verified preview receipt.

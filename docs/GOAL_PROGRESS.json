@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "c821f15feb0205622c9f0ff967647686d80464f3",
-  "last_advanced_at": "2026-09-07T07:35:42Z",
+  "observed_head": "ba811ec515d3c3f50ac75fcf2070d688063363b6",
+  "last_advanced_at": "2026-09-07T07:39:25Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Native acceptance now prepares sound timing with exact review ID; preserves accepted edit on partial failure and provides sound-only retry method. Native 503/retry tests added, current CI not passed. Synthetic backend regression passed in 10.59s, Ruff/diff passed. e94e7a1 CI 34094904074 ARM/Intel/Universal succeeded; Runtime running. Evidence docs/qa/native-approved-sound-handoff-2026-09-07.md."
+    "summary": "Added visible sound-only continuation/retry for accepted edits, with GET-only restoration and failed-reload disable guard. Native recovery/no-repeat-review tests added; current CI and installed UI QA pending. Synthetic backend regression passed in 7.69s, Ruff/diff passed. CI 34094904074 remains in progress. Evidence docs/qa/native-approved-sound-handoff-2026-09-07.md."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Expose visible sound-preparation retry and restart recovery using current accepted review without a new edit confirmation. Verify current CI and installed QA when build available. Continue actual authorized recordings/five sound layers, caption alignment, verified workspace and master/release QA. Preserve two-source writing and existing TTS. Installed app not updated; synthetic tests are not real E2E.",
+    "summary": "Connect actual authored audio inputs and subtitle alignment to approved edit timing; inspect existing recording/import and master materialization paths to reuse rather than fabricate sound layers. Verify current native CI and installed QA when build available, then real master/release. Preserve two-source writing and existing TTS. Installed app not updated; synthetic timing tests are not real E2E.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

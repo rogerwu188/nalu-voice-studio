@@ -55,6 +55,10 @@ struct EpisodeEditReviewEnvelope: Decodable {
     private(set) var soundPreparationPending = false
     private(set) var notice = "请先播放画面预览，再确认是否采用这个剪辑。"
 
+    var canPrepareSound: Bool {
+        loaded && !busy && !uncertain && pending == nil && latest?.payload.edit_approved == true
+    }
+
     init(edit: EpisodeEditingEvent, picture: EpisodePicture, runtime: RuntimeClient = RuntimeClient()) {
         self.edit = edit; self.picture = picture; self.runtime = runtime
     }
@@ -131,7 +135,7 @@ struct EpisodeEditReviewEnvelope: Decodable {
     }
 
     func retrySoundPreparation() async {
-        guard !busy, !uncertain, pending == nil, latest?.payload.edit_approved == true else { return }
+        guard canPrepareSound else { return }
         busy = true
         defer { busy = false }
         await prepareAcceptedSound()

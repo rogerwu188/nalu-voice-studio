@@ -225,6 +225,25 @@ struct EpisodeShotPlanTests {
         #expect(reviewModel.pending == nil && !reviewModel.uncertain)
         #expect(ShotReviewProtocol.requests.count == afterConfirmed)
         #expect(reviewModel.latest?.payload.edit_approved == true)
+        let restoredReview = EpisodeEditReviewModel(edit: edit, picture: picture, runtime: runtime())
+        #expect(!restoredReview.canPrepareSound)
+        let restoredHistory = try JSONSerialization.data(withJSONObject: [recorded])
+        ShotReviewProtocol.queued = [(200, restoredHistory)]
+        let beforeRecovery = ShotReviewProtocol.requests.count
+        await restoredReview.load()
+        #expect(restoredReview.canPrepareSound)
+        #expect(ShotReviewProtocol.requests.count == beforeRecovery + 1)
+        #expect(ShotReviewProtocol.requests.last?.httpMethod == "GET")
+        ShotReviewProtocol.queued = [(200, try JSONSerialization.data(withJSONObject: soundReceipt))]
+        await restoredReview.retrySoundPreparation()
+        #expect(restoredReview.latest?.id == "review" && !restoredReview.soundPreparationPending)
+        #expect(ShotReviewProtocol.requests.last?.url?.path.hasSuffix("sound-plan-drafts") == true)
+        ShotReviewProtocol.queued = [(503, Data())]
+        await restoredReview.load()
+        #expect(!restoredReview.canPrepareSound)
+        let afterFailedRecovery = ShotReviewProtocol.requests.count
+        await restoredReview.retrySoundPreparation()
+        #expect(ShotReviewProtocol.requests.count == afterFailedRecovery)
     }
 
     @MainActor @Test func continuousPreparationCarriesPlanAndRejectsForeignTailResponse() async throws {
