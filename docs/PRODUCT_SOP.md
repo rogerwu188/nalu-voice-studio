@@ -28,6 +28,11 @@ completed user journey. Real writer/provider integration, native interaction,
 script revision handoff and the complete production demonstration remain open.
 The authoritative next action is in `docs/GOAL_PROGRESS.json`.
 
+[Episode audio attachment](qa/episode-audio-attachment-2026-09-07.md) now binds
+actual decoded authorized local recordings to approved-edit cues and tracks
+asset dependencies. Native selection, listening, alignment, sound mixing and
+master/release acceptance remain required. Synthetic tones are not narration QA.
+
 [Native approved-sound orchestration](qa/native-approved-sound-handoff-2026-09-07.md)
 now follows explicit picture acceptance with exact-review timing preparation.
 Partial failure preserves the accepted edit. Visible sound-only retry and

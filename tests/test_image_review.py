@@ -368,6 +368,39 @@ def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypat
             assert not any(approved_sound[key] for key in ("audio_generated", "voice_authorized",
                            "speech_alignment_verified", "captions_approved", "master_accepted", "generation_performed"))
             assert reopened.post(retime_url, json=approved_timing).json()["id"] == prepared_sound.json()["id"]
+            import io
+            import math
+            import struct
+            import wave
+
+            from nalu_runtime.models import AssetConsentRevocationCreate, AssetKind, ConsentScope
+            audio_buffer = io.BytesIO()
+            with wave.open(audio_buffer, "wb") as wav:
+                wav.setnchannels(1)
+                wav.setsampwidth(2)
+                wav.setframerate(8000)
+                wav.writeframes(b"".join(struct.pack("<h", round(1000 * math.sin(i * 0.2))) for i in range(8 * 8000)))
+            recording = AssetService(repo, root).import_bytes(project["id"], content=audio_buffer.getvalue(),
+                filename="synthetic-tone-not-speech.wav", content_type="audio/wav", kind=AssetKind.ARCHIVE_AUDIO,
+                name="合成音频非真实旁白", subject_name="", season_id=None, episode_id=episode["id"],
+                consent_granted=True, consent_scope=ConsentScope.PROJECT_ONLY, guardian_approved=False,
+                consent_granted_by="synthetic-qa", consent_statement="合成测试音频授权，仅测试")
+            take_url = f"/v1/production-runs/{run.id}/audio-takes"
+            take_request = {"sound_plan_id": prepared_sound.json()["id"],
+                            "expected_sound_plan_sha256": approved_sound["sound_plan_sha256"], "shot_index": 0,
+                            "asset_id": recording.id, "expected_asset_sha256": recording.metadata["sha256"]}
+            assert api.post(take_url, json=take_request, headers={"Origin": "https://example.org"}).status_code == 403
+            assert api.post(take_url, json={**take_request, "expected_asset_sha256": "0" * 64}).status_code == 409
+            assert api.post(take_url, json={**take_request, "source_in_seconds": 3}).status_code == 409
+            take = api.post(take_url, json=take_request)
+            assert take.status_code == 200, take.text
+            assert take.json()["payload"]["decoded_sample_count"] == 7 * 48000
+            assert not take.json()["payload"]["speech_alignment_verified"]
+            assert not take.json()["payload"]["audio_approved"]
+            assert reopened.post(take_url, json=take_request).json()["id"] == take.json()["id"]
+            assert run.id in repo.asset_dependency_report(recording.id).production_run_ids
+            repo.revoke_asset_consent(recording.id, AssetConsentRevocationCreate(requested_by="synthetic-qa", reason="测试撤销"))
+            assert reopened.post(take_url, json=take_request).status_code == 409
             assert api.post(retime_url, json={**retime, "expected_edit_review_id": rejected_edit.json()["id"]}).status_code == 409
             assert api.post(retime_url, json={"expected_plan_sha256": plan["plan_sha256"],
                             "expected_edit_review_id": reviewed_edit.json()["id"]}).status_code == 422
@@ -376,6 +409,7 @@ def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypat
             assert [file.read_bytes() for file in files] == [video_bytes, second_bytes]
             reject_again = api.post(edit_review_url, json={**edit_review, "expected_review_id": reviewed_edit.json()["id"]})
             assert reject_again.status_code == 200, reject_again.text
+            assert reopened.post(take_url, json=take_request).status_code == 409
             assert reopened.post(retime_url, json=approved_timing).status_code == 409
             assert api.post(retime_url, json={**retime, "expected_edit_review_id": reject_again.json()["id"]}).status_code == 409
             files[0].write_bytes(b"corrupted")

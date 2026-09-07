@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "ba811ec515d3c3f50ac75fcf2070d688063363b6",
-  "last_advanced_at": "2026-09-07T07:39:25Z",
+  "observed_head": "b6602cb",
+  "last_advanced_at": "2026-09-07T07:46:27Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Added visible sound-only continuation/retry for accepted edits, with GET-only restoration and failed-reload disable guard. Native recovery/no-repeat-review tests added; current CI and installed UI QA pending. Synthetic backend regression passed in 7.69s, Ruff/diff passed. CI 34094904074 remains in progress. Evidence docs/qa/native-approved-sound-handoff-2026-09-07.md."
+    "summary": "Added actual managed audio attachment to approved-edit cues with decode/coverage/hash checks, live consent/scope verification, idempotent replay and run asset dependency. 26 workflow tests passed in 20.09s including synthetic WAV, short source, wrong hash and revoked consent. Ruff/OpenAPI/diff passed; current CI/native QA unverified. Evidence docs/qa/episode-audio-attachment-2026-09-07.md."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Connect actual authored audio inputs and subtitle alignment to approved edit timing; inspect existing recording/import and master materialization paths to reuse rather than fabricate sound layers. Verify current native CI and installed QA when build available, then real master/release. Preserve two-source writing and existing TTS. Installed app not updated; synthetic timing tests are not real E2E.",
+    "summary": "Connect native sound cue/authorized recording selection to audio-take attachment; add listening and take selection, speech-based subtitle alignment and real authored sound layers before master/release QA. Verify current CI and installed native workflow. Preserve two-source writing and existing TTS; synthetic tones and timing tests are not real narration/E2E.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

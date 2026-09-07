@@ -25,6 +25,7 @@ from .development_result import (
 )
 from .director_refresh import DirectorRefreshRequest, DirectorRefreshService
 from .engine import ProductionService
+from .episode_audio import EpisodeAudioService, EpisodeAudioTakeRequest
 from .episode_edit_review import EpisodeEditReviewRequest, EpisodeEditReviewService
 from .episode_preview import EpisodePreviewRequest, EpisodePreviewService
 from .episode_sound_plan import EpisodeSoundPlanRequest, EpisodeSoundPlanService
@@ -1414,6 +1415,12 @@ def create_app(
         return EpisodeSoundPlanService(repository, data_root).prepare(run_id, request.expected_plan_sha256,
             edit_id=request.edit_id, expected_edit_sha256=request.expected_edit_sha256,
             expected_edit_review_id=request.expected_edit_review_id)
+
+    @app.post("/v1/production-runs/{run_id}/audio-takes", response_model=RunEvent)
+    def attach_episode_audio(run_id: str, request: EpisodeAudioTakeRequest, origin: str | None = Header(default=None)):
+        if origin is not None:
+            raise HTTPException(403, "native recording attachment required")
+        return EpisodeAudioService(repository, data_root).attach(run_id, request)
 
     @app.post("/v1/production-runs/{run_id}/episode-edit-drafts/{edit_id}/picture-preview", response_class=Response,
               responses={200: {"content": {"video/mp4": {}}}})
