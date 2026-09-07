@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "8c5e063b803394fda68e3abc163095c4bb4778f8",
-  "last_advanced_at": "2026-09-07T00:34:36Z",
+  "observed_head": "05141f846b186249861fb66fa5abf6b3f5a73da6",
+  "last_advanced_at": "2026-09-07T00:38:29Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Official image docs exposed mismatched 1K wide/tall dimensions. Preparation now selects documented matching-ratio profiles (2K for 16:9/9:16), records dimensions/resolution and binds changed requests to fresh approval. Full suite 532 passed in 71.31s; Ruff/OpenAPI current. See docs/qa/image-resolution-profile-2026-09-07.md. Inspected public pages did not supply an applicable image unit price; automatic image pricing remains open. CI 34069325621 succeeded, 34069795049 cancelled, 34070060214 running at observation. No real image/native/full-product acceptance claimed."
+    "summary": "Native confirmed-shot selection now automatically creates missing local opening-frame preparation using only shot index and current plan ID. Runtime resolves technical identifiers, validates context and reuses durable preparation; no provider credential or paid generation. Full Python suite 539 passed in 73.54s; Ruff/OpenAPI passed. Swift tests added but local parse hit CommandLineTools SwiftBridging module conflict; compiled/native QA pending. See docs/qa/native-automatic-frame-preparation-2026-09-07.md. Last observed CI 34070060214 running, 34070263375 pending."
   },
   "next_action": {
     "sop": "SOP-04",

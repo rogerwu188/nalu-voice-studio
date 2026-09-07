@@ -8,13 +8,15 @@ private final class FrameReviewProtocol: URLProtocol, @unchecked Sendable {
     static var events = Data()
     static var image = Data("synthetic-image-bytes".utf8)
     static var review = Data()
+    static var preparation = Data()
     static var fail = false
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
     override func startLoading() {
         Self.requests.append(request)
         let path = request.url!.path
-        let body = path.hasSuffix("/events") ? Self.events : path.hasSuffix("/content") ? Self.image : Self.review
+        let body = path.hasSuffix("/events") ? Self.events : path.hasSuffix("/content") ? Self.image
+            : path.hasSuffix("/opening-frame-preparations") ? Self.preparation : Self.review
         client?.urlProtocol(self, didReceive: HTTPURLResponse(url: request.url!, statusCode: Self.fail ? 409 : 200,
             httpVersion: nil, headerFields: nil)!, cacheStoragePolicy: .notAllowed)
         client?.urlProtocol(self, didLoad: body)
@@ -35,6 +37,7 @@ private final class FrameReviewProtocol: URLProtocol, @unchecked Sendable {
     }
     private func setup() throws {
         FrameReviewProtocol.requests = []; FrameReviewProtocol.fail = false
+        FrameReviewProtocol.preparation = Data()
         FrameReviewProtocol.image = Data("synthetic-image-bytes".utf8)
         let sha = SHA256.hash(data: FrameReviewProtocol.image).map { String(format: "%02x", $0) }.joined()
         FrameReviewProtocol.events = try JSONSerialization.data(withJSONObject: [
@@ -67,12 +70,34 @@ private final class FrameReviewProtocol: URLProtocol, @unchecked Sendable {
         let wrong = EpisodeFrameReviewModel(runID: "run-one", planID: "plan", shotIndex: 1, runtime: runtime())
         await wrong.load()
         #expect(!wrong.canReview)
-        #expect(FrameReviewProtocol.requests.count == 1)
+        #expect(FrameReviewProtocol.requests.count == 2)
+        #expect(FrameReviewProtocol.requests.last?.url?.path.hasSuffix("/opening-frame-preparations") == true)
+        FrameReviewProtocol.requests = []
         let model = EpisodeFrameReviewModel(runID: "run-one", planID: "plan", shotIndex: 0, runtime: runtime())
         FrameReviewProtocol.image = Data("changed".utf8)
         await model.load()
         #expect(!model.canReview)
         #expect(model.notice != nil)
         #expect(FrameReviewProtocol.requests.allSatisfy { $0.httpMethod == "GET" })
+    }
+
+    @MainActor @Test func missingPreparationIsResolvedLocallyWithoutProfessionalForm() async throws {
+        try setup()
+        FrameReviewProtocol.events = Data("[]".utf8)
+        FrameReviewProtocol.preparation = try JSONSerialization.data(withJSONObject:
+            event("prepared-locally", "image_task_prepared", ["approved_plan_event_id": "plan", "approved_shot_index": 0,
+                "request_sha256": "exact-request", "image_task_key": "E01-U01-entry"]))
+        let model = EpisodeFrameReviewModel(runID: "run-one", planID: "plan", shotIndex: 0, runtime: runtime())
+        await model.load()
+        #expect(model.preparation?.id == "prepared-locally")
+        #expect(!model.canReview && model.imageData == nil)
+        #expect(model.notice?.contains("首帧任务已准备") == true)
+        #expect(FrameReviewProtocol.requests.map(\.httpMethod) == ["GET", "POST"])
+        #expect(FrameReviewProtocol.requests.allSatisfy { $0.value(forHTTPHeaderField: "X-Nalu-Provider-Key") == nil })
+        #expect(FrameReviewProtocol.requests.last?.url?.path == "/v1/production-runs/run-one/shot-plans/plan/opening-frame-preparations")
+        FrameReviewProtocol.fail = true
+        await model.load()
+        #expect(model.preparation == nil && !model.canReview)
+        #expect(model.notice != nil)
     }
 }

@@ -224,6 +224,11 @@ actor RuntimeClient {
         try await get("v1/production-runs/\(runID)/events")
     }
 
+    func prepareReviewedShotFrame(runID: String, planID: String, shotIndex: Int) async throws -> FrameProductionEvent {
+        try await post("v1/production-runs/\(runID)/shot-plans/\(planID)/opening-frame-preparations",
+                       body: ["shot_index": shotIndex])
+    }
+
     func savedFrameBytes(runID: String, materializationID: String, expectedSHA: String) async throws -> Data {
         let (data, response) = try await authorizedData(from: baseURL.appending(path:
             "v1/production-runs/\(runID)/image-results/\(materializationID)/content"))

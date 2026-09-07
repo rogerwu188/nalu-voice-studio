@@ -35,7 +35,11 @@ from .image_budget import ImageBudgetApproval, ImageBudgetService
 from .image_download import ImageDownloadError
 from .image_materialization import ImageMaterializationService
 from .image_observation import ImageObservationService
-from .image_preparation import ImagePreparationRequest, ImagePreparationService
+from .image_preparation import (
+    ImagePreparationRequest,
+    ImagePreparationService,
+    ReviewedShotFrameRequest,
+)
 from .image_progress import ImageProgressResult, ImageProgressService
 from .image_review import ImageReviewRequest, ImageReviewService
 from .interactive_story import InteractiveStory, StoryAnswer, StoryInput
@@ -1140,6 +1144,13 @@ def create_app(
     @app.post("/v1/production-runs/{run_id}/image-task-preparations", response_model=RunEvent)
     def prepare_image_task(run_id: str, request: ImagePreparationRequest) -> RunEvent:
         return ImagePreparationService(repository, asset_service).prepare(run_id, request)
+
+    @app.post("/v1/production-runs/{run_id}/shot-plans/{plan_id}/opening-frame-preparations", response_model=RunEvent)
+    def prepare_reviewed_shot_frame(run_id: str, plan_id: str, request: ReviewedShotFrameRequest,
+                                    origin: str | None = Header(default=None)) -> RunEvent:
+        if origin is not None:
+            raise HTTPException(403, "native confirmed-shot selection required")
+        return ImagePreparationService(repository, asset_service).prepare_reviewed_shot(run_id, plan_id, request.shot_index)
 
     @app.post("/v1/production-runs/{run_id}/image-task-preparations/{preparation_id}/estimate-approvals", response_model=RunEvent)
     def approve_image_estimate(run_id: str, preparation_id: str, request: ImageBudgetApproval,

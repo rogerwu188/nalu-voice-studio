@@ -23,9 +23,28 @@ class ImagePreparationRequest(BaseModel):
     approved_plan_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
 
 
+class ReviewedShotFrameRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    shot_index: int = Field(strict=True, ge=0, le=119)
+
+
 class ImagePreparationService:
     def __init__(self, repository: Repository, assets: AssetService):
         self.repository, self.assets = repository, assets
+
+    def prepare_reviewed_shot(self, run_id: str, plan_id: str, shot_index: int):
+        """Resolve professional identifiers from the exact reviewed native selection."""
+        current = ShotReviewService(self.repository).current(run_id)
+        if not current or current.id != plan_id or current.event_type != "shot_plan_approved":
+            raise ConflictError("selected shot plan is no longer the current confirmed plan")
+        plan = ShotPlan.model_validate(current.payload["plan"])
+        if type(shot_index) is not int or not 0 <= shot_index < len(plan.shots):
+            raise ConflictError("selected shot does not exist in the confirmed plan")
+        run = self.repository.get_run(run_id)
+        episode = self.repository.get_episode(run.episode_id)
+        return self.prepare(run_id, ImagePreparationRequest(
+            task_key=f"E{episode.episode_number:02d}-U{shot_index + 1:02d}",
+            approved_plan_event_id=plan_id, approved_plan_sha256=current.payload["plan_sha256"]))
 
     def materialize(self, run_id: str, incoming: ImagePreparationRequest):
         run = self.repository.get_run(run_id)
