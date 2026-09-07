@@ -20,3 +20,30 @@ in progress. Installed app and actual accessibility/playback QA remain unchanged
 
 Next: connect the cue/recording choice and actual audition controls, then take
 confirmation, speech-based subtitles and authored final audio/master/release.
+
+## Visible selection and audition checkpoint
+
+EpisodeAudioPanel is now attached below successful approved sound preparation.
+Each cue shows its narration and duration, an authorized-recording picker, text
+readback, audition and explicit attachment readback/confirmation. Uncertain
+attachment exposes same-request retry and prevents replacing the selected asset.
+Empty/error states direct users to existing import/authorization or refresh.
+
+Audition reads only a bounded local regular file, rejects symlink resolution
+changes, verifies SHA bytes off the main thread and asks AVAudioPlayer to play the
+cue-length segment from the recording start. It stops on switching, readback,
+attachment, explicit stop or disappearance, and tracks end/error status. This is
+source audition, not synchronized picture playback or final voice approval.
+Nonzero source-offset selection and persisted take recovery remain unfinished.
+
+Impeccable hardening preserved Nalu typography, native large controls and wrapping
+status text. Added native byte-validation tests cover exact bytes, remote URI,
+missing consent and modified file rejection; the bytes are not real audio, and
+the test does not claim playback QA. Current native CI is required. Parent
+7b8a0be CI 34097684986 ARM/Intel/Runtime were still running at inspection.
+Backend synthetic audio attachment regression passed (1 test, 8.88s), scoped
+Ruff/diff passed. No current installed screenshot, VoiceOver, actual speakers,
+end-to-end family narration or final audio QA has been obtained.
+
+Next: recover recorded takes after restart and add explicit listened-to decisions,
+then speech-based subtitle alignment, authored final audio and master/release QA.

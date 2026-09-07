@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "7b8a0be",
-  "last_advanced_at": "2026-09-07T07:56:09Z",
+  "observed_head": "6988066",
+  "last_advanced_at": "2026-09-07T08:00:44Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Added native scoped recording selection model with GET-only load, readback, explicit attachment and retained uncertain retry. Native filtering/no-submit/503/retry tests added, current CI required. Synthetic backend regression passed in 8.94s; Ruff/diff passed. e72c1f4 CI 34097214521 remains in progress. Evidence docs/qa/native-recording-selection-2026-09-07.md."
+    "summary": "Attached visible cue/authorized recording picker, source audition with bounded SHA-checked bytes and playback lifecycle, readback/attachment/retry controls. Native byte safety tests added; current CI/installed playback unverified. Synthetic backend regression passed in 8.88s, Ruff/diff passed. 7b8a0be CI 34097684986 running. Evidence docs/qa/native-recording-selection-2026-09-07.md."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Attach visible cue/recording selection and actual audition to EpisodeAudioModel, add persisted take recovery/confirmation, speech-based alignment and authored audio/master/release. Verify current native CI and installed workflow. Preserve two-source writing and existing TTS; synthetic tones are not real narration QA.",
+    "summary": "Recover bound recordings across restart and add explicit listened-to take decisions/nonzero source offset, then speech-based subtitle alignment and authored audio/master/release. Verify current CI and installed audition/UI QA. Preserve two-source writing and existing TTS; source audition and synthetic tones are not final narration QA.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

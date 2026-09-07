@@ -744,6 +744,26 @@ struct EpisodeShotPlanTests {
             session: URLSession(configuration: config), accessCheck: { true })
     }
 
+    @Test func audioAuditionRejectsChangedBytesAndRemoteURLs() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let file = directory.appendingPathComponent("synthetic-not-audio.bin").resolvingSymlinksInPath()
+        try Data("abc".utf8).write(to: file)
+        func asset(uri: String, consent: Bool = true) -> NaluAsset {
+            NaluAsset(id: "recording", projectID: "project", seasonID: nil, episodeID: nil, kind: "archive_audio",
+                name: "合成字节校验", localURI: uri, subjectName: "",
+                metadata: ["sha256": .string("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")],
+                consentGranted: consent, consentScope: "project_only", guardianApproved: false, createdAt: "now")
+        }
+        #expect(try EpisodeAudioPreview.read(asset(uri: file.absoluteString)) == Data("abc".utf8))
+        for invalid in [asset(uri: "https://example.org/audio.wav"), asset(uri: file.absoluteString, consent: false)] {
+            do { _ = try EpisodeAudioPreview.read(invalid); Issue.record("unsafe audition must fail") } catch {}
+        }
+        try Data("changed".utf8).write(to: file)
+        do { _ = try EpisodeAudioPreview.read(asset(uri: file.absoluteString)); Issue.record("changed recording must fail") } catch {}
+    }
+
     @MainActor @Test func loadEditConfirmUsesCurrentVersionWithoutModelCalls() async throws {
         ShotReviewProtocol.requests = []
         ShotReviewProtocol.status = 200

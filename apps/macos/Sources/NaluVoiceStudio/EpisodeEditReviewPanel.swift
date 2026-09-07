@@ -39,6 +39,10 @@ import SwiftUI
             Button("核对剪辑确认记录", systemImage: "list.bullet.clipboard") {
                 Task { await model.load(); onRead(model.notice) }
             }.buttonStyle(.bordered).controlSize(.large).disabled(model.busy)
+            if let sound = model.soundPlan, model.loaded, model.latest?.payload.edit_approved == true {
+                EpisodeAudioPanel(sound: sound, onRead: onRead).id(sound.id)
+                    .disabled(model.busy || model.pending != nil)
+            }
         }
         .accessibilityIdentifier("nalu.episode.edit-review")
         .task { await model.load() }

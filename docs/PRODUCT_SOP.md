@@ -30,7 +30,8 @@ The authoritative next action is in `docs/GOAL_PROGRESS.json`.
 
 [Native recording-selection state](qa/native-recording-selection-2026-09-07.md)
 now filters scoped authorized audio and supports readback/attach/retry. Visible
-selection, audition, persisted take recovery and final audio QA remain required.
+selection and source audition are now connected in native code; current installed
+QA, persisted take recovery and final audio QA remain required.
 
 [Native audio cue transport](qa/native-audio-cue-transport-2026-09-07.md) now
 preserves timed narration and submits exact recording bindings. Visible recording
