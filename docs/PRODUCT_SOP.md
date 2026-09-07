@@ -57,6 +57,10 @@ Accepted references now have a [project-asset registration path](qa/generated-re
 with explicit permissions, generated-source provenance and interrupted-response
 reuse. Native confirmation and automatic reference resolution still need completion.
 
+Registered references now [resolve into opening-frame image inputs](qa/registered-reference-frame-resolution-2026-09-07.md)
+without rewriting the approved plan. Native refresh avoids reusing a frame from
+the old inputs; compiled/native and real-production acceptance remain open.
+
 Confirmed shots now support [automatic local opening-image preparation](qa/reviewed-opening-image-preparation-2026-09-06.md)
 with exact source bindings, inherited reference checks and restart reuse. This is
 not paid image activation, native QA, continuous-frame handoff or finished production.

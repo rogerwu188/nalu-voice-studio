@@ -45,11 +45,11 @@ class ImagePreparationService:
         episode = self.repository.get_episode(run.episode_id)
         incoming = ImagePreparationRequest(task_key=f"E{episode.episode_number:02d}-U{shot_index + 1:02d}",
             approved_plan_event_id=plan_id, approved_plan_sha256=current.payload["plan_sha256"])
-        self.materialize(run_id, incoming)  # Reject invalid/stale shots before creating dependencies.
+        compiled, _ = self.materialize(run_id, incoming)  # Validate before creating dependencies.
         # Prepare reusable dependencies locally; shared keys must not create one
         # replacement character/scene for every shot. No provider call here.
         for design in plan.visual_assets:
-            if design.key in plan.shots[shot_index].visual_asset_keys and not design.existing_asset_id:
+            if design.key in compiled.get("unmaterialized_visual_asset_keys", []):
                 self.prepare_reviewed_reference(run_id, plan_id, design.key)
         return self.prepare(run_id, incoming)
 
@@ -99,11 +99,37 @@ class ImagePreparationService:
         shot = plan.shots[task["shot_index"]]
         snapshots = {a["id"]: a for a in package.get("inherited_assets", [])}
         available = {a.id: a for a in self.repository.list_assets(run.project_id, episode.id)}
+        selected = [item for item in plan.visual_assets if item.key in shot.visual_asset_keys]
+        resolved = {}
+        from .reference_assets import ReferenceAssetService, validate_registered_reference
+        for design in selected:
+            if design.existing_asset_id is not None:
+                continue
+            candidates = []
+            for asset in available.values():
+                origin = asset.metadata.get("generation_provenance")
+                if (isinstance(origin, dict) and origin.get("run_id") == run_id
+                        and origin.get("approved_plan_event_id") == current.id
+                        and origin.get("visual_asset_key") == design.key
+                        and origin.get("design_sha256") == digest(design.model_dump())):
+                    candidates.append(asset)
+            if len(candidates) > 1:
+                raise ConflictError("multiple registered references match this design; resolve before production")
+            if candidates:
+                asset = candidates[0]
+                if asset.kind != design.kind or asset.season_id is not None or asset.episode_id is not None:
+                    raise ConflictError("registered design reference has an incompatible kind or scope")
+                validate_registered_reference(self.repository, asset)
+                ReferenceAssetService(self.repository, self.assets, self.assets.root.parent)._source(
+                    run_id, asset.metadata["generation_provenance"]["review_id"])
+                resolved[design.key] = asset.id
+                snapshots[asset.id] = asset.model_dump(mode="json", exclude={"consent_granted_by", "consent_statement"})
+        reference_ids = [*shot.reference_asset_ids, *resolved.values()]
         cards = {card.asset_id: card for card in self.repository.list_memory_cards(run.project_id)}
         references, manifest, reference_labels = [], [], []
-        if len(shot.reference_asset_ids) > 9:
+        if len(reference_ids) > 9 or len(set(reference_ids)) != len(reference_ids):
             raise ConflictError("this image provider supports at most nine references; do not silently discard assets")
-        for asset_id in shot.reference_asset_ids:
+        for asset_id in reference_ids:
             asset = available.get(asset_id)
             snapshot = snapshots.get(asset_id)
             if (not asset or not snapshot
@@ -111,7 +137,6 @@ class ImagePreparationService:
                 raise ConflictError("reference asset changed or is outside this episode")
             if asset.kind not in {"character_image", "scene_reference", "prop_reference", "style_reference", "source_document"}:
                 raise ConflictError("shot references non-image material; prepare an explicit reviewed still first")
-            from .reference_assets import validate_registered_reference
             validate_registered_reference(self.repository, asset)
             if asset.kind == "character_image":
                 consent = self.repository.list_asset_consent_records(asset_id)
@@ -168,9 +193,10 @@ class ImagePreparationService:
                   "request_sha256": hashlib.sha256(endpoint.encode() + b"\0" + raw_request).hexdigest(),
                   "paid_approved": False, "generation_performed": False, "visual_semantics_verified": False}
         if plan.visual_assets:
-            selected = [item for item in plan.visual_assets if item.key in shot.visual_asset_keys]
             record["reference_design_plan"] = [item.model_dump() for item in selected]
-            record["unmaterialized_visual_asset_keys"] = [item.key for item in selected if not item.existing_asset_id]
+            if resolved:
+                record["resolved_reference_assets"] = resolved
+            record["unmaterialized_visual_asset_keys"] = [item.key for item in selected if not item.existing_asset_id and item.key not in resolved]
             record["reference_dependency_task_keys"] = [f"REF-{key}-design" for key in record["unmaterialized_visual_asset_keys"]]
             record["reference_designs_materialized"] = not record["unmaterialized_visual_asset_keys"]
         record["preparation_sha256"] = digest(record)

@@ -37,7 +37,9 @@ private final class FrameReviewProtocol: URLProtocol, @unchecked Sendable {
     }
     private func setup() throws {
         FrameReviewProtocol.requests = []; FrameReviewProtocol.fail = false
-        FrameReviewProtocol.preparation = Data()
+        FrameReviewProtocol.preparation = try JSONSerialization.data(withJSONObject:
+            event("prep", "image_task_prepared", ["approved_plan_event_id": "plan", "approved_shot_index": 0,
+                "request_sha256": "request", "image_task_key": "E01-U01-entry"]))
         FrameReviewProtocol.image = Data("synthetic-image-bytes".utf8)
         let sha = SHA256.hash(data: FrameReviewProtocol.image).map { String(format: "%02x", $0) }.joined()
         FrameReviewProtocol.events = try JSONSerialization.data(withJSONObject: [
@@ -78,7 +80,7 @@ private final class FrameReviewProtocol: URLProtocol, @unchecked Sendable {
         await model.load()
         #expect(!model.canReview)
         #expect(model.notice != nil)
-        #expect(FrameReviewProtocol.requests.allSatisfy { $0.httpMethod == "GET" })
+        #expect(FrameReviewProtocol.requests.map(\.httpMethod) == ["GET", "POST", "GET"])
     }
 
     @MainActor @Test func missingPreparationIsResolvedLocallyWithoutProfessionalForm() async throws {
@@ -99,5 +101,18 @@ private final class FrameReviewProtocol: URLProtocol, @unchecked Sendable {
         await model.load()
         #expect(model.preparation == nil && !model.canReview)
         #expect(model.notice != nil)
+    }
+
+    @MainActor @Test func refreshedReferencesDoNotReuseAnOldFrame() async throws {
+        try setup()
+        FrameReviewProtocol.preparation = try JSONSerialization.data(withJSONObject:
+            event("updated-prep", "image_task_prepared", ["approved_plan_event_id": "plan", "approved_shot_index": 0,
+                "request_sha256": "with-registered-references", "image_task_key": "E01-U01-entry"]))
+        let model = EpisodeFrameReviewModel(runID: "run-one", planID: "plan", shotIndex: 0, runtime: runtime())
+        await model.load()
+        #expect(model.preparation?.id == "updated-prep")
+        #expect(!model.canReview && model.imageData == nil)
+        #expect(FrameReviewProtocol.requests.map(\.httpMethod) == ["GET", "POST"])
+        #expect(FrameReviewProtocol.requests.allSatisfy { $0.value(forHTTPHeaderField: "X-Nalu-Provider-Key") == nil })
     }
 }

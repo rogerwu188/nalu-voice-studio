@@ -1,3 +1,4 @@
+import base64
 from copy import deepcopy
 from types import SimpleNamespace
 
@@ -131,6 +132,20 @@ def test_reference_request_uses_existing_durable_submission_download_and_review(
     assert provenance["identity_qa_verified"] is False and provenance["authentic_historical_photo"] is False
     assert provenance["review_id"] == result.json()["id"]
     validate_registered_reference(repo, repo.get_asset(asset["id"]))
+    opening_endpoint = f"/v1/production-runs/{run.id}/shot-plans/{plan.id}/opening-frame-preparations"
+    frame_prepared = api.post(opening_endpoint, json={"shot_index": 0})
+    assert frame_prepared.status_code == 200, frame_prepared.text
+    frame_record = frame_prepared.json()["payload"]
+    assert frame_record["resolved_reference_assets"] == {"grandma": asset["id"]}
+    assert frame_record["unmaterialized_visual_asset_keys"] == ["beach"]
+    assert frame_record["reference_designs_materialized"] is False  # The scene is still missing.
+    assert frame_record["reference_manifest"][0]["asset_id"] == asset["id"]
+    frame_input = ImagePreparationRequest.model_validate({k: frame_record[k] for k in ImagePreparationRequest.model_fields if k in frame_record})
+    _, frame_request = service.materialize(run.id, frame_input)
+    assert base64.b64decode(frame_request["reference_images"][0]["base64"]) == png()
+    assert repo.get_run_event(plan.id).payload == plan.payload  # No script/plan rewriting to attach references.
+    assert api.post(opening_endpoint, json={"shot_index": 0}).json()["id"] == frame_prepared.json()["id"]
+    assert api.post(opening_endpoint, json={"shot_index": 1}).json()["payload"]["resolved_reference_assets"] == {"grandma": asset["id"]}
     if registration_case == "revoked":
         with repo.db.connect() as db:
             db.execute("UPDATE assets SET consent_granted=0 WHERE id=?", (asset["id"],))
@@ -146,6 +161,8 @@ def test_reference_request_uses_existing_durable_submission_download_and_review(
     else:
         assert retried.status_code == 200 and retried.json()["id"] == asset["id"]
     assert len(repo.list_assets(run.project_id)) == 1 and len(calls) == 1
+    if registration_case in {"revoked", "changed_bytes"}:
+        assert api.post(opening_endpoint, json={"shot_index": 0}).status_code == 409
 
 
 @pytest.mark.parametrize("case", ["unknown", "wrong_task", "stale", "cancelled", "style_changed", "unapproved"])

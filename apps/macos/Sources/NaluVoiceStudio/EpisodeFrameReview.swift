@@ -67,19 +67,13 @@ struct FrameReviewDraft: Encodable, Sendable {
         do {
             let events = try await runtime.frameProductionEvents(runID: runID)
             guard !Task.isCancelled else { return }
-            let prepared: FrameProductionEvent
-            if let existing = events.last(where: { $0.run_id == runID && $0.event_type == "image_task_prepared"
-                && $0.payload.approved_plan_event_id == planID && $0.payload.approved_shot_index == shotIndex }) {
-                prepared = existing
-            } else {
-                // Local, idempotent preparation only. No credential, model call,
-                // spending approval or replacement of a submitted image task.
-                prepared = try await runtime.prepareReviewedShotFrame(runID: runID, planID: planID, shotIndex: shotIndex)
-                guard !Task.isCancelled else { return }
-                guard prepared.run_id == runID, prepared.event_type == "image_task_prepared",
-                      prepared.payload.approved_plan_event_id == planID, prepared.payload.approved_shot_index == shotIndex else {
-                    throw RuntimeError.requestFailed("首帧任务不属于当前镜头")
-                }
+            // Recompile locally even when an old record exists: newly registered
+            // references change the request. This never submits a provider task.
+            let prepared = try await runtime.prepareReviewedShotFrame(runID: runID, planID: planID, shotIndex: shotIndex)
+            guard !Task.isCancelled else { return }
+            guard prepared.run_id == runID, prepared.event_type == "image_task_prepared",
+                  prepared.payload.approved_plan_event_id == planID, prepared.payload.approved_shot_index == shotIndex else {
+                throw RuntimeError.requestFailed("首帧任务不属于当前镜头")
             }
             preparation = prepared
             guard let saved = events.last(where: { $0.run_id == runID && $0.event_type == "image_result_materialized"
