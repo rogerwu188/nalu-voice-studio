@@ -220,6 +220,25 @@ actor RuntimeClient {
         try await get("v1/production-runs/\(runID)/shot-plans/current")
     }
 
+    func frameProductionEvents(runID: String) async throws -> [FrameProductionEvent] {
+        try await get("v1/production-runs/\(runID)/events")
+    }
+
+    func savedFrameBytes(runID: String, materializationID: String, expectedSHA: String) async throws -> Data {
+        let (data, response) = try await authorizedData(from: baseURL.appending(path:
+            "v1/production-runs/\(runID)/image-results/\(materializationID)/content"))
+        try validate(response, data: data)
+        let sha = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+        guard data.count <= 15_000_000, sha == expectedSHA else {
+            throw RuntimeError.requestFailed("首帧校验不一致，请重新读取")
+        }
+        return data
+    }
+
+    func reviewSavedFrame(runID: String, materializationID: String, draft: FrameReviewDraft) async throws -> FrameProductionEvent {
+        try await post("v1/production-runs/\(runID)/image-results/\(materializationID)/review", body: draft)
+    }
+
     func reviewShotPlan(runID: String, eventID: String, request: EpisodeShotReview) async throws -> EpisodeShotPlanEvent {
         try await post("v1/production-runs/\(runID)/shot-plans/\(eventID)/review", body: request)
     }

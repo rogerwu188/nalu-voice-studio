@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "bda1b73b91c53d4d5204ac99471c41d03a9187d5",
-  "last_advanced_at": "2026-09-07T00:06:40Z",
+  "observed_head": "6ce796b0ccc50c10bdbe405f20da28b82c6b0ddd",
+  "last_advanced_at": "2026-09-07T00:10:20Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Exact saved image bytes now have a preview endpoint and version-bound accept/reject review tied to current confirmed shot/preparation/reference hashes. User acceptance is distinct from professional QA and payment. Full suite 498 passed in 66.19s; final affected review/download 19 passed again. Evidence docs/qa/exact-frame-review-2026-09-07.md. Materialization CI 34068613752 pending and observation CI 34068416205 in progress at observation. Native preview/review and paid generation still incomplete."
+    "summary": "Native confirmed-shot panel now includes exact-image preview and accept/reject controls with source scope isolation and byte SHA verification. Added URLProtocol tests; Swift parse passed. Local swift test failed before tests at PackageDescription manifest linking, not a compiled test pass. Evidence docs/qa/native-frame-review-2026-09-07.md. Backend review CI 34068807985 in progress, materialization CI 34068613752 cancelled at observation. Native CI/artifact inspection and skill finish review remain pending; no actual paid generation claimed."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Connect locally materialized images to native preview and exact visual first-frame confirmation, then video preparation and reviewed previous-final-frame handoff. Paid image activation still needs exact cost approval/full QingShan contracts; do not fabricate identity/scene/role/spatial/entry PASS. Image-specific backup/import reconciliation remains unverified. Continue full real story/source-to-master/release; preserve isolated QA app and quarantined Hops attempt.",
+    "summary": "Verify newly wired native frame preview/review via CI-built artifact, capture scoped native states and complete impeccable finish review. Then connect accepted frame to video preparation plus previous-final-frame handoff. Paid image activation still needs exact cost/full QingShan contracts; no fabricated QA or permission. Image-specific backup/import recovery remains unverified. Continue full real story/source-to-master/release; preserve isolated QA app and quarantined Hops attempt.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

@@ -52,6 +52,10 @@ import SwiftUI
                             Text("动作：\(shot.action)\n对白或旁白：\(shot.dialogue_or_narration)\n声音：\(shot.sound)")
                                 .naluFont(.body).textSelection(.enabled)
                         }
+                        if let event = model.event, event.payload.approved && !model.hasEdits {
+                            EpisodeFrameReviewView(runID: model.runID, planID: event.id, shotIndex: selectedShot)
+                                .id("\(model.runID)-\(event.id)-\(selectedShot)")
+                        }
                     }
                     Button("保存我的修改", systemImage: "square.and.arrow.down") {
                         Task { await model.review(approve: false) }
