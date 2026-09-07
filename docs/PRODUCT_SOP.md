@@ -81,6 +81,10 @@ installed-app playback QA and accepted-video continuation remain open.
 adoption/rejection against current validated shot inputs and exact decoded media.
 Native decision controls, tail-frame continuity and professional QA remain open.
 
+[Accepted-video final frames](qa/accepted-video-tail-2026-09-07.md) now derive
+the actual decoded final frame with current-review validation and replay. The
+continuous-shot compiler/dispatcher still needs to consume this lineage.
+
 AI plans now carry [typed director choices with native round-trip and plain-language readback](qa/structured-director-drafts-2026-09-07.md).
 User edits invalidate stale choices. A [version-bound director refresh backend](qa/director-refresh-2026-09-07.md)
 now fills missing choices without rewriting user descriptions, with restart and

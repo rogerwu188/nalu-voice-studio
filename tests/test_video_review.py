@@ -1,6 +1,9 @@
+import io
 from concurrent.futures import ThreadPoolExecutor
 from types import SimpleNamespace
 
+import av
+import numpy as np
 import pytest
 from fastapi.testclient import TestClient
 from nalu_runtime.app import create_app
@@ -58,8 +61,34 @@ def test_video_review_is_bound_replayable_and_not_master_qa(tmp_path, monkeypatc
                                                    "master_accepted", "generation_performed"])
     restarted = TestClient(create_app(tmp_path / "db", tmp_path / "data"))
     assert restarted.post(endpoint, json=request).json()["id"] == saved["id"]
+    tail_route = f"/v1/production-runs/{run.id}/video-reviews/{saved['id']}/tail-frame"
+    assert api.post(tail_route, headers={"Origin": "https://example.org"}).status_code == 403
+    tail = api.post(tail_route)
+    if case == "reject":
+        assert tail.status_code == 409
+    else:
+        assert tail.status_code == 200, tail.text
+        assert tail.json()["payload"]["frame_index"] == 11
+        assert tail.json()["payload"]["time_seconds"] == pytest.approx(11 / 12)
+        assert tail.json()["payload"]["generation_performed"] is False
+        assert restarted.post(tail_route).json()["id"] == tail.json()["id"]
+        preview = f"/v1/production-runs/{run.id}/video-tails/{tail.json()['id']}/content"
+        png = api.get(preview).content
+        with av.open(io.BytesIO(raw)) as source:
+            final = list(source.decode(video=0))[-1].to_ndarray(format="rgb24")
+        with av.open(io.BytesIO(png)) as image:
+            extracted = next(image.decode(video=0)).to_ndarray(format="rgb24")
+        assert np.array_equal(extracted, final)
+        if case == "concurrent":
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                tails = list(pool.map(lambda _: api.post(tail_route), range(2)))
+            assert all(t.json()["id"] == tail.json()["id"] for t in tails)
+        assert api.get(preview, headers={"Origin": "https://example.org"}).status_code == 403
     changed = {**request, "decision": "reject" if case != "reject" else "accept"}
     assert api.post(endpoint, json=changed).status_code == 409
     changed["expected_review_event_id"] = saved["id"]
     assert api.post(endpoint, json=changed).status_code == 200
+    if case != "reject":
+        assert api.get(preview).status_code == 409
+        assert api.post(tail_route).status_code == 409
     assert repo.get_remote_task_binding(binding.id).state == "submitted"

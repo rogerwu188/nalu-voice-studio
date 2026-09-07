@@ -192,6 +192,7 @@ from .video_dispatch import VideoDispatchService
 from .video_download import VideoDownloadError
 from .video_materialization import VideoMaterializationService
 from .video_review import VideoReviewRequest, VideoReviewService
+from .video_tail import VideoTailService
 from .video_preparation import VideoPreparationRequest, VideoPreparationService
 from .video_pricing import VideoPricingService
 from .writer_provider import (
@@ -1359,6 +1360,20 @@ def create_app(
             return VideoMaterializationService(repository, data_root).materialize(run_id, observation_id, result_index)
         except VideoDownloadError as exc:
             raise HTTPException(502, str(exc)) from None
+
+    @app.post("/v1/production-runs/{run_id}/video-reviews/{review_id}/tail-frame", response_model=RunEvent)
+    def extract_video_tail(run_id: str, review_id: str, origin: str | None = Header(default=None)):
+        if origin is not None:
+            raise HTTPException(403, "native tail extraction required")
+        return VideoTailService(repository, data_root).extract(run_id, review_id)
+
+    @app.get("/v1/production-runs/{run_id}/video-tails/{tail_id}/content", response_class=Response,
+             responses={200: {"content": {"image/png": {}}}})
+    def preview_video_tail(run_id: str, tail_id: str, origin: str | None = Header(default=None)):
+        if origin is not None:
+            raise HTTPException(403, "native tail preview required")
+        _, raw = VideoTailService(repository, data_root).read_saved(run_id, tail_id)
+        return Response(content=raw, media_type="image/png", headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"})
 
     @app.post("/v1/production-runs/{run_id}/video-results/{materialization_id}/reviews", response_model=RunEvent)
     def review_saved_video(run_id: str, materialization_id: str, request: VideoReviewRequest,

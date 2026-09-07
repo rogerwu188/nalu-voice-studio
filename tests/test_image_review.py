@@ -166,6 +166,9 @@ def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypat
         assert accepted.status_code == 200, accepted.text
         assert accepted.json()["payload"]["approved_plan_event_id"] == plan_event.id
         assert accepted.json()["payload"]["master_accepted"] is False
+        tail = api.post(f"/v1/production-runs/{run.id}/video-reviews/{accepted.json()['id']}/tail-frame")
+        assert tail.status_code == 200, tail.text
+        assert tail.json()["payload"]["frame_index"] == 12 * shot["duration_seconds"] - 1
         return
     video = VideoPreparationRequest(task_key="E01-U01", request={}, approved_plan_event_id=plan_event.id,
         approved_plan_sha256=plan["plan_sha256"], approved_frame_review_id=result.json()["id"])
