@@ -46,3 +46,15 @@ Read-only verification on 2026-09-07:
 Next: concrete reference-production authority with verified applicable price and
 explicit spending approval, separate full keyframe contract compilation, native
 accepted-task progress and real sequential video/master/release verification.
+
+## Executed upstream reference-path comparison
+
+On 2026-09-07, a regression test executed the pinned
+`giggle_asset_factory.py::generate_image` for the same prepared character and
+scene prompts. Its network boundary was replaced with a capture that raises
+before transmission. Both upstream endpoints and complete request payloads match
+Nalu's compiled requests, including distinct square 1K and portrait 2K profiles.
+This directly checks the real upstream reference implementation rather than a
+copy of its expected output. No provider request, generated image, price or
+professional QA is implied. Reference lifecycle suite: 16 passed in 17.84s; Ruff
+passed. The concrete spending/price authority is still unfinished.

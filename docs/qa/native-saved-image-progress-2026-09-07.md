@@ -17,6 +17,14 @@ preparation, content or review endpoints. No generation endpoint or new paid
 approval is introduced. The client checks run/submission/result binding before
 making a frame reviewable; the backend retains its authoritative hash checks.
 
+Follow-up at 2026-09-07T01:28:05Z: cumulative source `1dd7962`, CI
+[34072916544](https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34072916544),
+passed the ARM64 Swift test step. Other build/test jobs were still active, not
+completed acceptance. Preceding reference UI source `883c902` now has a complete
+successful CI run 34072165394. CUA independently reported that the Mac was locked
+and automatic unlock failed; current native interaction remains blocked on unlock.
+No screenshot or human-use PASS is recorded.
+
 New Swift URLProtocol cases cover accepted completion and cached reuse, waiting,
 failure, foreign-run response, uncertain submission, unavailable credential and
 stale request. These are synthetic protocol fixtures, not provider evidence.

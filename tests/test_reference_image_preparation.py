@@ -1,6 +1,8 @@
 import base64
+import importlib.util
 import json
 from copy import deepcopy
+from pathlib import Path
 from types import SimpleNamespace
 
 import httpx
@@ -37,6 +39,46 @@ def reference_plan(tmp_path):
     payload["plan_sha256"] = digest(payload)
     event = repo.append_run_event(run.id, "shot_plan_approved", payload=payload)
     return api, run, event
+
+
+@pytest.mark.parametrize("key", ["grandma", "beach"])
+def test_reference_payload_matches_pinned_qingshan_asset_factory(tmp_path, monkeypatch, key):
+    """Exercise real pinned reference compiler, stopping before any network I/O.
+
+    This is payload compatibility, not generation, pricing or professional QA.
+    Keyframe-only spatial/action gates do not belong to this upstream path.
+    """
+    api, run, plan = reference_plan(tmp_path)
+    repo = api.app.state.repository
+    service = ImagePreparationService(repo, AssetService(repo, tmp_path / "data"))
+    prepared = service.prepare_reviewed_reference(run.id, plan.id, key)
+    incoming = ImagePreparationRequest.model_validate({k: prepared.payload[k] for k in ImagePreparationRequest.model_fields})
+    record, request = service.materialize(run.id, incoming)
+    source = Path(__file__).resolve().parents[1] / "vendor/qingshan/tools/giggle_asset_factory.py"
+    spec = importlib.util.spec_from_file_location("qingshan_reference_factory_fixture", source)
+    factory = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(factory)
+    calls = []
+
+    class CapturedBeforeNetwork(Exception):
+        pass
+
+    def capture(method, endpoint, payload=None):
+        calls.append((method, endpoint, payload))
+        raise CapturedBeforeNetwork
+
+    monkeypatch.setattr(factory, "request_json", capture)
+    with pytest.raises(CapturedBeforeNetwork):
+        factory.generate_image(SimpleNamespace(out_dir=str(tmp_path / "reference-factory"), reference_image=[],
+            prompt_file=None, prompt=record["prompt"], count=1, model=record["model"],
+            aspect_ratio=record["aspect_ratio"], resolution=record["resolution"]))
+    assert len(calls) == 1
+    method, endpoint, upstream_request = calls[0]
+    assert method == "POST"
+    assert factory.BASE_URL + endpoint == record["endpoint"]
+    assert upstream_request == request
+    assert record["paid_approved"] is False and record["generation_performed"] is False
+    assert not any(event.event_type == "image_submit_intent" for event in repo.list_run_events(run.id))
 
 
 def test_native_shots_prepare_shared_references_with_budget_and_restart_reuse(tmp_path):

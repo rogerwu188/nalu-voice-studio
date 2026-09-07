@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "7ffeb9b49dfe1bc0b956e3af54e042b535a6b445",
-  "last_advanced_at": "2026-09-07T01:24:10Z",
+  "observed_head": "1dd79621d5eb2e87d27aa3822fd094c5f882d6d4",
+  "last_advanced_at": "2026-09-07T01:28:05Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Native frame/reference loading now advances an exact accepted image task through the existing query/download endpoint and reloads verified bytes for review. Cached images skip provider access; uncertain submissions never resubmit. New Swift protocol cases await compiled CI and native QA. See docs/qa/native-saved-image-progress-2026-09-07.md. Reference authority/pricing and real-provider end-to-end acceptance remain open. Previous 7ffeb9b handoff fix was pushed with 566 local tests passing; its CI remains pending."
+    "summary": "Executed pinned QingShan reference factory with network stopped before transmission: character/scene payloads and endpoints exactly match Nalu preparations; reference lifecycle 16 tests passed. Native image progress ARM64 Swift tests passed in cumulative CI 34072916544; complete CI still running. Prior native reference source 883c902 full CI 34072165394 passed. Mac lock independently prevents current native interaction QA. Reference price/spending authority and real end-to-end generation remain unfinished; see generated-reference-video-handoff and native-saved-image-progress QA records."
   },
   "next_action": {
     "sop": "SOP-04",
