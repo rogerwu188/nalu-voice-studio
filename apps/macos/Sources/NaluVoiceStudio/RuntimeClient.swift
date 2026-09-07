@@ -233,6 +233,19 @@ actor RuntimeClient {
         try await get("v1/production-runs/\(runID)")
     }
 
+    func productionAuthorizationPreview(runID: String) async throws -> LibrarySnapshotRefreshPreview {
+        try await get("v1/production-runs/\(runID)/library-snapshot-refresh")
+    }
+
+    func authorizeProduction(runID: String, draft: ProductionAuthorizationDraft) async throws -> EpisodeShotPlanEvent {
+        let saved: EpisodeShotPlanEvent = try await post("v1/production-runs/\(runID)/production-authorization", body: draft)
+        guard saved.run_id == runID, saved.payload.approved,
+              saved.payload.production_authorization == draft, !Task.isCancelled else {
+            throw LibrarySnapshotRefreshError.contextChanged
+        }
+        return saved
+    }
+
     func refreshConfirmedLibrary(runID: String) async throws -> EpisodeShotPlanEvent {
         let path = "v1/production-runs/\(runID)/library-snapshot-refresh"
         let preview: LibrarySnapshotRefreshPreview = try await get(path)

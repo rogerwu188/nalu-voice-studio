@@ -394,6 +394,8 @@ struct ContentView: View {
                                 refreshRevision: model.shotPlanRefreshRevisionByRunID[runID, default: 0],
                                 onRead: model.readShotPlanText, onCharactersPrepared: { ids in
                                     await model.beginShotCharacterReview(ids, runID: runID)
+                                }, authorizationBusy: model.productionAuthorizationBusy, onAuthorizeProduction: { planID, planSHA in
+                                    await model.beginProductionAuthorization(runID: runID, planID: planID, planSHA: planSHA)
                                 })
                                 .id(runID)
                                 .padding(.horizontal, 24)

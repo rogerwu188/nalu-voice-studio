@@ -52,8 +52,10 @@ explicit cost approval/dispatch are still required.
 
 [Explicit preflight-to-production authorization](qa/production-authorization-2026-09-07.md)
 now preserves the same run and confirmed plan while creating a separately preflighted
-budget-authorized package. Native readback/action is not connected yet; per-task
-cost approval, dispatch and real production QA remain required. No SOP becomes PASS.
+budget-authorized package. [Native budget readback/action](qa/native-production-authorization-2026-09-07.md)
+is connected in source with explicit confirmation and retry identity preservation;
+current native CI/UI QA, per-task cost approval, dispatch and real production QA
+remain required. No SOP becomes PASS.
 
 AI plans now carry [typed director choices with native round-trip and plain-language readback](qa/structured-director-drafts-2026-09-07.md).
 User edits invalidate stale choices. A [version-bound director refresh backend](qa/director-refresh-2026-09-07.md)

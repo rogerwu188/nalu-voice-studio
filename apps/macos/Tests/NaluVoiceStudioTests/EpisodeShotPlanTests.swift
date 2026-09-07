@@ -22,6 +22,33 @@ private final class ShotReviewProtocol: URLProtocol, @unchecked Sendable {
 
 @Suite(.serialized)
 struct EpisodeShotPlanTests {
+    @MainActor @Test func productionAuthorizationBindsReceiptWithoutProviderKeyOrDispatch() async throws {
+        let draft = ProductionAuthorizationDraft(source_event_id: "saved-plan",
+            expected_plan_sha256: String(repeating: "a", count: 64), expected_package_sha256: String(repeating: "b", count: 64),
+            confirmed_run_budget_credits: 1000, confirmation: "确认本集预算", guardian_approval: false)
+        var record = try JSONSerialization.jsonObject(with: fixture(approved: true)) as! [String: Any]
+        var payload = record["payload"] as! [String: Any]
+        payload["production_authorization"] = try JSONSerialization.jsonObject(with: JSONEncoder().encode(draft))
+        record["payload"] = payload
+        ShotReviewProtocol.requests = []
+        ShotReviewProtocol.queued = [(200, try JSONSerialization.data(withJSONObject: record))]
+        let saved = try await runtime().authorizeProduction(runID: "run-one", draft: draft)
+        #expect(saved.payload.production_authorization == draft)
+        #expect(ShotReviewProtocol.requests.count == 1)
+        #expect(ShotReviewProtocol.requests[0].httpMethod == "POST")
+        #expect(ShotReviewProtocol.requests[0].url?.path.hasSuffix("run-one/production-authorization") == true)
+        #expect(ShotReviewProtocol.requests[0].value(forHTTPHeaderField: "X-Nalu-Provider-Key") == nil)
+        #expect(ShotReviewProtocol.requests[0].value(forHTTPHeaderField: "X-Nalu-Writer-Key") == nil)
+        // A successful HTTP response without this precise approval is not success.
+        ShotReviewProtocol.queued = [(200, try fixture(approved: true))]
+        do { _ = try await runtime().authorizeProduction(runID: "run-one", draft: draft); Issue.record("missing receipt") }
+        catch {}
+        record["run_id"] = "foreign-run"
+        ShotReviewProtocol.queued = [(200, try JSONSerialization.data(withJSONObject: record))]
+        do { _ = try await runtime().authorizeProduction(runID: "run-one", draft: draft); Issue.record("foreign receipt") }
+        catch {}
+    }
+
     private func refreshPreview(required: Bool, runID: String = "run-one") throws -> Data {
         try JSONSerialization.data(withJSONObject: ["run_id": runID, "refresh_required": required, "request": [
             "source_event_id": "saved-plan", "expected_plan_sha256": String(repeating: "a", count: 64),

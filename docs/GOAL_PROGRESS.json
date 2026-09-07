@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "040a149e28fd286a0c522fc0f809da871b3a95bb",
-  "last_advanced_at": "2026-09-07T04:18:45Z",
+  "observed_head": "7dc24bb257394e28d126bb50bce9108191ebc35d",
+  "last_advanced_at": "2026-09-07T04:28:33Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Found native production remained dry-run, making downstream cost approval unreachable. Added explicit same-run authorization endpoint bound to approved plan/package and positive confirmed budget, guardian policy, immutable separately preflighted package and atomic plan/run update. Preserves original script and plan; no paid call. Durable request replay and downstream-effect locks; old local image preparations cannot reuse stale bindings. See docs/qa/production-authorization-2026-09-07.md. Native authorization action and actual production remain unfinished. Prior cb1c10d CI 34081413828 succeeded; 040a149 CI running."
+    "summary": "Native approved-plan panel now starts spoken budget collection, exact readback and separate explicit confirmation (guardian phrase for children). Runtime preview binds selected project/episode and displayed plan; response must echo exact authorization. Saved plan refresh preserves unsaved edits; failed local save retains identical retry request. No keys or provider dispatch. See docs/qa/native-production-authorization-2026-09-07.md. Added native tests but local Swift manifest linker failed before source compilation; current CI/UI QA pending. 31 backend regressions passed in 10.16s; prior 040a149 full CI 34081854943 succeeded."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Connect native plain-language episode-budget readback and explicit confirmation to production-authorization before image/video cost approval. Refresh current plan after authorization without dropping user work; no assumed budget or automatic charge. Then connect per-task public-price approval/reservation and durable dispatch. Verify current native CI. Continue tail-frame lineage, prop visual evidence, other transports and real native source-to-master/release QA. Existing TTS and full multi-episode objective unchanged.",
+    "summary": "Verify current native compilation/tests and UI for conversational budget authorization. Connect per-task video public-price approval/reservation and durable dispatch after run authorization, keeping request/quote/plan identity and guardian policy. Image pricing remains externally unverified; do not invent rates or use paid discovery. Continue tail-frame lineage, prop visual evidence, other transports and real native source-to-master/release QA. Existing TTS and full multi-episode objective unchanged.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

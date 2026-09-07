@@ -14,14 +14,19 @@ import SwiftUI
     let guardianRequired: Bool
     let refreshRevision: Int
     let onCharactersPrepared: ([String]) async -> Void
+    let onAuthorizeProduction: (String, String) async -> Void
+    let authorizationBusy: Bool
 
     init(runID: String, guardianRequired: Bool = false, refreshRevision: Int = 0, onRead: @escaping (String) -> Void,
-         onCharactersPrepared: @escaping ([String]) async -> Void = { _ in }) {
+         onCharactersPrepared: @escaping ([String]) async -> Void = { _ in }, authorizationBusy: Bool = false,
+         onAuthorizeProduction: @escaping (String, String) async -> Void = { _, _ in }) {
         _model = State(initialValue: EpisodeShotPlanModel(runID: runID))
         self.onRead = onRead
         self.guardianRequired = guardianRequired
         self.refreshRevision = refreshRevision
         self.onCharactersPrepared = onCharactersPrepared
+        self.authorizationBusy = authorizationBusy
+        self.onAuthorizeProduction = onAuthorizeProduction
     }
 
     var body: some View {
@@ -92,6 +97,15 @@ import SwiftUI
                             Task { await model.continueDirector() }
                         }
                         .buttonStyle(.bordered).controlSize(.large).disabled(model.busy)
+                        Button("确认本集制作预算", systemImage: "checkmark.bubble") {
+                            guard let event = model.event else { return }
+                            Task { await onAuthorizeProduction(event.id, event.payload.plan_sha256) }
+                        }
+                        .buttonStyle(.borderedProminent).controlSize(.large)
+                        .disabled(model.busy || authorizationBusy)
+                        .accessibilityIdentifier("nalu.episode.production-budget")
+                        Text(authorizationBusy ? "正在核对本集制作确认…" : "点这里后直接说预算，Nalu 会朗读给您确认。不会立即扣费或生成视频。")
+                            .naluFont(.body)
                     }
                     Button("确认这个版本的分镜", systemImage: "checkmark.circle") {
                         Task {

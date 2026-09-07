@@ -102,6 +102,8 @@ final class VoiceInterviewViewModel {
     private var shotCharacterReviewRunID: String?
     private var librarySnapshotRefreshing = false
     var shotPlanRefreshRevisionByRunID: [String: Int] = [:]
+    private var productionBudgetConversation: ProductionBudgetConversation?
+    var productionAuthorizationBusy = false
     private var libraryCorrectionEntity: LibraryEntity?
     private var pendingLibraryCorrection: LibraryEntityRevisionDraft?
     private var libraryCorrectionSaving = false
@@ -220,6 +222,7 @@ final class VoiceInterviewViewModel {
         transcript = ""
         transcriptConfidence = 0
         if applyComfortCommand(spoken) { return }
+        if handleProductionBudgetAnswer(spoken) { return }
         if let number = Self.interactiveDraftSelection(spoken) {
             Task { await adoptInteractiveDraft(number: number) }
             return
@@ -715,6 +718,98 @@ final class VoiceInterviewViewModel {
         }
     }
 
+    func beginProductionAuthorization(runID: String, planID: String, planSHA: String) async {
+        guard let projectID = selectedProjectID, let episodeID = selectedEpisodeID,
+              !productionAuthorizationBusy else { return }
+        guard libraryIntakeStep == nil, !librarySnapshotRefreshing else {
+            productionBudgetReply("请先完成正在核对的人物资料，原分镜会保留。")
+            return
+        }
+        if let pending = productionBudgetConversation, pending.runID == runID,
+           pending.episodeID == episodeID, pending.submittedDraft != nil {
+            productionBudgetReply("上一次制作确认尚待核对。请说“重试制作确认”，会使用原来的预算和确认，不会新建任务。")
+            return
+        }
+        let generation = projectSelectionGeneration
+        productionAuthorizationBusy = true
+        defer { if projectSelectionGeneration == generation { productionAuthorizationBusy = false } }
+        do {
+            let run = try await runtime.productionRun(runID: runID)
+            guard run.id == runID, run.projectID == projectID, run.episodeID == episodeID,
+                  selectedEpisodeID == episodeID, selectedProjectID == projectID,
+                  projectSelectionGeneration == generation else { return }
+            if !run.dryRun {
+                guard run.status == "waiting_for_approval", let budget = run.estimatedBudgetCredits, budget > 0 else {
+                    productionBudgetReply("本集已有制作记录，需要先核对当前进度或恢复状态。这里没有改动预算或重复提交。")
+                    return
+                }
+                productionBudgetReply("本集已有制作授权，预计预算是 \(budget) 积分。接下来逐个镜头核对画面和费用，不需要重建项目。")
+                return
+            }
+            let preview = try await runtime.productionAuthorizationPreview(runID: runID)
+            guard projectSelectionGeneration == generation, selectedEpisodeID == episodeID else { return }
+            guard preview.run_id == runID, !preview.refresh_required,
+                  preview.request.source_event_id == planID, preview.request.expected_plan_sha256 == planSHA else {
+                productionBudgetReply("本集人物或分镜已经变化。请先核对本集人物并读取保存方案，再确认预算；剧本没有丢失。")
+                return
+            }
+            let conversation = ProductionBudgetConversation(runID: runID, episodeID: episodeID, preview: preview.request,
+                guardianRequired: projects.first(where: { $0.id == projectID })?.audienceMode == "child")
+            productionBudgetConversation = conversation
+            productionBudgetReply(conversation.opening)
+        } catch {
+            guard projectSelectionGeneration == generation, selectedEpisodeID == episodeID else { return }
+            productionBudgetReply("暂时无法核对本集制作状态。原剧本和分镜保留，请稍后再点“确认本集制作预算”。")
+        }
+    }
+
+    private func productionBudgetReply(_ text: String) {
+        messages.append(.init(speaker: .nalu, text: text))
+        speechPlayback.speak(text, rate: comfortPreferences.speechRate)
+    }
+
+    private func handleProductionBudgetAnswer(_ spoken: String) -> Bool {
+        guard var conversation = productionBudgetConversation else { return false }
+        guard conversation.episodeID == selectedEpisodeID else {
+            productionBudgetConversation = nil
+            return false
+        }
+        if productionAuthorizationBusy {
+            productionBudgetReply("正在保存刚才的制作确认，请稍等；不会重复提交。")
+            return true
+        }
+        let answer = conversation.answer(spoken)
+        productionBudgetConversation = conversation
+        switch answer {
+        case .reply(let text): productionBudgetReply(text)
+        case .cancel:
+            productionBudgetConversation = nil
+            productionBudgetReply("已停止这次制作确认。原故事、剧本和分镜都保留；已保存的授权不会因此撤销。")
+        case .unrelated: return false
+        case .submit(let draft):
+            productionAuthorizationBusy = true
+            Task { await saveProductionAuthorization(conversation: conversation, draft: draft) }
+        }
+        return true
+    }
+
+    private func saveProductionAuthorization(conversation: ProductionBudgetConversation, draft: ProductionAuthorizationDraft) async {
+        let generation = projectSelectionGeneration
+        defer { if projectSelectionGeneration == generation { productionAuthorizationBusy = false } }
+        guard conversation.episodeID == selectedEpisodeID else { return }
+        productionBudgetReply("正在保存本集制作确认。这里不会提交图片、视频或产生扣费。")
+        do {
+            _ = try await runtime.authorizeProduction(runID: conversation.runID, draft: draft)
+            guard projectSelectionGeneration == generation, selectedEpisodeID == conversation.episodeID else { return }
+            productionBudgetConversation = nil
+            shotPlanRefreshRevisionByRunID[conversation.runID, default: 0] += 1
+            productionBudgetReply("本集制作预算已确认，原剧本和分镜保留。接下来核对人物和镜头画面，并在生成前确认具体费用。现在还没有生成或扣费。")
+        } catch {
+            guard projectSelectionGeneration == generation, selectedEpisodeID == conversation.episodeID else { return }
+            productionBudgetReply("暂时没有核对到保存结果。原制作任务和预算确认保留，您可以说“重试制作确认”，用同一份确认核对，不会新建制作任务。")
+        }
+    }
+
     func beginShotCharacterReview(_ entityIDs: [String], runID: String) async {
         guard let projectID = selectedProjectID, !librarySnapshotRefreshing else { return }
         let generation = projectSelectionGeneration
@@ -917,6 +1012,8 @@ final class VoiceInterviewViewModel {
         shotCharacterReviewQueue = []
         shotCharacterReviewRunID = nil
         librarySnapshotRefreshing = false
+        productionBudgetConversation = nil
+        productionAuthorizationBusy = false
         shotPlanRefreshRevisionByRunID = [:]
         libraryIntakeEntityID = nil
         libraryIntakeStep = nil

@@ -124,6 +124,7 @@ struct EpisodeShotPlanEvent: Decodable {
         var plan: EpisodeShotPlan
         var plan_sha256: String
         var approved: Bool
+        var production_authorization: ProductionAuthorizationDraft?
     }
 }
 
