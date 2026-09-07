@@ -23,3 +23,11 @@ and rejection after recording adoption withdrawal. Ruff passed; OpenAPI updated.
 Pending: native correction UI, installed user QA, final mix/master
 and release integration. CI for this checkpoint is not yet confirmed. No SOP
 status is upgraded. No paid service, real family recording or release was used.
+
+Native transport follow-up: typed caption submission, receipt and recovery now
+validate current transcript identity, source PCM/review binding, exact echoed
+corrections and non-master flags. Historical recovery cannot be exposed as a
+current approval. Added native boundary/serialization test source. Native tests
+have NOT run locally (existing Swift toolchain blocker); CI is required. Ruff,
+progress-file audit and diff checks passed; these do not prove Swift execution.
+Next wire the interaction state and visible correction controls.

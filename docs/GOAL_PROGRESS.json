@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "c1640ce213b60dba54a684ddb81dea4a110d7560",
-  "last_advanced_at": "2026-09-07T09:28:23Z",
+  "observed_head": "25ec04e426d1bf8ab88b094f3e27f37ce2545542",
+  "last_advanced_at": "2026-09-07T09:31:06Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -30,7 +30,7 @@
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Connect typed caption review/recovery to native correction UI with save/retry handling, then final mix/master/release. Backend confirmation/recovery evidence docs/qa/caption-correction-review-2026-09-07.md. CI and installed QA remain pending. Preserve two-source writing and existing TTS; do not repeat Hops 401 paid/auth requests.",
+    "summary": "Typed native caption transport/validation and boundary test source added; native execution pending CI. Next implement correction interaction state and visible controls with save/retry/recovery, then final mix/master/release. Evidence docs/qa/caption-correction-review-2026-09-07.md. Preserve two-source writing and TTS; do not repeat Hops 401 requests.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
