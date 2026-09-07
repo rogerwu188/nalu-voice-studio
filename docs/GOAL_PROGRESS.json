@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "c3405fb18115277a3651a0959a6f9a8b1c481f85",
-  "last_advanced_at": "2026-09-07T05:55:29Z",
+  "observed_head": "2dec2e0036267e45b3de036042505e18c4351f71",
+  "last_advanced_at": "2026-09-07T06:00:20Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Added native typed video adoption/rejection submission and latest-decision recovery, with exact candidate/binding/decision checks and previous-review CAS payload. URLProtocol tests added; native CI required. Backend image/video/progress 32 passed in 15.12s. Parent c3405fb CI 34088470406 running; 9eaad65 failure was prior import sorting already fixed. See docs/qa/native-video-review-bridge-2026-09-07.md. Native controls, actual playback and real E2E remain unfinished."
+    "summary": "Connected native preview adoption/return-for-edit buttons, existing TTS readback, final confirmation, unresolved-draft retry and latest-record restoration. Added model tests for no POST on readback, preserved retry payload and restart adoption. Backend review/progress 13 passed in 4.72s. Native CI and installed-app QA required. Parent 2dec2e0 CI 34088759895 pending; c3405fb CI 34088470406 running at check. See docs/qa/native-video-decision-controls-2026-09-07.md. Full E2E remains unfinished."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Connect persisted video_shot_reviewed decisions to native playback with current review-ID recovery. Add accepted-video tail-frame extraction and lineage for continuous next shots, then episode QA/master/release. Verify playback CI and installed-app behavior. Tests so far use synthetic media, not real E2E. Preserve two-source interactive-script to multi-episode objective and existing TTS; image pricing/Hops access gaps remain.",
+    "summary": "Connect adopted video's tail extraction to native next-continuous-shot preparation and existing cost/dispatch controls, then episode QA/master/release. Verify current native CI and installed-app decision/playback behavior. Tests so far use synthetic media, not real E2E. Preserve two-source interactive-script to multi-episode objective and existing TTS; image pricing/Hops access gaps remain.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

@@ -6,10 +6,12 @@ import SwiftUI
     @State private var player: AVPlayer?
     @State private var operation: Task<Void, Never>?
     let onRead: (String) -> Void
+    let prepared: FrameProductionEvent
 
-    init(binding: VideoSubmissionObservation, onRead: @escaping (String) -> Void) {
+    init(binding: VideoSubmissionObservation, prepared: FrameProductionEvent, onRead: @escaping (String) -> Void) {
         _model = State(initialValue: VideoCandidateModel(binding: binding))
         self.onRead = onRead
+        self.prepared = prepared
     }
 
     var body: some View {
@@ -22,6 +24,10 @@ import SwiftUI
                 Button("从头播放这个镜头", systemImage: "play.fill") {
                     player.seek(to: .zero); player.play()
                 }.buttonStyle(.borderedProminent).controlSize(.large)
+                if let candidate = model.candidate {
+                    VideoReviewPanel(candidate: candidate, prepared: prepared, binding: model.binding, onRead: onRead)
+                        .id(candidate.id)
+                }
             }
             Button("查看生成进度并取回视频", systemImage: "arrow.down.circle") {
                 operation = Task { await model.refresh(); if !Task.isCancelled { onRead(model.notice) } }

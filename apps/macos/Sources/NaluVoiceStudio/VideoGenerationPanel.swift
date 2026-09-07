@@ -43,7 +43,7 @@ import SwiftUI
             .buttonStyle(.bordered).controlSize(.large).disabled(model.busy)
             .accessibilityHint("只核对已保存的提交状态，不会重新生成或扣费")
             if let binding = model.submission, binding.provider_task_id?.isEmpty == false {
-                VideoCandidatePanel(binding: binding, onRead: onRead).id(binding.id)
+                VideoCandidatePanel(binding: binding, prepared: model.prepared, onRead: onRead).id(binding.id)
             }
         }
         .accessibilityIdentifier("nalu.shot.video-generation")

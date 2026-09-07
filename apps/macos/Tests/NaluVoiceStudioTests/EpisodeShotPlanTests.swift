@@ -71,6 +71,34 @@ struct EpisodeShotPlanTests {
         #expect(ShotReviewProtocol.requests.allSatisfy { $0.value(forHTTPHeaderField: "X-Nalu-Provider-Key") == nil })
         let body = try JSONSerialization.jsonObject(with: ShotReviewProtocol.bodies[1]) as! [String: Any]
         #expect(body["expected_review_event_id"] as? String == "previous")
+        let prepared = try JSONDecoder().decode(FrameProductionEvent.self, from: JSONSerialization.data(withJSONObject: [
+            "id": "prep", "run_id": "run", "event_type": "video_task_prepared",
+            "payload": ["task_key": "shot", "request_sha256": "request", "preparation_sha256": "prep-sha"]]))
+        var modelReceipt = receipt()
+        var payload = modelReceipt["payload"] as! [String: Any]
+        payload["reviewed_by"] = "nalu-native-user"
+        modelReceipt["payload"] = payload
+        ShotReviewProtocol.requests = []; ShotReviewProtocol.bodies = []
+        ShotReviewProtocol.queued = [(200, Data("[]".utf8)), (503, Data()),
+            (200, try JSONSerialization.data(withJSONObject: modelReceipt)),
+            (200, try JSONSerialization.data(withJSONObject: [modelReceipt]))]
+        let model = VideoReviewModel(candidate: candidate, prepared: prepared, binding: binding, runtime: client)
+        #expect(!model.begin(.accept))
+        await model.load()
+        #expect(model.loaded && model.begin(.accept))
+        #expect(ShotReviewProtocol.requests.count == 1) // No POST for readback.
+        await model.confirm()
+        #expect(model.pending != nil && model.latest == nil)
+        #expect(!model.begin(.reject)) // Do not replace an unresolved intent.
+        await model.confirm()
+        #expect(model.pending == nil && model.latest?.payload.user_approved == true)
+        let firstAttempt = try JSONSerialization.jsonObject(with: ShotReviewProtocol.bodies[1]) as! NSDictionary
+        let retryAttempt = try JSONSerialization.jsonObject(with: ShotReviewProtocol.bodies[2]) as! NSDictionary
+        #expect(firstAttempt == retryAttempt)
+        let restarted = VideoReviewModel(candidate: candidate, prepared: prepared, binding: binding, runtime: client)
+        await restarted.load()
+        #expect(restarted.notice.contains("已记录为采用"))
+        #expect(ShotReviewProtocol.requests.map(\.httpMethod) == ["GET", "POST", "POST", "GET"])
     }
 
     @MainActor @Test func previewOpeningIsLocalAndPendingQueryDoesNotGenerate() async throws {

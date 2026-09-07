@@ -35,6 +35,7 @@ struct VideoCandidateEnvelope: Decodable {
     var busy = false
     var notice = "可以查询这个镜头的生成进度。"
     var fileURL: URL?
+    var candidate: VideoCandidate?
 
     init(binding: VideoSubmissionObservation, runtime: RuntimeClient = RuntimeClient(),
          key: @escaping () async throws -> String? = {
@@ -83,12 +84,14 @@ struct VideoCandidateEnvelope: Decodable {
         guard !Task.isCancelled else { try? FileManager.default.removeItem(at: url); return }
         discardPlayback()
         fileURL = url
+        self.candidate = candidate
         notice = "视频已取回，可以播放查看。它还不是已验收的成片，不会自动发行。"
     }
 
     func discardPlayback() {
         if let fileURL { try? FileManager.default.removeItem(at: fileURL) }
         fileURL = nil
+        candidate = nil
     }
 }
 
