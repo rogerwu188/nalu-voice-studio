@@ -1,3 +1,4 @@
+import AVFoundation
 import Foundation
 import Observation
 
@@ -55,6 +56,7 @@ struct EpisodeEditEnvelope: Decodable {
     private(set) var saved: EpisodeEditingEvent?
     private(set) var cuts: [EpisodeEditCut] = []
     private(set) var busy = false
+    private(set) var previewURL: URL?
     private(set) var notice = "先播放并采用本集每个镜头，再整理剪辑。原视频会保留。"
 
     init(runID: String, planID: String, planSHA: String, runtime: RuntimeClient = RuntimeClient()) {
@@ -94,13 +96,13 @@ struct EpisodeEditEnvelope: Decodable {
     func trim(index: Int, beginning: Bool) {
         guard !busy, cuts.indices.contains(index), cuts[index].source_out_seconds - cuts[index].source_in_seconds > 0.5 else { return }
         if beginning { cuts[index].source_in_seconds += 0.5 } else { cuts[index].source_out_seconds -= 0.5 }
-        saved = nil
+        saved = nil; discardPreview()
     }
 
     func reset(index: Int) {
         guard !busy, cuts.indices.contains(index), let item = inputs?.payload.items[index] else { return }
         cuts[index] = EpisodeEditCut(shot_index: index, source_in_seconds: 0, source_out_seconds: item.source_duration_seconds)
-        saved = nil
+        saved = nil; discardPreview()
     }
 
     var canSave: Bool {
@@ -125,5 +127,37 @@ struct EpisodeEditEnvelope: Decodable {
                 notice = "剪辑已保存，但字幕时间线暂未同步。您的调整和视频都保留；再次保存可重试，不会重新生成视频。"
             }
         } catch { notice = "这次保存未成功，您的调整仍保留。可以重试；没有覆盖原视频。" }
+    }
+
+    func preview() async {
+        guard !busy, let edit = saved else { return }
+        busy = true
+        discardPreview()
+        notice = "正在本机拼接画面预览，没有配音，也不会提交新的生成任务。"
+        defer { busy = false }
+        do {
+            let file = try await runtime.downloadEpisodePicturePreview(edit: edit)
+            do {
+                let asset = AVURLAsset(url: file)
+                let playable = try await asset.load(.isPlayable)
+                let duration = try await asset.load(.duration)
+                guard playable, duration.seconds.isFinite, let expected = edit.payload.edited_duration_seconds,
+                      abs(duration.seconds - expected) < 0.1 else { throw LibrarySnapshotRefreshError.contextChanged }
+            } catch {
+                try? FileManager.default.removeItem(at: file)
+                throw error
+            }
+            guard !Task.isCancelled, saved?.payload.edit_sha256 == edit.payload.edit_sha256 else {
+                try? FileManager.default.removeItem(at: file)
+                return
+            }
+            previewURL = file
+            notice = "无配音画面预览已准备好。请播放检查顺序和节奏；这不是最终成片。"
+        } catch { notice = "这次画面预览未成功，剪辑草稿仍保留。可以重试；不会重新生成镜头。" }
+    }
+
+    func discardPreview() {
+        if let previewURL { try? FileManager.default.removeItem(at: previewURL) }
+        previewURL = nil
     }
 }

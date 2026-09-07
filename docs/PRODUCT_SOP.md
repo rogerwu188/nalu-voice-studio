@@ -136,6 +136,11 @@ decodes and encodes saved source windows into a bounded local MP4 without audio.
 It is not a master: native playback/QA, explicit confirmation and authored final
 sound/captions remain outstanding.
 
+[Native edited-preview player](qa/native-edited-preview-player-2026-09-07.md)
+now verifies downloaded local proxy identity and AVFoundation playability/duration
+before exposing user-started playback. Native CI and installed-player QA remain
+required; preview does not approve the edit or the master.
+
 AI plans now carry [typed director choices with native round-trip and plain-language readback](qa/structured-director-drafts-2026-09-07.md).
 User edits invalidate stale choices. A [version-bound director refresh backend](qa/director-refresh-2026-09-07.md)
 now fills missing choices without rewriting user descriptions, with restart and

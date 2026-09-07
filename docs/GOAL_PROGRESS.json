@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "24590196d0dc1b985b4d7d9e462461430e004b42",
-  "last_advanced_at": "2026-09-07T06:58:03Z",
+  "observed_head": "83a3defb225ce30993bb92a2091d5f374143885c",
+  "last_advanced_at": "2026-09-07T07:04:00Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Implemented actual local trimmed picture-preview MP4 encoding from adopted sources with exact edit/hash binding, private temporary cleanup, cancellation/deadline/output bounds and one-render-per-process gate. 50 backend regressions passed in 13.68s including full 312-frame/13-second decoding and corrupt-source rejection; initial unhandled error fixed. Ruff/diff passed; OpenAPI updated. Evidence docs/qa/edited-picture-preview-2026-09-07.md. Native playback and full final QA still missing."
+    "summary": "Connected native edited-preview download/player: exact edit/header/content hash, bounded private file, AVFoundation playability/duration, user-started playback and stale/cancel/exit cleanup. Native validator tests added, current CI/installed playback QA pending. Actual backend preview fixture passed in 4.38s; Ruff/diff passed. 503c6fb full CI 34092538522 succeeded; 83a3def CI 34093298594 running. Evidence docs/qa/native-edited-preview-player-2026-09-07.md."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Connect native edited-preview download/playback with exact edit/header/content hash validation and installed-player QA, then explicit changed-duration/edit approval. Continue real recordings/five audio layers/caption alignment/verified workspace to final render/master QA/release. Proxy preview has no audio and is not a master. Preserve two-source interactive writing and existing TTS; verify current CI.",
+    "summary": "Verify current native CI and installed edited-preview playback/UX; add explicit edit and changed-duration confirmation tied to the viewed version. Continue real recordings/five audio layers/caption alignment/verified workspace to final render/master QA/release. Proxy preview has no audio and is not a master. Preserve two-source interactive writing and existing TTS.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

@@ -1,3 +1,4 @@
+import AVKit
 import SwiftUI
 
 // Operate: extend the existing shot-plan surface with reversible plain-language
@@ -5,6 +6,8 @@ import SwiftUI
 // saving is a draft, never an implied preview, approval, render or release.
 @MainActor struct EpisodeEditingPanel: View {
     @State private var model: EpisodeEditingModel
+    @State private var player: AVPlayer?
+    @State private var previewTask: Task<Void, Never>?
     let onRead: (String) -> Void
 
     init(runID: String, planID: String, planSHA: String, onRead: @escaping (String) -> Void) {
@@ -38,8 +41,29 @@ import SwiftUI
                         Task { await model.save(); onRead(model.notice) }
                     }.buttonStyle(.borderedProminent).controlSize(.large).disabled(!model.canSave)
                 }
+                if model.saved != nil {
+                    Button("制作无配音画面预览", systemImage: "play.rectangle") {
+                        previewTask = Task { await model.preview(); if !Task.isCancelled { onRead(model.notice) } }
+                    }.buttonStyle(.bordered).controlSize(.large).disabled(model.busy)
+                }
+                if let player {
+                    Text("画面预览 · 尚未配音或验收").naluFont(.body)
+                    VideoPlayer(player: player).frame(minHeight: 240, idealHeight: 360)
+                        .accessibilityLabel("本集剪辑画面预览，没有配音，不是最终成片")
+                    Button("从头播放剪辑预览", systemImage: "play.fill") {
+                        player.seek(to: .zero); player.play()
+                    }.buttonStyle(.borderedProminent).controlSize(.large)
+                }
             }.padding(.vertical, 8)
         }.naluFont(.body).accessibilityIdentifier("nalu.episode.editing")
+        .onChange(of: model.previewURL) { _, url in
+            player?.pause(); player = url.map { AVPlayer(url: $0) }
+        }
+        .onDisappear {
+            previewTask?.cancel(); previewTask = nil
+            player?.pause(); player = nil
+            model.discardPreview()
+        }
     }
 
     @ViewBuilder private func controls(index: Int) -> some View {

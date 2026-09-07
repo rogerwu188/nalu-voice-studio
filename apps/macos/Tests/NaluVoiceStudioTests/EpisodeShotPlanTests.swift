@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import Testing
 @testable import NaluVoiceStudio
@@ -34,6 +35,35 @@ private final class ShotReviewProtocol: URLProtocol, @unchecked Sendable {
 
 @Suite(.serialized)
 struct EpisodeShotPlanTests {
+    @Test func picturePreviewRejectsWrongEditContentAndMasterClaims() throws {
+        // Header/content validator fixture only, not a playable-video QA claim.
+        let bytes = Data([0, 0, 0, 12]) + Data("ftypisom".utf8)
+        let sha = SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined()
+        let editSHA = String(repeating: "a", count: 64)
+        let headers = ["Content-Type": "video/mp4", "X-Nalu-Edit-SHA256": editSHA,
+            "X-Nalu-Preview-SHA256": sha, "X-Nalu-Preview-Audio": "none", "X-Nalu-Master-Accepted": "false"]
+        func response(_ values: [String: String], status: Int = 200) -> HTTPURLResponse {
+            HTTPURLResponse(url: URL(string: "http://127.0.0.1/preview")!, statusCode: status,
+                httpVersion: nil, headerFields: values)!
+        }
+        try EpisodePictureValidation.validate(bytes: bytes, response: response(headers), editSHA: editSHA)
+        for field in headers.keys {
+            var wrong = headers; wrong[field] = "wrong"
+            #expect(throws: (any Error).self) {
+                try EpisodePictureValidation.validate(bytes: bytes, response: response(wrong), editSHA: editSHA)
+            }
+        }
+        #expect(throws: (any Error).self) {
+            try EpisodePictureValidation.validate(bytes: bytes, response: response(headers, status: 409), editSHA: editSHA)
+        }
+        #expect(throws: (any Error).self) {
+            try EpisodePictureValidation.validate(bytes: Data(), response: response(headers), editSHA: editSHA)
+        }
+        #expect(throws: (any Error).self) {
+            try EpisodePictureValidation.validate(bytes: bytes + Data([1]), response: response(headers), editSHA: editSHA)
+        }
+    }
+
     @MainActor @Test func episodeEditingPreservesCutsOnFailedSaveAndRejectsForeignContext() async throws {
         func response(edited: Bool, plan: String = "plan") throws -> Data {
             var payload: [String: Any] = ["plan_id": plan, "plan_sha256": "plan-sha",

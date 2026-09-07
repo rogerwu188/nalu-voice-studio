@@ -506,6 +506,33 @@ actor RuntimeClient {
               !Task.isCancelled else { throw LibrarySnapshotRefreshError.contextChanged }
     }
 
+    func downloadEpisodePicturePreview(edit: EpisodeEditingEvent) async throws -> URL {
+        guard edit.event_type == "postproduction_edit_drafted", let sha = edit.payload.edit_sha256,
+              sha.count == 64, edit.payload.edit_approved == false, !edit.payload.master_accepted else {
+            throw LibrarySnapshotRefreshError.contextChanged
+        }
+        var request = URLRequest(url: baseURL.appending(path:
+            "v1/production-runs/\(edit.run_id)/episode-edit-drafts/\(edit.id)/picture-preview"))
+        request.httpMethod = "POST"
+        request.timeoutInterval = 330
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONEncoder().encode(["expected_edit_sha256": sha])
+        try await requireOwnedRuntime()
+        let (temporary, response) = try await session.download(for: request)
+        defer { try? FileManager.default.removeItem(at: temporary) }
+        let size = try FileManager.default.attributesOfItem(atPath: temporary.path)[.size] as? NSNumber
+        guard let size, (12...128_000_000).contains(size.intValue), !Task.isCancelled else {
+            throw LibrarySnapshotRefreshError.contextChanged
+        }
+        let bytes = try Data(contentsOf: temporary, options: .mappedIfSafe)
+        try EpisodePictureValidation.validate(bytes: bytes, response: response, editSHA: sha)
+        let destination = FileManager.default.temporaryDirectory.appending(path: "nalu-episode-preview-\(UUID().uuidString).mp4")
+        try FileManager.default.copyItem(at: temporary, to: destination)
+        do { try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: destination.path) }
+        catch { try? FileManager.default.removeItem(at: destination); throw error }
+        return destination
+    }
+
     func downloadVideoCandidate(_ candidate: VideoCandidate, binding: VideoSubmissionObservation) async throws -> URL {
         try validateVideoCandidate(candidate, binding: binding)
         guard let media = candidate.payload.video, (12...128_000_000).contains(media.byte_size),
