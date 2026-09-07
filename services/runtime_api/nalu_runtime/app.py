@@ -178,6 +178,7 @@ from .remote_submitter import DurableRemoteTaskSubmitter
 from .repository import ConflictError, NotFoundError, Repository
 from .semantic_recognizer import LocalSemanticRecognizer
 from .shot_character_library import ShotCharacterLibraryRequest, ShotCharacterLibraryService
+from .shot_plan_inheritance import ShotPlanInheritanceRequest, ShotPlanInheritanceService
 from .shot_planning import ShotPlanningRequest, ShotPlanningService, validate_plan
 from .shot_review import ShotReviewRequest, ShotReviewService
 from .source_reader import read_public_source, source_failure_code
@@ -1173,6 +1174,13 @@ def create_app(
     @app.get("/v1/production-runs/{run_id}/shot-plans/current", response_model=RunEvent | None)
     def current_shot_plan(run_id: str):
         return ShotReviewService(repository).current(run_id)
+
+    @app.post("/v1/production-runs/{run_id}/shot-plan-inheritance", response_model=RunEvent)
+    def inherit_reviewed_shot_plan(run_id: str, request: ShotPlanInheritanceRequest,
+                                  origin: str | None = Header(default=None)):
+        if origin is not None:
+            raise HTTPException(403, "native snapshot reconciliation required")
+        return ShotPlanInheritanceService(repository).inherit(run_id, request)
 
     @app.post("/v1/production-runs/{run_id}/shot-plans/{source_id}/character-cards", response_model=RunEvent)
     def prepare_shot_character_cards(run_id: str, source_id: str, request: ShotCharacterLibraryRequest):

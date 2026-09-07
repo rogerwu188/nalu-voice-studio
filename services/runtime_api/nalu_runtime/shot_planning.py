@@ -110,6 +110,11 @@ class ShotPlanningService:
                 or self.repository.get_project(run.project_id).archived_at
                 or self.repository.get_run(run.id).status not in {"preflight", "waiting_for_approval"}):
             raise ConflictError("shot planning context is no longer current")
+        return self.read_immutable_package(run)
+
+    @staticmethod
+    def read_immutable_package(run):
+        """Read historical evidence only; callers must separately authorize current work."""
         path = Path(run.package_path)
         try:
             if not path.is_file() or path.is_symlink() or path.stat().st_size > 8_000_000:

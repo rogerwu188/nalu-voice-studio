@@ -9053,6 +9053,41 @@
         "title": "ShotPlan",
         "type": "object"
       },
+      "ShotPlanInheritanceRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_package_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Expected Package Sha256",
+            "type": "string"
+          },
+          "expected_plan_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Expected Plan Sha256",
+            "type": "string"
+          },
+          "source_event_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Source Event Id",
+            "type": "string"
+          },
+          "source_run_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Source Run Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_run_id",
+          "source_event_id",
+          "expected_plan_sha256",
+          "expected_package_sha256"
+        ],
+        "title": "ShotPlanInheritanceRequest",
+        "type": "object"
+      },
       "ShotPlanningRequest": {
         "additionalProperties": false,
         "properties": {
@@ -14459,6 +14494,71 @@
           }
         },
         "summary": "Semantic Media Qa"
+      }
+    },
+    "/v1/production-runs/{run_id}/shot-plan-inheritance": {
+      "post": {
+        "operationId": "inherit_reviewed_shot_plan_v1_production_runs__run_id__shot_plan_inheritance_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "origin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Origin"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShotPlanInheritanceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunEvent"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Inherit Reviewed Shot Plan"
       }
     },
     "/v1/production-runs/{run_id}/shot-plans": {

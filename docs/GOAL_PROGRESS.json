@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "2e70126e97f263e10ec8c62868fd49330b29c909",
-  "last_advanced_at": "2026-09-07T03:10:35Z",
+  "observed_head": "caf6da9e69f1ac372c1742452916eb1b5b5901f9",
+  "last_advanced_at": "2026-09-07T03:23:47Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Native character correction now captures a revised complete description, retains identity/source links and expected version, saves/readbacks a new draft and requires confirmation. Active-conversation retry preserves the request; project-generation guards prevent stale response adoption. See docs/qa/native-character-correction-2026-09-07.md. 23 backend tests passed in 13.35s; Ruff/diff checks passed. Native helper tests added but current Swift CI/manual QA pending. Prior 2e70126 CI 34078486993 ARM passed, Intel/runtime still running when inspected."
+    "summary": "Added local, transactional approved shot-plan inheritance between same-episode immutable snapshots when only the confirmed library changes. Preserves creative confirmation and rejects stale/cross-policy/downstream work; no provider calls, spending approval or package mutation. See docs/qa/shot-plan-snapshot-inheritance-2026-09-07.md. 35 related tests including concurrent replay passed in 12.62s; Ruff, OpenAPI backward compatibility and diff checks passed. Prior caf6da9 full CI 34078819933 succeeded; current checkpoint CI/native manual acceptance remain pending."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Check current native CI and verify spoken correction/confirmation when UI accessible. Reconcile immutable production snapshots after confirmed character changes while retaining approved shot plans and avoiding duplicate tasks. Compose actual approved assets/frame evidence and reviewed contracts into native per-shot production. Keep narrated/web-source scripts, existing TTS and sequential video/master/release objective. Do not claim unsent dictation is durable across application termination.",
+    "summary": "Implement dedicated durable library snapshot refresh: original start_run requires SCRIPT_APPROVED but first preflight sets PREPRODUCTION. Preserve original episode/package and plan, materialize/preflight a replacement, atomically hand over current run authority and replay interrupted operations. Connect native confirmed-character handoff to refresh plus tested shot-plan inheritance, then compose reviewed assets/frame evidence into actual per-shot dispatch. Existing TTS; narrated/web-source scripts to sequential video/master/release remain the objective. No state-reset workaround or paid retry.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
