@@ -340,6 +340,14 @@ struct EpisodeShotPlanTests {
         // An older approved take remains only a CAS predecessor, not current approval.
         listeningPayload["take_id"] = "older-take"
         listeningPayload["take_sha256"] = String(repeating: "b", count: 64)
+        let beforeUnapprovedDownload = ShotReviewProtocol.requests.count
+        ShotReviewProtocol.queued = [(200, try recoveredListening(listeningResponse()))]
+        do {
+            _ = try await runtime().downloadAcceptedEpisodeAudio(sound: cuePlan, take: attached, expectedReviewID: "listening")
+            Issue.record("historical acceptance must not download current audio")
+        } catch {}
+        #expect(ShotReviewProtocol.requests.count == beforeUnapprovedDownload + 1)
+        #expect(ShotReviewProtocol.requests.last?.url?.path.hasSuffix("/reviews") == true)
         ShotReviewProtocol.queued = [(200, try recoveredListening(listeningResponse()))]
         await listeningModel.load()
         #expect(listeningModel.loaded && listeningModel.latest?.take_approved == false)

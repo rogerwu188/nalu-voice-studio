@@ -28,6 +28,10 @@ completed user journey. Real writer/provider integration, native interaction,
 script revision handoff and the complete production demonstration remain open.
 The authoritative next action is in `docs/GOAL_PROGRESS.json`.
 
+[Native accepted-audio transport](qa/native-accepted-audio-2026-09-07.md) now reads
+approved PCM with exact identity/format/sample validation. Downstream alignment
+and playback call sites, current CI, installed QA and final master remain open.
+
 [Accepted recording audio](qa/accepted-recording-audio-2026-09-07.md) now exports
 actual exact-window PCM WAV from the current adopted recording, rechecking media
 and consent. Native consumption, alignment, final mix/subtitles/master and release

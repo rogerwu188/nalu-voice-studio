@@ -331,6 +331,30 @@ actor RuntimeClient {
         return results
     }
 
+    func downloadAcceptedEpisodeAudio(sound: EpisodeSoundPlan, take: EpisodeAudioTake,
+                                      expectedReviewID: String) async throws -> AcceptedEpisodeAudio {
+        let state = try await recoverEpisodeAudioReview(sound: sound, take: take)
+        guard state.take_approved, state.applies_to_current_take,
+              state.latest_review?.id == expectedReviewID else { throw LibrarySnapshotRefreshError.contextChanged }
+        var components = URLComponents(url: baseURL.appending(path:
+            "v1/production-runs/\(sound.run_id)/audio-takes/\(take.id)/accepted-audio"), resolvingAgainstBaseURL: false)!
+        components.queryItems = [URLQueryItem(name: "expected_take_sha256", value: take.payload.take_sha256),
+                                URLQueryItem(name: "expected_review_id", value: expectedReviewID)]
+        var request = URLRequest(url: components.url!)
+        request.timeoutInterval = 120
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        try await requireOwnedRuntime()
+        let (temporary, response) = try await session.download(for: request)
+        defer { try? FileManager.default.removeItem(at: temporary) }
+        let expectedBytes = 44 + take.payload.decoded_sample_count * 4
+        let size = try FileManager.default.attributesOfItem(atPath: temporary.path)[.size] as? NSNumber
+        guard !Task.isCancelled, (48...57_600_044).contains(expectedBytes),
+              size?.intValue == expectedBytes else { throw LibrarySnapshotRefreshError.contextChanged }
+        let bytes = try Data(contentsOf: temporary)
+        return try AcceptedEpisodeAudioValidation.validate(bytes, response: response, takeID: take.id,
+            reviewID: expectedReviewID, sampleCount: take.payload.decoded_sample_count)
+    }
+
     func recoverEpisodeAudioReview(sound: EpisodeSoundPlan, take: EpisodeAudioTake) async throws -> EpisodeAudioReviewRecovery {
         try sound.validateCueWindows()
         let p = take.payload

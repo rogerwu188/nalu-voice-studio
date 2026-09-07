@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "e68923c12fb5ab4a8debdc4da95938ab58a11617",
-  "last_advanced_at": "2026-09-07T08:50:50Z",
+  "observed_head": "57e2087fc77eeb24bf7e809efaab0b8ee29de4ad",
+  "last_advanced_at": "2026-09-07T08:56:12Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Actual adopted recording source windows can now be exported as bounded 48kHz stereo PCM WAV, bound to current accepted review/take, with live consent/media validation and no state mutations. 26 workflow tests passed in 31.56s; Ruff/OpenAPI/diff passed. CI 34101343116 fully passed; newer UI/recovery CI pending. Evidence docs/qa/accepted-recording-audio-2026-09-07.md. Native export consumption, alignment and final mix/master/release remain incomplete."
+    "summary": "Native accepted-audio transport rechecks exact approval then validates bounded canonical WAV/sample count/identity/hash; added binary mutation and historical-approval no-download fixtures (native execution pending CI). Backend actual export fixture passed in 21.28s. CI 34102388611 ARM/Runtime passed; Intel running. Evidence docs/qa/native-accepted-audio-2026-09-07.md. Downstream playback/alignment call sites, installed QA and final master/release remain incomplete."
   },
   "next_action": {
     "sop": "SOP-04",
