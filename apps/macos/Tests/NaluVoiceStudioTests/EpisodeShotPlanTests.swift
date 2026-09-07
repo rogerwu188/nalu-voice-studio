@@ -268,6 +268,38 @@ struct EpisodeShotPlanTests {
         ShotReviewProtocol.queued = [(200, try takeResponse())]
         let attached = try await runtime().attachEpisodeAudio(sound: cuePlan, draft: audioDraft)
         #expect(attached.id == "take")
+        let timedDraft = EpisodeRecordingTranscript(takeID: attached.id, reviewID: "listening",
+            sourceAudioSHA256: String(repeating: "d", count: 64), sampleCount: 360000,
+            transcript: "海边", segments: [.init(startSeconds: 0.1, endSeconds: 0.8, text: "海边", confidence: 0.9)],
+            recognizerID: "apple-speech-on-device", recognizerVersion: "synthetic-test", generatedAt: "2026-09-07T09:00:00Z")
+        var transcriptPayload = try JSONSerialization.jsonObject(with: JSONEncoder().encode(
+            RecordingTranscriptSubmission(take: attached, draft: timedDraft))) as! [String: Any]
+        transcriptPayload.merge(["take_id": attached.id, "captions_approved": false,
+            "speech_alignment_verified": false, "master_accepted": false,
+            "recognition_evidence": "CLIENT_REPORTED_LOCAL_ASR_DRAFT",
+            "transcript_sha256": String(repeating: "c", count: 64)]) { _, new in new }
+        func transcriptResponse() throws -> Data {
+            try JSONSerialization.data(withJSONObject: ["id": "transcript", "run_id": "run",
+                "event_type": "episode_recording_transcribed", "payload": transcriptPayload])
+        }
+        ShotReviewProtocol.queued = [(200, try transcriptResponse())]
+        let savedTranscript = try await runtime().saveRecordingTranscript(take: attached, draft: timedDraft)
+        #expect(savedTranscript.payload.transcript == timedDraft.transcript)
+        let transcriptBody = try JSONSerialization.jsonObject(with: ShotReviewProtocol.bodies.last!) as! [String: Any]
+        #expect(transcriptBody["expected_take_sha256"] as? String == attached.payload.take_sha256)
+        #expect(transcriptBody["source_audio_sha256"] as? String == timedDraft.sourceAudioSHA256)
+        ShotReviewProtocol.queued = [(200, try transcriptResponse())]
+        #expect(try await runtime().recoverRecordingTranscript(take: attached, reviewID: "listening")?.id == "transcript")
+        #expect(ShotReviewProtocol.requests.last?.httpMethod == "GET")
+        ShotReviewProtocol.queued = [(200, Data("null".utf8))]
+        #expect(try await runtime().recoverRecordingTranscript(take: attached, reviewID: "listening") == nil)
+        transcriptPayload["expected_review_id"] = "old"
+        ShotReviewProtocol.queued = [(200, try transcriptResponse())]
+        do { _ = try await runtime().recoverRecordingTranscript(take: attached, reviewID: "listening")
+            Issue.record("old recording review must not recover as current subtitles") } catch {}
+        // Restore the original attachment request assertions after transcript requests.
+        ShotReviewProtocol.queued = [(200, try takeResponse())]
+        _ = try await runtime().attachEpisodeAudio(sound: cuePlan, draft: audioDraft)
         #expect(ShotReviewProtocol.requests.last?.url?.path.hasSuffix("audio-takes") == true)
         #expect(ShotReviewProtocol.requests.last?.value(forHTTPHeaderField: "X-Nalu-Provider-Key") == nil)
         let listeningDraft = EpisodeAudioReviewDraft(expected_take_sha256: attached.payload.take_sha256,

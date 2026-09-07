@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "17ec427d18cbf4e343468c628be8fc1864417fe8",
-  "last_advanced_at": "2026-09-07T09:07:02Z",
+  "observed_head": "7c60b3e46b6e19a14b81336ff381d5f20c458c23",
+  "last_advanced_at": "2026-09-07T09:12:44Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Added SQLite timed-transcript draft save/recovery bound to actual accepted PCM hash, take and review. Exact replay is idempotent; current consent/approval and intervals revalidated. 26 workflow tests passed in 29.42s; Ruff/OpenAPI/diff passed. CI 34103363309 Runtime/ARM passed, Intel running. Evidence docs/qa/persisted-recording-transcript-2026-09-07.md. Native persistence consumption, subtitle review, live ASR and final master/release remain incomplete."
+    "summary": "Native typed transcript save/recovery and model autosave now preserve a failed-save draft and allow save-only retry, with identity/interval validation. Added native contract cases (execution pending). Backend fixture passed in 26.08s. CI 34103363309 fully passed. Evidence docs/qa/native-transcript-persistence-2026-09-07.md. Visible controls, bounded ASR, subtitle confirmation and final master/release remain incomplete."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Continue two-source interactive script-to-episode production mainline without voice polish: verify latest CI, exercise installed source/script handoff where feasible, connect remaining actual postproduction take acceptance/alignment/final mix/master and controlled release. Hops 401 blocks real writer proof only; do not repeat paid/auth requests. Native listening confirmation/recovery remains an unblocked downstream implementation, not a reason to stall source/script work.",
+    "summary": "Wire visible recording-to-subtitle start/save-retry/recovery controls to existing model methods, bound ASR cancellation/timeout, then implement explicit timed subtitle review and final mix/master/release. Verify current native CI and installed QA where feasible. Preserve the two-source interactive writing mainline and existing TTS. Hops 401 blocks real writer proof only; do not repeat paid/auth requests.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

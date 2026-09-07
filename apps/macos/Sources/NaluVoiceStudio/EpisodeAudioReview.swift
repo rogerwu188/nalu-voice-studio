@@ -60,6 +60,7 @@ struct EpisodeAudioReview: Decodable, Sendable {
     private(set) var pending: EpisodeAudioReviewDraft?
     private(set) var uncertain = false
     private(set) var transcript: EpisodeRecordingTranscript?
+    private(set) var transcriptReceipt: RecordingTranscriptRecord?
     private(set) var notice = "请先试听这段录音，再确认是否采用。还需要字幕和成片检查。"
 
     init(sound: EpisodeSoundPlan, take: EpisodeAudioTake, runtime: RuntimeClient = RuntimeClient()) {
@@ -82,6 +83,9 @@ struct EpisodeAudioReview: Decodable, Sendable {
             guard !Task.isCancelled else { return }
             latest = recovered; loaded = true
             if !recovered.take_approved || transcript?.reviewID != recovered.latest_review?.id { transcript = nil }
+            if !recovered.take_approved || transcriptReceipt?.payload.expected_review_id != recovered.latest_review?.id {
+                transcriptReceipt = nil
+            }
             if let pending, uncertain, recovered.applies_to_current_take,
                let review = recovered.latest_review,
                review.payload.decision == pending.decision,
@@ -122,6 +126,7 @@ struct EpisodeAudioReview: Decodable, Sendable {
             latest = EpisodeAudioReviewRecovery(current_take_id: take.id, current_take_sha256: take.payload.take_sha256,
                 latest_review: review, applies_to_current_take: true, take_approved: review.payload.take_approved)
             transcript = nil
+            transcriptReceipt = nil
             self.pending = nil; uncertain = false; loaded = true
             notice = review.payload.take_approved
                 ? "录音采用已保存。接下来核对字幕和混音，不会自动发行。"
@@ -131,8 +136,9 @@ struct EpisodeAudioReview: Decodable, Sendable {
 
     func prepareTranscript() async {
         guard loaded, !busy, pending == nil, !uncertain, latest?.take_approved == true,
+              transcript == nil || transcriptReceipt != nil,
               let reviewID = latest?.latest_review?.id else { return }
-        busy = true; transcript = nil
+        busy = true; transcript = nil; transcriptReceipt = nil
         notice = "正在用本机识别已采用录音，准备带时间的字幕草稿；不会上传云端。"
         defer { busy = false }
         do {
@@ -144,9 +150,36 @@ struct EpisodeAudioReview: Decodable, Sendable {
             guard !Task.isCancelled, recovered.take_approved,
                   recovered.latest_review?.id == reviewID else { throw LibrarySnapshotRefreshError.contextChanged }
             latest = recovered; transcript = draft
-            notice = "已整理带时间的字幕草稿，请核对实际说话内容。还没有确认字幕或成片。"
+            transcriptReceipt = try await runtime.saveRecordingTranscript(take: take, draft: draft)
+            notice = "带时间的字幕草稿已保存，请核对实际说话内容。还没有确认字幕或成片。"
         } catch {
-            notice = "本机字幕识别未完成，或录音确认已变化。原录音保留；核对记录后可重试，不会改用云端。"
+            notice = transcript == nil
+                ? "本机字幕识别未完成，或录音确认已变化。原录音保留；核对记录后可重试，不会改用云端。"
+                : "字幕草稿已识别，但保存结果还未核实。草稿保留，请重试保存，不必重新识别。"
         }
+    }
+
+    func savePendingTranscript() async {
+        guard !busy, let transcript, pending == nil, !uncertain else { return }
+        busy = true
+        defer { busy = false }
+        do {
+            transcriptReceipt = try await runtime.saveRecordingTranscript(take: take, draft: transcript)
+            notice = "字幕草稿已保存，接下来核对内容和时间。"
+        } catch { notice = "字幕保存结果尚未核实，草稿保留，可以重试同一份草稿。" }
+    }
+
+    func recoverTranscript() async {
+        guard loaded, !busy, pending == nil, !uncertain, latest?.take_approved == true,
+              let reviewID = latest?.latest_review?.id else { return }
+        busy = true
+        defer { busy = false }
+        do {
+            let saved = try await runtime.recoverRecordingTranscript(take: take, reviewID: reviewID)
+            guard !Task.isCancelled else { return }
+            transcriptReceipt = saved
+            notice = saved == nil ? "这一版录音还没有保存的字幕草稿，可以开始本机识别。"
+                : "已恢复保存的字幕草稿；请继续核对内容和时间。"
+        } catch { notice = "字幕草稿暂时无法恢复，原录音和已保存记录保留。" }
     }
 }

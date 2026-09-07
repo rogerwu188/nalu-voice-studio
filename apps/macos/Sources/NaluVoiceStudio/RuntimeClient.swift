@@ -331,6 +331,32 @@ actor RuntimeClient {
         return results
     }
 
+    func saveRecordingTranscript(take: EpisodeAudioTake, draft: EpisodeRecordingTranscript) async throws -> RecordingTranscriptRecord {
+        guard draft.takeID == take.id, draft.sampleCount == take.payload.decoded_sample_count,
+              !draft.captionsApproved, !draft.speechAlignmentVerified else { throw LibrarySnapshotRefreshError.contextChanged }
+        let saved: RecordingTranscriptRecord = try await post(
+            "v1/production-runs/\(take.run_id)/audio-takes/\(take.id)/transcripts",
+            body: RecordingTranscriptSubmission(take: take, draft: draft))
+        try saved.validate(take: take, reviewID: draft.reviewID)
+        guard saved.payload.source_audio_sha256 == draft.sourceAudioSHA256,
+              saved.payload.transcript == draft.transcript.trimmingCharacters(in: .whitespacesAndNewlines),
+              saved.payload.segments == draft.segments,
+              saved.payload.recognizer_version == draft.recognizerVersion else { throw LibrarySnapshotRefreshError.contextChanged }
+        return saved
+    }
+
+    func recoverRecordingTranscript(take: EpisodeAudioTake, reviewID: String) async throws -> RecordingTranscriptRecord? {
+        var components = URLComponents(url: baseURL.appending(path:
+            "v1/production-runs/\(take.run_id)/audio-takes/\(take.id)/transcripts"), resolvingAgainstBaseURL: false)!
+        components.queryItems = [URLQueryItem(name: "expected_take_sha256", value: take.payload.take_sha256),
+                                URLQueryItem(name: "expected_review_id", value: reviewID)]
+        let (data, response) = try await authorizedData(from: components.url!)
+        try validate(response, data: data)
+        let saved = try decoder.decode(RecordingTranscriptRecord?.self, from: data)
+        try saved?.validate(take: take, reviewID: reviewID)
+        return saved
+    }
+
     func downloadAcceptedEpisodeAudio(sound: EpisodeSoundPlan, take: EpisodeAudioTake,
                                       expectedReviewID: String) async throws -> AcceptedEpisodeAudio {
         let state = try await recoverEpisodeAudioReview(sound: sound, take: take)

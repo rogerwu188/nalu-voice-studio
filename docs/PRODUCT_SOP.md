@@ -28,6 +28,10 @@ completed user journey. Real writer/provider integration, native interaction,
 script revision handoff and the complete production demonstration remain open.
 The authoritative next action is in `docs/GOAL_PROGRESS.json`.
 
+[Native transcript persistence](qa/native-transcript-persistence-2026-09-07.md)
+now saves after recognition and preserves unsaved drafts for save-only retry.
+Visible controls, current native QA and confirmed final subtitles remain open.
+
 [Persisted recording transcripts](qa/persisted-recording-transcript-2026-09-07.md)
 now bind timed drafts in SQLite to actual accepted PCM and revalidate on recovery.
 Native consumption, explicit subtitle review and final mix/master remain open;
