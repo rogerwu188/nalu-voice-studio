@@ -401,6 +401,85 @@
         "title": "AudienceMode",
         "type": "string"
       },
+      "CameraDraft": {
+        "additionalProperties": false,
+        "properties": {
+          "axis_relation": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Axis Relation",
+            "type": "string"
+          },
+          "camera_height": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Camera Height",
+            "type": "string"
+          },
+          "camera_side": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Camera Side",
+            "type": "string"
+          },
+          "end_framing": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "End Framing",
+            "type": "string"
+          },
+          "lens_intent": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Lens Intent",
+            "type": "string"
+          },
+          "motion_direction": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Motion Direction",
+            "type": "string"
+          },
+          "motion_family": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Motion Family",
+            "type": "string"
+          },
+          "motivation": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Motivation",
+            "type": "string"
+          },
+          "shot_scale": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Shot Scale",
+            "type": "string"
+          },
+          "start_framing": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Start Framing",
+            "type": "string"
+          }
+        },
+        "required": [
+          "shot_scale",
+          "camera_height",
+          "camera_side",
+          "axis_relation",
+          "motion_family",
+          "motion_direction",
+          "start_framing",
+          "end_framing",
+          "motivation",
+          "lens_intent"
+        ],
+        "title": "CameraDraft",
+        "type": "object"
+      },
       "CharacterContinuityState": {
         "additionalProperties": false,
         "properties": {
@@ -1154,6 +1233,70 @@
           "report_sha256"
         ],
         "title": "DecodedMediaQAReport",
+        "type": "object"
+      },
+      "DirectorDraft": {
+        "additionalProperties": false,
+        "properties": {
+          "camera": {
+            "$ref": "#/components/schemas/CameraDraft"
+          },
+          "combat_or_chase": {
+            "title": "Combat Or Chase",
+            "type": "boolean"
+          },
+          "continuation_action": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Continuation Action"
+          },
+          "prior_event_relation": {
+            "enum": [
+              "CONTINUING",
+              "RESOLVED",
+              "ELAPSED",
+              "UNKNOWN"
+            ],
+            "title": "Prior Event Relation",
+            "type": "string"
+          },
+          "props": {
+            "items": {
+              "$ref": "#/components/schemas/PropDraft"
+            },
+            "maxItems": 12,
+            "title": "Props",
+            "type": "array"
+          },
+          "state_delta": {
+            "$ref": "#/components/schemas/StateDeltaDraft"
+          },
+          "visible_character_counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "maxProperties": 12,
+            "title": "Visible Character Counts",
+            "type": "object"
+          }
+        },
+        "required": [
+          "camera",
+          "state_delta",
+          "props",
+          "visible_character_counts",
+          "combat_or_chase",
+          "prior_event_relation"
+        ],
+        "title": "DirectorDraft",
         "type": "object"
       },
       "DirectorStrategyRevision": {
@@ -6607,6 +6750,73 @@
         "title": "PropContinuityState",
         "type": "object"
       },
+      "PropDraft": {
+        "additionalProperties": false,
+        "properties": {
+          "design_key": {
+            "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,79}$",
+            "title": "Design Key",
+            "type": "string"
+          },
+          "entry": {
+            "$ref": "#/components/schemas/PropEndpointDraft"
+          },
+          "exit": {
+            "$ref": "#/components/schemas/PropEndpointDraft"
+          },
+          "transition_description": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Transition Description",
+            "type": "string"
+          }
+        },
+        "required": [
+          "design_key",
+          "entry",
+          "exit",
+          "transition_description"
+        ],
+        "title": "PropDraft",
+        "type": "object"
+      },
+      "PropEndpointDraft": {
+        "additionalProperties": false,
+        "properties": {
+          "disposition": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Disposition",
+            "type": "string"
+          },
+          "hand": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Hand",
+            "type": "string"
+          },
+          "owner": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Owner",
+            "type": "string"
+          },
+          "position": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Position",
+            "type": "string"
+          }
+        },
+        "required": [
+          "owner",
+          "hand",
+          "position",
+          "disposition"
+        ],
+        "title": "PropEndpointDraft",
+        "type": "object"
+      },
       "PublicationDryRun": {
         "properties": {
           "adapter_version": {
@@ -8657,6 +8867,16 @@
             "title": "Dialogue Or Narration",
             "type": "string"
           },
+          "director": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DirectorDraft"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "duration_seconds": {
             "maximum": 15.0,
             "minimum": 4.0,
@@ -8846,6 +9066,83 @@
           "confirmation"
         ],
         "title": "ShotReviewRequest",
+        "type": "object"
+      },
+      "StateDeltaDraft": {
+        "additionalProperties": false,
+        "properties": {
+          "dimensions": {
+            "items": {
+              "$ref": "#/components/schemas/StateDimension"
+            },
+            "maxItems": 6,
+            "minItems": 1,
+            "title": "Dimensions",
+            "type": "array"
+          },
+          "hold_reason": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hold Reason"
+          },
+          "mode": {
+            "enum": [
+              "CHANGE",
+              "INTENTIONAL_HOLD"
+            ],
+            "title": "Mode",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mode",
+          "dimensions"
+        ],
+        "title": "StateDeltaDraft",
+        "type": "object"
+      },
+      "StateDimension": {
+        "additionalProperties": false,
+        "properties": {
+          "dimension": {
+            "enum": [
+              "POSITION",
+              "POSTURE",
+              "CONTACT",
+              "POSSESSION",
+              "INTEGRITY",
+              "MOMENTUM"
+            ],
+            "title": "Dimension",
+            "type": "string"
+          },
+          "entry": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Entry",
+            "type": "string"
+          },
+          "exit": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Exit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "dimension",
+          "entry",
+          "exit"
+        ],
+        "title": "StateDimension",
         "type": "object"
       },
       "StorageDiagnostics": {

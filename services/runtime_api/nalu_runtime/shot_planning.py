@@ -7,6 +7,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from .director_draft import DirectorDraft
 from .repository import ConflictError, Repository
 from .video_preparation import digest
 from .writer_execution import WriterExecution
@@ -32,6 +33,7 @@ class ShotDraft(BaseModel):
     action: str = Field(min_length=1, max_length=2000)
     exit_state: str = Field(min_length=1, max_length=2000)
     camera: str = Field(min_length=1, max_length=1000)
+    director: DirectorDraft | None = None
     dialogue_or_narration: str = Field(max_length=4000)
     sound: str = Field(max_length=1000)
     image_prompt: str = Field(min_length=1, max_length=4000)
@@ -62,6 +64,8 @@ def parse_plan(raw: bytes) -> tuple[dict, ShotPlan]:
         plan = ShotPlan.model_validate(json.loads(message["content"], object_pairs_hook=unique_object))
         if not plan.visual_assets:
             raise ValueError("new AI plans must include reference asset designs")
+        if any(shot.director is None for shot in plan.shots):
+            raise ValueError("new AI plans must include structured director choices")
         return root, plan
     except (ValueError, TypeError, KeyError, AttributeError):
         raise WriterTransportError("shot_plan_invalid_response") from None
@@ -89,6 +93,10 @@ existing_asset_id只可使用输入中同类素材编号，没有则null；设�
 每镜头visual_asset_keys列出会出现的人物、必要道具和恰好一个场景设计。所有设计至少用于一个镜头。
 描述用普通人能理解的话，人物外貌、服装及史实未交代处明确写待确认；不得把虚构重演描述成真实照片。
 素材设计全部等待用户审阅，不得声称图片已生成、人物授权已取得或制作费用已批准。
+为每个镜头拟定director：十项camera字段、state_delta变化维度、props入出状态、visible_character_counts人数、combat_or_chase及prior_event_relation。
+director中的人物和道具只用本镜头visual_asset_keys里的设计key；人物逐一给正整数人数，道具owner使用人物key或none。
+跨集关系不明写UNKNOWN，不编造既往事实；CONTINUING写continuation_action。静止镜头用INTENTIONAL_HOLD及hold_reason。
+这些都是待确认的导演创作选择，不得添加任何QA、授权或付费通过字段。
 所有输出都是待审阅创作，不能宣称已生成图片/视频。严格输出符合所附schema的JSON，不添加其他字段。"""
 
 
@@ -190,6 +198,14 @@ class ShotPlanningService:
             if len(shot.visual_asset_keys) != len(set(shot.visual_asset_keys)) or not set(shot.visual_asset_keys) <= designs.keys():
                 raise ConflictError("shot references an unknown or repeated visual asset design")
             selected_designs = [designs[key] for key in shot.visual_asset_keys]
+            if shot.director is not None:
+                character_keys = {item.key for item in selected_designs if item.kind == "character_image"}
+                prop_keys = {item.key for item in selected_designs if item.kind == "prop_reference"}
+                if (set(shot.director.visible_character_counts) != character_keys
+                        or {prop.design_key for prop in shot.director.props} != prop_keys
+                        or any(endpoint.owner not in character_keys | {"none"}
+                               for prop in shot.director.props for endpoint in (prop.entry, prop.exit))):
+                    raise ConflictError("director scope differs from the selected character and prop designs")
             if designs:
                 if sum(item.kind == "scene_reference" for item in selected_designs) != 1:
                     raise ConflictError("each designed shot requires exactly one scene reference design")

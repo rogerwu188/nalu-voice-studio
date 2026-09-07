@@ -20,6 +20,29 @@ private final class ShotReviewProtocol: URLProtocol, @unchecked Sendable {
 
 @Suite(.serialized)
 struct EpisodeShotPlanTests {
+    @Test func structuredDirectorDraftSurvivesNativeRoundTrip() throws {
+        var shot = try JSONDecoder().decode(EpisodeShotPlanEvent.self, from: fixture()).payload.plan.shots[0]
+        let camera = Dictionary(uniqueKeysWithValues: ["shot_scale", "camera_height", "camera_side", "axis_relation",
+            "motion_family", "motion_direction", "start_framing", "end_framing", "motivation", "lens_intent"].map { ($0, "待确认创作选择") })
+        let object: [String: Any] = ["camera": camera,
+            "state_delta": ["mode": "CHANGE", "dimensions": [["dimension": "POSTURE", "entry": "低头", "exit": "抬头"]]],
+            "props": [], "visible_character_counts": ["grandma": 1], "combat_or_chase": false,
+            "prior_event_relation": "UNKNOWN"]
+        shot.director = try JSONDecoder().decode(EpisodeDirectorDraft.self, from: JSONSerialization.data(withJSONObject: object))
+        let restored = try JSONDecoder().decode(EpisodeShot.self, from: JSONEncoder().encode(shot))
+        #expect(restored.director == shot.director)
+        #expect(restored.director?.visible_character_counts == ["grandma": 1])
+        #expect(restored.director?.camera.motion_family == "待确认创作选择")
+        let plan = EpisodeShotPlan(summary: "海边", shots: [restored], visual_assets: [
+            EpisodeVisualAsset(key: "grandma", kind: "character_image", name: "外婆", description: "待确认",
+                source_excerpt: "外婆看海", existing_asset_id: nil)])
+        #expect(plan.directorReadback(for: 0).contains("外婆：1位"))
+        #expect(plan.directorReadback(for: 0).contains("与上一集的关系尚待确认"))
+        #expect(plan.directorReadback(for: 0).contains("不代表图片已经核验"))
+        #expect(!plan.directorReadback(for: 0).contains("grandma"))
+        #expect(plan.directorReadback(for: 99).isEmpty)
+    }
+
     private func fixture(approved: Bool = false) throws -> Data {
         let shot = EpisodeShot(source_excerpt: "外婆看海", scene: "海边", duration_seconds: 12,
             entry_state: "站在岸边", action: "抬头", exit_state: "看海", camera: "中景",

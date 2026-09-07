@@ -7,17 +7,19 @@ from nalu_runtime.app import create_app
 from nalu_runtime.models import ProductionRun, RunStatus
 from nalu_runtime.repository import utc_now
 from nalu_runtime.video_preparation import digest
+from test_director_draft import director_fixture
 
 
 @pytest.mark.parametrize("case", ["ok", "duration", "source", "asset", "authority", "http_failure", "continuity",
-                                  "continuous_ok", "blank", "package_changed", "missing_designs"])
+                                  "continuous_ok", "blank", "package_changed", "missing_designs", "missing_director", "director_scope"])
 def test_approved_script_to_durable_shot_plan(tmp_path, case):
     calls = []
     shot = {"source_excerpt": "外婆看海。", "scene": "海边", "duration_seconds": 12,
             "entry_state": "外婆站在岸边", "action": "抬头看海", "exit_state": "面朝海面",
             "camera": "中景缓推", "dialogue_or_narration": "我又回来了。", "sound": "连续海浪声",
             "image_prompt": "横向构图，外婆站在岸边，尚未抬头。", "video_prompt": "外婆抬头看海，保持人物和光线一致。",
-            "reference_asset_ids": [], "visual_asset_keys": ["grandma", "beach"], "transition": "scene_start"}
+            "reference_asset_ids": [], "visual_asset_keys": ["grandma", "beach"], "transition": "scene_start",
+            "director": director_fixture()}
     designs = [
         {"key": "grandma", "kind": "character_image", "name": "外婆", "description": "外貌和服装待确认",
          "source_excerpt": "外婆看海。", "existing_asset_id": None},
@@ -26,6 +28,10 @@ def test_approved_script_to_durable_shot_plan(tmp_path, case):
     ]
     if case == "missing_designs":
         designs = []
+    if case == "missing_director":
+        shot["director"] = None
+    if case == "director_scope":
+        shot["director"]["visible_character_counts"] = {"invented-person": 1}
     if case == "duration":
         shot["duration_seconds"] = 11
     if case == "source":
@@ -128,6 +134,7 @@ def test_approved_script_to_durable_shot_plan(tmp_path, case):
         assert approved["payload"]["paid_approved"] is False
         assert approved["payload"]["tasks"][0]["state"] == "awaiting_entry_frame"
         assert approved["payload"]["plan"]["shots"][0]["camera"] == plan["shots"][0]["camera"]
+        assert approved["payload"]["plan"]["shots"][0]["director"] is None  # Camera edit invalidates stale technical choices.
         assert restarted.post(review_url, json=edit).status_code == 409
         reopened = TestClient(create_app(db_path, tmp_path / "data", writer_http_transport=httpx.MockTransport(serve)))
         assert reopened.get(current_url).json()["id"] == approved["id"]

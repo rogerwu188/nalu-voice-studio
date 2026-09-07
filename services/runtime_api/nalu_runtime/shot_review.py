@@ -77,6 +77,19 @@ class ShotReviewService:
             plan = request.plan if request.action == "revise" else ShotPlan.model_validate(payload["plan"])
             if payload["plan"].get("visual_assets") and not plan.visual_assets:
                 raise ConflictError("visual asset designs were lost by this edit; preserve the current design plan")
+            if request.action == "revise":
+                for before, after in zip(payload["plan"]["shots"], plan.shots, strict=False):
+                    old_director = before.get("director")
+                    if old_director:
+                        creative_changed = any(before.get(key) != getattr(after, key) for key in
+                            ("source_excerpt", "scene", "camera", "entry_state", "action", "exit_state", "visual_asset_keys",
+                             "video_prompt", "image_prompt", "duration_seconds"))
+                        if creative_changed and (after.director is None or after.director.model_dump() == old_director):
+                            # Preserve the user's edit, but never reuse stale
+                            # professional choices as its production authority.
+                            after.director = None
+                        elif after.director is None:
+                            raise ConflictError("director choices were lost by this client; reload before editing")
             tasks = planner.tasks_for_plan(plan, episode, script, package.get("inherited_assets", []))
             approved = request.action == "approve"
             for task in tasks:

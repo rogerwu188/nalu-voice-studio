@@ -46,9 +46,13 @@ import SwiftUI
                             Text(plan.assetReadback(for: selectedShot)).naluFont(.body).textSelection(.enabled)
                         }
                         Button("听听这个镜头", systemImage: "speaker.wave.2") {
-                            onRead(shot.readback + "拍摄描述：" + shot.video_prompt + "\n" + plan.assetReadback(for: selectedShot))
+                            onRead(shot.readback + "拍摄描述：" + shot.video_prompt + "\n" + plan.assetReadback(for: selectedShot)
+                                + "\n" + plan.directorReadback(for: selectedShot))
                         }
                         .buttonStyle(.bordered).controlSize(.large)
+                        DisclosureGroup("看看具体怎么拍") {
+                            Text(plan.directorReadback(for: selectedShot)).naluFont(.body).textSelection(.enabled)
+                        }
                         Text("想拍成什么样？可以直接修改下面的话。")
                             .naluFont(.body)
                         TextField("这个镜头的拍摄描述", text: shotText(\.video_prompt), axis: .vertical)

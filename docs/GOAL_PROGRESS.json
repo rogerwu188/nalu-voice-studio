@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "46525d24fa834201e6d593df74cb7c989d36a4e5",
-  "last_advanced_at": "2026-09-07T01:47:41Z",
+  "observed_head": "3f11ce338d29e4e7af3a598b5f8f98e19da7eb24",
+  "last_advanced_at": "2026-09-07T01:57:10Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Source diagnosis confirms an unimplemented interactive director-to-video compiler: plain camera/state prose lacks full camera authority, state/prop/continuity contracts and provider-scope projection. Native Codable must preserve additions. See docs/qa/interactive-director-contract-gap-2026-09-07.md. Next action is actual typed director drafting/review/compilation, not more mock receipts. Previous aspect fix 46525d2 has 599 local tests passed and pending CI; real/native acceptance remains open."
+    "summary": "Typed director drafts now cover camera, state delta, props, visible-person counts and continuity; new AI responses require them and design scope is checked. Native Codable/readback source integration preserves/explains them. User edits invalidate stale choices. Full regression collected before two final cases: 607 passed in 296.41s; final targeted 21 tests include both added cases. Swift/CI/native QA pending. See docs/qa/structured-director-drafts-2026-09-07.md. Prior 3f11ce3 full CI 34074197880 passed."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Implement typed director drafts and native round-trip/readback for camera, state delta, props and continuity, then compile reviewed choices plus actual assets/frame evidence into the existing full video boundary. Follow docs/qa/interactive-director-contract-gap-2026-09-07.md; do not invent visual PASS or omit visible people. In parallel dependency order, finish real reference pricing/native spending activation when evidence is available. Keep narration/web-source priority, existing TTS, durable attempts and complete sequential video/master/release objective.",
+    "summary": "Implement durable version-bound AI re-derivation of director choices after user edits, preserving the user's actual descriptions and prior approved versions. Then compile reviewed choices plus actual assets/frame evidence into full video camera/state/identity/prop contracts. Verify native readback and source round-trip in compiled UI. Do not invent visual PASS or omit people. Keep real reference pricing/spending activation, narration/web-source priority, existing TTS and sequential video/master/release objective.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

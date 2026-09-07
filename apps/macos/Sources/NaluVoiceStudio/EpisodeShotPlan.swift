@@ -1,6 +1,41 @@
 import Foundation
 import Observation
 
+struct EpisodeDirectorDraft: Codable, Equatable {
+    struct Camera: Codable, Equatable {
+        var shot_scale: String
+        var camera_height: String
+        var camera_side: String
+        var axis_relation: String
+        var motion_family: String
+        var motion_direction: String
+        var start_framing: String
+        var end_framing: String
+        var motivation: String
+        var lens_intent: String
+    }
+    struct Delta: Codable, Equatable {
+        struct Dimension: Codable, Equatable { var dimension: String; var entry: String; var exit: String }
+        var mode: String
+        var dimensions: [Dimension]
+        var hold_reason: String?
+    }
+    struct Prop: Codable, Equatable {
+        struct Endpoint: Codable, Equatable { var owner: String; var hand: String; var position: String; var disposition: String }
+        var design_key: String
+        var entry: Endpoint
+        var exit: Endpoint
+        var transition_description: String
+    }
+    var camera: Camera
+    var state_delta: Delta
+    var props: [Prop]
+    var visible_character_counts: [String: Int]
+    var combat_or_chase: Bool
+    var prior_event_relation: String
+    var continuation_action: String?
+}
+
 struct EpisodeShot: Codable, Equatable {
     var source_excerpt: String
     var scene: String
@@ -9,6 +44,7 @@ struct EpisodeShot: Codable, Equatable {
     var action: String
     var exit_state: String
     var camera: String
+    var director: EpisodeDirectorDraft? = nil
     var dialogue_or_narration: String
     var sound: String
     var image_prompt: String
@@ -36,6 +72,36 @@ struct EpisodeShotPlan: Codable, Equatable {
     var shots: [EpisodeShot]
     // Optional decoding preserves old saved plans; new designs survive edits.
     var visual_assets: [EpisodeVisualAsset]? = nil
+
+    func directorReadback(for index: Int) -> String {
+        guard shots.indices.contains(index) else { return "" }
+        guard let director = shots[index].director else {
+            return "拍摄细节还需要按当前描述整理，不能沿用修改前的专业参数。"
+        }
+        let names = Dictionary((visual_assets ?? []).map { ($0.key, $0.name) }, uniquingKeysWith: { first, _ in first })
+        let c = director.camera
+        var parts = ["拟定的拍法，可以继续修改：",
+            "画面范围：\(c.shot_scale)。拍摄高度：\(c.camera_height)。从哪边拍：\(c.camera_side)。左右方向关系：\(c.axis_relation)。",
+            "镜头怎么动：\(c.motion_family)，方向：\(c.motion_direction)。开始画面：\(c.start_framing)。结束画面：\(c.end_framing)。",
+            "这样拍的用意：\(c.motivation)。希望呈现的远近感觉：\(c.lens_intent)。"]
+        parts += director.state_delta.dimensions.map { "状态从“\($0.entry)”到“\($0.exit)”。" }
+        if let reason = director.state_delta.hold_reason { parts.append("保持这个状态的原因：\(reason)。") }
+        parts += director.visible_character_counts.keys.sorted().map { "画面中的\(names[$0] ?? "待确认人物")：\(director.visible_character_counts[$0] ?? 0)位。" }
+        for prop in director.props {
+            func describe(_ endpoint: EpisodeDirectorDraft.Prop.Endpoint) -> String {
+                let owner = endpoint.owner == "none" ? "无人持有" : names[endpoint.owner] ?? "待确认人物"
+                return "\(owner)，\(endpoint.hand)，位置\(endpoint.position)，状态\(endpoint.disposition)"
+            }
+            parts.append("\(names[prop.design_key] ?? "待确认道具")：开始\(describe(prop.entry))；结束\(describe(prop.exit))。\(prop.transition_description)。")
+        }
+        parts.append(director.combat_or_chase ? "这段包含打斗或追逐的创作安排。" : "这段不安排打斗或追逐。")
+        let relations = ["UNKNOWN": "与上一集的关系尚待确认", "CONTINUING": "继续上一集尚未结束的事情",
+                         "RESOLVED": "上一集的事情已经结束", "ELAPSED": "距离上一集已经过了一段时间"]
+        parts.append(relations[director.prior_event_relation] ?? "跨集关系需要核对")
+        if let action = director.continuation_action { parts.append("接下来的动作：\(action)。") }
+        parts.append("这些是创作安排，不代表图片已经核验或费用已经批准。")
+        return parts.joined(separator: "\n")
+    }
 
     func assetReadback(for index: Int) -> String {
         guard shots.indices.contains(index) else { return "" }
