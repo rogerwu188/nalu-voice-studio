@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "b5f101c69d9c9464af4c353cce8b272b2b6dd83b",
-  "last_advanced_at": "2026-09-07T06:48:17Z",
+  "observed_head": "503c6fbbe22587449ed8bee411d9b82b4db7dd43",
+  "last_advanced_at": "2026-09-07T06:52:12Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Added native saved-edit recovery via read-only event history with exact source/order/window/duration checks and preservation of local edits. Added backend edit-bound sound/caption retiming; 26 workflow tests passed in 11.86s including real decoder fixtures and 13-second cue timeline. Ruff passed; OpenAPI regenerated. Native tests await CI, no installed QA claimed. Evidence docs/qa/edit-recovery-and-sound-retiming-2026-09-07.md."
+    "summary": "Native explicit edit save now prepares exact-version sound/caption timing; partial failure retains saved edit and cuts. Client rejects foreign edit/plan/duration and false approval/alignment receipts. Added native handoff tests awaiting CI. Seven focused backend regressions passed in 6.21s; Ruff/diff passed. 9802db8 ARM/Intel/runtime CI succeeded, Universal uploading; 503c6fb CI 34092538522 in progress. Evidence docs/qa/native-edited-sound-handoff-2026-09-07.md."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Verify current native CI and installed recovery behavior; connect native sound retiming to saved edits, actual trimmed video preview and explicit changed-duration/edit approval. Integrate recordings/five audio layers/verified workspace into real render, master QA and release. Native drafts and synthetic timing tests are not completed E2E. Preserve two-source interactive writing and existing TTS.",
+    "summary": "Verify current native CI and installed edit/recovery/retiming behavior. Implement actual trimmed video preview and explicit changed-duration/edit approval, then recordings/five audio layers/verified workspace for real render/master QA/release. Draft timing is not speech alignment and tests are not real E2E. Preserve two-source interactive writing and existing TTS.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

@@ -116,8 +116,14 @@ struct EpisodeEditEnvelope: Decodable {
         busy = true
         defer { busy = false }
         do {
-            saved = try await runtime.saveEpisodeEdit(inputs: inputs, cuts: cuts)
-            notice = "剪辑草稿已保存，约 \(Int((saved?.payload.edited_duration_seconds ?? 0).rounded())) 秒。还需预览确认、对齐字幕和配音，不会自动发行。"
+            let edit = try await runtime.saveEpisodeEdit(inputs: inputs, cuts: cuts)
+            saved = edit
+            do {
+                try await runtime.retimeEpisodeSound(edit: edit)
+                notice = "剪辑草稿已保存，约 \(Int((edit.payload.edited_duration_seconds ?? 0).rounded())) 秒。字幕和声音清单已按新时长整理；仍需预览确认、配音和逐句对齐，不会自动发行。"
+            } catch {
+                notice = "剪辑已保存，但字幕时间线暂未同步。您的调整和视频都保留；再次保存可重试，不会重新生成视频。"
+            }
         } catch { notice = "这次保存未成功，您的调整仍保留。可以重试；没有覆盖原视频。" }
     }
 }

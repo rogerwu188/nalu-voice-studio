@@ -50,7 +50,8 @@ struct EpisodeShotPlanTests {
         }
         ShotReviewProtocol.requests = []; ShotReviewProtocol.bodies = []
         ShotReviewProtocol.queued = [(200, try response(edited: false)), (200, Data("[]".utf8)), (503, Data()),
-            (200, try response(edited: false)), (200, try response(edited: true)), (200, try response(edited: false, plan: "foreign"))]
+            (200, try response(edited: false)), (200, try response(edited: true)), (503, Data()),
+            (200, try response(edited: false, plan: "foreign"))]
         let model = EpisodeEditingModel(runID: "run", planID: "plan", planSHA: "plan-sha", runtime: runtime())
         #expect(ShotReviewProtocol.requests.isEmpty)
         await model.load()
@@ -64,6 +65,7 @@ struct EpisodeShotPlanTests {
         #expect(model.cuts[0].source_in_seconds == 0.5) // Reload preserves unsaved edits.
         await model.save()
         #expect(model.saved?.id == "edit")
+        #expect(model.notice.contains("剪辑已保存") && model.notice.contains("暂未同步"))
         let first = try JSONSerialization.jsonObject(with: ShotReviewProtocol.bodies[2]) as! NSDictionary
         let retry = try JSONSerialization.jsonObject(with: ShotReviewProtocol.bodies[4]) as! NSDictionary
         #expect(first == retry)
@@ -95,6 +97,23 @@ struct EpisodeShotPlanTests {
             await invalid.load()
             #expect(invalid.saved == nil && invalid.inputs == nil && invalid.cuts.isEmpty)
         }
+        func soundResponse(editID: String) throws -> Data {
+            try JSONSerialization.data(withJSONObject: ["run_id": "run", "event_type": "episode_sound_plan_drafted",
+                "payload": ["edit_id": editID, "edit_sha256": String(repeating: "b", count: 64),
+                    "plan_id": "plan", "plan_sha256": "plan-sha", "duration_seconds": 7.5,
+                    "caption_timing_basis": "DRAFT_EDIT_WINDOWS_NOT_SPEECH_ALIGNMENT",
+                    "audio_generated": false, "captions_approved": false, "speech_alignment_verified": false,
+                    "edit_approved": false, "generation_performed": false, "master_accepted": false]])
+        }
+        ShotReviewProtocol.queued = [(200, try response(edited: true)), (200, try soundResponse(editID: "edit"))]
+        await restarted.save()
+        #expect(restarted.notice.contains("已按新时长整理"))
+        let soundRequest = try JSONSerialization.jsonObject(with: ShotReviewProtocol.bodies.last!) as! [String: Any]
+        #expect(soundRequest["edit_id"] as? String == "edit")
+        #expect(soundRequest["expected_edit_sha256"] as? String == String(repeating: "b", count: 64))
+        ShotReviewProtocol.queued = [(200, try response(edited: true)), (200, try soundResponse(editID: "foreign"))]
+        await restarted.save()
+        #expect(restarted.saved?.id == "edit" && restarted.notice.contains("暂未同步"))
     }
 
     @MainActor @Test func continuousPreparationCarriesPlanAndRejectsForeignTailResponse() async throws {

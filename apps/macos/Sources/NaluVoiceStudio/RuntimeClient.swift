@@ -247,6 +247,43 @@ actor RuntimeClient {
         return result
     }
 
+    func retimeEpisodeSound(edit: EpisodeEditingEvent) async throws {
+        struct Draft: Encodable { let expected_plan_sha256: String; let edit_id: String; let expected_edit_sha256: String }
+        struct Receipt: Decodable {
+            let run_id: String
+            let event_type: String
+            let payload: Payload
+            struct Payload: Decodable {
+                let edit_id: String
+                let edit_sha256: String
+                let plan_id: String
+                let plan_sha256: String
+                let duration_seconds: Double
+                let caption_timing_basis: String
+                let audio_generated: Bool
+                let captions_approved: Bool
+                let speech_alignment_verified: Bool
+                let edit_approved: Bool
+                let generation_performed: Bool
+                let master_accepted: Bool
+            }
+        }
+        guard edit.event_type == "postproduction_edit_drafted", let sha = edit.payload.edit_sha256,
+              sha.count == 64 else { throw LibrarySnapshotRefreshError.contextChanged }
+        let receipt: Receipt = try await post("v1/production-runs/\(edit.run_id)/sound-plan-drafts",
+            body: Draft(expected_plan_sha256: edit.payload.plan_sha256, edit_id: edit.id, expected_edit_sha256: sha))
+        let sound = receipt.payload
+        guard !Task.isCancelled, receipt.run_id == edit.run_id, receipt.event_type == "episode_sound_plan_drafted",
+              sound.edit_id == edit.id, sound.edit_sha256 == sha, sound.plan_id == edit.payload.plan_id,
+              sound.plan_sha256 == edit.payload.plan_sha256,
+              sound.duration_seconds == edit.payload.edited_duration_seconds,
+              sound.caption_timing_basis == "DRAFT_EDIT_WINDOWS_NOT_SPEECH_ALIGNMENT",
+              !sound.audio_generated, !sound.captions_approved, !sound.speech_alignment_verified,
+              !sound.edit_approved, !sound.generation_performed, !sound.master_accepted else {
+            throw LibrarySnapshotRefreshError.contextChanged
+        }
+    }
+
     func latestEpisodeEdit(inputs: EpisodeEditingEvent) async throws -> EpisodeEditingEvent? {
         let events: [EpisodeEditEnvelope] = try await get("v1/production-runs/\(inputs.run_id)/events")
         let edits = events.compactMap(\.edit)
