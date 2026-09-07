@@ -247,11 +247,43 @@ actor RuntimeClient {
         return result
     }
 
+    func latestEpisodeEdit(inputs: EpisodeEditingEvent) async throws -> EpisodeEditingEvent? {
+        let events: [EpisodeEditEnvelope] = try await get("v1/production-runs/\(inputs.run_id)/events")
+        let edits = events.compactMap(\.edit)
+        guard edits.allSatisfy({ $0.run_id == inputs.run_id }) else { throw LibrarySnapshotRefreshError.contextChanged }
+        guard let latest = edits.last(where: { $0.payload.plan_id == inputs.payload.plan_id }) else { return nil }
+        try validateSavedEpisodeEdit(latest, inputs: inputs)
+        return latest
+    }
+
+    private func validateSavedEpisodeEdit(_ result: EpisodeEditingEvent, inputs: EpisodeEditingEvent) throws {
+        try validateEpisodeEditing(result, runID: inputs.run_id, planID: inputs.payload.plan_id, planSHA: inputs.payload.plan_sha256)
+        guard result.event_type == "postproduction_edit_drafted",
+              result.payload.source_input_sha256 == inputs.payload.input_sha256,
+              result.payload.source_input_sha256?.count == 64,
+              result.payload.edit_sha256?.count == 64, result.payload.edit_approved == false,
+              result.payload.items.map(\.task_key) == inputs.payload.items.map(\.task_key),
+              result.payload.shots.count == inputs.payload.items.count,
+              zip(result.payload.shots, inputs.payload.items).allSatisfy({ source, item in
+                  let start = source.source_in_seconds, end = source.source_out_seconds
+                  return start.isFinite && end.isFinite && start >= 0 && end > start &&
+                    end <= item.source_duration_seconds && (start > 0.05 || end < item.source_duration_seconds - 0.05)
+              }), let duration = result.payload.edited_duration_seconds, duration.isFinite, duration > 0 else {
+            throw LibrarySnapshotRefreshError.contextChanged
+        }
+        // Backend rounds each clip at the fixed 24fps edit contract.
+        let expectedDuration = result.payload.shots.reduce(0.0) { total, shot in
+            total + ((shot.source_out_seconds - shot.source_in_seconds) * 24).rounded(.toNearestOrEven) / 24
+        }
+        guard abs(duration - expectedDuration) < 0.000001 else { throw LibrarySnapshotRefreshError.contextChanged }
+    }
+
     func saveEpisodeEdit(inputs: EpisodeEditingEvent, cuts: [EpisodeEditCut]) async throws -> EpisodeEditingEvent {
         struct Draft: Encodable { let expected_input_sha256: String; let cuts: [EpisodeEditCut] }
         guard let sha = inputs.payload.input_sha256, sha.count == 64 else { throw LibrarySnapshotRefreshError.contextChanged }
         let result: EpisodeEditingEvent = try await post("v1/production-runs/\(inputs.run_id)/episode-edit-drafts",
             body: Draft(expected_input_sha256: sha, cuts: cuts))
+        try validateSavedEpisodeEdit(result, inputs: inputs)
         try validateEpisodeEditing(result, runID: inputs.run_id, planID: inputs.payload.plan_id, planSHA: inputs.payload.plan_sha256)
         guard result.event_type == "postproduction_edit_drafted", result.payload.source_input_sha256 == sha,
               result.payload.edit_sha256?.count == 64, result.payload.edit_approved == false,

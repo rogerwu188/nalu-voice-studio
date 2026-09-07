@@ -2,7 +2,7 @@
 
 import html
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .repository import ConflictError, encode, new_id, utc_now
 from .shot_planning import ShotPlan, ShotPlanningService
@@ -13,6 +13,14 @@ from .video_preparation import digest
 class EpisodeSoundPlanRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     expected_plan_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    edit_id: str | None = Field(default=None, min_length=1, max_length=160)
+    expected_edit_sha256: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
+
+    @model_validator(mode="after")
+    def paired_edit(self):
+        if (self.edit_id is None) != (self.expected_edit_sha256 is None):
+            raise ValueError("edited timing requires both the edit ID and its hash")
+        return self
 
 
 def srt_time(seconds):
@@ -24,10 +32,11 @@ def srt_time(seconds):
 
 
 class EpisodeSoundPlanService:
-    def __init__(self, repository):
+    def __init__(self, repository, data_root=None):
         self.repository = repository
+        self.data_root = data_root
 
-    def prepare(self, run_id, expected_plan_sha256):
+    def prepare(self, run_id, expected_plan_sha256, *, edit_id=None, expected_edit_sha256=None):
         repo = self.repository
         with repo.db.connect() as db:
             db.execute("BEGIN IMMEDIATE")
@@ -51,9 +60,32 @@ class EpisodeSoundPlanService:
                     or not saved_script.approved_at or saved_script.content != script["content"]):
                 raise ConflictError("approved script changed before sound planning")
             plan = ShotPlan.model_validate(event.payload["plan"])
+            if sum(shot.duration_seconds for shot in plan.shots) != episode.target_seconds:
+                raise ConflictError("confirmed shot duration differs from the episode")
+            edit = None
+            durations = [shot.duration_seconds for shot in plan.shots]
+            if edit_id is not None:
+                from .video_tail import VideoTailService
+                edits = [e for e in repo.list_run_events(run_id) if e.event_type == "postproduction_edit_drafted"]
+                edit = edits[-1] if edits else None
+                if (self.data_root is None or edit is None or edit.id != edit_id
+                        or edit.payload.get("edit_sha256") != expected_edit_sha256
+                        or digest({k: v for k, v in edit.payload.items() if k != "edit_sha256"}) != expected_edit_sha256
+                        or edit.payload.get("plan_id") != event.id
+                        or edit.payload.get("plan_sha256") != expected_plan_sha256):
+                    raise ConflictError("retiming requires the latest matching edit draft")
+                timeline = edit.payload["timeline"]
+                items = edit.payload["items"]
+                if len(timeline) != len(plan.shots) or len(items) != len(plan.shots):
+                    raise ConflictError("edited shot inventory changed")
+                for item in items:
+                    review, media, _ = VideoTailService(repo, self.data_root).accepted_video(run_id, item["review_id"])
+                    if review.payload["review_sha256"] != item["review_sha256"] or media.id != item["materialization_id"]:
+                        raise ConflictError("adopted media changed before retiming")
+                durations = [entry["frame_count"] / edit.payload["frame_rate"] for entry in timeline]
             cues, captions, cursor = [], [], 0
             for index, shot in enumerate(plan.shots):
-                end = cursor + shot.duration_seconds
+                end = cursor + durations[index]
                 text = " ".join(shot.dialogue_or_narration.split())
                 cues.append({"shot_index": index, "start_seconds": cursor, "end_seconds": end,
                              "dialogue_or_narration": shot.dialogue_or_narration, "sound_direction": shot.sound,
@@ -61,8 +93,6 @@ class EpisodeSoundPlanService:
                 if text:
                     captions.append(f"{len(captions) + 1}\n{srt_time(cursor)} --> {srt_time(end)}\n{html.escape(text)}\n")
                 cursor = end
-            if cursor != episode.target_seconds:
-                raise ConflictError("sound timeline differs from the confirmed episode duration")
             record = {"run_id": run_id, "episode_id": episode.id, "plan_id": event.id,
                       "plan_sha256": expected_plan_sha256, "production_package_sha256": package["package_sha256"],
                       "duration_seconds": cursor, "cues": cues, "caption_srt_draft": "\n".join(captions),
@@ -70,6 +100,10 @@ class EpisodeSoundPlanService:
                       "required_audio_layers": ["dialogue", "ambience", "foley", "music", "sfx"],
                       "audio_generated": False, "voice_authorized": False, "speech_alignment_verified": False,
                       "captions_approved": False, "master_accepted": False, "generation_performed": False}
+            if edit is not None:
+                record.update(edit_id=edit.id, edit_sha256=expected_edit_sha256, edit_approved=False,
+                              planned_duration_seconds=episode.target_seconds,
+                              caption_timing_basis="DRAFT_EDIT_WINDOWS_NOT_SPEECH_ALIGNMENT")
             record["sound_plan_sha256"] = digest(record)
             for previous in repo.list_run_events(run_id):
                 if previous.event_type == "episode_sound_plan_drafted" and previous.payload == record:

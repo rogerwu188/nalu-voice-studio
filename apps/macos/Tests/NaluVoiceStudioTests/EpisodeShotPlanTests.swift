@@ -49,7 +49,7 @@ struct EpisodeShotPlanTests {
                 "event_type": edited ? "postproduction_edit_drafted" : "postproduction_shot_inputs_staged", "payload": payload])
         }
         ShotReviewProtocol.requests = []; ShotReviewProtocol.bodies = []
-        ShotReviewProtocol.queued = [(200, try response(edited: false)), (503, Data()),
+        ShotReviewProtocol.queued = [(200, try response(edited: false)), (200, Data("[]".utf8)), (503, Data()),
             (200, try response(edited: false)), (200, try response(edited: true)), (200, try response(edited: false, plan: "foreign"))]
         let model = EpisodeEditingModel(runID: "run", planID: "plan", planSHA: "plan-sha", runtime: runtime())
         #expect(ShotReviewProtocol.requests.isEmpty)
@@ -57,21 +57,44 @@ struct EpisodeShotPlanTests {
         #expect(!model.canSave) // Never manufacture a cut to bypass whole-source QA.
         model.trim(index: 0, beginning: true)
         #expect(model.canSave)
-        #expect(ShotReviewProtocol.requests.count == 1) // Local editing is not submission.
+        #expect(ShotReviewProtocol.requests.count == 2) // Staging + read-only recovery; local editing is not submission.
         await model.save()
         #expect(model.saved == nil && model.cuts[0].source_in_seconds == 0.5)
         await model.load()
         #expect(model.cuts[0].source_in_seconds == 0.5) // Reload preserves unsaved edits.
         await model.save()
         #expect(model.saved?.id == "edit")
-        let first = try JSONSerialization.jsonObject(with: ShotReviewProtocol.bodies[1]) as! NSDictionary
-        let retry = try JSONSerialization.jsonObject(with: ShotReviewProtocol.bodies[3]) as! NSDictionary
+        let first = try JSONSerialization.jsonObject(with: ShotReviewProtocol.bodies[2]) as! NSDictionary
+        let retry = try JSONSerialization.jsonObject(with: ShotReviewProtocol.bodies[4]) as! NSDictionary
         #expect(first == retry)
         await model.load()
         #expect(model.inputs?.payload.plan_id == "plan" && model.cuts[0].source_in_seconds == 0.5)
         #expect(ShotReviewProtocol.requests.allSatisfy { $0.value(forHTTPHeaderField: "X-Nalu-Provider-Key") == nil })
         model.reset(index: 0)
         #expect(!model.canSave && model.saved == nil)
+        let savedEdit = try JSONSerialization.jsonObject(with: response(edited: true))
+        let history = try JSONSerialization.data(withJSONObject: [
+            ["event_type": "unrelated_event", "payload": ["not": "an edit"]], savedEdit])
+        ShotReviewProtocol.queued = [(200, try response(edited: false)), (200, history)]
+        let restarted = EpisodeEditingModel(runID: "run", planID: "plan", planSHA: "plan-sha", runtime: runtime())
+        await restarted.load()
+        #expect(restarted.saved?.id == "edit" && restarted.cuts.first?.source_in_seconds == 0.5)
+        #expect(ShotReviewProtocol.requests.last?.httpMethod == "GET")
+        #expect(ShotReviewProtocol.requests.last?.url?.path.hasSuffix("production-runs/run/events") == true)
+        #expect(ShotReviewProtocol.requests.filter { $0.url?.path.hasSuffix("episode-edit-drafts") == true }.count == 2)
+        // A stale or malformed saved draft must not replace missing/local edits.
+        for field in ["source_input_sha256", "edited_duration_seconds"] {
+            var broken = savedEdit as! [String: Any]
+            var payload = broken["payload"] as! [String: Any]
+            if field == "source_input_sha256" { payload[field] = "stale" }
+            else { payload[field] = 99 }
+            broken["payload"] = payload
+            ShotReviewProtocol.queued = [(200, try response(edited: false)),
+                (200, try JSONSerialization.data(withJSONObject: [broken]))]
+            let invalid = EpisodeEditingModel(runID: "run", planID: "plan", planSHA: "plan-sha", runtime: runtime())
+            await invalid.load()
+            #expect(invalid.saved == nil && invalid.inputs == nil && invalid.cuts.isEmpty)
+        }
     }
 
     @MainActor @Test func continuousPreparationCarriesPlanAndRejectsForeignTailResponse() async throws {

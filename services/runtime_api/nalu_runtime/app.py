@@ -1408,7 +1408,8 @@ def create_app(
                                    origin: str | None = Header(default=None)):
         if origin is not None:
             raise HTTPException(403, "native sound planning required")
-        return EpisodeSoundPlanService(repository).prepare(run_id, request.expected_plan_sha256)
+        return EpisodeSoundPlanService(repository, data_root).prepare(run_id, request.expected_plan_sha256,
+            edit_id=request.edit_id, expected_edit_sha256=request.expected_edit_sha256)
 
     @app.post("/v1/production-runs/{run_id}/episode-edit-drafts", response_model=RunEvent)
     def draft_episode_edit(run_id: str, request: EpisodeEditRequest, origin: str | None = Header(default=None)):

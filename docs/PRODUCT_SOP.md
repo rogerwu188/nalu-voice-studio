@@ -121,6 +121,11 @@ reversible half-second trim controls and draft save in the confirmed-plan surfac
 Native tests await CI due to the local Swift manifest linker failure; installed
 UI QA, preview/confirmation, restart recovery and sound retiming remain open.
 
+[Saved edit recovery and sound retiming](qa/edit-recovery-and-sound-retiming-2026-09-07.md)
+now restore same-source native drafts and derive backend sound/caption drafts from
+edited frame counts. Native CI/QA, the native retiming action, preview, approval
+and real authored audio/master/release are still outstanding.
+
 AI plans now carry [typed director choices with native round-trip and plain-language readback](qa/structured-director-drafts-2026-09-07.md).
 User edits invalidate stale choices. A [version-bound director refresh backend](qa/director-refresh-2026-09-07.md)
 now fills missing choices without rewriting user descriptions, with restart and

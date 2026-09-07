@@ -37,6 +37,15 @@ struct EpisodeEditingEvent: Decodable, Sendable {
     }
 }
 
+struct EpisodeEditEnvelope: Decodable {
+    let edit: EpisodeEditingEvent?
+    private enum CodingKeys: String, CodingKey { case event_type }
+    init(from decoder: Decoder) throws {
+        let type = try decoder.container(keyedBy: CodingKeys.self).decode(String.self, forKey: .event_type)
+        edit = type == "postproduction_edit_drafted" ? try EpisodeEditingEvent(from: decoder) : nil
+    }
+}
+
 @MainActor @Observable final class EpisodeEditingModel {
     let runID: String
     let planID: String
@@ -64,11 +73,21 @@ struct EpisodeEditingEvent: Decodable, Sendable {
                     notice = "视频版本变了。您的剪辑调整仍保留，请先核对新旧素材。"
                     return
                 }
-                cuts = result.payload.items.map { EpisodeEditCut(shot_index: $0.shot_index,
-                    source_in_seconds: 0, source_out_seconds: $0.source_duration_seconds) }
+                let recovered = try await runtime.latestEpisodeEdit(inputs: result)
+                if let recovered {
+                    cuts = recovered.payload.shots.enumerated().map { index, source in
+                        EpisodeEditCut(shot_index: index, source_in_seconds: source.source_in_seconds,
+                            source_out_seconds: source.source_out_seconds)
+                    }
+                    saved = recovered
+                } else {
+                    cuts = result.payload.items.map { EpisodeEditCut(shot_index: $0.shot_index,
+                        source_in_seconds: 0, source_out_seconds: $0.source_duration_seconds) }
+                }
             }
             inputs = result
-            notice = "素材已整理。可逐镜头去掉多余的开头或结尾，再保存剪辑草稿。"
+            notice = saved == nil ? "素材已整理。可逐镜头去掉多余的开头或结尾，再保存剪辑草稿。"
+                : "已恢复保存的剪辑草稿。您可以接着修改；草稿还不是确认后的成片。"
         } catch { notice = "暂时无法整理：请先确认每个镜头都已采用。已有剪辑和原视频没有丢失。" }
     }
 

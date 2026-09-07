@@ -302,6 +302,18 @@ def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypat
                     pixel_format="yuv420p"))
                 assert decoded == timing["frame_count"]
             assert reopened.post(edit_url, json=edit_request).json()["id"] == edit.json()["id"]
+            retime_url = f"/v1/production-runs/{run.id}/sound-plan-drafts"
+            retime = {"expected_plan_sha256": plan["plan_sha256"], "edit_id": edit.json()["id"],
+                      "expected_edit_sha256": editing["edit_sha256"]}
+            retimed = api.post(retime_url, json=retime)
+            assert retimed.status_code == 200, retimed.text
+            sound = retimed.json()["payload"]
+            assert sound["duration_seconds"] == 13 and sound["planned_duration_seconds"] == 15
+            assert [(cue["start_seconds"], cue["end_seconds"]) for cue in sound["cues"]] == [(0, 7), (7, 13)]
+            assert sound["edit_approved"] is False and sound["speech_alignment_verified"] is False
+            assert reopened.post(retime_url, json=retime).json()["id"] == retimed.json()["id"]
+            assert api.post(retime_url, json={**retime, "expected_edit_sha256": "0" * 64}).status_code == 409
+            assert api.post(retime_url, json={"expected_plan_sha256": plan["plan_sha256"], "edit_id": edit.json()["id"]}).status_code == 422
             assert [file.read_bytes() for file in files] == [video_bytes, second_bytes]
             files[0].write_bytes(b"corrupted")
             assert reopened.post(staging).status_code == 409
