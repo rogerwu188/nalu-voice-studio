@@ -288,6 +288,63 @@ struct EpisodeShotPlanTests {
         let transcriptBody = try JSONSerialization.jsonObject(with: ShotReviewProtocol.bodies.last!) as! [String: Any]
         #expect(transcriptBody["expected_take_sha256"] as? String == attached.payload.take_sha256)
         #expect(transcriptBody["source_audio_sha256"] as? String == timedDraft.sourceAudioSHA256)
+        let captionModel = RecordingCaptionModel(transcript: savedTranscript, runtime: runtime())
+        #expect(!captionModel.prepare())
+        func captionRecovery(_ review: [String: Any]? = nil) throws -> Data {
+            try JSONSerialization.data(withJSONObject: ["current_transcript_id": "transcript",
+                "latest_review": review as Any? ?? NSNull(), "applies_to_current_transcript": review != nil,
+                "captions_approved": review != nil])
+        }
+        ShotReviewProtocol.queued = [(200, try captionRecovery())]
+        await captionModel.load()
+        captionModel.texts = ["修正后的海边"]
+        #expect(captionModel.prepare())
+        captionModel.cancelUnsubmitted()
+        #expect(captionModel.pending == nil && captionModel.texts == ["修正后的海边"])
+        #expect(captionModel.prepare())
+        ShotReviewProtocol.queued = [(503, Data())]
+        await captionModel.confirm()
+        let firstCaptionBody = ShotReviewProtocol.bodies.last!
+        #expect(captionModel.pending != nil && captionModel.attempted && !captionModel.busy)
+        captionModel.cancelUnsubmitted()
+        #expect(captionModel.pending != nil)
+        var captionPayload = try JSONSerialization.jsonObject(with: firstCaptionBody) as! [String: Any]
+        captionPayload.merge(["take_id": attached.id, "transcript_id": savedTranscript.id,
+            "source_audio_sha256": timedDraft.sourceAudioSHA256, "expected_review_id": "listening",
+            "captions_approved": true, "speech_alignment_verified": false, "master_accepted": false,
+            "review_evidence": "USER_ATTESTATION_NOT_ALIGNMENT_PROOF",
+            "review_sha256": String(repeating: "f", count: 64)]) { _, new in new }
+        let captionEvent: [String: Any] = ["id": "caption-review", "run_id": "run",
+            "event_type": "episode_transcript_reviewed", "payload": captionPayload]
+        ShotReviewProtocol.queued = [(200, try JSONSerialization.data(withJSONObject: captionEvent))]
+        await captionModel.confirm()
+        let retriedCaptionBody = try JSONSerialization.jsonObject(with: ShotReviewProtocol.bodies.last!) as! NSDictionary
+        #expect(retriedCaptionBody == (try JSONSerialization.jsonObject(with: firstCaptionBody) as! NSDictionary))
+        #expect(captionModel.pending == nil && !captionModel.attempted)
+        #expect(captionModel.recovery?.captions_approved == true)
+        let reopenedCaptions = RecordingCaptionModel(transcript: savedTranscript, runtime: runtime())
+        ShotReviewProtocol.queued = [(200, try captionRecovery(captionEvent))]
+        await reopenedCaptions.load()
+        #expect(reopenedCaptions.texts == ["修正后的海边"])
+        reopenedCaptions.texts = ["还想修改"]
+        ShotReviewProtocol.queued = [(200, try captionRecovery(captionEvent))]
+        await reopenedCaptions.load()
+        #expect(reopenedCaptions.texts == ["还想修改"])
+        #expect(reopenedCaptions.prepare())
+        #expect(reopenedCaptions.pending?.expected_previous_review_id == "caption-review")
+        let uncertainCaptions = RecordingCaptionModel(transcript: savedTranscript, runtime: runtime())
+        ShotReviewProtocol.queued = [(200, try captionRecovery())]
+        await uncertainCaptions.load()
+        uncertainCaptions.texts = ["修正后的海边"]
+        #expect(uncertainCaptions.prepare())
+        ShotReviewProtocol.queued = [(503, Data())]
+        await uncertainCaptions.confirm()
+        ShotReviewProtocol.queued = [(200, try captionRecovery(captionEvent))]
+        let requestCountBeforeRecovery = ShotReviewProtocol.requests.count
+        await uncertainCaptions.load()
+        #expect(uncertainCaptions.pending == nil && !uncertainCaptions.attempted)
+        #expect(ShotReviewProtocol.requests.count == requestCountBeforeRecovery + 1)
+        #expect(ShotReviewProtocol.requests.last?.httpMethod == "GET")
         ShotReviewProtocol.queued = [(200, try transcriptResponse())]
         #expect(try await runtime().recoverRecordingTranscript(take: attached, reviewID: "listening")?.id == "transcript")
         #expect(ShotReviewProtocol.requests.last?.httpMethod == "GET")

@@ -45,3 +45,12 @@ Validation in this follow-up is source review, Ruff and diff checks only. Local
 Swift compiler remains blocked; CI and installed keyboard/VoiceOver/long-text
 QA, model state tests and voice-driven correction are still outstanding. No
 claim that these controls are deployed to the installed application.
+
+State-test follow-up: EpisodeShotPlanTests now drives the caption model through
+empty recovery, edited draft, cancel-before-submit, failed save, exact request
+retry, reopening confirmed text, preserving edits on refresh, and GET-only
+reconciliation of an uncertain save. Native test execution remains pending CI.
+Backend synthetic media regression passed again (21.60s); Ruff/diff passed.
+CI 34106043111 for c1640ce completed successfully in runtime, macos-arm64,
+macos-x86_64 and macos-universal. This result predates the native caption UI and
+does not prove that UI passes. Current UI CI 34106778965 was in progress.
