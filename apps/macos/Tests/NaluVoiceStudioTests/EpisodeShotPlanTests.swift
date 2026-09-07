@@ -22,6 +22,29 @@ private final class ShotReviewProtocol: URLProtocol, @unchecked Sendable {
 
 @Suite(.serialized)
 struct EpisodeShotPlanTests {
+    @MainActor @Test func previewOpeningIsLocalAndPendingQueryDoesNotGenerate() async throws {
+        let binding = VideoSubmissionObservation(id: "binding", run_id: "run", task_key: "shot",
+            request_sha256: "request", state: "submitted", provider_task_id: "provider-task")
+        let pending = try JSONSerialization.data(withJSONObject: ["id": "obs", "run_id": "run", "event_type": "provider_task_observed",
+            "payload": ["binding_id": "binding", "task_id": "provider-task", "status": "processing",
+                "result_urls": [], "observation_sha256": "digest", "billing_verified": false,
+                "generation_performed": false, "master_accepted": false]])
+        ShotReviewProtocol.requests = []
+        ShotReviewProtocol.queued = [(200, Data("[]".utf8)), (200, Data("[]".utf8)), (200, pending), (503, Data())]
+        var reads = 0
+        let model = VideoCandidateModel(binding: binding, runtime: runtime(), key: { reads += 1; return "fixture-key" })
+        await model.restore()
+        #expect(reads == 0 && model.fileURL == nil && !model.busy)
+        #expect(ShotReviewProtocol.requests.map(\.httpMethod) == ["GET"])
+        await model.refresh()
+        #expect(reads == 1 && model.notice.contains("还在生成") && model.fileURL == nil)
+        #expect(ShotReviewProtocol.requests.map(\.httpMethod) == ["GET", "GET", "POST"])
+        #expect(ShotReviewProtocol.requests.last?.url?.path.hasSuffix("tasks/binding/refresh") == true)
+        await model.refresh()
+        #expect(reads == 1 && model.notice.contains("原任务保留") && !model.busy)
+        #expect(ShotReviewProtocol.requests.count == 4)
+    }
+
     @MainActor @Test func candidateRecoveryQueriesOnlyExistingTaskAndDownloadsWithoutKey() async throws {
         let binding = VideoSubmissionObservation(id: "binding", run_id: "run", task_key: "shot",
             request_sha256: "request", state: "submitted", provider_task_id: "provider-task")

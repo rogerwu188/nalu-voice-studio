@@ -329,6 +329,49 @@ actor RuntimeClient {
         return saved
     }
 
+    func savedVideoCandidates(_ binding: VideoSubmissionObservation) async throws -> [VideoCandidate] {
+        let events: [VideoCandidateEnvelope] = try await get("v1/production-runs/\(binding.run_id)/events")
+        let saved = events.compactMap(\.candidate).filter { $0.payload.binding_id == binding.id }
+        for candidate in saved { try validateVideoCandidate(candidate, binding: binding) }
+        return saved
+    }
+
+    private func validateVideoCandidate(_ candidate: VideoCandidate, binding: VideoSubmissionObservation) throws {
+        guard candidate.run_id == binding.run_id, candidate.event_type == "video_result_materialized",
+              candidate.payload.binding_id == binding.id, candidate.payload.task_key == binding.task_key,
+              candidate.payload.request_sha256 == binding.request_sha256, candidate.payload.video_downloaded,
+              !candidate.payload.generation_performed, !candidate.payload.billing_verified,
+              !candidate.payload.master_accepted, !candidate.payload.visual_semantics_verified,
+              !Task.isCancelled else { throw LibrarySnapshotRefreshError.contextChanged }
+    }
+
+    func downloadVideoCandidate(_ candidate: VideoCandidate, binding: VideoSubmissionObservation) async throws -> URL {
+        try validateVideoCandidate(candidate, binding: binding)
+        guard let media = candidate.payload.video, (12...128_000_000).contains(media.byte_size),
+              media.sha256.count == 64 else { throw LibrarySnapshotRefreshError.contextChanged }
+        var request = URLRequest(url: baseURL.appending(path:
+            "v1/production-runs/\(binding.run_id)/video-results/\(candidate.id)/content"))
+        request.timeoutInterval = 180
+        try await requireOwnedRuntime()
+        let (temporary, response) = try await session.download(for: request)
+        defer { try? FileManager.default.removeItem(at: temporary) }
+        guard let http = response as? HTTPURLResponse, http.statusCode == 200,
+              http.mimeType == "video/mp4", !Task.isCancelled else {
+            throw RuntimeError.requestFailed("本地视频暂时无法读取，请重试取回视频。")
+        }
+        let size = try FileManager.default.attributesOfItem(atPath: temporary.path)[.size] as? NSNumber
+        guard size?.intValue == media.byte_size else { throw LibrarySnapshotRefreshError.contextChanged }
+        let bytes = try Data(contentsOf: temporary, options: .mappedIfSafe)
+        guard SHA256.hash(data: bytes).map({ String(format: "%02x", $0) }).joined() == media.sha256 else {
+            throw RuntimeError.requestFailed("视频校验不一致，已停止播放。原生成任务保留。")
+        }
+        let destination = FileManager.default.temporaryDirectory.appending(path: "nalu-preview-\(UUID().uuidString).mp4")
+        try FileManager.default.copyItem(at: temporary, to: destination)
+        do { try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: destination.path) }
+        catch { try? FileManager.default.removeItem(at: destination); throw error }
+        return destination
+    }
+
     private func validateVideoSubmission(_ saved: VideoSubmissionObservation, reservation: VideoCostReservation) throws {
         guard saved.run_id == reservation.run_id, saved.task_key == reservation.payload.task_key,
               saved.request_sha256 == reservation.payload.request_sha256, !Task.isCancelled else {

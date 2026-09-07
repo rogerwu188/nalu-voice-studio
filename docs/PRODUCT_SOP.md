@@ -73,6 +73,10 @@ handoff and full episode/master acceptance remain unfinished.
 typed existing-task query and download recovery without generation retry. Native
 playback/review wiring and real end-to-end acceptance are still IN_PROGRESS.
 
+[Native playback wiring](qa/native-video-playback-2026-09-07.md) now restores
+saved candidates and previews hash-checked local videos in AVKit. New native CI,
+installed-app playback QA and accepted-video continuation remain open.
+
 AI plans now carry [typed director choices with native round-trip and plain-language readback](qa/structured-director-drafts-2026-09-07.md).
 User edits invalidate stale choices. A [version-bound director refresh backend](qa/director-refresh-2026-09-07.md)
 now fills missing choices without rewriting user descriptions, with restart and

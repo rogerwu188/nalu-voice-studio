@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "5186ad1f57508a20d0a9fbec027d70acb2ea3e15",
-  "last_advanced_at": "2026-09-07T05:23:27Z",
+  "observed_head": "6614ec4467a907d83b29f70499a16f7bdb158031",
+  "last_advanced_at": "2026-09-07T05:28:20Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Added typed native existing-task query and completed-video materialization bridge, with task/observation lineage and credential isolation tests. Backend video/progress regressions 30 passed in 5.75s. Local Swift blocked before source compilation by PackageDescription linker mismatch; GitHub native CI required. Parent 5186ad1 CI 34086218843 still running at check. See docs/qa/native-video-candidate-bridge-2026-09-07.md. Playback/review wiring and real E2E remain unfinished; no SOP closes."
+    "summary": "Wired native candidate panel into existing submitted-shot controls: local receipt restoration, explicit provider status query, immutable download recovery and AVKit playback of size/hash-checked private temporary MP4. Added pending/error/no-repeat tests; backend materialization/progress 15 passed in 4.99s. Parent 6614ec4 CI 34086687185 running; 5186ad1 full CI 34086218843 succeeded. New native CI and installed-app playback QA required. See docs/qa/native-video-playback-2026-09-07.md; no SOP closes."
   },
   "next_action": {
     "sop": "SOP-04",
