@@ -32,17 +32,34 @@ import Observation
             guard !Task.isCancelled, assets.allSatisfy({ $0.projectID == run.projectID }) else {
                 throw LibrarySnapshotRefreshError.contextChanged
             }
-            recordings = assets.filter {
+            let available = assets.filter {
                 ["archive_audio", "voice_reference"].contains($0.kind) && $0.consentGranted
                     && ($0.episodeID == nil || $0.episodeID == run.episodeID)
                     && ($0.seasonID == nil || $0.seasonID == run.seasonID)
                     && Self.sha($0) != nil
             }
+            let recovered = try await runtime.recoverEpisodeAudio(sound: sound)
+            guard !Task.isCancelled, recovered.allSatisfy({ take in
+                available.contains { $0.id == take.payload.asset_id && Self.sha($0) == take.payload.expected_asset_sha256 }
+            }) else { throw LibrarySnapshotRefreshError.contextChanged }
+            recordings = available
+            attached = Dictionary(uniqueKeysWithValues: recovered.map { ($0.payload.shot_index, $0) })
             loaded = true
             notice = recordings.isEmpty
                 ? "还没有可用的授权录音。请先通过资料入口添加音频并确认使用授权。"
                 : "已找到可用录音。选一段配音和对应录音，Nalu 会先读给您确认。"
-            if uncertain { notice = "刚才的录音绑定结果还未核实，请重试同一选择，不要重复换录音。" }
+            if let pending, uncertain {
+                if let saved = attached[pending.shot_index], saved.payload.asset_id == pending.asset_id,
+                   saved.payload.expected_asset_sha256 == pending.expected_asset_sha256,
+                   saved.payload.source_in_seconds == pending.source_in_seconds {
+                    self.pending = nil; uncertain = false
+                    notice = "已找回刚才绑定的录音，不需要重复提交。接下来试听并核对字幕。"
+                } else {
+                    notice = "刚才的录音绑定结果还未核实，请重试同一选择，不要重复换录音。"
+                }
+            } else if !attached.isEmpty {
+                notice = "已恢复各段保存的录音素材，您可以继续试听和核对；还不是最终配音验收。"
+            }
         } catch { notice = "录音资料暂时无法读取。请重试；原录音、剪辑和待确认选择都保留。" }
     }
 

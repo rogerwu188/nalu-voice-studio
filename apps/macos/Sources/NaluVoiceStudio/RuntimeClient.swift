@@ -298,6 +298,41 @@ actor RuntimeClient {
             throw LibrarySnapshotRefreshError.contextChanged
         }
         let result: EpisodeAudioTake = try await post("v1/production-runs/\(sound.run_id)/audio-takes", body: draft)
+        try validateEpisodeAudio(result, sound: sound, draft: draft, reviewID: reviewID)
+        return result
+    }
+
+    func recoverEpisodeAudio(sound: EpisodeSoundPlan) async throws -> [EpisodeAudioTake] {
+        try sound.validateCueWindows()
+        guard sound.event_type == "episode_sound_plan_drafted", sound.payload.edit_approved,
+              let reviewID = sound.payload.edit_review_id, !reviewID.isEmpty else {
+            throw LibrarySnapshotRefreshError.contextChanged
+        }
+        var components = URLComponents(url: baseURL.appending(path: "v1/production-runs/\(sound.run_id)/audio-takes"), resolvingAgainstBaseURL: false)!
+        components.queryItems = [URLQueryItem(name: "sound_plan_id", value: sound.id),
+                                URLQueryItem(name: "expected_sound_plan_sha256", value: sound.payload.sound_plan_sha256)]
+        let (data, response) = try await authorizedData(from: components.url!)
+        try validate(response, data: data)
+        let results = try decoder.decode([EpisodeAudioTake].self, from: data)
+        var indices = Set<Int>()
+        for result in results {
+            let take = result.payload
+            guard sound.payload.cues.indices.contains(take.shot_index), indices.insert(take.shot_index).inserted,
+                  !take.asset_id.isEmpty, take.expected_asset_sha256.count == 64,
+                  take.expected_asset_sha256.allSatisfy({ "0123456789abcdef".contains($0) }),
+                  take.source_in_seconds.isFinite, (0...1800).contains(take.source_in_seconds) else {
+                throw LibrarySnapshotRefreshError.contextChanged
+            }
+            let draft = EpisodeAudioTakeDraft(sound_plan_id: sound.id, expected_sound_plan_sha256: sound.payload.sound_plan_sha256,
+                shot_index: take.shot_index, asset_id: take.asset_id, expected_asset_sha256: take.expected_asset_sha256,
+                source_in_seconds: take.source_in_seconds)
+            try validateEpisodeAudio(result, sound: sound, draft: draft, reviewID: reviewID)
+        }
+        return results
+    }
+
+    private func validateEpisodeAudio(_ result: EpisodeAudioTake, sound: EpisodeSoundPlan,
+                                      draft: EpisodeAudioTakeDraft, reviewID: String) throws {
         let take = result.payload
         let cue = sound.payload.cues[draft.shot_index]
         let duration = cue.end_seconds - cue.start_seconds
@@ -315,7 +350,6 @@ actor RuntimeClient {
               !take.master_accepted, !take.generation_performed else {
             throw LibrarySnapshotRefreshError.contextChanged
         }
-        return result
     }
 
     private func validateSavedEpisodeEdit(_ result: EpisodeEditingEvent, inputs: EpisodeEditingEvent) throws {

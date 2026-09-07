@@ -22,3 +22,24 @@ real narration, alignment, final sound and master/release remain unfinished.
 
 Next: consume recovery in native recording selection and reconcile uncertain
 attachments, then user take confirmation and actual subtitle/audio production.
+
+## Native read-only recovery checkpoint
+
+RuntimeClient now requests audio-takes with URL-encoded sound-plan ID/hash and
+validates every returned cue, review, source digest, sample count and QA flag. It
+rejects duplicate cues rather than silently overwriting. EpisodeAudioModel loads
+these bindings alongside scoped assets and checks each recovered asset/hash is
+still in the usable inventory before making the result actionable.
+
+An uncertain attach is resolved by GET only when the saved cue/asset/hash/source
+offset matches exactly. Unmatched requests remain pending, and a failed read
+keeps source data but disables new selection. Native tests added for GET-only
+restart recovery, query binding, uncertain result reconciliation and duplicate
+cue rejection. Current native CI remains required. Backend recovery regression
+passed again (1 test, 10.03s), scoped Ruff/diff passed. Native UI parent 1751f3e
+CI 34098405655 was still in progress at inspection.
+
+The model recovers bound records; restoring the visible picker/offset and
+auditioning exactly that recovered source segment still needs wiring. Final
+listened-to decisions, speech alignment, authored audio and master/release QA
+remain incomplete. Installed app has not been updated or visually verified.

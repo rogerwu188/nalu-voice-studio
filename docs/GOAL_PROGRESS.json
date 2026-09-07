@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "1751f3ebefe12dba939efd232e014994fd8fb2c5",
-  "last_advanced_at": "2026-09-07T08:05:26Z",
+  "observed_head": "867b42a",
+  "last_advanced_at": "2026-09-07T08:08:38Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Added GET recording recovery with live media/consent/approved-edit revalidation and no event creation. Fixed zero-offset integer/float recovery mismatch. 26 workflow tests passed (30.38s), targeted zero/recovery regression passed (8.59s), Ruff/diff passed and OpenAPI regenerated. Parent 7b8a0be full CI 34097684986 succeeded. Evidence docs/qa/recording-recovery-2026-09-07.md."
+    "summary": "Native client now consumes exact sound-plan recording recovery, validates unique cues/context and usable assets, reconciles matching uncertain submissions by GET without another POST. Native restart/query/duplicate/reconciliation tests added, current CI required. Synthetic backend recovery passed in 10.03s, Ruff/diff passed. Parent 1751f3e CI 34098405655 running. Evidence docs/qa/recording-recovery-2026-09-07.md."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Consume GET recording recovery in native selection; reconcile uncertain attachments against exact saved results. Add listened-to take decisions/nonzero source offset, speech-based alignment and authored audio/master/release. Verify current CI and installed audition. Synthetic tones and source audition are not final narration QA.",
+    "summary": "Restore visible picker and source offset from recovered takes, audition the exact recovered segment and add explicit listened-to decisions. Then speech-based subtitle alignment and authored final audio/master/release. Verify current CI and installed playback; synthetic tones and source audition are not final narration QA.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
