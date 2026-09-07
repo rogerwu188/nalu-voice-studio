@@ -506,7 +506,40 @@ actor RuntimeClient {
               !Task.isCancelled else { throw LibrarySnapshotRefreshError.contextChanged }
     }
 
-    func downloadEpisodePicturePreview(edit: EpisodeEditingEvent) async throws -> URL {
+    func latestEpisodeEditReview(edit: EpisodeEditingEvent) async throws -> EpisodeEditReview? {
+        let events: [EpisodeEditReviewEnvelope] = try await get("v1/production-runs/\(edit.run_id)/events")
+        guard let latest = events.compactMap(\.review).last(where: { $0.payload.edit_id == edit.id }) else { return nil }
+        try validateEpisodeEditReview(latest, edit: edit)
+        return latest
+    }
+
+    func reviewEpisodeEdit(edit: EpisodeEditingEvent, picture: EpisodePicture,
+                           draft: EpisodeEditReviewDraft) async throws -> EpisodeEditReview {
+        guard picture.editSHA == edit.payload.edit_sha256, draft.expected_edit_sha256 == picture.editSHA,
+              draft.preview_id == picture.receiptID, draft.expected_preview_sha256 == picture.sha256 else {
+            throw LibrarySnapshotRefreshError.contextChanged
+        }
+        let saved: EpisodeEditReview = try await post("v1/production-runs/\(edit.run_id)/episode-edit-drafts/\(edit.id)/reviews", body: draft)
+        try validateEpisodeEditReview(saved, edit: edit)
+        guard saved.payload.preview_id == picture.receiptID, saved.payload.preview_sha256 == picture.sha256,
+              saved.payload.decision == draft.decision, saved.payload.reviewed_by == draft.reviewed_by,
+              saved.payload.confirmation == draft.confirmation else { throw LibrarySnapshotRefreshError.contextChanged }
+        return saved
+    }
+
+    private func validateEpisodeEditReview(_ review: EpisodeEditReview, edit: EpisodeEditingEvent) throws {
+        let p = review.payload
+        guard !Task.isCancelled, review.run_id == edit.run_id, review.event_type == "postproduction_edit_reviewed",
+              p.edit_id == edit.id, p.edit_sha256 == edit.payload.edit_sha256,
+              p.duration_confirmed_seconds == edit.payload.edited_duration_seconds,
+              p.edit_approved == (p.decision == .accept), !p.audio_approved, !p.captions_approved,
+              !p.master_accepted, !p.generation_performed,
+              p.viewing_evidence == "USER_ATTESTATION_NOT_PLAYBACK_TELEMETRY" else {
+            throw LibrarySnapshotRefreshError.contextChanged
+        }
+    }
+
+    func downloadEpisodePicturePreview(edit: EpisodeEditingEvent) async throws -> EpisodePicture {
         guard edit.event_type == "postproduction_edit_drafted", let sha = edit.payload.edit_sha256,
               sha.count == 64, edit.payload.edit_approved == false, !edit.payload.master_accepted else {
             throw LibrarySnapshotRefreshError.contextChanged
@@ -525,12 +558,13 @@ actor RuntimeClient {
             throw LibrarySnapshotRefreshError.contextChanged
         }
         let bytes = try Data(contentsOf: temporary, options: .mappedIfSafe)
-        try EpisodePictureValidation.validate(bytes: bytes, response: response, editSHA: sha)
+        let receiptID = try EpisodePictureValidation.validate(bytes: bytes, response: response, editSHA: sha)
         let destination = FileManager.default.temporaryDirectory.appending(path: "nalu-episode-preview-\(UUID().uuidString).mp4")
         try FileManager.default.copyItem(at: temporary, to: destination)
         do { try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: destination.path) }
         catch { try? FileManager.default.removeItem(at: destination); throw error }
-        return destination
+        return EpisodePicture(fileURL: destination, receiptID: receiptID,
+            sha256: SHA256.hash(data: bytes).map({ String(format: "%02x", $0) }).joined(), editSHA: sha)
     }
 
     func downloadVideoCandidate(_ candidate: VideoCandidate, binding: VideoSubmissionObservation) async throws -> URL {

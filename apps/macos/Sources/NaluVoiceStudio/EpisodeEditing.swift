@@ -56,7 +56,8 @@ struct EpisodeEditEnvelope: Decodable {
     private(set) var saved: EpisodeEditingEvent?
     private(set) var cuts: [EpisodeEditCut] = []
     private(set) var busy = false
-    private(set) var previewURL: URL?
+    private(set) var picture: EpisodePicture?
+    var previewURL: URL? { picture?.fileURL }
     private(set) var notice = "先播放并采用本集每个镜头，再整理剪辑。原视频会保留。"
 
     init(runID: String, planID: String, planSHA: String, runtime: RuntimeClient = RuntimeClient()) {
@@ -136,7 +137,8 @@ struct EpisodeEditEnvelope: Decodable {
         notice = "正在本机拼接画面预览，没有配音，也不会提交新的生成任务。"
         defer { busy = false }
         do {
-            let file = try await runtime.downloadEpisodePicturePreview(edit: edit)
+            let downloaded = try await runtime.downloadEpisodePicturePreview(edit: edit)
+            let file = downloaded.fileURL
             do {
                 let asset = AVURLAsset(url: file)
                 let playable = try await asset.load(.isPlayable)
@@ -151,13 +153,13 @@ struct EpisodeEditEnvelope: Decodable {
                 try? FileManager.default.removeItem(at: file)
                 return
             }
-            previewURL = file
+            picture = downloaded
             notice = "无配音画面预览已准备好。请播放检查顺序和节奏；这不是最终成片。"
         } catch { notice = "这次画面预览未成功，剪辑草稿仍保留。可以重试；不会重新生成镜头。" }
     }
 
     func discardPreview() {
         if let previewURL { try? FileManager.default.removeItem(at: previewURL) }
-        previewURL = nil
+        picture = nil
     }
 }

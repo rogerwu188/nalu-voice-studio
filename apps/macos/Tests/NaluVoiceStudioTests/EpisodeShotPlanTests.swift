@@ -41,6 +41,7 @@ struct EpisodeShotPlanTests {
         let sha = SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined()
         let editSHA = String(repeating: "a", count: 64)
         let headers = ["Content-Type": "video/mp4", "X-Nalu-Edit-SHA256": editSHA,
+            "X-Nalu-Preview-Receipt-ID": "evt_preview",
             "X-Nalu-Preview-SHA256": sha, "X-Nalu-Preview-Audio": "none", "X-Nalu-Master-Accepted": "false"]
         func response(_ values: [String: String], status: Int = 200) -> HTTPURLResponse {
             HTTPURLResponse(url: URL(string: "http://127.0.0.1/preview")!, statusCode: status,
@@ -48,7 +49,7 @@ struct EpisodeShotPlanTests {
         }
         try EpisodePictureValidation.validate(bytes: bytes, response: response(headers), editSHA: editSHA)
         for field in headers.keys {
-            var wrong = headers; wrong[field] = "wrong"
+            var wrong = headers; wrong[field] = ""
             #expect(throws: (any Error).self) {
                 try EpisodePictureValidation.validate(bytes: bytes, response: response(wrong), editSHA: editSHA)
             }
@@ -144,6 +145,38 @@ struct EpisodeShotPlanTests {
         ShotReviewProtocol.queued = [(200, try response(edited: true)), (200, try soundResponse(editID: "foreign"))]
         await restarted.save()
         #expect(restarted.saved?.id == "edit" && restarted.notice.contains("暂未同步"))
+        let edit = try #require(restarted.saved)
+        let picture = EpisodePicture(fileURL: URL(fileURLWithPath: "/tmp/synthetic-preview-not-played.mp4"),
+            receiptID: "preview", sha256: String(repeating: "c", count: 64), editSHA: String(repeating: "b", count: 64))
+        func reviewResponse(previewID: String = "preview") throws -> Data {
+            try JSONSerialization.data(withJSONObject: ["id": "review", "run_id": "run", "event_type": "postproduction_edit_reviewed",
+                "payload": ["edit_id": "edit", "edit_sha256": picture.editSHA, "preview_id": previewID,
+                    "preview_sha256": picture.sha256, "decision": "accept", "reviewed_by": "synthetic-qa",
+                    "confirmation": "合成确认，非实际用户验收", "edit_approved": true, "duration_confirmed_seconds": 7.5,
+                    "viewing_evidence": "USER_ATTESTATION_NOT_PLAYBACK_TELEMETRY", "audio_approved": false,
+                    "captions_approved": false, "master_accepted": false, "generation_performed": false]])
+        }
+        let reviewHistory = try JSONSerialization.data(withJSONObject: [JSONSerialization.jsonObject(with: reviewResponse())])
+        ShotReviewProtocol.queued = [(200, Data("[]".utf8)), (200, try reviewResponse()), (200, reviewHistory),
+            (200, try reviewResponse(previewID: "foreign"))]
+        let reviewClient = runtime()
+        #expect(try await reviewClient.latestEpisodeEditReview(edit: edit) == nil)
+        let draft = EpisodeEditReviewDraft(expected_edit_sha256: picture.editSHA, preview_id: picture.receiptID,
+            expected_preview_sha256: picture.sha256, expected_review_id: nil, decision: .accept,
+            reviewed_by: "synthetic-qa", confirmation: "合成确认，非实际用户验收")
+        let accepted = try await reviewClient.reviewEpisodeEdit(edit: edit, picture: picture, draft: draft)
+        #expect(accepted.payload.edit_approved)
+        let recovered = try await reviewClient.latestEpisodeEditReview(edit: edit)
+        #expect(recovered?.id == accepted.id)
+        do {
+            _ = try await reviewClient.reviewEpisodeEdit(edit: edit, picture: picture, draft: draft)
+            Issue.record("foreign preview must not become an accepted edit")
+        } catch {}
+        let sentReview = try JSONSerialization.jsonObject(with: ShotReviewProtocol.bodies.last!) as! [String: Any]
+        #expect(sentReview["preview_id"] as? String == picture.receiptID)
+        #expect(sentReview["expected_preview_sha256"] as? String == picture.sha256)
+        #expect(ShotReviewProtocol.requests.last?.url?.path.hasSuffix("episode-edit-drafts/edit/reviews") == true)
+        #expect(ShotReviewProtocol.requests.last?.value(forHTTPHeaderField: "X-Nalu-Provider-Key") == nil)
     }
 
     @MainActor @Test func continuousPreparationCarriesPlanAndRejectsForeignTailResponse() async throws {
