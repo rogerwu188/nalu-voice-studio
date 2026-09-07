@@ -53,6 +53,10 @@ Confirmed shots now [prepare reusable reference-image production dependencies](q
 through the existing image ledger, estimates and result-review path. Actual
 project-asset registration, live generation and video/release acceptance remain open.
 
+Accepted references now have a [project-asset registration path](qa/generated-reference-registration-2026-09-07.md)
+with explicit permissions, generated-source provenance and interrupted-response
+reuse. Native confirmation and automatic reference resolution still need completion.
+
 Confirmed shots now support [automatic local opening-image preparation](qa/reviewed-opening-image-preparation-2026-09-06.md)
 with exact source bindings, inherited reference checks and restart reuse. This is
 not paid image activation, native QA, continuous-frame handoff or finished production.

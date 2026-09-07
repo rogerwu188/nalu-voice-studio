@@ -165,6 +165,7 @@ class AssetService:
         guardian_approved: bool,
         consent_granted_by: str,
         consent_statement: str,
+        generation_provenance: dict | None = None,
     ) -> Asset:
         project = self.repository.get_project(project_id)
         if not content or len(content) > MAX_ASSET_BYTES:
@@ -197,6 +198,7 @@ class AssetService:
                 season_id=season_id,
                 episode_id=episode_id,
                 metadata={
+                    **({"generation_provenance": generation_provenance} if generation_provenance is not None else {}),
                     "sha256": digest,
                     "byte_size": len(content),
                     "content_type": content_type,

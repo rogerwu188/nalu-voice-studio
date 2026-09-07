@@ -7161,6 +7161,40 @@
         "title": "PublicationReconciliationRecord",
         "type": "object"
       },
+      "ReferenceAssetConfirmation": {
+        "additionalProperties": false,
+        "properties": {
+          "confirmed_by": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Confirmed By",
+            "type": "string"
+          },
+          "consent_granted": {
+            "const": true,
+            "title": "Consent Granted",
+            "type": "boolean"
+          },
+          "guardian_approved": {
+            "default": false,
+            "title": "Guardian Approved",
+            "type": "boolean"
+          },
+          "statement": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Statement",
+            "type": "string"
+          }
+        },
+        "required": [
+          "consent_granted",
+          "confirmed_by",
+          "statement"
+        ],
+        "title": "ReferenceAssetConfirmation",
+        "type": "object"
+      },
       "ReleasePackage": {
         "properties": {
           "artifacts": {
@@ -13685,6 +13719,80 @@
           }
         },
         "summary": "Get Publication Reconciliation"
+      }
+    },
+    "/v1/production-runs/{run_id}/reference-reviews/{review_id}/asset": {
+      "post": {
+        "operationId": "register_reference_asset_v1_production_runs__run_id__reference_reviews__review_id__asset_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "review_id",
+            "required": true,
+            "schema": {
+              "title": "Review Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "origin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Origin"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReferenceAssetConfirmation"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Asset"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Register Reference Asset"
       }
     },
     "/v1/production-runs/{run_id}/release-package": {

@@ -111,6 +111,8 @@ class ImagePreparationService:
                 raise ConflictError("reference asset changed or is outside this episode")
             if asset.kind not in {"character_image", "scene_reference", "prop_reference", "style_reference", "source_document"}:
                 raise ConflictError("shot references non-image material; prepare an explicit reviewed still first")
+            from .reference_assets import validate_registered_reference
+            validate_registered_reference(self.repository, asset)
             if asset.kind == "character_image":
                 consent = self.repository.list_asset_consent_records(asset_id)
                 if (not asset.consent_granted or not consent or consent[-1].action_type != "granted"

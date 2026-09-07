@@ -10,6 +10,8 @@ from nalu_runtime.giggle_task_query import GiggleTaskObservation
 from nalu_runtime.image_observation import ImageObservationService
 from nalu_runtime.image_preparation import ImagePreparationRequest, ImagePreparationService
 from nalu_runtime.image_submission import ImageSubmissionService
+from nalu_runtime.reference_assets import validate_registered_reference
+from nalu_runtime.repository import ConflictError
 from nalu_runtime.video_preparation import digest
 from test_image_budget import prepared_image
 from test_image_download import png
@@ -64,7 +66,8 @@ def test_native_shots_prepare_shared_references_with_budget_and_restart_reuse(tm
     assert not any(e.event_type == "image_submit_intent" for e in repo.list_run_events(run.id))
 
 
-def test_reference_request_uses_existing_durable_submission_download_and_review(tmp_path, monkeypatch):
+@pytest.mark.parametrize("registration_case", ["normal", "revoked", "changed_bytes", "changed_confirmation", "commit_interrupted", "child", "rejected"])
+def test_reference_request_uses_existing_durable_submission_download_and_review(tmp_path, monkeypatch, registration_case):
     api, run, plan = reference_plan(tmp_path)
     repo = api.app.state.repository
     service = ImagePreparationService(repo, AssetService(repo, tmp_path / "data"))
@@ -96,6 +99,53 @@ def test_reference_request_uses_existing_durable_submission_download_and_review(
     assert restarted.post(endpoint, json=review).json()["id"] == result.json()["id"]
     assert len(calls) == 1
     assert repo.list_assets(run.project_id, run.episode_id) == []  # Review alone never fabricates registered assets.
+    registration = f"/v1/production-runs/{run.id}/reference-reviews/{result.json()['id']}/asset"
+    confirmation = {"consent_granted": True, "confirmed_by": "QA", "statement": "Synthetic reference allowed for this project"}
+    assert api.post(registration, json=confirmation, headers={"Origin": "https://example.org"}).status_code == 403
+    assert api.post(registration, json={**confirmation, "consent_granted": False}).status_code == 422
+    if registration_case == "rejected":
+        rejected = api.post(endpoint, json={**review, "decision": "reject", "expected_review_event_id": result.json()["id"]})
+        assert rejected.status_code == 200
+        assert api.post(registration, json=confirmation).status_code == 409
+        assert repo.list_assets(run.project_id) == []
+        return
+    if registration_case == "child":
+        with repo.db.connect() as db:
+            db.execute("UPDATE projects SET audience_mode='child' WHERE id=?", (run.project_id,))
+        assert api.post(registration, json=confirmation).status_code == 409
+        confirmation["guardian_approved"] = True
+    if registration_case == "commit_interrupted":
+        def interrupted(_self, _asset):
+            raise RuntimeError("synthetic response interruption after asset commit")
+        with monkeypatch.context() as patch:
+            patch.setattr(AssetService, "_after_asset_database_commit", interrupted)
+            with pytest.raises(RuntimeError, match="synthetic response interruption"):
+                api.post(registration, json=confirmation)
+        # Existing importer recovers its marker; provenance identifies the committed asset.
+        api = TestClient(create_app(tmp_path / "db", tmp_path / "data"))
+    registered = api.post(registration, json=confirmation)
+    assert registered.status_code == 200, registered.text
+    asset = registered.json()
+    assert asset["season_id"] is None and asset["episode_id"] is None
+    provenance = asset["metadata"]["generation_provenance"]
+    assert provenance["identity_qa_verified"] is False and provenance["authentic_historical_photo"] is False
+    assert provenance["review_id"] == result.json()["id"]
+    validate_registered_reference(repo, repo.get_asset(asset["id"]))
+    if registration_case == "revoked":
+        with repo.db.connect() as db:
+            db.execute("UPDATE assets SET consent_granted=0 WHERE id=?", (asset["id"],))
+        with pytest.raises(ConflictError):
+            validate_registered_reference(repo, repo.get_asset(asset["id"]))
+    if registration_case == "changed_bytes":
+        AssetService(repo, tmp_path / "data").managed_path(run.project_id, asset["local_uri"]).write_bytes(b"changed")
+    if registration_case == "changed_confirmation":
+        confirmation["statement"] = "different scope cannot silently overwrite approval"
+    retried = api.post(registration, json=confirmation)
+    if registration_case in {"revoked", "changed_bytes", "changed_confirmation"}:
+        assert retried.status_code == 409, retried.text
+    else:
+        assert retried.status_code == 200 and retried.json()["id"] == asset["id"]
+    assert len(repo.list_assets(run.project_id)) == 1 and len(calls) == 1
 
 
 @pytest.mark.parametrize("case", ["unknown", "wrong_task", "stale", "cancelled", "style_changed", "unapproved"])

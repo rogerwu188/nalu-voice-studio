@@ -167,6 +167,7 @@ from .publication_learning import (
     DisabledPublicationLearningVerifier,
     PublicationLearningVerifier,
 )
+from .reference_assets import ReferenceAssetConfirmation, ReferenceAssetService
 from .release_evidence import (
     DisabledReleaseEvidenceVerifier,
     ReleaseEvidenceVerifier,
@@ -1214,6 +1215,13 @@ def create_app(
         if origin is not None:
             raise HTTPException(403, "native frame review required")
         return ImageReviewService(repository, asset_service, data_root).review(run_id, materialization_id, request)
+
+    @app.post("/v1/production-runs/{run_id}/reference-reviews/{review_id}/asset", response_model=Asset)
+    def register_reference_asset(run_id: str, review_id: str, request: ReferenceAssetConfirmation,
+                                 origin: str | None = Header(default=None)):
+        if origin is not None:
+            raise HTTPException(403, "native reference permission confirmation required")
+        return ReferenceAssetService(repository, asset_service, data_root).register(run_id, review_id, request)
 
     @app.post("/v1/production-runs/{run_id}/image-observations/{observation_id}/materialize", response_model=RunEvent)
     def materialize_image_result(run_id: str, observation_id: str, result_index: int = Query(default=0, ge=0, le=3),
