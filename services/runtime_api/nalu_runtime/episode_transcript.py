@@ -6,6 +6,7 @@ from typing import Literal
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from .episode_audio_review import EpisodeAudioReviewService
+from .models import RunEvent
 from .repository import ConflictError, encode, new_id, utc_now
 from .video_preparation import digest
 
@@ -50,6 +51,13 @@ class TranscriptReviewRequest(BaseModel):
     confirmation: str = Field(min_length=1, max_length=2000)
 
 
+class TranscriptReviewRecovery(BaseModel):
+    current_transcript_id: str
+    latest_review: RunEvent | None
+    applies_to_current_transcript: bool
+    captions_approved: bool
+
+
 class RecordingTranscriptService:
     def __init__(self, repository, data_root):
         self.repository, self.data_root = repository, data_root
@@ -78,6 +86,51 @@ class RecordingTranscriptService:
                 "episode_recording_transcribed", None, None, "Timed transcript draft saved; user review required.",
                 encode(payload), utc_now()))
         return repo.get_run_event(identity)
+
+    def recover_review(self, run_id, take_id, transcript_id, expected_transcript_sha256):
+        repo = self.repository
+        with repo.db.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            events = repo.list_run_events(run_id)
+            source = next((e for e in events if e.id == transcript_id
+                           and e.event_type == "episode_recording_transcribed"
+                           and e.payload.get("take_id") == take_id), None)
+            if source is None:
+                raise ConflictError("transcript is not part of this recording")
+            p = source.payload
+            current = self.recover(run_id, take_id, p["expected_take_sha256"], p["expected_review_id"], _db=db)
+            if current.id != transcript_id or p["transcript_sha256"] != expected_transcript_sha256:
+                raise ConflictError("transcript changed; recover the current draft")
+            reviews = [e for e in events if e.event_type == "episode_transcript_reviewed"
+                       and e.payload.get("take_id") == take_id]
+            latest = reviews[-1] if reviews else None
+            applies = False
+            if latest:
+                r = latest.payload
+                bound = next((e for e in events if e.id == r.get("transcript_id")
+                              and e.event_type == "episode_recording_transcribed"
+                              and e.payload.get("take_id") == take_id), None)
+                if (bound is None or r.get("review_sha256") != digest({k: v for k, v in r.items() if k != "review_sha256"})
+                        or r.get("captions_approved") is not True
+                        or r.get("speech_alignment_verified") is not False or r.get("master_accepted") is not False
+                        or r.get("review_evidence") != "USER_ATTESTATION_NOT_ALIGNMENT_PROOF"):
+                    raise ConflictError("caption review integrity changed")
+                b = bound.payload
+                if (b.get("transcript_sha256") != digest({k: v for k, v in b.items() if k != "transcript_sha256"})
+                        or r.get("expected_transcript_sha256") != b.get("transcript_sha256")
+                        or r.get("source_audio_sha256") != b.get("source_audio_sha256")
+                        or r.get("expected_review_id") != b.get("expected_review_id")):
+                    raise ConflictError("caption review source changed")
+                try:
+                    TranscriptReviewRequest.model_validate({key: r[key] for key in TranscriptReviewRequest.model_fields})
+                    corrected = {key: b[key] for key in RecordingTranscriptRequest.model_fields}
+                    corrected.update(segments=r["segments"], transcript=" ".join(w["text"] for w in r["segments"]))
+                    RecordingTranscriptRequest.model_validate(corrected)
+                except (ValidationError, KeyError, TypeError) as exc:
+                    raise ConflictError("saved corrected captions are invalid") from exc
+                applies = bound.id == transcript_id
+            return TranscriptReviewRecovery(current_transcript_id=transcript_id, latest_review=latest,
+                                            applies_to_current_transcript=applies, captions_approved=applies)
 
     def recover(self, run_id, take_id, expected_take_sha256, expected_review_id, *, _db=None):
         repo = self.repository

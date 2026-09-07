@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "a6ad31e44270b348f594fbf85346cfa963ef1fc7",
-  "last_advanced_at": "2026-09-07T09:19:40Z",
+  "observed_head": "c1640ce213b60dba54a684ddb81dea4a110d7560",
+  "last_advanced_at": "2026-09-07T09:28:23Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Visible recording transcript actions now connect recognition, save-only retry, recovery, readback and task cancellation. Different historical drafts cannot resolve an uncertain save. Native guard assertions added; execution/installed QA pending. Backend fixture passed in 17.08s; Ruff/diff passed. CI 34104369487 ARM passed, remaining jobs running. Evidence docs/qa/native-transcript-controls-2026-09-07.md. Subtitle correction/confirmation and final master/release remain incomplete."
+    "summary": "Backend corrected-caption confirmation and typed recovery implemented; current transcript/PCM integrity and historical approval suppression covered by synthetic media regression (21.53s). Ruff/OpenAPI passed. Evidence docs/qa/caption-correction-review-2026-09-07.md. CI 34106043111 queued at observation; native UI/installed QA and final master/release remain incomplete."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Backend corrected caption confirmation added; evidence docs/qa/caption-correction-review-2026-09-07.md (synthetic fixture passed 19.63s). Next implement review recovery and native timed correction, then final mix/master/release. CI and installed QA remain pending. Preserve two-source writing and existing TTS; do not repeat Hops 401 paid/auth requests.",
+    "summary": "Connect typed caption review/recovery to native correction UI with save/retry handling, then final mix/master/release. Backend confirmation/recovery evidence docs/qa/caption-correction-review-2026-09-07.md. CI and installed QA remain pending. Preserve two-source writing and existing TTS; do not repeat Hops 401 paid/auth requests.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

@@ -473,6 +473,8 @@ def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypat
             caption_request = {"expected_transcript_sha256": transcript_saved.json()["payload"]["transcript_sha256"],
                 "segments": [{"start_seconds": 0.1, "end_seconds": 0.8, "text": "修正后的字幕"}],
                 "reviewed_by": "local-user", "confirmation": "已核对这段录音的字幕"}
+            caption_query = {"expected_transcript_sha256": caption_request["expected_transcript_sha256"]}
+            assert reopened.get(caption_url, params=caption_query).json()["latest_review"] is None
             assert api.post(caption_url, json=caption_request, headers={"Origin": "https://example.org"}).status_code == 403
             assert api.post(caption_url, json={**caption_request, "expected_transcript_sha256": "0" * 64}).status_code == 409
             assert api.post(caption_url, json={**caption_request, "segments": [
@@ -485,7 +487,21 @@ def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypat
             caption_count = len(repo.list_run_events(run.id))
             assert reopened.post(caption_url, json=caption_request).json()["id"] == caption_saved.json()["id"]
             assert len(repo.list_run_events(run.id)) == caption_count
+            restored_caption = reopened.get(caption_url, params=caption_query)
+            assert restored_caption.status_code == 200, restored_caption.text
+            assert restored_caption.json()["latest_review"]["id"] == caption_saved.json()["id"]
+            assert restored_caption.json()["captions_approved"] is True
+            assert len(repo.list_run_events(run.id)) == caption_count
             assert api.post(caption_url, json={**caption_request, "confirmation": "另一次修正"}).status_code == 409
+            newer_transcript = api.post(transcript_url, json={**transcript_request, "transcript": "新转写"})
+            assert newer_transcript.status_code == 200
+            assert reopened.get(caption_url, params=caption_query).status_code == 409
+            newer_caption_url = f"{transcript_url}/{newer_transcript.json()['id']}/reviews"
+            newer_query = {"expected_transcript_sha256": newer_transcript.json()["payload"]["transcript_sha256"]}
+            historical_caption = reopened.get(newer_caption_url, params=newer_query).json()
+            assert historical_caption["latest_review"]["id"] == caption_saved.json()["id"]
+            assert historical_caption["captions_approved"] is False
+            assert historical_caption["applies_to_current_transcript"] is False
             assert api.post(listening_url, json={**listening_request, "decision": "reject"}).status_code == 409
             rejected_listening = api.post(listening_url, json={**listening_request, "decision": "reject",
                                          "expected_review_id": listened.json()["id"]})
@@ -494,6 +510,7 @@ def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypat
             assert reopened.get(transcript_url, params=accepted_audio_query).status_code == 409
             assert reopened.post(transcript_url, json=transcript_request).status_code == 409
             assert reopened.post(caption_url, json=caption_request).status_code == 409
+            assert reopened.get(newer_caption_url, params=newer_query).status_code == 409
             assert reopened.get(accepted_audio_url, params=accepted_audio_query).status_code == 409
             assert reopened.post(listening_url, json=listening_request).status_code == 409
             recovered_rejection = reopened.get(listening_url, params=listening_query).json()

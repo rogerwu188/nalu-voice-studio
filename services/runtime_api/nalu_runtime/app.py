@@ -37,6 +37,7 @@ from .episode_sound_plan import EpisodeSoundPlanRequest, EpisodeSoundPlanService
 from .episode_transcript import (
     RecordingTranscriptRequest,
     RecordingTranscriptService,
+    TranscriptReviewRecovery,
     TranscriptReviewRequest,
 )
 from .feedback_export import (
@@ -1450,6 +1451,12 @@ def create_app(
         if origin is not None:
             raise HTTPException(403, "native caption confirmation required")
         return RecordingTranscriptService(repository, data_root).review(run_id, take_id, transcript_id, request)
+
+    @app.get("/v1/production-runs/{run_id}/audio-takes/{take_id}/transcripts/{transcript_id}/reviews", response_model=TranscriptReviewRecovery)
+    def recover_caption_review(run_id: str, take_id: str, transcript_id: str,
+                               expected_transcript_sha256: str = Query(pattern=r"^[a-f0-9]{64}$")):
+        return RecordingTranscriptService(repository, data_root).recover_review(
+            run_id, take_id, transcript_id, expected_transcript_sha256)
 
     @app.get("/v1/production-runs/{run_id}/audio-takes/{take_id}/transcripts", response_model=RunEvent | None)
     def recover_recording_transcript(run_id: str, take_id: str,
