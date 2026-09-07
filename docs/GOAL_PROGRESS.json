@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "1dd79621d5eb2e87d27aa3822fd094c5f882d6d4",
-  "last_advanced_at": "2026-09-07T01:28:05Z",
+  "observed_head": "90441a0b46f6881d146b38aa94a63f7367c48407",
+  "last_advanced_at": "2026-09-07T01:34:23Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Executed pinned QingShan reference factory with network stopped before transmission: character/scene payloads and endpoints exactly match Nalu preparations; reference lifecycle 16 tests passed. Native image progress ARM64 Swift tests passed in cumulative CI 34072916544; complete CI still running. Prior native reference source 883c902 full CI 34072165394 passed. Mac lock independently prevents current native interaction QA. Reference price/spending authority and real end-to-end generation remain unfinished; see generated-reference-video-handoff and native-saved-image-progress QA records."
+    "summary": "Reference-specific dispatch now binds real saved design/preparation/shared budget to the single-attempt submitter, rechecking before intent and HTTP. Nine mocked authority/replay tests and full 577-test regression passed (179.23s). Required production price verifier remains unimplemented and no paid route is exposed. See docs/qa/reference-dispatch-authority-2026-09-07.md. Native progress candidate 1dd7962 passed all four CI jobs in 34072916544. Current new dispatch CI is pending. Mac lock prevents native interaction QA."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Build concrete reference-production authority against its actual QingShan asset-factory path; do not misapply shot/keyframe-only spatial contracts to reference generation. Obtain verified image rates and explicit spending confirmation before activation. Compile full keyframe contracts separately, connect native task progress and verify compiled native UI, then real sequential video/master/release. Keep narrated/online-source writing priority, existing TTS and quarantined Hops attempt; no automatic paid retry or invented authority.",
+    "summary": "Complete production price verification and explicit native spending handoff for the reference dispatch service; never activate its synthetic test verifier. Obtain applicable image rates, preserve the shared budget and single-attempt state. Compile full keyframe contracts separately and verify native image progression, then real sequential video/master/release. Keep narrated/online-source writing priority, existing TTS and quarantined Hops attempt; no automatic paid retry or invented authority.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

@@ -28,6 +28,11 @@ completed user journey. Real writer/provider integration, native interaction,
 script revision handoff and the complete production demonstration remain open.
 The authoritative next action is in `docs/GOAL_PROGRESS.json`.
 
+Reference preparation and shared spending reservations now have a
+[reference-specific single-attempt dispatch service](qa/reference-dispatch-authority-2026-09-07.md).
+Production price verification, native paid activation and real output remain
+unfinished; the service is not exposed with a permissive price verifier.
+
 The native frame/reference loader now [advances exact accepted image tasks into preview](qa/native-saved-image-progress-2026-09-07.md)
 instead of only checking for pre-downloaded files. Compilation, native interaction
 and real generation remain pending; this does not promote a SOP to PASS.
