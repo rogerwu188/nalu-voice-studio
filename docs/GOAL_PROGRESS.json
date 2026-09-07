@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "2a1f57ce87a6aaa83247bc04af316d98b74070f4",
-  "last_advanced_at": "2026-09-07T10:06:02Z",
+  "observed_head": "279564352bccbb3dd08a3dbd61695880c97f27c6",
+  "last_advanced_at": "2026-09-07T10:09:10Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -30,7 +30,7 @@
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Actual managed-fixture prepare/render passed and entered QA_REVIEW. Next verify actual render replay/cancellation/stale-source handling, wire native sound selection and production action, then semantic/content QA, master review and controlled release. Evidence docs/qa/adopted-dialogue-full-render-2026-09-07.md. Current CI/installed E2E pending; no Hops 401 retries.",
+    "summary": "Actual render replay and revoked-recording refusal passed (66.28s); decoder cancellation test passed (0.51s). Next extend exact adopted-source consent validation to seal/master access/release, test full render cancellation/cleanup, then native sound selection/action and semantic/content/master QA. Evidence docs/qa/adopted-dialogue-full-render-2026-09-07.md. CI 34109001146 running; installed E2E pending; no Hops 401 retries.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

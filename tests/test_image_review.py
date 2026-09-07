@@ -591,6 +591,20 @@ def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypat
                 assert (dialogue_exports / rendered_payload["master"]["relative_path"]).is_file()
                 assert (dialogue_exports / rendered_payload["captions"]["relative_path"]).read_bytes() == whole_captions.content
                 assert repo.get_run(run.id).status == RunStatus.QA_REVIEW
+                master_path = dialogue_exports / rendered_payload["master"]["relative_path"]
+                master_before_replay = master_path.read_bytes()
+                events_before_replay = len(repo.list_run_events(run.id))
+                replayed = reopened.post(f"/v1/production-runs/{run.id}/postproduction-materializations", json=prepared_mix.json())
+                assert replayed.status_code == 201, replayed.text
+                assert replayed.json() == rendered_payload
+                assert master_path.read_bytes() == master_before_replay
+                assert len(repo.list_run_events(run.id)) == events_before_replay
+                repo.revoke_asset_consent(recording.id, AssetConsentRevocationCreate(
+                    requested_by="synthetic-qa", reason="测试成片后撤回录音授权"))
+                refused = reopened.post(f"/v1/production-runs/{run.id}/postproduction-materializations", json=prepared_mix.json())
+                assert refused.status_code == 409, refused.text
+                assert master_path.read_bytes() == master_before_replay
+                assert len(repo.list_run_events(run.id)) == events_before_replay
                 return
             staged_wav.write_bytes(b"changed-fixture")
             assert reopened.post(dialogue_stage_url, json=dialogue_stage_request).status_code == 409

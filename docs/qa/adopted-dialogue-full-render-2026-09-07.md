@@ -30,3 +30,16 @@ still needs verification. No SOP upgraded to PASS.
 Next: verify replay/cancellation and source-change handling around actual render;
 connect native sound selection and production action; then content/semantic QA,
 master review and controlled release.
+
+Replay follow-up: the actual render fixture now reopens the HTTP client and
+replays materialization in QA_REVIEW. It gets the identical result, unchanged
+master bytes and no new run events. Revoking the source recording's consent
+then refuses replay without overwriting the existing master or adding events.
+Result: 1 passed, 26 deselected in 66.28s. Audio decoder midstream cancellation
+also raises rather than yielding a completed decode (1 passed, 2 deselected,
+0.51s). This cancellation test is decoder-level, not whole-application QA.
+Ruff/diff passed. CI 34109001146 remained running at 10:09 UTC.
+
+Open gap: consent validation must extend beyond materialization replay to seal,
+master access and release for the exact adopted-source lineage. Full render
+cancellation/cleanup, native action and final acceptance remain unverified.

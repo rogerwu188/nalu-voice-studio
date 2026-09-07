@@ -6,6 +6,7 @@ from fractions import Fraction
 from pathlib import Path
 
 import av
+import pytest
 from nalu_runtime import postproduction_materializer
 
 
@@ -65,6 +66,18 @@ def test_long_audio_decode_has_fixed_chunk_and_python_heap_bounds(tmp_path: Path
         postproduction_materializer.AUDIO_CHUNK_SAMPLES * postproduction_materializer.AUDIO_CHANNELS
     )
     assert peak < 4 * 1024 * 1024
+
+
+def test_audio_decode_stops_after_midstream_cancellation(tmp_path: Path) -> None:
+    source = tmp_path / "cancelled.wav"
+    write_long_pcm_fixture(source, duration_seconds=2)
+    cancelled = False
+    chunks = postproduction_materializer._audio_chunks(source, start_seconds=0,
+        sample_count=96000, require_full_duration=True, should_cancel=lambda: cancelled)
+    assert len(next(chunks)) > 0
+    cancelled = True
+    with pytest.raises(postproduction_materializer.PostproductionMaterializationError):
+        list(chunks)
 
 
 def test_vectorized_five_stem_mix_preserves_scalar_contract(tmp_path: Path) -> None:
