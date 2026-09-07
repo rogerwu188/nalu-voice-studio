@@ -22,6 +22,59 @@ private final class ShotReviewProtocol: URLProtocol, @unchecked Sendable {
 
 @Suite(.serialized)
 struct EpisodeShotPlanTests {
+    private func refreshPreview(required: Bool, runID: String = "run-one") throws -> Data {
+        try JSONSerialization.data(withJSONObject: ["run_id": runID, "refresh_required": required, "request": [
+            "source_event_id": "saved-plan", "expected_plan_sha256": String(repeating: "a", count: 64),
+            "expected_package_sha256": String(repeating: "b", count: 64),
+            "expected_library_sha256": String(repeating: "c", count: 64)]])
+    }
+
+    @MainActor @Test func libraryRefreshUsesBoundPreviewThenReloadWithoutModelKey() async throws {
+        ShotReviewProtocol.requests = []
+        ShotReviewProtocol.queued = [(200, try refreshPreview(required: true)),
+                                    (200, try fixture(approved: true)), (200, try fixture(approved: true))]
+        let result = try await runtime().refreshConfirmedLibrary(runID: "run-one")
+        #expect(result.payload.approved)
+        #expect(ShotReviewProtocol.requests.map(\.httpMethod) == ["GET", "POST", "GET"])
+        #expect(ShotReviewProtocol.requests[1].url?.path.hasSuffix("run-one/library-snapshot-refresh") == true)
+        #expect(ShotReviewProtocol.requests.last?.url?.path.hasSuffix("run-one/shot-plans/current") == true)
+        #expect(ShotReviewProtocol.requests.allSatisfy {
+            $0.value(forHTTPHeaderField: "X-Nalu-Writer-Key") == nil && $0.value(forHTTPHeaderField: "X-Nalu-Provider-Key") == nil
+        })
+        ShotReviewProtocol.requests = []
+        ShotReviewProtocol.queued = [(200, try refreshPreview(required: false)), (200, try fixture(approved: true))]
+        _ = try await runtime().refreshConfirmedLibrary(runID: "run-one")
+        #expect(ShotReviewProtocol.requests.map(\.httpMethod) == ["GET", "GET"])
+    }
+
+    @MainActor @Test func libraryRefreshRejectsForeignPreviewAndUnapprovedReload() async throws {
+        ShotReviewProtocol.requests = []
+        ShotReviewProtocol.queued = [(200, try refreshPreview(required: true, runID: "another-run"))]
+        do { _ = try await runtime().refreshConfirmedLibrary(runID: "run-one"); Issue.record("must reject foreign run") }
+        catch { #expect(ShotReviewProtocol.requests.count == 1) }
+        ShotReviewProtocol.requests = []
+        ShotReviewProtocol.queued = [(200, try refreshPreview(required: false)), (200, try fixture())]
+        do { _ = try await runtime().refreshConfirmedLibrary(runID: "run-one"); Issue.record("must reject unapproved plan") }
+        catch { #expect(ShotReviewProtocol.requests.count == 2) }
+    }
+
+    @MainActor @Test func libraryRefreshPreservesUnsavedShotEditsUntilExplicitReload() async throws {
+        ShotReviewProtocol.requests = []
+        ShotReviewProtocol.queued = [(200, try fixture(approved: true))]
+        let model = EpisodeShotPlanModel(runID: "run-one", runtime: runtime())
+        await model.load()
+        model.editedPlan?.shots[0].video_prompt = "老人刚说的修改"
+        await model.reloadAfterLibraryRefresh()
+        #expect(model.editedPlan?.shots[0].video_prompt == "老人刚说的修改")
+        #expect(model.snapshotRefreshPending)
+        #expect(ShotReviewProtocol.requests.count == 1)
+        #expect(await model.prepareCharacterCards() == nil)
+        ShotReviewProtocol.queued = [(200, try fixture(approved: true))]
+        await model.load()
+        #expect(!model.snapshotRefreshPending)
+        #expect(!model.hasEdits)
+    }
+
     @MainActor @Test func characterPreparationUsesApprovedSourceAndPreservesPlanOnFailure() async throws {
         ShotReviewProtocol.requests = []
         let cards = try JSONSerialization.data(withJSONObject: ["run_id": "run-one", "payload": [

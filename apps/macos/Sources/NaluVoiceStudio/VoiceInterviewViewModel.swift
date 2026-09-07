@@ -99,6 +99,9 @@ final class VoiceInterviewViewModel {
     private var libraryIntakeStep: LibraryIntakeStep?
     private var libraryIntakeEntityID: String?
     private var shotCharacterReviewQueue: [String] = []
+    private var shotCharacterReviewRunID: String?
+    private var librarySnapshotRefreshing = false
+    var shotPlanRefreshRevisionByRunID: [String: Int] = [:]
     private var libraryCorrectionEntity: LibraryEntity?
     private var pendingLibraryCorrection: LibraryEntityRevisionDraft?
     private var libraryCorrectionSaving = false
@@ -686,6 +689,7 @@ final class VoiceInterviewViewModel {
     func confirmLibraryEntity(_ entityID: String, reviewChannel: String = "visual") async {
         guard let projectID = selectedProjectID,
               let entity = libraryEntities.first(where: { $0.id == entityID }) else { return }
+        let generation = projectSelectionGeneration
         do {
             _ = try await runtime.confirmLibraryEntity(
                 entityID: entityID,
@@ -697,39 +701,49 @@ final class VoiceInterviewViewModel {
                 )
             )
             let refreshedEntities = try await runtime.listLibraryEntities(projectID: projectID)
-            guard selectedProjectID == projectID else { return }
+            guard selectedProjectID == projectID, projectSelectionGeneration == generation else { return }
             libraryEntities = refreshedEntities
             let response = "已确认\(entity.current.name)。以后每一集都会继承这个版本，修改时会另存新版本。"
             messages.append(.init(speaker: .nalu, text: response))
             speechPlayback.speak(response, rate: comfortPreferences.speechRate)
             if shotCharacterReviewQueue.first == entityID {
                 shotCharacterReviewQueue.removeFirst()
-                promptNextShotCharacter()
+                await promptNextShotCharacter()
             }
         } catch {
             errorMessage = error.localizedDescription
         }
     }
 
-    func beginShotCharacterReview(_ entityIDs: [String]) async {
-        guard let projectID = selectedProjectID, !entityIDs.isEmpty else { return }
+    func beginShotCharacterReview(_ entityIDs: [String], runID: String) async {
+        guard let projectID = selectedProjectID, !librarySnapshotRefreshing else { return }
+        let generation = projectSelectionGeneration
         do {
+            let run = try await runtime.productionRun(runID: runID)
+            guard run.id == runID, run.projectID == projectID, selectedProjectID == projectID,
+                  projectSelectionGeneration == generation else { return }
             let entities = try await runtime.listLibraryEntities(projectID: projectID)
-            guard selectedProjectID == projectID,
+            guard selectedProjectID == projectID, projectSelectionGeneration == generation,
                   entityIDs.allSatisfy({ id in entities.contains(where: { $0.id == id && $0.kind == "character" }) }) else { return }
             libraryEntities = entities
+            shotCharacterReviewRunID = runID
             shotCharacterReviewQueue = entityIDs.filter { id in
                 entities.contains { $0.id == id && $0.confirmedRevision != $0.currentRevision }
             }
-            promptNextShotCharacter()
+            await promptNextShotCharacter()
         } catch {
+            guard projectSelectionGeneration == generation else { return }
             errorMessage = "人物草稿已保留，暂时无法读取。分镜没有丢失，可以稍后再核对本集人物。"
         }
     }
 
-    private func promptNextShotCharacter() {
+    private func promptNextShotCharacter() async {
         libraryIntakeEntityID = nil
         libraryIntakeStep = nil
+        if shotCharacterReviewQueue.isEmpty {
+            await refreshReviewedCharacterSnapshot()
+            return
+        }
         guard let id = shotCharacterReviewQueue.first,
               let entity = libraryEntities.first(where: { $0.id == id }) else { return }
         libraryIntakeEntityID = id
@@ -737,6 +751,32 @@ final class VoiceInterviewViewModel {
         let prompt = "我们核对一位人物：\(entity.current.name)，\(entity.current.description)。这是待确认的草稿，不代表真人授权。正确请说“我确认这份项目设定”；不正确请说“不要确认”，我们先保留草稿。"
         messages.append(.init(speaker: .nalu, text: prompt))
         speechPlayback.speak(prompt, rate: comfortPreferences.speechRate)
+    }
+
+    private func refreshReviewedCharacterSnapshot() async {
+        guard let runID = shotCharacterReviewRunID, let projectID = selectedProjectID,
+              !librarySnapshotRefreshing else { return }
+        let generation = projectSelectionGeneration
+        librarySnapshotRefreshing = true
+        defer { if projectSelectionGeneration == generation { librarySnapshotRefreshing = false } }
+        let waiting = "人物已确认，正在更新本集制作资料。原剧本和分镜会保留，不会在这里生成或收费。"
+        messages.append(.init(speaker: .nalu, text: waiting))
+        speechPlayback.speak(waiting, rate: comfortPreferences.speechRate)
+        do {
+            _ = try await runtime.refreshConfirmedLibrary(runID: runID)
+            guard projectSelectionGeneration == generation, selectedProjectID == projectID,
+                  shotCharacterReviewRunID == runID else { return }
+            shotPlanRefreshRevisionByRunID[runID, default: 0] += 1
+            shotCharacterReviewRunID = nil
+            let response = "本集制作资料已更新，已确认的分镜保留。接下来可以准备本集人物图片和镜头画面。"
+            messages.append(.init(speaker: .nalu, text: response))
+            speechPlayback.speak(response, rate: comfortPreferences.speechRate)
+        } catch {
+            guard projectSelectionGeneration == generation, selectedProjectID == projectID else { return }
+            let response = "人物确认和剧本都已保存，制作资料暂时没有更新成功。请再点“核对本集人物”重试，不用重讲故事或重填密钥。"
+            messages.append(.init(speaker: .nalu, text: response))
+            speechPlayback.speak(response, rate: comfortPreferences.speechRate)
+        }
     }
 
     func speakLibraryEntity(_ entityID: String) {
@@ -791,6 +831,7 @@ final class VoiceInterviewViewModel {
             guard !["不要", "不确认", "不同意", "不对", "还没", "别确认"].contains(where: spoken.contains),
                   spoken.contains("我确认") || spoken.contains("我同意") else {
                 shotCharacterReviewQueue = []
+                shotCharacterReviewRunID = nil
                 let response = "没有听到明确确认，所以这份设定仍是草稿，不会进入生产。"
                 messages.append(.init(speaker: .nalu, text: response))
                 speechPlayback.speak(response, rate: comfortPreferences.speechRate)
@@ -874,6 +915,9 @@ final class VoiceInterviewViewModel {
         let generation = projectSelectionGeneration
         if switchedProject { messages = [] }
         shotCharacterReviewQueue = []
+        shotCharacterReviewRunID = nil
+        librarySnapshotRefreshing = false
+        shotPlanRefreshRevisionByRunID = [:]
         libraryIntakeEntityID = nil
         libraryIntakeStep = nil
         libraryCorrectionEntity = nil

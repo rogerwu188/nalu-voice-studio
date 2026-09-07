@@ -33,7 +33,9 @@ preserves approved creative work without mutating original packages or copying
 provider tasks. [Same-run immutable library refresh](qa/library-snapshot-refresh-2026-09-07.md)
 now materializes/preflights a separate snapshot and atomically updates the package
 pointer and approved plan without resetting the episode or creating another run.
-Native orchestration and real production remain unfinished; neither SOP is PASS.
+[Native character-confirmation orchestration](qa/native-library-snapshot-refresh-2026-09-07.md)
+is connected in source, preserving unsaved edits during refresh. Native CI/UI QA
+and real production remain unfinished; neither SOP is PASS.
 
 AI plans now carry [typed director choices with native round-trip and plain-language readback](qa/structured-director-drafts-2026-09-07.md).
 User edits invalidate stale choices. A [version-bound director refresh backend](qa/director-refresh-2026-09-07.md)

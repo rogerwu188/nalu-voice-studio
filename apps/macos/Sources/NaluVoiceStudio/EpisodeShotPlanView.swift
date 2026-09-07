@@ -12,13 +12,15 @@ import SwiftUI
     @State private var referenceRevision = 0
     let onRead: (String) -> Void
     let guardianRequired: Bool
+    let refreshRevision: Int
     let onCharactersPrepared: ([String]) async -> Void
 
-    init(runID: String, guardianRequired: Bool = false, onRead: @escaping (String) -> Void,
+    init(runID: String, guardianRequired: Bool = false, refreshRevision: Int = 0, onRead: @escaping (String) -> Void,
          onCharactersPrepared: @escaping ([String]) async -> Void = { _ in }) {
         _model = State(initialValue: EpisodeShotPlanModel(runID: runID))
         self.onRead = onRead
         self.guardianRequired = guardianRequired
+        self.refreshRevision = refreshRevision
         self.onCharactersPrepared = onCharactersPrepared
     }
 
@@ -65,7 +67,7 @@ import SwiftUI
                             Text("动作：\(shot.action)\n对白或旁白：\(shot.dialogue_or_narration)\n声音：\(shot.sound)")
                                 .naluFont(.body).textSelection(.enabled)
                         }
-                        if let event = model.event, event.payload.approved && !model.hasEdits {
+                        if let event = model.event, event.payload.approved && !model.hasEdits && !model.snapshotRefreshPending {
                             let designs = (plan.visual_assets ?? []).filter {
                                 (shot.visual_asset_keys ?? []).contains($0.key) && $0.existing_asset_id == nil
                             }
@@ -101,7 +103,7 @@ import SwiftUI
                     }
                     .buttonStyle(.borderedProminent).controlSize(.large)
                     .disabled(!model.canApprove)
-                    if model.event?.payload.approved == true && !model.hasEdits {
+                    if model.event?.payload.approved == true && !model.hasEdits && !model.snapshotRefreshPending {
                         Button("核对本集人物", systemImage: "person.crop.rectangle") {
                             Task {
                                 if let cards = await model.prepareCharacterCards() {
@@ -134,6 +136,9 @@ import SwiftUI
         .naluFont(.headline)
         .accessibilityIdentifier("nalu.episode.shot-plan")
         .task { await model.load() }
+        .onChange(of: refreshRevision) { _, _ in
+            Task { await model.reloadAfterLibraryRefresh() }
+        }
         .confirmationDialog("调用已配置的模型生成本集分镜？可能产生模型费用，不会生成或发布视频。",
                             isPresented: $showGenerationConfirmation) {
             Button("生成分镜") { Task { await model.generate() } }

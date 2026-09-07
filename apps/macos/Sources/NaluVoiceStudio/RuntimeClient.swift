@@ -220,6 +220,30 @@ actor RuntimeClient {
         try await get("v1/production-runs/\(runID)/shot-plans/current")
     }
 
+    func productionRun(runID: String) async throws -> ProductionRun {
+        try await get("v1/production-runs/\(runID)")
+    }
+
+    func refreshConfirmedLibrary(runID: String) async throws -> EpisodeShotPlanEvent {
+        let path = "v1/production-runs/\(runID)/library-snapshot-refresh"
+        let preview: LibrarySnapshotRefreshPreview = try await get(path)
+        guard preview.run_id == runID, !Task.isCancelled else { throw LibrarySnapshotRefreshError.contextChanged }
+        var expectedID = preview.request.source_event_id
+        var expectedSHA = preview.request.expected_plan_sha256
+        if preview.refresh_required {
+            let saved: EpisodeShotPlanEvent = try await post(path, body: preview.request)
+            guard saved.run_id == runID, saved.payload.approved, !Task.isCancelled else {
+                throw LibrarySnapshotRefreshError.contextChanged
+            }
+            expectedID = saved.id
+            expectedSHA = saved.payload.plan_sha256
+        }
+        guard let current = try await currentShotPlan(runID: runID), current.run_id == runID,
+              current.id == expectedID, current.payload.plan_sha256 == expectedSHA,
+              current.payload.approved, !Task.isCancelled else { throw LibrarySnapshotRefreshError.contextChanged }
+        return current
+    }
+
     func frameProductionEvents(runID: String) async throws -> [FrameProductionEvent] {
         try await get("v1/production-runs/\(runID)/events")
     }

@@ -159,9 +159,10 @@ final class EpisodeShotPlanModel {
     var loaded = false
     var notice: String?
     var generationAttempted = false
+    var snapshotRefreshPending = false
 
     func prepareCharacterCards() async -> ShotCharacterCards? {
-        guard let event, event.payload.approved, !hasEdits, !busy else { return nil }
+        guard let event, event.payload.approved, !hasEdits, !busy, !snapshotRefreshPending else { return nil }
         busy = true
         defer { busy = false }
         do {
@@ -199,7 +200,7 @@ final class EpisodeShotPlanModel {
         guard let plan = event?.payload.plan, !(plan.visual_assets ?? []).isEmpty else { return false }
         return plan.shots.contains { $0.director == nil }
     }
-    var canApprove: Bool { event != nil && !hasEdits && !needsDirector && event?.payload.approved == false && !busy }
+    var canApprove: Bool { event != nil && !hasEdits && !needsDirector && event?.payload.approved == false && !busy && !snapshotRefreshPending }
 
     func load() async {
         guard !busy else { return }
@@ -211,10 +212,20 @@ final class EpisodeShotPlanModel {
             event = saved
             editedPlan = saved?.payload.plan
             loaded = true
+            snapshotRefreshPending = false
             notice = nil
         } catch {
             notice = "暂时无法读取本集分镜。请稍后点“读取已保存方案”；没有重新生成。"
         }
+    }
+
+    func reloadAfterLibraryRefresh() async {
+        snapshotRefreshPending = true
+        guard !busy, !hasEdits else {
+            notice = "人物资料已更新。当前修改仍保留，请先保存或处理未保存内容，再点“读取已保存方案”；旧制作资料不会覆盖新资料。"
+            return
+        }
+        await load()
     }
 
     func generate() async {

@@ -391,7 +391,10 @@ struct ContentView: View {
                         }
                         if let runID = selectedEpisodeProgress?.runID {
                             EpisodeShotPlanView(runID: runID, guardianRequired: selectedProject?.audienceMode == "child",
-                                onRead: model.readShotPlanText, onCharactersPrepared: model.beginShotCharacterReview)
+                                refreshRevision: model.shotPlanRefreshRevisionByRunID[runID, default: 0],
+                                onRead: model.readShotPlanText, onCharactersPrepared: { ids in
+                                    await model.beginShotCharacterReview(ids, runID: runID)
+                                })
                                 .id(runID)
                                 .padding(.horizontal, 24)
                                 .padding(.vertical, 12)
