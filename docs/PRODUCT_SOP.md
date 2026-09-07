@@ -124,6 +124,9 @@ or approve images, activate native polling or complete paid production.
 Observed images now have [bounded download and immutable local materialization](qa/image-result-materialization-2026-09-07.md).
 Native preview, visual approval, image-specific import recovery and actual paid
 production remain open; this checkpoint is not an accepted first frame or master.
+Materialized images now have [exact-byte preview and version-bound user decisions](qa/exact-frame-review-2026-09-07.md).
+Native integration and professional visual QA remain open; user acceptance is not
+an automatically granted production, identity, spatial or paid-authorization PASS.
 
 2026-09-06 native checkpoints on `4e03c16`, CI
 [34054486473](https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34054486473):

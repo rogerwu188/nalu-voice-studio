@@ -3834,6 +3834,60 @@
         "title": "ImagePreparationRequest",
         "type": "object"
       },
+      "ImageReviewRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "confirmation": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Confirmation",
+            "type": "string"
+          },
+          "decision": {
+            "enum": [
+              "accept",
+              "reject"
+            ],
+            "title": "Decision",
+            "type": "string"
+          },
+          "expected_materialization_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Expected Materialization Sha256",
+            "type": "string"
+          },
+          "expected_review_event_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Review Event Id"
+          },
+          "preparation_id": {
+            "title": "Preparation Id",
+            "type": "string"
+          },
+          "reviewed_by": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Reviewed By",
+            "type": "string"
+          }
+        },
+        "required": [
+          "preparation_id",
+          "expected_materialization_sha256",
+          "decision",
+          "reviewed_by",
+          "confirmation"
+        ],
+        "title": "ImageReviewRequest",
+        "type": "object"
+      },
       "InheritedContinuityResult": {
         "properties": {
           "snapshot": {
@@ -12437,6 +12491,141 @@
           }
         },
         "summary": "Materialize Image Result"
+      }
+    },
+    "/v1/production-runs/{run_id}/image-results/{materialization_id}/content": {
+      "get": {
+        "operationId": "preview_saved_image_v1_production_runs__run_id__image_results__materialization_id__content_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "materialization_id",
+            "required": true,
+            "schema": {
+              "title": "Materialization Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "origin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Origin"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "image/jpeg": {},
+              "image/png": {}
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview Saved Image"
+      }
+    },
+    "/v1/production-runs/{run_id}/image-results/{materialization_id}/review": {
+      "post": {
+        "operationId": "review_saved_image_v1_production_runs__run_id__image_results__materialization_id__review_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "materialization_id",
+            "required": true,
+            "schema": {
+              "title": "Materialization Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "origin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Origin"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImageReviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunEvent"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Review Saved Image"
       }
     },
     "/v1/production-runs/{run_id}/image-task-preparations": {

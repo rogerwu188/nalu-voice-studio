@@ -35,6 +35,7 @@ from .image_download import ImageDownloadError
 from .image_materialization import ImageMaterializationService
 from .image_observation import ImageObservationService
 from .image_preparation import ImagePreparationRequest, ImagePreparationService
+from .image_review import ImageReviewRequest, ImageReviewService
 from .interactive_story import InteractiveStory, StoryAnswer, StoryInput
 from .interactive_writer_service import InteractiveWriterService, WriterGenerationRequest
 from .models import (
@@ -1176,6 +1177,23 @@ def create_app(
             raise HTTPException(403, "native provider credential required")
         return VideoDispatchService(repository, remote_task_submitter, video_http_transport).dispatch(
             run_id, reservation_id, provider_key)
+
+    @app.get("/v1/production-runs/{run_id}/image-results/{materialization_id}/content", response_class=Response,
+             responses={200: {"content": {"image/png": {}, "image/jpeg": {}}}})
+    def preview_saved_image(run_id: str, materialization_id: str, origin: str | None = Header(default=None)):
+        if origin is not None:
+            raise HTTPException(403, "native image preview required")
+        event, content = ImageMaterializationService(repository, data_root).read_saved(run_id, materialization_id)
+        media_type = "image/png" if event.payload["image"]["extension"] == "png" else "image/jpeg"
+        return Response(content=content, media_type=media_type,
+            headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"})
+
+    @app.post("/v1/production-runs/{run_id}/image-results/{materialization_id}/review", response_model=RunEvent)
+    def review_saved_image(run_id: str, materialization_id: str, request: ImageReviewRequest,
+                           origin: str | None = Header(default=None)):
+        if origin is not None:
+            raise HTTPException(403, "native frame review required")
+        return ImageReviewService(repository, asset_service, data_root).review(run_id, materialization_id, request)
 
     @app.post("/v1/production-runs/{run_id}/image-observations/{observation_id}/materialize", response_model=RunEvent)
     def materialize_image_result(run_id: str, observation_id: str, result_index: int = Query(default=0, ge=0, le=3),

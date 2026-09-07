@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "1c329e941c7149e01f34d6756f2ae6b89f47a4a0",
-  "last_advanced_at": "2026-09-07T00:02:55Z",
+  "observed_head": "bda1b73b91c53d4d5204ac99471c41d03a9187d5",
+  "last_advanced_at": "2026-09-07T00:06:40Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Saved completed image observations now download through a bounded credential-free public-IP-pinned reader and persist immutable run-local PNG/JPEG files with receipt/request bindings. Targeted tests 12 passed; full regression 491 passed in 63.48s; Ruff/OpenAPI compatibility passed. Evidence docs/qa/image-result-materialization-2026-09-07.md. Durable ledger CI 34068055510 succeeded; preparation CI 34068288256 cancelled (not PASS); observation CI 34068416205 queued at observation. No real provider image, visual approval, billing or native activation claimed."
+    "summary": "Exact saved image bytes now have a preview endpoint and version-bound accept/reject review tied to current confirmed shot/preparation/reference hashes. User acceptance is distinct from professional QA and payment. Full suite 498 passed in 66.19s; final affected review/download 19 passed again. Evidence docs/qa/exact-frame-review-2026-09-07.md. Materialization CI 34068613752 pending and observation CI 34068416205 in progress at observation. Native preview/review and paid generation still incomplete."
   },
   "next_action": {
     "sop": "SOP-04",
