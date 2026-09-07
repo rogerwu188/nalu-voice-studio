@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "096b478",
-  "last_advanced_at": "2026-09-07T02:04:53Z",
+  "observed_head": "d2d09d61a5176e0e17a407e38a875a122562855a",
+  "last_advanced_at": "2026-09-07T02:11:06Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Version-bound director-refresh backend fills missing director objects only, preserving user text and existing choices. Durable writer responses survive interrupted adoption; stale user versions and downstream locks reject changes. 26 targeted tests passed in 16.74s; Ruff and OpenAPI compatibility passed. See docs/qa/director-refresh-2026-09-07.md. Native orchestration, full regression and CI pending; previous 096b478 CI 34074682613 was still running when inspected."
+    "summary": "Native save-to-director-refresh orchestration preserves locally saved edits on model failure, avoids automatic refresh on reload and uses existing noninteractive Keychain configuration. Native URLProtocol tests await CI; local Swift manifest linking/frontend module errors persist. See docs/qa/native-director-refresh-2026-09-07.md. Full Python run: 613 passed, 1 failed in 290.46s (shortened observed_head); corrected to full hash and all six progress tests passed on targeted rerun. Ruff/OpenAPI/SOP audits pass. Prior 096b478 full CI 34074682613 succeeded; newer candidate CI pending."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Connect native saved creative edits to the durable director-refresh endpoint, preserve saved edits on model failure, and verify request/readback/restart behavior. Then compile reviewed choices plus actual assets/frame evidence into full video camera/state/identity/prop contracts. Run full regression and check actual CI. Do not invent visual PASS or omit people. Keep real reference pricing/spending activation, narration/web-source priority, existing TTS and sequential video/master/release objective.",
+    "summary": "Collect full Python regression and actual CI for native save-to-refresh tests; verify compiled native interaction when accessible. Implement reviewed shot-plan plus actual assets/frame evidence to full video camera/state/identity/prop contract compilation. Do not invent visual PASS or omit people. Keep real reference pricing/spending activation, narration/web-source priority, existing TTS and sequential video/master/release objective.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

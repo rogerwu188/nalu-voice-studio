@@ -6,13 +6,15 @@ private final class ShotReviewProtocol: URLProtocol, @unchecked Sendable {
     static var requests: [URLRequest] = []
     static var response = Data()
     static var status = 200
+    static var queued: [(Int, Data)] = []
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
     override func startLoading() {
         Self.requests.append(request)
-        client?.urlProtocol(self, didReceive: HTTPURLResponse(url: request.url!, statusCode: Self.status,
+        let next = Self.queued.isEmpty ? (Self.status, Self.response) : Self.queued.removeFirst()
+        client?.urlProtocol(self, didReceive: HTTPURLResponse(url: request.url!, statusCode: next.0,
             httpVersion: nil, headerFields: nil)!, cacheStoragePolicy: .notAllowed)
-        client?.urlProtocol(self, didLoad: Self.response)
+        client?.urlProtocol(self, didLoad: next.1)
         client?.urlProtocolDidFinishLoading(self)
     }
     override func stopLoading() {}
@@ -20,6 +22,92 @@ private final class ShotReviewProtocol: URLProtocol, @unchecked Sendable {
 
 @Suite(.serialized)
 struct EpisodeShotPlanTests {
+    private func designedFixture(id: String, prompt: String, complete: Bool = false) throws -> Data {
+        var root = try JSONSerialization.jsonObject(with: fixture()) as! [String: Any]
+        var payload = root["payload"] as! [String: Any]
+        var plan = payload["plan"] as! [String: Any]
+        var shots = plan["shots"] as! [[String: Any]]
+        shots[0]["video_prompt"] = prompt
+        shots[0]["visual_asset_keys"] = ["grandma"]
+        if complete {
+            let camera = Dictionary(uniqueKeysWithValues: ["shot_scale", "camera_height", "camera_side", "axis_relation",
+                "motion_family", "motion_direction", "start_framing", "end_framing", "motivation", "lens_intent"].map { ($0, "创作选择") })
+            shots[0]["director"] = ["camera": camera,
+                "state_delta": ["mode": "CHANGE", "dimensions": [["dimension": "POSTURE", "entry": "低头", "exit": "抬头"]]],
+                "props": [], "visible_character_counts": ["grandma": 1], "combat_or_chase": false,
+                "prior_event_relation": "UNKNOWN"] as [String: Any]
+        }
+        plan["shots"] = shots
+        plan["visual_assets"] = [["key": "grandma", "kind": "character_image", "name": "外婆",
+                                  "description": "待确认", "source_excerpt": "外婆看海"]]
+        payload["plan"] = plan
+        root["payload"] = payload
+        root["id"] = id
+        return try JSONSerialization.data(withJSONObject: root)
+    }
+
+    @MainActor @Test func savingEditsAutomaticallyEnrichesOnlyAfterDurableSave() async throws {
+        ShotReviewProtocol.requests = []
+        ShotReviewProtocol.queued = [
+            (200, try designedFixture(id: "original", prompt: "原描述", complete: true)),
+            (200, try designedFixture(id: "user-edit", prompt: "从手部开始")),
+            (200, try designedFixture(id: "enriched", prompt: "从手部开始", complete: true))]
+        let model = EpisodeShotPlanModel(runID: "run-one", runtime: runtime(),
+            writerConfiguration: { ("fixture-model", "synthetic-writer-key") })
+        await model.load()
+        model.editedPlan?.shots[0].video_prompt = "从手部开始"
+        await model.review(approve: false)
+        #expect(ShotReviewProtocol.requests.count == 3)
+        #expect(ShotReviewProtocol.requests[1].url?.path.hasSuffix("original/review") == true)
+        let refresh = ShotReviewProtocol.requests[2]
+        #expect(refresh.url?.path.hasSuffix("user-edit/director-refresh") == true)
+        #expect(refresh.value(forHTTPHeaderField: "X-Nalu-Writer-Key") == "synthetic-writer-key")
+        #expect(model.event?.id == "enriched")
+        #expect(model.editedPlan?.shots[0].video_prompt == "从手部开始")
+        #expect(model.canApprove && !model.needsDirector)
+        #expect(model.notice?.contains("再确认") == true)
+        await model.continueDirector()
+        #expect(ShotReviewProtocol.requests.count == 3)
+    }
+
+    @MainActor @Test func failedEnrichmentKeepsSavedEditAndLoadDoesNotRetry() async throws {
+        ShotReviewProtocol.requests = []
+        ShotReviewProtocol.queued = [
+            (200, try designedFixture(id: "original", prompt: "原描述", complete: true)),
+            (200, try designedFixture(id: "user-edit", prompt: "保留我的修改")),
+            (502, Data("{\"detail\":\"writer_http_401\"}".utf8)),
+            (200, try designedFixture(id: "user-edit", prompt: "保留我的修改"))]
+        let model = EpisodeShotPlanModel(runID: "run-one", runtime: runtime(),
+            writerConfiguration: { ("fixture-model", "synthetic-writer-key") })
+        await model.load()
+        model.editedPlan?.shots[0].video_prompt = "保留我的修改"
+        await model.review(approve: false)
+        #expect(model.event?.id == "user-edit")
+        #expect(model.editedPlan?.shots[0].video_prompt == "保留我的修改")
+        #expect(model.needsDirector && !model.canApprove && !model.hasEdits)
+        #expect(model.notice?.contains("您的修改已保存") == true)
+        await model.review(approve: true)
+        #expect(ShotReviewProtocol.requests.count == 3)
+        await model.load()
+        #expect(ShotReviewProtocol.requests.count == 4)
+        #expect(ShotReviewProtocol.requests.filter { $0.url?.path.hasSuffix("director-refresh") == true }.count == 1)
+    }
+
+    @MainActor @Test func unavailableWriterDoesNotDiscardSavedRevisionOrAskForNewKey() async throws {
+        ShotReviewProtocol.requests = []
+        ShotReviewProtocol.queued = [
+            (200, try designedFixture(id: "original", prompt: "原描述", complete: true)),
+            (200, try designedFixture(id: "user-edit", prompt: "新的描述"))]
+        let model = EpisodeShotPlanModel(runID: "run-one", runtime: runtime(), writerConfiguration: { nil })
+        await model.load()
+        model.editedPlan?.shots[0].video_prompt = "新的描述"
+        await model.review(approve: false)
+        #expect(model.event?.id == "user-edit")
+        #expect(model.editedPlan?.shots[0].video_prompt == "新的描述")
+        #expect(ShotReviewProtocol.requests.count == 2)
+        #expect(model.notice?.contains("继续改故事") == true)
+    }
+
     @Test func structuredDirectorDraftSurvivesNativeRoundTrip() throws {
         var shot = try JSONDecoder().decode(EpisodeShotPlanEvent.self, from: fixture()).payload.plan.shots[0]
         let camera = Dictionary(uniqueKeysWithValues: ["shot_scale", "camera_height", "camera_side", "axis_relation",

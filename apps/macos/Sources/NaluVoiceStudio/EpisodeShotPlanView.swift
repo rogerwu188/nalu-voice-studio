@@ -75,11 +75,19 @@ import SwiftUI
                                 .id("\(model.runID)-\(event.id)-\(selectedShot)-\(referenceRevision)")
                         }
                     }
-                    Button("保存我的修改", systemImage: "square.and.arrow.down") {
+                    Button("保存修改并整理拍法", systemImage: "square.and.arrow.down") {
                         Task { await model.review(approve: false) }
                     }
                     .buttonStyle(.bordered).controlSize(.large)
                     .disabled(!model.hasEdits || model.busy)
+                    Text("先保存您的话，再用已配置的模型整理需要更新的拍摄细节，可能产生模型费用；不会直接生成视频。")
+                        .naluFont(.body)
+                    if model.needsDirector && !model.hasEdits {
+                        Button("继续整理拍法", systemImage: "film.stack") {
+                            Task { await model.continueDirector() }
+                        }
+                        .buttonStyle(.bordered).controlSize(.large).disabled(model.busy)
+                    }
                     Button("确认这个版本的分镜", systemImage: "checkmark.circle") {
                         Task { await model.review(approve: true) }
                     }

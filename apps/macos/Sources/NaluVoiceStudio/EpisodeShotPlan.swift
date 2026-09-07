@@ -138,6 +138,7 @@ struct EpisodeShotReview: Encodable {
 @MainActor @Observable
 final class EpisodeShotPlanModel {
     private let runtime: RuntimeClient
+    private let writerConfiguration: () async throws -> (model: String, key: String)?
     let runID: String
     var event: EpisodeShotPlanEvent?
     var editedPlan: EpisodeShotPlan?
@@ -146,13 +147,28 @@ final class EpisodeShotPlanModel {
     var notice: String?
     var generationAttempted = false
 
-    init(runID: String, runtime: RuntimeClient = RuntimeClient()) {
+    init(runID: String, runtime: RuntimeClient = RuntimeClient(),
+         writerConfiguration: @escaping () async throws -> (model: String, key: String)? = {
+             let endpoint = try AIServiceEndpoint.current()
+             guard endpoint.baseURL.absoluteString.trimmingCharacters(in: CharacterSet(charactersIn: "/")) == "https://hopsapi.com/v1" else { return nil }
+             let model = try AIServiceModels.load(for: endpoint).research
+             let key = try await Task.detached {
+                 try KeychainSecretStore().secret(for: .openAIRealtime, allowAuthenticationUI: false)
+             }.value
+             guard let key, !key.isEmpty else { return nil }
+             return (model, key)
+         }) {
         self.runID = runID
         self.runtime = runtime
+        self.writerConfiguration = writerConfiguration
     }
 
     var hasEdits: Bool { editedPlan != event?.payload.plan }
-    var canApprove: Bool { event != nil && !hasEdits && event?.payload.approved == false && !busy }
+    var needsDirector: Bool {
+        guard let plan = event?.payload.plan, !(plan.visual_assets ?? []).isEmpty else { return false }
+        return plan.shots.contains { $0.director == nil }
+    }
+    var canApprove: Bool { event != nil && !hasEdits && !needsDirector && event?.payload.approved == false && !busy }
 
     func load() async {
         guard !busy else { return }
@@ -204,8 +220,39 @@ final class EpisodeShotPlanModel {
             self.event = saved
             self.editedPlan = saved.payload.plan
             notice = approve ? "本集分镜已确认，下一步准备画面；还没有扣费制作视频。" : "修改已保存，请重新确认这个版本。"
+            if !approve && needsDirector { await enrichSavedPlan(saved) }
         } catch {
             notice = "这次保存或确认未成功，可能是版本已变化。您的修改仍在这里，请先保留，再读取已保存方案核对。"
+        }
+    }
+
+    func continueDirector() async {
+        guard let event, needsDirector, !hasEdits, !busy else { return }
+        busy = true
+        defer { busy = false }
+        await enrichSavedPlan(event)
+    }
+
+    private func enrichSavedPlan(_ source: EpisodeShotPlanEvent) async {
+        notice = "您的修改已保存，正在按这个版本整理拍摄细节。"
+        do {
+            guard let configuration = try await writerConfiguration() else {
+                notice = "您的修改已保存。暂时无法使用已配置的模型服务，拍摄细节还没整理；可以继续改故事，服务恢复后再点“继续整理拍法”。"
+                return
+            }
+            guard !Task.isCancelled, event?.id == source.id, !hasEdits else { return }
+            let refreshed = try await runtime.refreshDirector(runID: runID, eventID: source.id,
+                planSHA: source.payload.plan_sha256, model: configuration.model, apiKey: configuration.key)
+            guard !Task.isCancelled, event?.id == source.id, !hasEdits else { return }
+            guard refreshed.run_id == runID, !refreshed.payload.approved,
+                  refreshed.payload.plan.shots.allSatisfy({ $0.director != nil }) else {
+                throw URLError(.badServerResponse)
+            }
+            event = refreshed
+            editedPlan = refreshed.payload.plan
+            notice = "修改和拍摄细节已保存，请听一听或看一看，再确认这个版本。还没有制作视频。"
+        } catch {
+            notice = "您的修改已保存。拍摄细节尚未确认整理成功；可以读取已保存方案核对。继续整理会核对原来的请求，不会自动重复调用模型。"
         }
     }
 }

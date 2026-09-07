@@ -281,6 +281,19 @@ actor RuntimeClient {
         return try decoder.decode(EpisodeShotPlanEvent.self, from: data)
     }
 
+    func refreshDirector(runID: String, eventID: String, planSHA: String, model: String,
+                         apiKey: String) async throws -> EpisodeShotPlanEvent {
+        var request = URLRequest(url: baseURL.appending(path: "v1/production-runs/\(runID)/shot-plans/\(eventID)/director-refresh"))
+        request.httpMethod = "POST"
+        request.timeoutInterval = 120
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(apiKey, forHTTPHeaderField: "X-Nalu-Writer-Key")
+        request.httpBody = try JSONSerialization.data(withJSONObject: ["model": model, "expected_plan_sha256": planSHA])
+        let (data, response) = try await authorizedData(for: request)
+        try validate(response, data: data)
+        return try decoder.decode(EpisodeShotPlanEvent.self, from: data)
+    }
+
     func prepareEpisodeProduction(episodeID: String, approvedRevision: Int) async throws -> ProductionRun {
         var request = URLRequest(url: baseURL.appending(path: "v1/episodes/\(episodeID)/production-runs"))
         request.httpMethod = "POST"
