@@ -28,6 +28,10 @@ completed user journey. Real writer/provider integration, native interaction,
 script revision handoff and the complete production demonstration remain open.
 The authoritative next action is in `docs/GOAL_PROGRESS.json`.
 
+[Native transcript controls](qa/native-transcript-controls-2026-09-07.md) now wire
+recognition, save-only retry, recovery, readback and cancellation into recording
+review. Installed/native QA and explicit final subtitle confirmation remain open.
+
 [Bounded recording ASR](qa/bounded-recording-asr-2026-09-07.md) now handles missing,
 duplicate and late callbacks with timeout/cancellation. Native execution and
 live permission/recognition QA remain open, as do final subtitles/mix/master.

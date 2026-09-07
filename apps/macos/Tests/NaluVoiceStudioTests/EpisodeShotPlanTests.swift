@@ -351,6 +351,7 @@ struct EpisodeShotPlanTests {
         }
         let listeningModel = EpisodeAudioReviewModel(sound: cuePlan, take: attached, runtime: runtime())
         #expect(!listeningModel.begin(.accept))
+        #expect(!listeningModel.canPrepareTranscript)
         ShotReviewProtocol.queued = [(200, try recoveredListening(nil))]
         await listeningModel.load()
         #expect(listeningModel.loaded)
@@ -367,6 +368,7 @@ struct EpisodeShotPlanTests {
         await listeningModel.load()
         #expect(listeningModel.latest?.take_approved == true)
         #expect(!listeningModel.uncertain && listeningModel.pending == nil)
+        #expect(listeningModel.canPrepareTranscript)
         #expect(ShotReviewProtocol.requests.last?.httpMethod == "GET")
         #expect(ShotReviewProtocol.requests.last?.url?.query?.contains(attached.payload.take_sha256) == true)
         // An older approved take remains only a CAS predecessor, not current approval.
@@ -383,6 +385,7 @@ struct EpisodeShotPlanTests {
         ShotReviewProtocol.queued = [(200, try recoveredListening(listeningResponse()))]
         await listeningModel.load()
         #expect(listeningModel.loaded && listeningModel.latest?.take_approved == false)
+        #expect(!listeningModel.canPrepareTranscript)
         let beforeUnapprovedASR = ShotReviewProtocol.requests.count
         await listeningModel.prepareTranscript()
         #expect(listeningModel.transcript == nil)
