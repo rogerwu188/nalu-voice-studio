@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "7c60b3e46b6e19a14b81336ff381d5f20c458c23",
-  "last_advanced_at": "2026-09-07T09:12:44Z",
+  "observed_head": "3aa5609efe16aab2434aabce5e57e2e40915157d",
+  "last_advanced_at": "2026-09-07T09:16:20Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Native typed transcript save/recovery and model autosave now preserve a failed-save draft and allow save-only retry, with identity/interval validation. Added native contract cases (execution pending). Backend fixture passed in 26.08s. CI 34103363309 fully passed. Evidence docs/qa/native-transcript-persistence-2026-09-07.md. Visible controls, bounded ASR, subtitle confirmation and final master/release remain incomplete."
+    "summary": "Shared on-device ASR now has bounded permission/recognition waits, cancellation cleanup and one-shot callback resolution. Added native timeout/cancel/duplicate/reuse tests; native execution pending CI. Ruff/diff passed; CI 34104369487 running. Evidence docs/qa/bounded-recording-asr-2026-09-07.md. Visible transcript controls, live ASR QA, subtitle confirmation and final master/release remain incomplete."
   },
   "next_action": {
     "sop": "SOP-04",

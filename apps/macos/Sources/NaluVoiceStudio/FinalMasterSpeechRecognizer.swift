@@ -6,6 +6,7 @@ enum FinalMasterSpeechError: LocalizedError {
     case recognizerUnavailable
     case onDeviceRecognitionUnavailable
     case emptyResult
+    case timedOut
 
     var errorDescription: String? {
         switch self {
@@ -13,6 +14,7 @@ enum FinalMasterSpeechError: LocalizedError {
         case .recognizerUnavailable: "本机中文语音识别暂时不可用"
         case .onDeviceRecognitionUnavailable: "这台 Mac 不支持本机成片识别，Nalu 不会改用云端"
         case .emptyResult: "没有从成片中识别出可核对的中文内容"
+        case .timedOut: "本机语音识别等待超时，原录音保留，可以稍后重试"
         }
     }
 }
@@ -40,14 +42,17 @@ struct FinalMasterRecognitionResult: Equatable, Sendable {
 @MainActor
 final class FinalMasterSpeechRecognizer {
     private let recognizer = SFSpeechRecognizer(locale: Locale(identifier: "zh-CN"))
-    private var activeTask: SFSpeechRecognitionTask?
+    private var activeWait: SpeechRecognitionWait<FinalMasterRecognitionResult>?
 
     func recognize(fileURL: URL) async throws -> FinalMasterRecognitionResult {
-        let authorized = await withCheckedContinuation { continuation in
+        let permission = SpeechRecognitionWait<Bool>()
+        let authorized = try await permission.run(timeoutNanoseconds: 120_000_000_000) { complete in
             SFSpeechRecognizer.requestAuthorization { status in
-                continuation.resume(returning: status == .authorized)
+                complete(.success(status == .authorized))
             }
+            return {} // The app cannot dismiss macOS's permission dialog.
         }
+        try Task.checkCancellation()
         guard authorized else { throw FinalMasterSpeechError.permissionDenied }
         guard let recognizer, recognizer.isAvailable else {
             throw FinalMasterSpeechError.recognizerUnavailable
@@ -55,19 +60,18 @@ final class FinalMasterSpeechRecognizer {
         guard recognizer.supportsOnDeviceRecognition else {
             throw FinalMasterSpeechError.onDeviceRecognitionUnavailable
         }
-        activeTask?.cancel()
+        activeWait?.cancel()
+        let wait = SpeechRecognitionWait<FinalMasterRecognitionResult>()
+        activeWait = wait
+        defer { if activeWait === wait { activeWait = nil } }
         let request = SFSpeechURLRecognitionRequest(url: fileURL)
         request.shouldReportPartialResults = false
         request.requiresOnDeviceRecognition = true
         request.taskHint = .dictation
-        return try await withCheckedThrowingContinuation { continuation in
-            var finished = false
-            activeTask = recognizer.recognitionTask(with: request) { [weak self] result, error in
-                guard !finished else { return }
+        return try await wait.run(timeoutNanoseconds: 180_000_000_000) { complete in
+            let task = recognizer.recognitionTask(with: request) { result, error in
                 if let error {
-                    finished = true
-                    self?.activeTask = nil
-                    continuation.resume(throwing: error)
+                    complete(.failure(error))
                     return
                 }
                 guard let result, result.isFinal else { return }
@@ -76,9 +80,7 @@ final class FinalMasterSpeechRecognizer {
                     in: .whitespacesAndNewlines
                 )
                 guard !transcript.isEmpty else {
-                    finished = true
-                    self?.activeTask = nil
-                    continuation.resume(throwing: FinalMasterSpeechError.emptyResult)
+                    complete(.failure(FinalMasterSpeechError.emptyResult))
                     return
                 }
                 let segments = transcription.segments.map { segment in
@@ -89,17 +91,14 @@ final class FinalMasterSpeechRecognizer {
                         confidence: Double(segment.confidence)
                     )
                 }
-                finished = true
-                self?.activeTask = nil
-                continuation.resume(
-                    returning: FinalMasterRecognitionResult(
+                complete(.success(FinalMasterRecognitionResult(
                         transcript: transcript,
                         segments: segments,
                         recognizerVersion: ProcessInfo.processInfo.operatingSystemVersionString,
                         generatedAt: ISO8601DateFormatter().string(from: Date())
-                    )
-                )
+                    )))
             }
+            return { task.cancel() }
         }
     }
 }
