@@ -132,3 +132,9 @@ def test_local_repair_version_preserves_parent_and_replays_after_restart(
     assert restarted.get(base).json()["status"] == "qa_review"
     (exports / "bad.mp4").write_bytes(b"tampered")
     assert restarted.get(base + "/sealed-master").status_code == 409
+    invalid_plan = {"approved": True, "plan": {"summary": "invalid", "shots": []}}
+    invalid_plan["plan_sha256"] = digest(invalid_plan)
+    for broken in [{"approved": True}, invalid_plan]:
+        restarted.app.state.repository.append_run_event(parent["id"], "shot_plan_approved", payload=broken)
+        invalid_context = restarted.get(draft_endpoint + "/context")
+        assert invalid_context.status_code == 409, invalid_context.text

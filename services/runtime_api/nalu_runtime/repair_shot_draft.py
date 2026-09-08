@@ -19,8 +19,15 @@ def repair_shot_draft_context(production, run_id):
     if (source.project_id, source.season_id, source.episode_id) != (target.project_id, target.season_id, target.episode_id):
         raise ConflictError("repair source belongs to another episode")
     original = ShotReviewService(repo).current(source_id)
-    if original is None or original.event_type != "shot_plan_approved":
+    if (original is None or original.event_type != "shot_plan_approved"
+            or original.payload.get("approved") is not True
+            or original.payload.get("plan_sha256") != digest({
+                k: v for k, v in original.payload.items() if k != "plan_sha256"})):
         raise ConflictError("original reviewed shot plan is unavailable")
+    try:
+        ShotPlan.model_validate(original.payload.get("plan"))
+    except ValueError:
+        raise ConflictError("original reviewed shot plan is invalid") from None
     return ShotPlanInheritanceRequest(source_run_id=source_id, source_event_id=original.id,
         expected_plan_sha256=original.payload["plan_sha256"], expected_package_sha256=package["package_sha256"])
 

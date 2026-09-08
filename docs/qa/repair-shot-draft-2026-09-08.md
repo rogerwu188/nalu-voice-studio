@@ -32,3 +32,9 @@ generation fallback. Existing saved drafts use only their normal GET and are not
 overwritten. Added native tests for GET/GET/POST recovery, saved-draft GET-only
 reload, failed context blocking generation and ordinary null context. Swift CI
 and installed recovery QA remain pending. Backend3 repair cases still pass.
+
+Recovery-context hardening: missing plan digest previously could raise a KeyError;
+context now validates approval, digest and plan schema and returns409 for invalid
+saved evidence. Regression includes missing digest and digest-consistent empty
+shot inventory. All3 repair cases pass4.84s; ruff passes. This is rejection/error
+handling, not evidence of real video repair or native recovery acceptance.
