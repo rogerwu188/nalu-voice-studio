@@ -144,3 +144,19 @@ included in writer passages; real-site selection accuracy is still unverified.
 26 source/import/writer tests pass in 3.13s with fake network pages. Ruff initially
 identified mutable class constants; changed them to frozensets before final check.
 No new model call, real website request, installed app replacement or SOP promotion.
+
+## Native spoken import controls
+
+Explicit pause/resume phrases are intercepted before normal story/action routing,
+calling the persisted import control API instead of queuing them as story input.
+Resume uses the saved source URL and preserves completed chapters; it does not ask
+the user to re-enter URLs. Resume waits for the prior assistant operation to finish
+so two native chapter loops are not intentionally started together. Control requests
+are serialized, and responses from a previous project selection do not affect the
+current conversation. Completion reports only selected chapters, not all-book proof.
+
+Four backend pause/restart/recovery/API tests pass in 1.29s. Native parsing tests
+added; native CI and installed speech execution still pending. Catalog discovery
+has no persisted queue until it finishes, so pause during discovery remains unsupported.
+Resuming does not automatically reproduce an earlier combined writing request;
+the user can ask for the chapter/script after import. Preserve this as an open UX gap.

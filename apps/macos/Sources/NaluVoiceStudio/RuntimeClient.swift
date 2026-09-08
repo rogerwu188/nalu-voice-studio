@@ -8,6 +8,14 @@ actor RuntimeClient {
     private let decoder = JSONDecoder()
     private let encoder = JSONEncoder()
 
+    func controlNovelImport(projectID: String, action: NovelImportControl) async throws -> NovelImportStatus {
+        var request = URLRequest(url: baseURL.appending(path: "v1/projects/\(projectID)/novel-import/\(action.rawValue)"))
+        request.httpMethod = "POST"
+        let (data, response) = try await authorizedData(for: request)
+        try validate(response, data: data)
+        return try decoder.decode(NovelImportStatus.self, from: data)
+    }
+
     func startNovelImport(projectID: String, sourceURL: String) async throws -> NovelImportStatus {
         var request = URLRequest(url: baseURL.appending(path: "v1/projects/\(projectID)/novel-import"))
         request.httpMethod = "POST"

@@ -117,6 +117,7 @@ final class VoiceInterviewViewModel {
     var comfortPreferences = VoiceInterviewViewModel.loadComfortPreferences()
     var planningVoiceLabel: String? { planningVoiceFlow.mode?.prompt }
     var assistantActionStatus: String?
+    private var novelControlBusy = false
 
     var continuityExtractionWasEdited: Bool {
         guard let proposal = continuityExtractionProposal else { return false }
@@ -222,6 +223,10 @@ final class VoiceInterviewViewModel {
         transcript = ""
         transcriptConfidence = 0
         if applyComfortCommand(spoken) { return }
+        if let control = NovelImportControl.parse(spoken) {
+            handleNovelImportControl(control)
+            return
+        }
         if handleProductionBudgetAnswer(spoken) { return }
         if let number = Self.interactiveDraftSelection(spoken) {
             Task { await adoptInteractiveDraft(number: number) }
@@ -316,6 +321,42 @@ final class VoiceInterviewViewModel {
                 guard projectSelectionGeneration == generation else { return }
                 transcript = spoken
                 messages.append(.init(speaker: .nalu, text: "这句补充还没存好，已留在输入区，没有丢弃。"))
+            }
+        }
+    }
+
+    private func handleNovelImportControl(_ control: NovelImportControl) {
+        func report(_ text: String) {
+            messages.append(.init(speaker: .nalu, text: text))
+            speechPlayback.speak(text, rate: comfortPreferences.speechRate)
+        }
+        guard let projectID = selectedProjectID else {
+            report("还没有选中故事项目，没有改变任何下载。")
+            return
+        }
+        guard !novelControlBusy else { return }
+        guard control != .resume || assistantActionStatus == nil else {
+            report("当前操作还在收尾。请等它结束后说“继续抓取”，不会从头重复下载。")
+            return
+        }
+        let generation = projectSelectionGeneration
+        novelControlBusy = true
+        Task {
+            defer { novelControlBusy = false }
+            do {
+                let state = try await runtime.controlNovelImport(projectID: projectID, action: control)
+                guard projectSelectionGeneration == generation else { return }
+                if control == .pause {
+                    report(state.status == "complete" ? "已识别的章节都已保存，无需暂停。"
+                           : "已暂停抓取，保存好的章节仍在本机。说“继续抓取”可以接着来。")
+                } else if state.status == "complete" {
+                    report("已识别的章节都已保存，可以告诉我从哪一章开始写剧本。")
+                } else {
+                    handleAssistantAction(.webResearch(query: "继续导入小说 " + state.source_url))
+                }
+            } catch {
+                guard projectSelectionGeneration == generation else { return }
+                report("没有确认到可控制的小说导入任务，已有内容保留。目录可能仍在识别，请稍后再试。")
             }
         }
     }

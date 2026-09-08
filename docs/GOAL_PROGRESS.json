@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "9d9f77fca0fd23eadb32dd9b82d75e409fbe1419",
-  "last_advanced_at": "2026-09-08T18:17:28Z",
+  "observed_head": "e98bfd5d2fac264cf9e569be00592e5e52291dca",
+  "last_advanced_at": "2026-09-08T18:22:12Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Chapter body extraction now prefers identified reading containers and excludes nested navigation/ads/hidden content; unknown layouts explicitly marked unverified. Provenance persists into writer passages. 26 source/import/writer tests passed3.13s, fake network. Real-site/native QA, long-book traversal and full production/release remain incomplete."
+    "summary": "Native spoken pause/resume now intercepts before writer routing, controls persisted import and recovers saved source without re-entry. Four backend control/recovery tests passed1.29s; native tests await CI. Catalog-stage cancellation, resumed writing intent, name-only selection, long-book traversal and real-site/installed QA remain open. CI34261082444 on bac8667 passed, not current checkpoint proof."
   },
   "next_action": {
     "sop": "SOP-04",
