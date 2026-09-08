@@ -7,6 +7,11 @@ against the current main branch.
 
 ## Status vocabulary
 
+[Interactive local production entry](qa/adopted-local-production-entry-2026-09-08.md)
+removes the full-render fixture's manual run/episode status and workspace-manifest
+bypass. Actual encoded synthetic media reaches QA through the public action;
+installed, real-provider and release acceptance remain open.
+
 [Native mix transport](qa/native-mix-transport-2026-09-08.md) now connects prepared
 dialogue/sound sources to backend mix/render endpoints, with explicit native
 render confirmation and frozen retries. Current native tests/installed QA,

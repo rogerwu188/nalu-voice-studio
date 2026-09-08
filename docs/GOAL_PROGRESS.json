@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "ec994618c6ba3f9b760386876a10d43d94fe1c60",
-  "last_advanced_at": "2026-09-08T17:12:47Z",
+  "observed_head": "765ce49a767846d13f674ffa5d2f601dee535747",
+  "last_advanced_at": "2026-09-08T17:18:31Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Both input-to-two-episode-review API journeys pass with synthetic source/provider: first-episode-only revision, restart, bound receipt and explicit approval. Combined story/writer regression 12 passed in 5.02s. 277a13a arm64 Swift tests passed in CI 34254979644, full run pending. No installed/live-provider proof; see docs/qa/core-flow-alignment-2026-09-08.md."
+    "summary": "Fixed actual interactive-to-local-render state handoff: no manual run/episode SQL edits or synthetic workspace descriptor in full render test. Final synthetic encoded-media test passed in 96.25s incl. origin/stale-plan rejection; 8 atomic entry guards and 36 regressions passed. Evidence docs/qa/adopted-local-production-entry-2026-09-08.md. Current CI, installed/live-provider and final acceptance still open."
   },
   "next_action": {
     "sop": "SOP-04",

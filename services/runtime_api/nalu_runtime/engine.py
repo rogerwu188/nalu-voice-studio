@@ -427,7 +427,9 @@ class ProductionService:
         self, run_id: str, request: PostproductionMaterializationCreate
     ) -> PostproductionMaterializationResult:
         run = self.repository.get_run(run_id)
-        if run.status not in {RunStatus.RUNNING, RunStatus.QA_REVIEW}:
+        adopted_start = (run.status in {RunStatus.PREFLIGHT, RunStatus.WAITING_FOR_APPROVAL}
+                         and request.adopted_dialogue_staging_id is not None and not run.dry_run)
+        if run.status not in {RunStatus.RUNNING, RunStatus.QA_REVIEW} and not adopted_start:
             raise ConflictError(
                 "local postproduction materialization requires a running run or exact QA replay"
             )
@@ -456,6 +458,41 @@ class ProductionService:
         workspace = run_directory / "qingshan-workspace"
         exports_root = workspace / "exports"
         workspace_manifest = workspace / "workspace-manifest.json"
+        if adopted_start:
+            from .shot_planning import ShotPlanningService
+            from .video_preparation import digest
+            immutable = ShotPlanningService(self.repository)._package(run)
+            script = immutable.get("approved_script", {})
+            episode = self.repository.get_episode(run.episode_id)
+            if episode.approved_script_revision != script.get("revision"):
+                raise ConflictError("approved script changed before local rendering")
+            current = self.repository.get_script(episode.id, episode.approved_script_revision)
+            if not current.approved_at or current.content != script.get("content"):
+                raise ConflictError("script approval no longer matches local rendering")
+            if workspace.is_symlink() or workspace.resolve() != workspace or not exports_root.is_dir():
+                raise ConflictError("adopted local workspace is unavailable")
+            if not workspace_manifest.exists() and not workspace_manifest.is_symlink():
+                # This is a real adapter workspace descriptor, not a QA pass marker.
+                descriptor = {"schema_version": "nalu.adopted-local-workspace/v1", "run_id": run.id,
+                    "project_id": run.project_id, "episode_id": run.episode_id,
+                    "production_package_sha256": package_sha256, "provider_dispatch_performed": False}
+                import tempfile
+                fd, temporary = tempfile.mkstemp(prefix=".local-workspace-", dir=workspace)
+                try:
+                    with os.fdopen(fd, "w") as target:
+                        target.write(json.dumps(descriptor, sort_keys=True)); target.flush(); os.fsync(target.fileno())
+                    try:
+                        os.link(temporary, workspace_manifest)
+                    except FileExistsError:
+                        pass
+                    self._sync_directory(workspace)
+                finally:
+                    Path(temporary).unlink(missing_ok=True)
+            if workspace_manifest.is_symlink() or not workspace_manifest.is_file():
+                raise ConflictError("local workspace descriptor is invalid")
+            run = self.repository.begin_adopted_postproduction(run_id,
+                plan_sha256=digest(request.model_dump(mode="json")),
+                approved_revision=script["revision"], requested_by=request.requested_by)
         if not exports_root.is_dir() or not workspace_manifest.is_file():
             raise ConflictError("Qingshan workspace is incomplete before materialization")
         last_cancel_check = 0.0

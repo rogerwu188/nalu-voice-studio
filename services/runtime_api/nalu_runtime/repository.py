@@ -6893,6 +6893,41 @@ class Repository:
             )
         return self.get_run(run_id)
 
+    def begin_adopted_postproduction(self, run_id, *, plan_sha256, approved_revision, requested_by):
+        """Enter local-only rendering from an exact prepared, approved episode."""
+        with self.db.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            run = db.execute("SELECT * FROM production_runs WHERE id=?", (run_id,)).fetchone()
+            if run is None or run["dry_run"] or run["status"] not in {"preflight", "waiting_for_approval"}:
+                raise ConflictError("run cannot enter adopted local postproduction")
+            latest = db.execute("SELECT id FROM production_runs WHERE episode_id=? ORDER BY created_at DESC,id DESC LIMIT 1",
+                                (run["episode_id"],)).fetchone()
+            episode = db.execute("SELECT * FROM episodes WHERE id=?", (run["episode_id"],)).fetchone()
+            project = db.execute("SELECT archived_at FROM projects WHERE id=?", (run["project_id"],)).fetchone()
+            saved = db.execute("SELECT payload_json FROM run_events WHERE run_id=? AND event_type='episode_mix_prepared' ORDER BY sequence DESC LIMIT 1",
+                               (run_id,)).fetchone()
+            if (latest is None or latest["id"] != run_id or project is None or project["archived_at"]
+                    or episode is None or episode["approved_script_revision"] != approved_revision
+                    or episode["status"] not in {"script_approved", "preproduction", "generating", "postproduction"}
+                    or saved is None or decode(saved["payload_json"]).get("plan_sha256") != plan_sha256):
+                raise ConflictError("approved episode or latest prepared mix changed")
+            now = utc_now()
+            steps = [EpisodeStatus.SCRIPT_APPROVED, EpisodeStatus.PREPRODUCTION,
+                     EpisodeStatus.GENERATING, EpisodeStatus.POSTPRODUCTION]
+            current = EpisodeStatus(episode["status"])
+            for target in steps[steps.index(current) + 1:]:
+                self._record_episode_transition(db, episode["id"], current, target, requested_by,
+                    "Adopted video/audio inputs already prepared; explicit local rendering request.")
+                current = target
+            db.execute("UPDATE episodes SET status=?,updated_at=? WHERE id=?", (current, now, episode["id"]))
+            db.execute("UPDATE production_runs SET status='running',error=NULL,updated_at=? WHERE id=?", (now, run_id))
+            sequence = db.execute("SELECT COALESCE(MAX(sequence),0)+1 FROM run_events WHERE run_id=?", (run_id,)).fetchone()[0]
+            db.execute("INSERT INTO run_events VALUES (?,?,?,?,?,?,?,?,?)", (new_id("evt"), run_id, sequence,
+                "adopted_postproduction_started", run["status"], "running", "Local rendering requested; no provider dispatch or publication.",
+                encode({"plan_sha256": plan_sha256, "requested_by": requested_by,
+                        "network_call_performed": False, "master_accepted": False}), now))
+        return self.get_run(run_id)
+
     def mark_postproduction_materialized(
         self,
         run_id: str,

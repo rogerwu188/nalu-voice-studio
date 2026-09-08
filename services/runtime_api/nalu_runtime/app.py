@@ -1589,8 +1589,10 @@ def create_app(
         status_code=201,
     )
     def materialize_postproduction(
-        run_id: str, request: PostproductionMaterializationCreate
+        run_id: str, request: PostproductionMaterializationCreate, origin: str | None = Header(default=None)
     ) -> PostproductionMaterializationResult:
+        if origin is not None:
+            raise HTTPException(403, "native local rendering required")
         return production.materialize_postproduction(run_id, request)
 
     @app.post(

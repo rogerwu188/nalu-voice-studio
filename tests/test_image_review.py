@@ -613,17 +613,20 @@ def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypat
                 assert len(repo.list_run_events(run.id)) == saved_count + 2
                 assert reopened.get(f"{dialogue_url}/prepared-mix", params={**recovery_query,
                     "expected_sound_plan_sha256": "0" * 64}).status_code == 409
-                # Fixture enters rendering state explicitly; not a production authorization claim.
-                with repo.db.connect() as fixture_db:
-                    fixture_db.execute("UPDATE production_runs SET status = 'running' WHERE id = ?", (run.id,))
-                    fixture_db.execute("UPDATE episodes SET status = 'postproduction' WHERE id = ?", (run.episode_id,))
-                (dialogue_exports.parent / "workspace-manifest.json").write_text('{"synthetic_fixture":true}')
+                assert repo.get_run(run.id).status == RunStatus.WAITING_FOR_APPROVAL
+                render_url = f"/v1/production-runs/{run.id}/postproduction-materializations"
+                assert api.post(render_url, json=prepared_mix.json(), headers={"Origin": "https://example.org"}).status_code == 403
+                stale_render = api.post(render_url, json={**prepared_mix.json(), "width": 96})
+                assert stale_render.status_code == 409, stale_render.text
+                assert repo.get_run(run.id).status == RunStatus.WAITING_FOR_APPROVAL
+                # Public render action now owns the real lifecycle transition.
                 rendered = api.post(f"/v1/production-runs/{run.id}/postproduction-materializations", json=prepared_mix.json())
                 assert rendered.status_code == 201, rendered.text
                 rendered_payload = rendered.json()
                 assert (dialogue_exports / rendered_payload["master"]["relative_path"]).is_file()
                 assert (dialogue_exports / rendered_payload["captions"]["relative_path"]).read_bytes() == whole_captions.content
                 assert repo.get_run(run.id).status == RunStatus.QA_REVIEW
+                assert any(e.event_type == "adopted_postproduction_started" for e in repo.list_run_events(run.id))
                 master_path = dialogue_exports / rendered_payload["master"]["relative_path"]
                 master_before_replay = master_path.read_bytes()
                 events_before_replay = len(repo.list_run_events(run.id))
