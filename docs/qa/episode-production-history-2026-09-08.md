@@ -15,3 +15,13 @@ Next: connect native version selection as read-only inspection, keeping producti
 commands bound to the current version; separately implement validated reuse of
 eligible prior assets. Do not relax the existing library-only shot-plan inheritance
 guard to copy provider tasks or stale approvals across production runs.
+
+Native RuntimeClient now exposes GET-only version reading with project/season/episode
+identity and duplicate-ID rejection. Added URLProtocol tests for preserved order,
+cross-episode rejection and duplicate rejection, verifying all requests are GET.
+Local Swift SDK remains mismatched; these new tests await macOS CI and are not
+reported passed. Native selection UI is still outstanding.
+
+CI34284802594 on e8c8a3e has since completed successfully. Together with the
+separate native sound-read evidence this closes that narrow regression only;
+it does not cover these newer version-history changes.

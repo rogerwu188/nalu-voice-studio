@@ -803,6 +803,16 @@ actor RuntimeClient {
         try await get("v1/production-runs/\(runID)")
     }
 
+    // Inspection only: callers must not replace the active production binding
+    // with a selected historical run or copy its approvals into a new version.
+    func productionVersions(projectID: String, seasonID: String, episodeID: String) async throws -> [ProductionRun] {
+        let versions: [ProductionRun] = try await get("v1/episodes/\(episodeID)/production-runs")
+        guard versions.allSatisfy({ $0.projectID == projectID && $0.seasonID == seasonID && $0.episodeID == episodeID }),
+              Set(versions.map(\.id)).count == versions.count,
+              !Task.isCancelled else { throw LibrarySnapshotRefreshError.contextChanged }
+        return versions
+    }
+
     func reserveVideoCost(runID: String, preparationID: String, approval: VideoCostApproval) async throws -> VideoCostReservation {
         let saved: VideoCostReservation = try await post(
             "v1/production-runs/\(runID)/video-task-preparations/\(preparationID)/estimate-approvals", body: approval)
