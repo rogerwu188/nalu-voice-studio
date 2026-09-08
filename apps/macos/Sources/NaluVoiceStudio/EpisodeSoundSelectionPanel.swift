@@ -89,7 +89,7 @@ import SwiftUI
                 Button("读一下合成进度", systemImage: "speaker.wave.2") { onRead(mix.notice) }
             }.buttonStyle(.bordered).controlSize(.large).padding(.vertical, 8)
         }.naluFont(.body).accessibilityIdentifier("nalu.episode.sound-selection")
-            .task { await model.load() }
+            .task { await model.load(); await mix.restoreRepair() }
             .onDisappear { operation?.cancel(); operation = nil; mixTask?.cancel(); mixTask = nil }
             .confirmationDialog("在这台 Mac 合成这一集？完成后仍需检查，不会自动发布。",
                                 isPresented: $confirmingRender, titleVisibility: .visible) {

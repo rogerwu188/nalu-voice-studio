@@ -16,6 +16,18 @@ actor RuntimeClient {
         return try decoder.decode(NovelImportStatus.self, from: data)
     }
 
+    func recoverEpisodeRepairPlan(runID: String) async throws -> EpisodeRepairPlan {
+        let plan: EpisodeRepairPlan = try await get("v1/production-runs/\(runID)/postproduction-repair-plan")
+        guard let master = plan.master_sha256,
+              EpisodeDialogueStageReceipt.validSHA(master),
+              EpisodeDialogueStageReceipt.validSHA(plan.output_seal_sha256) else {
+            throw LibrarySnapshotRefreshError.contextChanged
+        }
+        // The server validates this plan against the current immutable seal.
+        try plan.validate(runID: runID, sealSHA: plan.output_seal_sha256, masterSHA: master)
+        return plan
+    }
+
     func startNovelImport(projectID: String, sourceURL: String) async throws -> NovelImportStatus {
         var request = URLRequest(url: baseURL.appending(path: "v1/projects/\(projectID)/novel-import"))
         request.httpMethod = "POST"

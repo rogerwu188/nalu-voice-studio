@@ -97,3 +97,13 @@ rejected. It deliberately does not require undamaged media bytes: repair guidanc
 must remain readable for the damaged output it describes.28 output-immutability
 tests passed in22.83s; ruff passes. Added stale-plan regression without changing
 real user files. Installed recovery and new-version repair execution remain open.
+
+## Reopen repair-state lookup
+
+The sound/mix panel now performs a read-only repair-plan lookup after loading.
+Runtime validates returned run/hash/task fields; server enforces seal binding.
+The model restores the known failure explanation and repair plan, without creating
+a prepared mix, producing media or claiming acceptance. Missing/unavailable data
+does not become PASS. Added model test asserting zero render calls on restoration;
+native CI/installed execution pending. Repair selection and new-version creation
+remain incomplete; this is recovery of diagnostics, not automatic repair.

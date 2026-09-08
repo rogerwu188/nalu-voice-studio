@@ -4,6 +4,7 @@ import Observation
 @MainActor @Observable final class EpisodeMixModel {
     private let prepareMix: @MainActor ([EpisodeSoundSourceReceipt.Source]) async throws -> EpisodePreparedMix
     private let renderMix: @MainActor (EpisodePreparedMix) async throws -> EpisodeRenderedMix
+    private let recoverRepair: @MainActor () async throws -> EpisodeRepairPlan
     private(set) var busy = false
     private(set) var prepared: EpisodePreparedMix?
     private(set) var result: EpisodeRenderedMix?
@@ -13,13 +14,31 @@ import Observation
 
     init(sound: EpisodeSoundPlan, runtime: RuntimeClient = RuntimeClient(),
          prepareMix: (@MainActor ([EpisodeSoundSourceReceipt.Source]) async throws -> EpisodePreparedMix)? = nil,
-         renderMix: (@MainActor (EpisodePreparedMix) async throws -> EpisodeRenderedMix)? = nil) {
+         renderMix: (@MainActor (EpisodePreparedMix) async throws -> EpisodeRenderedMix)? = nil,
+         recoverRepair: (@MainActor () async throws -> EpisodeRepairPlan)? = nil) {
         self.prepareMix = prepareMix ?? { sources in
             let current = try await runtime.prepareEpisodeDialogue(sound: sound)
             let dialogue = try await runtime.stageEpisodeDialogue(sound: sound, preparation: current)
             return try await runtime.prepareEpisodeMix(sound: sound, dialogue: dialogue, sources: sources)
         }
         self.renderMix = renderMix ?? { try await runtime.renderEpisodeMix($0) }
+        self.recoverRepair = recoverRepair ?? { try await runtime.recoverEpisodeRepairPlan(runID: sound.run_id) }
+    }
+
+    func restoreRepair() async {
+        guard !busy, !attempted, prepared == nil, result == nil else { return }
+        busy = true
+        defer { busy = false }
+        do {
+            let plan = try await recoverRepair()
+            try Task.checkCancellation()
+            repairPlan = plan
+            let codes = plan.repair_tasks.map { $0.code == "frame_repeat" ? "video:VIDEO_FRAME_REPEAT_EXCESSIVE" : $0.code }
+            notice = EpisodeOutputQualityFailure(codes: codes).userMessage
+        } catch {
+            // Absence/unavailability is not proof that this episode passed QA.
+            // Preserve the existing state; never produce a new render on restore.
+        }
     }
 
     func prepare(sources: [EpisodeSoundSourceReceipt.Source]) async {

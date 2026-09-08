@@ -83,6 +83,18 @@ struct EpisodeMixTests {
                 #expect(rejected.result == nil && rejected.attempted && !rejected.busy)
                 #expect(rejected.prepared?.body == bytes)
                 #expect(rejected.notice.contains("画面重复过多"))
+                var restorationRenders = 0
+                let recoveredPlan = EpisodeRepairPlan(schema_version: "nalu.postproduction-repair-plan/v1",
+                    run_id: "run", output_seal_sha256: sha, master_sha256: sha, plan_sha256: sha,
+                    repair_tasks: [.init(code: "frame_repeat", target: "video", issue: "repeat",
+                        required_action: "repair", release_blocking: true)])
+                let restored = EpisodeMixModel(sound: sound, prepareMix: { _ in mix }, renderMix: { _ in
+                    restorationRenders += 1; throw URLError(.badServerResponse)
+                }, recoverRepair: { recoveredPlan })
+                await restored.restoreRepair()
+                #expect(restorationRenders == 0 && restored.result == nil && restored.prepared == nil)
+                #expect(restored.repairPlan?.plan_sha256 == sha && !restored.busy)
+                #expect(restored.notice.contains("画面重复过多"))
             } else {
                 #expect(throws: (any Error).self) {
                     try EpisodePreparedMix(body: bytes, sound: sound, dialogue: receipt, sources: sources)
