@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "627d89ddfab2c1312183cf600933563e4eac3718",
-  "last_advanced_at": "2026-09-08T18:34:36Z",
+  "observed_head": "d7c6d766c68ab3c6864b8297170d331b49dc8762",
+  "last_advanced_at": "2026-09-08T18:42:25Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Opt-in live novel Runtime rehearsal found and fixed second-回 selection bug. Real100-chapter catalog,2chapters saved, pause/restart/recovery and exact second-chapter writer request digest now verified in isolated SQLite.12 regressions passed2.08s; ruff passes. No model call or installed/native/full-book/video acceptance. Evidence docs/qa/novel-import-2026-09-08.md and scripts/verify_live_novel_import.py."
+    "summary": "Prepared real arm64 app artifact from passed arm64 job CI34263459180 at627d89d. Download hash matches; codesign deep/strict passes but signature adhoc/noTeamID. Isolated extracted app /tmp/nalu-native-qa-sLPxwo/extracted/Nalu Voice Studio.app; not launched or installed, predates回selection fix. Full CI still running. Evidence docs/qa/native-novel-artifact-2026-09-08.md. Next: isolated native user-journey QA."
   },
   "next_action": {
     "sop": "SOP-04",
