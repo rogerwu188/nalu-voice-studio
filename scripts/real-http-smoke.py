@@ -71,6 +71,24 @@ def main() -> int:
             status, project = request("/v1/projects", {"title": "HTTP smoke project"})
             if status != 201 or not project["id"].startswith("prj_"):
                 raise RuntimeError("project creation failed over HTTP")
+            # Exercise native source controls through an actual uvicorn socket,
+            # not TestClient. Selection alone must not contact the source host.
+            novel_route = f"/v1/projects/{project['id']}/novel-import"
+            status, novel = request(novel_route, {
+                "source_url": "https://example.com/book",
+                "chapters": [{"title": "第一章", "url": "https://example.com/book/1"}],
+            })
+            if status != 201 or novel["completed_chapters"] != 0:
+                raise RuntimeError("novel selection failed over HTTP")
+            status, paused = request(novel_route + "/pause", {})
+            if status != 200 or paused["status"] != "paused":
+                raise RuntimeError("novel pause failed over HTTP")
+            status, restored = request(novel_route)
+            if status != 200 or restored != paused:
+                raise RuntimeError("novel saved status did not survive HTTP read")
+            status, resumed = request(novel_route + "/resume", {})
+            if status != 200 or resumed["status"] != "ready" or resumed["completed_chapters"] != 0:
+                raise RuntimeError("novel resume unexpectedly fetched or failed")
             print("Real HTTP smoke test passed")
             return 0
         finally:
