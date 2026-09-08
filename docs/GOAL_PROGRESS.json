@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "1f7dafdb890b61f16f5580c9174bd02e520611e7",
-  "last_advanced_at": "2026-09-08T17:26:50Z",
+  "observed_head": "2892ab807bad75bac4dded7d3bb7d88444315694",
+  "last_advanced_at": "2026-09-08T17:28:36Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Added bounded complete-page reader and ordered chapter-link candidates without breaking single-page excerpt API. 10 source tests passed (mock network) in 1.14s; ruff passed. Novel import still needs SQLite queue/resume, actual chapter selection, native action and writing retrieval. Evidence docs/qa/novel-import-2026-09-08.md. Current CI and full final acceptance remain open."
+    "summary": "Added project-owned SQLite novel chapter queue with ordered selection, persisted full text/digests, per-attempt claims, pause/resume, crash recovery and no refetch of completed chapters. 13 queue/source tests PASS 1.48s, mocked network; ruff passed. Still needs Runtime API/native integration, catalog extraction and writer retrieval. Evidence docs/qa/novel-import-2026-09-08.md; no real-site or installed QA claim."
   },
   "next_action": {
     "sop": "SOP-04",

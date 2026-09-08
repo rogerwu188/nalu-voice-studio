@@ -26,3 +26,23 @@ Still missing: catalog/source discovery integration, chapter/body selection,
 durable SQLite jobs/chapters, progress/cancel/resume, native voice import action,
 writer retrieval of imported chapters and real-site/installed QA. Do not mark
 novel import or SOP-04 complete from these tests.
+
+## SQLite import queue
+
+NovelImport now stores selected ordered URLs, chapter text/digests, resolved URLs,
+progress and attempts in the existing project's SQLite bible namespace. It follows
+that namespace's project lifecycle; large imports currently rewrite the JSON value,
+so dedicated chapter storage/pagination is a performance follow-up, not a scalability
+claim. Limits are explicit: 2,000 selected chapters and 20 million stored characters.
+
+Each fetch claims one pending chapter transactionally, releases the database lock
+during network access, then compares its attempt token before committing. Completed
+chapters are retained across service recreation. Failures require resume, not implicit
+retry; pause/recovery invalidates in-flight responses. No new request starts paused.
+A hard crash remains fetching until explicit recovery; native recovery is not wired yet.
+
+13 source/queue tests pass in 1.48s, including restart, retry, successful-chapter dedupe,
+selection mismatch, pause during fetch and crash recovery. First run exposed a fixture
+whose text was exactly 24,000 characters, fixed to test beyond that boundary. Ruff passes.
+Network remains mocked. No API/native caller, automatic catalog selection, writer context
+retrieval or actual novel import is claimed complete.
