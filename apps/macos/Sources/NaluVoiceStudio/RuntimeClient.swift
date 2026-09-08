@@ -1143,6 +1143,34 @@ actor RuntimeClient {
         return try decoder.decode(ProductionRun.self, from: data)
     }
 
+    func prepareEpisodeRepair(episodeID: String, plan: EpisodeRepairPlan,
+                              approvedBy: String, confirmation: String) async throws -> ProductionRun {
+        guard !episodeID.isEmpty, !plan.run_id.isEmpty,
+              plan.schema_version == "nalu.postproduction-repair-plan/v1",
+              EpisodeDialogueStageReceipt.validSHA(plan.plan_sha256),
+              !approvedBy.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              !confirmation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw LibrarySnapshotRefreshError.contextChanged
+        }
+        var request = URLRequest(url: baseURL.appending(path: "v1/episodes/\(episodeID)/production-runs"))
+        request.httpMethod = "POST"
+        request.timeoutInterval = 120
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("native-repair-\(plan.run_id)-\(plan.plan_sha256)", forHTTPHeaderField: "Idempotency-Key")
+        request.httpBody = try JSONSerialization.data(withJSONObject: [
+            "dry_run": true, "paid_generation_approved": false,
+            "repair_source_run_id": plan.run_id, "expected_repair_plan_sha256": plan.plan_sha256,
+            "approved_by": approvedBy, "repair_confirmation": confirmation,
+        ])
+        let (data, response) = try await authorizedData(for: request)
+        try validate(response, data: data)
+        let run = try decoder.decode(ProductionRun.self, from: data)
+        guard run.dryRun, run.episodeID == episodeID, run.id != plan.run_id else {
+            throw LibrarySnapshotRefreshError.contextChanged
+        }
+        return run
+    }
+
     func createFeedback(_ draft: FeedbackDraft) async throws -> FeedbackItem {
         try await post("v1/feedback", body: draft)
     }

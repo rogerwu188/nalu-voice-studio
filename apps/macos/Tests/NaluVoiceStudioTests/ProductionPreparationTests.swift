@@ -37,6 +37,35 @@ private final class PreparationProtocol: URLProtocol, @unchecked Sendable {
 
 @Suite(.serialized)
 struct ProductionPreparationTests {
+    @Test func repairPreparationUsesStableIdentityWithoutPayment() async throws {
+        PreparationProtocol.requests = []
+        PreparationProtocol.bodies = []
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [PreparationProtocol.self]
+        let runtime = RuntimeClient(baseURL: URL(string: "http://127.0.0.1:8765")!,
+            session: URLSession(configuration: config), accessCheck: { true })
+        let digest = String(repeating: "a", count: 64)
+        let plan = EpisodeRepairPlan(schema_version: "nalu.postproduction-repair-plan/v1",
+            run_id: "parent", output_seal_sha256: digest, master_sha256: nil,
+            plan_sha256: digest, repair_tasks: [])
+        for _ in 0..<2 {
+            let run = try await runtime.prepareEpisodeRepair(episodeID: "episode", plan: plan,
+                approvedBy: "local-user", confirmation: "确认准备修订版，不开始付费制作")
+            #expect(run.id != plan.run_id)
+        }
+        #expect(PreparationProtocol.requests.count == 2)
+        for request in PreparationProtocol.requests {
+            #expect(request.value(forHTTPHeaderField: "Idempotency-Key") == "native-repair-parent-\(digest)")
+        }
+        for data in PreparationProtocol.bodies {
+            let body = try JSONSerialization.jsonObject(with: data) as! [String: Any]
+            #expect(body["dry_run"] as? Bool == true)
+            #expect(body["paid_generation_approved"] as? Bool == false)
+            #expect(body["repair_source_run_id"] as? String == "parent")
+            #expect(body["expected_repair_plan_sha256"] as? String == digest)
+        }
+    }
+
     @MainActor @Test func dictatedStartUsesApprovedEpisodeAndRejectsDuplicateInFlight() async throws {
         PreparationProtocol.requests = []
         PreparationProtocol.bodies = []
