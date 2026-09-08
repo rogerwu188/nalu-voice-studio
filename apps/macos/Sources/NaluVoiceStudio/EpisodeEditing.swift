@@ -47,6 +47,15 @@ struct EpisodeEditEnvelope: Decodable {
     }
 }
 
+struct EpisodeInputEnvelope: Decodable {
+    let inputs: EpisodeEditingEvent?
+    private enum CodingKeys: String, CodingKey { case event_type }
+    init(from decoder: Decoder) throws {
+        let type = try decoder.container(keyedBy: CodingKeys.self).decode(String.self, forKey: .event_type)
+        inputs = type == "postproduction_shot_inputs_staged" ? try EpisodeEditingEvent(from: decoder) : nil
+    }
+}
+
 @MainActor @Observable final class EpisodeEditingModel {
     let runID: String
     let planID: String

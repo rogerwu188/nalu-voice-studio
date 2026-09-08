@@ -479,6 +479,23 @@ actor RuntimeClient {
         return receipt
     }
 
+    func recoverEpisodeInputs(runID: String, planID: String, planSHA: String) async throws -> EpisodeEditingEvent? {
+        let events: [EpisodeInputEnvelope] = try await get("v1/production-runs/\(runID)/events")
+        let candidates = events.compactMap(\.inputs)
+        guard candidates.allSatisfy({ $0.run_id == runID }) else {
+            throw LibrarySnapshotRefreshError.contextChanged
+        }
+        guard let saved = candidates.last(where: { $0.payload.plan_id == planID }) else { return nil }
+        try validateEpisodeEditing(saved, runID: runID, planID: planID, planSHA: planSHA)
+        guard let sha = saved.payload.input_sha256, sha.count == 64,
+              sha.allSatisfy({ "0123456789abcdef".contains($0) }) else {
+            throw LibrarySnapshotRefreshError.contextChanged
+        }
+        // History is for reopening only. Rendering still validates actual saved media
+        // and current consent; this read grants no generation or publication authority.
+        return saved
+    }
+
     func latestEpisodeEdit(inputs: EpisodeEditingEvent) async throws -> EpisodeEditingEvent? {
         let events: [EpisodeEditEnvelope] = try await get("v1/production-runs/\(inputs.run_id)/events")
         let edits = events.compactMap(\.edit)

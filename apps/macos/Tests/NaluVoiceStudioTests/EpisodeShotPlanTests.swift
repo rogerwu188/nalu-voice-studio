@@ -80,6 +80,16 @@ struct EpisodeShotPlanTests {
                 "event_type": edited ? "postproduction_edit_drafted" : "postproduction_shot_inputs_staged", "payload": payload])
         }
         ShotReviewProtocol.requests = []; ShotReviewProtocol.bodies = []
+        let inputObject = try JSONSerialization.jsonObject(with: response(edited: false))
+        ShotReviewProtocol.queued = [(200, try JSONSerialization.data(withJSONObject: [inputObject]))]
+        let restoredInputs = try await runtime().recoverEpisodeInputs(runID: "run", planID: "plan", planSHA: "plan-sha")
+        #expect(restoredInputs?.id == "inputs")
+        #expect(ShotReviewProtocol.requests.count == 1 && ShotReviewProtocol.requests[0].httpMethod == "GET")
+        ShotReviewProtocol.queued = [(200, try JSONSerialization.data(withJSONObject: [inputObject]))]
+        await #expect(throws: (any Error).self) {
+            try await runtime().recoverEpisodeInputs(runID: "run", planID: "plan", planSHA: "changed")
+        }
+        ShotReviewProtocol.requests = []; ShotReviewProtocol.bodies = []
         ShotReviewProtocol.queued = [(200, try response(edited: false)), (200, Data("[]".utf8)), (503, Data()),
             (200, try response(edited: false)), (200, try response(edited: true)), (503, Data()),
             (200, try response(edited: false, plan: "foreign"))]
