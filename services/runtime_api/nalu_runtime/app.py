@@ -1209,6 +1209,10 @@ def create_app(
     ) -> ProductionRun:
         return production.start_run(episode_id, request, idempotency_key)
 
+    @app.get("/v1/episodes/{episode_id}/production-runs", response_model=list[ProductionRun])
+    def get_production_versions(episode_id: str) -> list[ProductionRun]:
+        return repository.runs_for_episode(episode_id)
+
     @app.get("/v1/production-runs/{run_id}", response_model=ProductionRun)
     def get_run(run_id: str) -> ProductionRun:
         return repository.get_run(run_id)

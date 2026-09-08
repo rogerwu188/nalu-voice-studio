@@ -17,6 +17,8 @@ def test_local_repair_version_preserves_parent_and_replays_after_restart(
     api = client(tmp_path)
     _, episode, _ = approved_episode_with_library(api)
     endpoint = f"/v1/episodes/{episode['id']}/production-runs"
+    assert api.get(endpoint).json() == []
+    assert api.get('/v1/episodes/missing/production-runs').status_code == 404
     parent = api.post(endpoint, json={"dry_run": True}).json()
     advance_episode_to_qa(api, episode["id"])
     api.app.state.repository.update_run_status(parent["id"], RunStatus.QA_REVIEW)
@@ -75,4 +77,11 @@ def test_local_repair_version_preserves_parent_and_replays_after_restart(
     assert client(tmp_path).post(endpoint, json=body, headers=headers).json() == repair
     assert api.post(endpoint, json=body, headers={"Idempotency-Key": "another"}).status_code == 409
     assert api.get(base).json()["status"] == "qa_review"
+    history = client(tmp_path).get(endpoint)
+    assert history.status_code == 200
+    assert [run["id"] for run in history.json()] == [repair["id"], parent["id"]]
+    assert [run["status"] for run in history.json()] == ["preflight", "qa_review"]
+    _, other_episode, _ = approved_episode_with_library(api)
+    assert api.get(f"/v1/episodes/{other_episode['id']}/production-runs").json() == []
+    assert api.app.state.repository.latest_run_for_episode(episode["id"]).id == repair["id"]
     assert all((directory / path).read_bytes() == content for path, content in old_files.items())

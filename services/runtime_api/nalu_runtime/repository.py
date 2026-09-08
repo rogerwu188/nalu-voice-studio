@@ -7149,6 +7149,18 @@ class Repository:
         data["dry_run"] = bool(data["dry_run"])
         return ProductionRun.model_validate(data)
 
+    def runs_for_episode(self, episode_id: str) -> list[ProductionRun]:
+        """Read retained versions newest-first without changing the active run."""
+        self.get_episode(episode_id)
+        with self.db.connect() as connection:
+            rows = connection.execute(
+                """SELECT * FROM production_runs WHERE episode_id = ?
+                   ORDER BY created_at DESC, id DESC""",
+                (episode_id,),
+            ).fetchall()
+        return [ProductionRun.model_validate({**dict(row), "dry_run": bool(row["dry_run"])})
+                for row in rows]
+
     def latest_run_for_episode(self, episode_id: str) -> ProductionRun | None:
         self.get_episode(episode_id)
         with self.db.connect() as connection:
