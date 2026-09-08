@@ -2,6 +2,17 @@ import XCTest
 @testable import NaluVoiceStudio
 
 final class NovelImportTests: XCTestCase {
+    func testResumePreservesOnlySameSourceWritingRequest() {
+        let url = "https://example.org/book"
+        let original = "导入小说 \(url)，然后生成分集剧本草稿"
+        let resumed = NovelImportControl.resumeQuery(sourceURL: url, previousRequest: original)
+        XCTAssertTrue(AssistantActionRouter.requestsSourceWriting(resumed))
+        XCTAssertEqual(NovelImportControl.resumeQuery(sourceURL: url, previousRequest: resumed), resumed)
+        for request in [nil, "导入小说 \(url)", "导入小说 https://example.org/other，然后生成分集剧本草稿"] as [String?] {
+            XCTAssertEqual(NovelImportControl.resumeQuery(sourceURL: url, previousRequest: request),
+                           "继续导入小说 " + url)
+        }
+    }
     func testNaturalNovelWritingSearchRequiresActualImport() {
         for text in ["找一本小说，拿来写剧本", "网上找到这个小说，把它作为整个剧本", "帮我找小说改编成连续剧"] {
             XCTAssertTrue(AssistantActionRouter.requestsNovelImport(text), text)

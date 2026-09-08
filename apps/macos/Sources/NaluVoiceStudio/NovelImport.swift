@@ -23,6 +23,15 @@ struct NovelSourceChoice: Codable, Equatable, Sendable {
 enum NovelImportControl: String, Sendable {
     case pause, resume
 
+    static func resumeQuery(sourceURL: String, previousRequest: String?) -> String {
+        let writingRequested = previousRequest.map {
+            AssistantActionRouter.sourceURL(in: $0) == sourceURL
+                && AssistantActionRouter.requestsSourceWriting($0)
+        } ?? false
+        return "继续导入小说 " + sourceURL
+            + (writingRequested ? "，然后生成分集剧本草稿" : "")
+    }
+
     static func parse(_ text: String) -> Self? {
         let value = text.filter { !$0.isWhitespace && !"，。！？,.!?".contains($0) }
         if ["暂停抓取", "停止抓取", "暂停下载小说", "先别抓取了", "暂停导入小说"].contains(value) { return .pause }

@@ -361,7 +361,15 @@ final class VoiceInterviewViewModel {
                 } else if state.status == "complete" {
                     report("已识别的章节都已保存，可以告诉我从哪一章开始写剧本。")
                 } else {
-                    handleAssistantAction(.webResearch(query: "继续导入小说 " + state.source_url))
+                    let story = try await runtime.interactiveStory(projectID: projectID)
+                    guard projectSelectionGeneration == generation else { return }
+                    let previous = story.turns.last {
+                        $0.source_mode == "web_source"
+                            && AssistantActionRouter.sourceURL(in: $0.text) == state.source_url
+                    }
+                    let query = NovelImportControl.resumeQuery(sourceURL: state.source_url,
+                                                               previousRequest: previous?.text)
+                    handleAssistantAction(.webResearch(query: query))
                 }
             } catch {
                 guard projectSelectionGeneration == generation else { return }
