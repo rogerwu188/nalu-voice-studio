@@ -32,3 +32,20 @@ inspect its actual route, fix that blocker, and record whether evidence is nativ
 real-provider or synthetic. Do not substitute module tests for installed end-to-end
 proof. Next priority is executing both story inputs and tracing their first failure,
 then same-project draft revision/approval and episode production, not voice polish.
+
+## Input-to-review API journey check
+
+`tests/test_story_to_review_journey.py` exercises both narrated and webpage-backed
+inputs through public Runtime APIs: two generated episode drafts, a correction to
+episode one, process/app re-creation over SQLite, unchanged episode two, per-episode
+writer receipt reconciliation and explicit script approval. No SQL status edits,
+direct answer injection for writer output or production dry-run is used in this
+new check. Both cases passed in 1.25s. Source reading and provider responses remain
+explicit mocks, so this proves application data handoff, not live model output or
+installed voice interaction. No new production bug was demonstrated by these cases.
+
+CI 34254979644 (277a13a4068149ccfe9bb29ac53054cc7b1a079b) completed its arm64
+`swift test` step successfully; full CI remains running. This validates the older
+native mix/state tests, not the newer natural-language routing fix. Next evidence
+needed is installed current-client input/review execution and real-provider access,
+then production entry without professional manual intervention.

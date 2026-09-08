@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "277a13a4068149ccfe9bb29ac53054cc7b1a079b",
-  "last_advanced_at": "2026-09-08T17:09:58Z",
+  "observed_head": "ec994618c6ba3f9b760386876a10d43d94fe1c60",
+  "last_advanced_at": "2026-09-08T17:12:47Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Priority drift identified; returning to actual narrated/source writing journeys. Fixed source-writing handoff for user's natural phrasing; native tests pending. Prior pending SQLite mix recovery passed synthetic full-render test (92.48s), not native E2E. Earlier 1787c60 full CI 34253996299 passed; newer changes unverified. Evidence docs/qa/core-flow-alignment-2026-09-08.md."
+    "summary": "Both input-to-two-episode-review API journeys pass with synthetic source/provider: first-episode-only revision, restart, bound receipt and explicit approval. Combined story/writer regression 12 passed in 5.02s. 277a13a arm64 Swift tests passed in CI 34254979644, full run pending. No installed/live-provider proof; see docs/qa/core-flow-alignment-2026-09-08.md."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Execute/trace both narrated-story and online-source input journeys, fix first real blocker and demonstrate same-project draft revision/approval before more downstream UI. Verify current native CI and installed path. Existing Hops 401 unresolved; no automatic paid retry. Remove mandatory professional sound sourcing from default user journey; all production/release SOP requirements remain intact.",
+    "summary": "Obtain current native CI/build evidence and execute installed narrated/source input-to-review paths; backend public-API handoff now passes mocks, not live provider. Existing Hops 401 remains unresolved, no automatic paid retry. Trace production state transition and remove mandatory professional sound sourcing from default journey without bypassing approval/QA. Full SOP scope retained.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
