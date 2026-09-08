@@ -11,7 +11,7 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "541622f7ccd647f7837eb75c55e9d7fb2b89c5b9",
+  "observed_head": "0777eb9b263bf58795f81dda59279cb86b97fc3e",
   "last_advanced_at": "2026-09-08T20:18:16Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-09",
     "status": "IN_PROGRESS",
-    "summary": "At bdcab713: 65 tests across novel import, interactive story, production authorization, repair versions and rendered-output immutability passed in30.63s. Ruff services/tests/scripts and OpenAPI snapshot passed. Two-input synthetic drafts enter reviewed local production; native resume intent and explicit download routing implemented but current macOS CI34271271115 pending. Prior32212b5 Intel/arm64 jobs passed, full job still running; not current acceptance. Real writer/native source journey, actual repaired master and release remain incomplete. No SOP promoted."
+    "summary": "Evidence at 0777eb9: native a4a0a06 artifact adopted synthetic first-episode draft, explicitly approved it, restarted and executed local production preparation (20% to30%, SQLite run_b80516204ce042e9b5d38b3a7474773f dry_run=1); second episode remained planned. Latest novel/story regression26 tests passed7.70s. Real100-chapter download and13 lossless context windows separately verified. No real writer/video/release acceptance and no SOP promotion. CI34274051972 on98fbf60 remains in progress; CI34275403148 on0777eb9 pending, neither is current acceptance."
   },
   "next_action": {
     "sop": "SOP-09",
-    "id": "continue-native-source-to-writing-handoff",
-    "summary": "Native a4a0a06 artifact verified URL paste/Send, real download13/100, quit/restart, resume16/100, pause21/100 with SQLite hash checks. Evidence docs/qa/native-source-entry-live-2026-09-08.md. Next remove unrelated audience-question detour after paused source import, verify current f03b05e input isolation and source-to-writing handoff. Real writer blocked by configured Hops401; no automatic paid retry. All100 live catalog chapters and13 lossless context windows verified separately. True script/video/release remains open; do not repeat already demonstrated import-only QA or mark SOP complete.",
+    "id": "verify-current-native-fixes-and-production-handoff",
+    "summary": "Do not repeat native import/adoption/preflight checks already recorded in docs/qa/native-source-entry-live-2026-09-08.md and native-draft-adoption-2026-09-08.md. Check live CI34274051972, then current artifact for f03b05e project-input isolation and e4bef4a import-reply detour fix. Shot-plan generate() calls paid Hops writer, not local preparation; configured401 remains unresolved and diagnostic timeout does not prove app credential failure. No automatic paid retry. Continue safe production/repair implementation while real writer/provider/signing/publication gates remain open.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
