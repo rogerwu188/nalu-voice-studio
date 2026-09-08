@@ -29,7 +29,7 @@
   },
   "next_action": {
     "sop": "SOP-04",
-    "id": "connect-render-to-seal-and-prerequisite-qa",
+    "id": "verify-positive-render-qa-and-native-failure-recovery",
     "summary": "Actual adopted full-render regression passed on ef9f62d in93.81s. Native renderEpisodeMix returns materialization only; EpisodeMixModel only displays notice. Connect explicit render to idempotent sealing of master/captions/postproduction/shot manifests, then structural/decoded QA before native speech and human acceptance. Verify failure recovery without rerender or publication. Native source-choice CI/restart QA remains pending; Hops401 no automatic paid retry; full SOP retained.",
     "requires_user_authorization": false
   },

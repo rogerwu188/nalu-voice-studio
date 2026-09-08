@@ -639,6 +639,29 @@ def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypat
                     validate_rendered_dialogue_consent,
                 )
                 validate_rendered_dialogue_consent(repo, root, run.id)
+                seal_url = f"/v1/production-runs/{run.id}/rendered-output-seal"
+                seal_request = {"sealed_by": "nalu-native-user", "artifacts": [
+                    {key: rendered_payload[field][key] for key in ("kind", "relative_path", "media_type")}
+                    for field in ("master", "captions", "postproduction_manifest", "shot_manifest")
+                ]}
+                sealed = reopened.post(seal_url, json=seal_request)
+                assert sealed.status_code == 201, sealed.text
+                assert reopened.post(seal_url, json=seal_request).json() == sealed.json()
+                for gate in ("media-structure-qa", "decoded-media-qa"):
+                    checked = reopened.post(f"/v1/production-runs/{run.id}/{gate}")
+                    assert checked.status_code == 200, checked.text
+                    assert checked.json()["output_seal_sha256"] == sealed.json()["manifest_sha256"]
+                    assert checked.json()["master_sha256"] == rendered_payload["master"]["sha256"]
+                    if gate == "media-structure-qa":
+                        assert checked.json()["status"] == "PASS", checked.text
+                    else:
+                        # This low-frame-rate synthetic source repeats frames
+                        # when normalized to 24fps; the quality gate must reject it.
+                        assert checked.json()["status"] == "FAIL", checked.text
+                        assert checked.json()["failures"] == ["video:VIDEO_FRAME_REPEAT_EXCESSIVE"]
+                assert repo.get_run(run.id).status == RunStatus.QA_REVIEW
+                assert master_path.read_bytes() == master_before_replay
+                events_before_replay = len(repo.list_run_events(run.id))
                 repo.revoke_asset_consent(recording.id, AssetConsentRevocationCreate(
                     requested_by="synthetic-qa", reason="测试成片后撤回录音授权"))
                 refused = reopened.post(f"/v1/production-runs/{run.id}/postproduction-materializations", json=prepared_mix.json())

@@ -810,8 +810,8 @@ def test_sealed_outputs_survive_library_edits_and_detect_file_tampering(
         f"/v1/production-runs/{run['id']}/rendered-output-seal",
         json=seal_payload(),
     )
-    assert duplicate.status_code == 409
-    assert "already sealed" in duplicate.text
+    assert duplicate.status_code == 201
+    assert duplicate.json() == seal
 
     (exports / "E01_MASTER.mp4").write_bytes(b"tampered")
     damaged = api.get(f"/v1/production-runs/{run['id']}/rendered-output-integrity").json()
@@ -891,8 +891,8 @@ def test_rendered_output_seal_recovers_exactly_one_event_after_file_commit_crash
         f"/v1/production-runs/{run['id']}/rendered-output-seal",
         json=request,
     )
-    assert duplicate.status_code == 409
-    assert "already sealed" in duplicate.text
+    assert duplicate.status_code == 201
+    assert duplicate.json() == recovered.json()
     assert len(
         [
             event

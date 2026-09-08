@@ -8368,12 +8368,17 @@ class Repository:
             if run is None:
                 raise NotFoundError("production run not found")
             prior = connection.execute(
-                """SELECT id FROM run_events
+                """SELECT id, payload_json FROM run_events
                    WHERE run_id = ? AND event_type = 'rendered_outputs_sealed'
                    ORDER BY sequence DESC LIMIT 1""",
                 (run_id,),
             ).fetchone()
             if prior is not None:
+                payload = decode(prior["payload_json"])
+                if (payload.get("manifest_path") == manifest_path
+                        and payload.get("manifest_sha256") == manifest_sha256
+                        and payload.get("artifact_count") == artifact_count):
+                    return self.get_run_event(prior["id"])
                 raise ConflictError("rendered outputs are already sealed for this run")
             row = connection.execute(
                 "SELECT COALESCE(MAX(sequence), 0) + 1 AS sequence FROM run_events WHERE run_id = ?",
