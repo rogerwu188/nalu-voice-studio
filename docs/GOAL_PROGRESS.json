@@ -11,7 +11,7 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "8a0da80b9c6d127c868b1b0b129726cb6d1af07b",
+  "observed_head": "c1b36895724dbdb48942c70066ccf6e86923c054",
   "last_advanced_at": "2026-09-08T20:18:16Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
@@ -29,7 +29,8 @@
   },
   "next_action": {
     "sop": "SOP-09",
-    "id": "verify-read-only-edit-reopening",
+    "id": "verify-avkit-player-and-continue-native-repair",
+    "player_checkpoint": "Native f8fbfa7 restored both saved cuts through GET-only history; do not repeat backend-only recovery work. Picture-preview returned200 then application exited134 while demangling AVPlayerView. c1b3689 explicitly links AVKit in direct release build and SwiftPM, and checks every binary slice. New release check correctly rejects crashing old artifact. CI34283360865 pending behind34281384986; actual fixed-player QA not yet performed. Next use new artifact with valid qv1poe20 fixture, restore edits, open preview, then confirm/cancel repair and verify parent preservation/restart. No provider generation or public release is authorized by this checkpoint. This field supersedes historical CI/next-step statements below.",
     "latest_evidence": "docs/qa/native-repair-reopen-2026-09-08.md",
     "recovery_checkpoint": "89cd1ec adds saved-input GET validation; 8a0da80 uses it before staging and tests GET-only saved-edit reopening. CI34280772668 pending behind34280702938, not accepted. Native fixture62851e2 now preserves consent; generation completed successfully at /private/var/folders/y4/k84st0yj7fz043tnxkfrjn1w0000gn/T/nalu-native-postproduction-qv1poe20. Old d7l59eeu fixture has revoked consent and must not be reused for happy-path QA. Next verify Swift tests, connect automatic saved preview restoration as needed, and repeat native repair cancel/confirm/restart without new paid calls. Historical summary below is superseded where it lists older CI status.",
     "summary": "CI34276734785 on400c621 passed all jobs; actual native two-project creation and A/B unsent-input restoration verified in docs/qa/native-new-project-reuse-2026-09-08.md (evidence14a98e6). Do not repeat this narrow gate. Repair preparation now has backend commit-time plan validation (22 combined tests passed), native transport, model state and spoken confirmation UI through05b7f6a; failed preflight rejection2c7b5c8 and success/retry testsd0123b4. CI34278162803 on70a3df0 is live, latest34278477975 pending. Next verify newest native tests/artifact, then QA explicit confirmation/cancel/new version/parent preservation with isolated fixture. True repaired master, provider calls, signatures and release remain unaccepted; no automatic retry of Hops401. Update same-candidate evidence before promoting any SOP.",

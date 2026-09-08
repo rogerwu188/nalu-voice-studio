@@ -61,3 +61,9 @@ name 'So12AVPlayerViewC': unknown error`. Owned runtime shut down after the cras
 Crash report: `/Users/rogerwu/Library/Logs/DiagnosticReports/NaluVoiceStudio-2026-09-08-145547.ips`.
 Repair confirmation was not reached. Next resolve native player loading and
 repeat this exact journey; do not promote any SOP or claim full recovery PASS.
+
+Candidate correction c1b3689 explicitly links AVKit in both the direct swiftc
+release build and SwiftPM target. `otool -L` on the crashing binary showed
+`_AVKit_SwiftUI` but no AVKit framework. The new per-architecture bundle check
+rejects this old binary with `发布包缺少 AVKit 播放器框架链接：arm64`.
+Both edited shell scripts pass `bash -n`; fixed binary playback remains unverified.
