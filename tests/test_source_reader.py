@@ -25,6 +25,7 @@ def test_chapter_links_keep_directory_order_and_reject_unsafe_targets():
 
 
 def fake_source_transport(monkeypatch, body):
+    targets = []
     class Response:
         status = 200
         headers = Message()
@@ -40,8 +41,9 @@ def fake_source_transport(monkeypatch, body):
         def __init__(self, *args, **kwargs):
             pass
 
-        def request(self, *args, **kwargs):
-            pass
+        def request(self, method, target, **kwargs):
+            target.encode("ascii")
+            targets.append(target)
 
         def getresponse(self):
             return Response()
@@ -58,6 +60,13 @@ def fake_source_transport(monkeypatch, body):
     monkeypatch.setattr(source_reader, "source_tls_context", Context)
     monkeypatch.setattr(source_reader.socket, "getaddrinfo",
                         lambda *a, **k: [(2, 1, 6, "", ("93.184.216.34", 443))])
+    return targets
+
+
+def test_chinese_path_and_query_are_encoded_without_double_escaping(monkeypatch):
+    targets = fake_source_transport(monkeypatch, "正文".encode())
+    source_reader.read_public_chapter("https://example.com/西遊記/%E7%AC%AC1?章节=第一回&page=2")
+    assert targets == ["/%E8%A5%BF%E9%81%8A%E8%A8%98/%E7%AC%AC1?%E7%AB%A0%E8%8A%82=%E7%AC%AC%E4%B8%80%E5%9B%9E&page=2"]
 
 
 def test_chapter_read_does_not_silently_truncate_at_excerpt_limit(monkeypatch):

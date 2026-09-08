@@ -5,7 +5,7 @@ import ipaddress
 import socket
 import ssl
 from html.parser import HTMLParser
-from urllib.parse import urldefrag, urljoin, urlsplit
+from urllib.parse import quote, urldefrag, urljoin, urlsplit
 
 import certifi
 
@@ -192,9 +192,11 @@ def _read_public_source(url, *, complete):
             except Exception:
                 raw_socket.close()
                 raise
-            path = parsed.path or "/"
+            # http.client requires an ASCII request target. Preserve existing
+            # escapes and delimiters while encoding user-provided Chinese paths.
+            path = quote(parsed.path or "/", safe="/%:@!$&'()*+,;=-._~")
             if parsed.query:
-                path += "?" + parsed.query
+                path += "?" + quote(parsed.query, safe="/%?:@!$&'()*+,;=-._~")
             connection.request("GET", path, headers={
                 "Accept": "text/html,text/plain", "User-Agent": "Nalu-SourceReader/1.0",
                 "Accept-Encoding": "identity",

@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "e98bfd5d2fac264cf9e569be00592e5e52291dca",
-  "last_advanced_at": "2026-09-08T18:22:12Z",
+  "observed_head": "a915fdb64c2b5cf2a8eba4ae7b4d3cd8191fd17c",
+  "last_advanced_at": "2026-09-08T18:29:10Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Native spoken pause/resume now intercepts before writer routing, controls persisted import and recovers saved source without re-entry. Four backend control/recovery tests passed1.29s; native tests await CI. Catalog-stage cancellation, resumed writing intent, name-only selection, long-book traversal and real-site/installed QA remain open. CI34261082444 on bac8667 passed, not current checkpoint proof."
+    "summary": "Real public-site read exposed Unicode HTTP request-target failure; fixed path/query encoding. 13 source tests passed1.24s; real Wikisource 西遊記 catalog read2630chars/180links, parsed100chapters and read first chapter7184chars. Header contamination remains; this is reader-only real evidence, not installed import or full-book generation. No paid calls."
   },
   "next_action": {
     "sop": "SOP-04",

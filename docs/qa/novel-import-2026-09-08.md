@@ -160,3 +160,18 @@ added; native CI and installed speech execution still pending. Catalog discovery
 has no persisted queue until it finishes, so pause during discovery remains unsupported.
 Resuming does not automatically reproduce an earlier combined writing request;
 the user can ask for the chapter/script after import. Preserve this as an open UX gap.
+
+## First real public-site read
+
+A real read of https://zh.wikisource.org/wiki/西遊記 failed before HTTP transmission
+with UnicodeEncodeError in http.client. Fixed request-target percent encoding for
+Unicode path/query while preserving existing escaped octets and query delimiters.
+13 source-reader tests pass in 1.24s; ruff passes, including a regression test that
+the fake transport now enforces ASCII just like http.client.
+
+Same URL after the fix: 2,630 extracted characters, 180 links; directory extraction
+identifies 100 chapters from 第一回 through 第一百回. Reading the returned first chapter
+URL succeeds with 7,184 characters. This is real HTTPS reader evidence (no model,
+no paid call, no installed app test), not a full novel import. The first chapter
+still contains a short Wiki navigation/header prefix: body cleanup is NOT fully
+accepted. No novel was imported into a user project or used for generation here.
