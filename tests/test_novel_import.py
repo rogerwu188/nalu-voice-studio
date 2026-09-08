@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 from nalu_runtime.app import create_app
 from nalu_runtime.interactive_story import InteractiveStory, StoryInput
 from nalu_runtime.interactive_writer_service import writer_request
-from nalu_runtime.novel_import import NovelImport, catalog_chapters
+from nalu_runtime.novel_import import NovelImport, catalog_chapters, writing_context
 from nalu_runtime.repository import ConflictError
 
 
@@ -149,6 +149,26 @@ def test_catalog_does_not_silently_choose_between_volumes():
         catalog_chapters(page)
     with pytest.raises(ValueError, match="incomplete"):
         catalog_chapters({**page, "truncated": True})
+
+
+def test_long_chapter_continuation_is_bounded_and_does_not_restart(tmp_path):
+    service, project, _ = setup_import(tmp_path, lambda url: {
+        "url": url, "text": "abcdefghij", "truncated": False})
+    service.fetch_next(project)
+    state = service.read(project)
+    first = writing_context(state, "第一章", character_budget=6)
+    second = writing_context(state, "继续改编小说下一段", character_budget=6, previous=first)
+    assert second["passages"][0]["text"] == "ghij"
+    assert second["passages"][0]["start_character"] == 6
+    assert not second["passages"][0]["complete_chapter"]
+    exhausted = writing_context(state, "继续改编小说下一段", previous=second)
+    assert exhausted["passages"] == []
+    assert writing_context(state, "继续改编小说下一段", previous=exhausted)["passages"] == []
+    service.fetch_next(project)
+    resumed = writing_context(service.read(project), "继续改编小说下一段", previous=exhausted)
+    assert resumed["passages"][0]["chapter_number"] == 2
+    assert resumed["passages"][0]["start_character"] == 0
+    assert writing_context(state, "修改刚才剧本", character_budget=6, previous=first)["passages"][0]["text"] == "abcdef"
 
 
 def test_imported_chapters_reach_frozen_writer_context(tmp_path):

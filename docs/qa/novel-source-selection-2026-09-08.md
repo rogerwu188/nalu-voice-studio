@@ -23,3 +23,13 @@ publication commands remain excluded. Added native routing and selected-query
 handoff tests. Backend novel-import regression suite: 12 passed in 2.33s.
 These backend tests do not execute the native wording change; native CI and
 installed conversation acceptance remain pending. No SOP status is promoted.
+
+## Bounded long-chapter continuation
+
+Runtime now recognizes explicit “继续改编小说下一段” (also reading/processing)
+and continues after the previous frozen passage offset. The persisted story
+context carries a hash-bound cursor without duplicating passage text. Exhaustion
+does not wrap to chapter one; pending chapters block traversal rather than being
+silently skipped. Ordinary script revisions do not advance this cursor.
+13 import tests pass in 2.15s; ruff passes. Full-book planning, natural paraphrase
+coverage, paid writer execution and installed E2E remain unaccepted.

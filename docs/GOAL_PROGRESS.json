@@ -29,7 +29,7 @@
   },
   "next_action": {
     "sop": "SOP-04",
-    "id": "verify-and-persist-novel-source-selection",
+    "id": "verify-source-choice-and-long-chapter-continuation",
     "summary": "Verify current native CI and installed explicit URL import-to-writing. Finish voice pause/resume, name-only source selection and long-book context traversal; test actual public-site extraction. Then complete native render-to-seal/prerequisite QA and remove professional sound-form burden. Existing Hops401 remains no automatic paid retry; full SOP retained.",
     "requires_user_authorization": false
   },
