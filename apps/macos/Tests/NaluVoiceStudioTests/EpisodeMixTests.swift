@@ -85,6 +85,7 @@ struct EpisodeMixTests {
                 #expect(rejected.notice.contains("画面重复过多"))
                 var restorationRenders = 0
                 var repairRequests = 0
+                var repairSucceeds = false
                 let recoveredPlan = EpisodeRepairPlan(schema_version: "nalu.postproduction-repair-plan/v1",
                     run_id: "run", output_seal_sha256: sha, master_sha256: sha, plan_sha256: sha,
                     repair_tasks: [.init(code: "frame_repeat", target: "video", issue: "repeat",
@@ -94,6 +95,13 @@ struct EpisodeMixTests {
                 }, recoverRepair: { recoveredPlan }, prepareRepair: { plan, confirmation in
                     #expect(plan.plan_sha256 == sha && !confirmation.isEmpty)
                     repairRequests += 1
+                    if repairSucceeds {
+                        return try JSONDecoder().decode(ProductionRun.self, from: Data("""
+                        {"id":"repair","project_id":"project","season_id":"season","episode_id":"episode",
+                        "status":"preflight","dry_run":true,"requested_model":"seedance-2.0-pro",
+                        "package_path":"repair.json","created_at":"fixture","updated_at":"fixture"}
+                        """.utf8))
+                    }
                     throw URLError(.cannotConnectToHost)
                 })
                 await restored.restoreRepair()
@@ -106,6 +114,12 @@ struct EpisodeMixTests {
                 #expect(repairRequests == 1 && restored.repairVersion == nil && !restored.busy)
                 #expect(restored.repairPlan?.plan_sha256 == sha)
                 #expect(restored.notice.contains("原成片和修复建议保留"))
+                repairSucceeds = true
+                await restored.prepareRepairConfirmed(confirmation: "确认准备修订版")
+                #expect(restored.repairVersion?.id == "repair" && repairRequests == 2)
+                #expect(restored.repairPlan?.plan_sha256 == sha && restored.result == nil)
+                await restored.prepareRepairConfirmed(confirmation: "确认准备修订版")
+                #expect(repairRequests == 2)
             } else {
                 #expect(throws: (any Error).self) {
                     try EpisodePreparedMix(body: bytes, sound: sound, dialogue: receipt, sources: sources)
