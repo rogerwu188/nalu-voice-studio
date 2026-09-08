@@ -26,8 +26,13 @@ def test_video_review_is_bound_replayable_and_not_master_qa(tmp_path, monkeypatc
     preparation = repo.append_run_event(run.id, "video_task_prepared", message="synthetic preparation", payload=prepared)
     # Isolate decision service; production-input validation has its own compiler/
     # director/frame contract suites. Real synthetic MP4 materialization is used.
-    monkeypatch.setattr("nalu_runtime.video_review.VideoPreparationService.validate",
-                        lambda *args: {**prepared, "preparation_sha256": "c" * 64} if case == "changed_inputs" else prepared)
+    def validate_preparation(_service, _run_id, _request, *, _read_saved=False):
+        # Mirror the production API's explicit saved-read mode. State-policy
+        # behavior is independently exercised by test_saved_video_read_states.
+        assert isinstance(_read_saved, bool)
+        return {**prepared, "preparation_sha256": "c" * 64} if case == "changed_inputs" else prepared
+
+    monkeypatch.setattr("nalu_runtime.video_review.VideoPreparationService.validate", validate_preparation)
     binding = submitter.prepare(run.id, task_key="shot", provider="giggle", model="seedance-2.0-pro",
                                 submission_fingerprint="a" * 64, request_sha256="b" * 64)
     submitter.record_response(binding.id, target_state=RemoteTaskState.SUBMITTED, response_sha256="c" * 64,

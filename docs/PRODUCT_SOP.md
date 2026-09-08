@@ -7,6 +7,10 @@ against the current main branch.
 
 ## Status vocabulary
 
+[CI regression follow-up](qa/video-review-ci-regression-2026-09-08.md): two
+video-review test doubles were incompatible with saved-read validation. Targeted
+tests pass after correction; replacement full CI remains required.
+
 [Authorized sound source preparation](qa/authorized-sound-source-2026-09-07.md)
 now feeds actual synthetic full rendering with scoped, replayable sound assets.
 Native sound choices, missing-sound production and final acceptance remain open.

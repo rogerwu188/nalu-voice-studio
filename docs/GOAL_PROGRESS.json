@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "f36e91ca7bce40800b8c7795f5e64570f26bc3e0",
-  "last_advanced_at": "2026-09-07T10:34:06Z",
+  "observed_head": "db32488ca55022507582965b8cd2c365de8edbe9",
+  "last_advanced_at": "2026-09-08T02:34:31Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Authorized local sound-source staging now fills managed mixing parameters from project assets. Actual synthetic two-shot render uses all four staged sound roles and passed in 70.34s; 58 focused/immutability regressions pass (21.67s). Evidence docs/qa/authorized-sound-source-2026-09-07.md. Native role selection, missing-sound generation and final acceptance remain incomplete."
+    "summary": "Fixed two CI video-review test failures caused by an outdated validator mock missing the explicit _read_saved keyword; production gates unchanged. Eleven video-review/state-policy tests pass (2.67s). Evidence docs/qa/video-review-ci-regression-2026-09-08.md. Replacement full CI and native/final acceptance pending. Goal service observed usageLimited; safe work continued in this turn."
   },
   "next_action": {
     "sop": "SOP-04",
