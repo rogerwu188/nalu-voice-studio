@@ -142,6 +142,17 @@ struct EpisodeShotPlanTests {
             await invalid.load()
             #expect(invalid.saved == nil && invalid.inputs == nil && invalid.cuts.isEmpty)
         }
+        // Failed history reads must not be mistaken for an empty history.
+        let readStart = ShotReviewProtocol.requests.count
+        ShotReviewProtocol.queued = [(503, Data())]
+        let unavailable = EpisodeEditingModel(runID: "run", planID: "plan", planSHA: "plan-sha", runtime: runtime())
+        await unavailable.load()
+        #expect(unavailable.saved == nil && unavailable.inputs == nil && !unavailable.busy)
+        #expect(ShotReviewProtocol.requests.count == readStart + 1)
+        ShotReviewProtocol.queued = [(200, inputHistory), (200, history)]
+        await unavailable.load()
+        #expect(unavailable.saved?.id == "edit")
+        #expect(ShotReviewProtocol.requests.dropFirst(readStart).allSatisfy { $0.httpMethod == "GET" })
         func soundResponse(editID: String) throws -> Data {
             try JSONSerialization.data(withJSONObject: ["id": "sound", "run_id": "run", "event_type": "episode_sound_plan_drafted",
                 "payload": ["edit_id": editID, "edit_sha256": String(repeating: "b", count: 64),
