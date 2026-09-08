@@ -7,6 +7,10 @@ against the current main branch.
 
 ## Status vocabulary
 
+[Native sound-source transport](qa/native-sound-source-transport-2026-09-08.md)
+now supports typed sound-role preparation. Selector/mix action and installed
+acceptance remain open; previous CI regression passed on commit 52e5a0d.
+
 [CI regression follow-up](qa/video-review-ci-regression-2026-09-08.md): two
 video-review test doubles were incompatible with saved-read validation. Targeted
 tests pass after correction; replacement full CI remains required.

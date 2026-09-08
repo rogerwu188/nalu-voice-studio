@@ -78,6 +78,28 @@ actor RuntimeClient {
         return receipt
     }
 
+    func stageEpisodeSoundSource(sound: EpisodeSoundPlan, draft: EpisodeSoundSourceDraft) async throws -> EpisodeSoundSourceReceipt {
+        try Task.checkCancellation()
+        try sound.validateCueWindows()
+        try draft.validate()
+        guard !sound.run_id.isEmpty, sound.payload.edit_approved,
+              draft.sound_plan_id == sound.id, draft.expected_sound_plan_sha256 == sound.payload.sound_plan_sha256 else {
+            throw LibrarySnapshotRefreshError.contextChanged
+        }
+        var request = URLRequest(url: baseURL.appending(path: "v1/production-runs/\(sound.run_id)/sound-sources"))
+        request.httpMethod = "POST"
+        request.timeoutInterval = 60
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try encoder.encode(draft)
+        let (data, response) = try await authorizedData(for: request)
+        try validate(response, data: data)
+        try Task.checkCancellation()
+        let receipt = try decoder.decode(EpisodeSoundSourceReceipt.self, from: data)
+        try receipt.validate(runID: sound.run_id, draft: draft, duration: sound.payload.duration_seconds,
+                             cueCount: sound.payload.cues.count)
+        return receipt
+    }
+
     func health() async throws -> RuntimeHealth {
         let (data, response) = try await authorizedData(
             from: baseURL.appending(path: "health")
