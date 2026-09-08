@@ -35,3 +35,7 @@ Next: automatic preparation/selection of the four remaining sound layers,
 native mix/production action, installed QA, final content/master approval and
 controlled release. Do not fabricate synthetic soundtracks as user production
 or turn this staging checkpoint into a claim of end-to-end completion.
+
+CI follow-up: commit `f36e91ca7bce40800b8c7795f5e64570f26bc3e0` passed
+https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34154582312 .
+This supersedes the earlier failed run, but does not replace installed native QA.
