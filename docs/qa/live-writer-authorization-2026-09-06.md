@@ -51,3 +51,13 @@ CI [34059397691](https://github.com/rogerwu188/nalu-voice-studio/actions/runs/34
 completed successfully on `7d9c490` for runtime, arm64, x86_64 and universal.
 This does not include the later queued-supplement changes or prove live provider
 access. Full product acceptance remains incomplete.
+
+2026-09-08 follow-up after native source-import QA: current saved endpoint was
+verified as https://hopsapi.com/v1. A single bounded read-only `/models`
+diagnostic again timed out after15s while reading the named Keychain item through
+`security`; subprocess was terminated by its timeout, no secret printed, and no
+HTTP request sent. No generation/charge/retry occurred. This is a diagnostic
+process access limitation, not evidence that native Keychain access fails or the
+credential is invalid. Earlier401 remains the only real writer response evidence;
+real writer acceptance remains open. Do not request the key in chat or infer a
+successful provider call from the verified local novel import.
