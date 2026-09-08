@@ -29,8 +29,8 @@
   },
   "next_action": {
     "sop": "SOP-04",
-    "id": "native-qa-persisted-source-choice-and-production-handoff",
-    "summary": "Verify current native CI and installed explicit URL import-to-writing. Finish voice pause/resume, name-only source selection and long-book context traversal; test actual public-site extraction. Then complete native render-to-seal/prerequisite QA and remove professional sound-form burden. Existing Hops401 remains no automatic paid retry; full SOP retained.",
+    "id": "connect-render-to-seal-and-prerequisite-qa",
+    "summary": "Actual adopted full-render regression passed on ef9f62d in93.81s. Native renderEpisodeMix returns materialization only; EpisodeMixModel only displays notice. Connect explicit render to idempotent sealing of master/captions/postproduction/shot manifests, then structural/decoded QA before native speech and human acceptance. Verify failure recovery without rerender or publication. Native source-choice CI/restart QA remains pending; Hops401 no automatic paid retry; full SOP retained.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

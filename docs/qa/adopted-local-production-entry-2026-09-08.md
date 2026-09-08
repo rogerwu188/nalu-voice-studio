@@ -36,3 +36,15 @@ generation, automatic sound design instead of four manual source requirements,
 durable client recovery, user audiovisual review and controlled release. The
 synthetic provider/material inputs are still fixtures; their success does not
 establish real production authorization or signed/notarized final acceptance.
+# Current regression and remaining native handoff
+
+At ef9f62d, actual encoded adopted-media rendering test
+`tests/test_image_review.py -k video_assemble_stage_render` passed in 93.81s
+(one passed,26 deselected). This revalidates render entry, byte-identical replay
+and consent revocation behavior, not final production quality.
+
+Native RuntimeClient.renderEpisodeMix returns the materialization response;
+EpisodeMixModel only shows a completion notice. It does not invoke output seal
+or structural/decoded QA. Next required integration must include master,
+captions, postproduction and shot manifests with idempotent recovery, and leave
+human/speech QA and publication unapproved. No SOP promotion.
