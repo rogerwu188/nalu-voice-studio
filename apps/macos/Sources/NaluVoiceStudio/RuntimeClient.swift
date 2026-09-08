@@ -8,6 +8,26 @@ actor RuntimeClient {
     private let decoder = JSONDecoder()
     private let encoder = JSONEncoder()
 
+    func startNovelImport(projectID: String, sourceURL: String) async throws -> NovelImportStatus {
+        var request = URLRequest(url: baseURL.appending(path: "v1/projects/\(projectID)/novel-import"))
+        request.httpMethod = "POST"
+        request.timeoutInterval = 90
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try encoder.encode(NovelImportDraft(source_url: sourceURL))
+        let (data, response) = try await authorizedData(for: request)
+        try validate(response, data: data)
+        return try decoder.decode(NovelImportStatus.self, from: data)
+    }
+
+    func fetchNextNovelChapter(projectID: String) async throws -> NovelImportStatus {
+        var request = URLRequest(url: baseURL.appending(path: "v1/projects/\(projectID)/novel-import/fetch-next"))
+        request.httpMethod = "POST"
+        request.timeoutInterval = 90
+        let (data, response) = try await authorizedData(for: request)
+        try validate(response, data: data)
+        return try decoder.decode(NovelImportStatus.self, from: data)
+    }
+
     init(
         baseURL: URL? = nil,
         session: URLSession? = nil,

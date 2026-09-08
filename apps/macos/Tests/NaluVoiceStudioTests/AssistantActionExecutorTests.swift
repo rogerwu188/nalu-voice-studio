@@ -2,6 +2,16 @@ import XCTest
 @testable import NaluVoiceStudio
 
 final class AssistantActionExecutorTests: XCTestCase {
+    func testNovelImportIntentDoesNotAuthorizeOtherActions() {
+        for text in ["抓取这本小说 https://example.com/index", "下载整本书", "导入这些章节"] {
+            XCTAssertTrue(AssistantActionRouter.requestsNovelImport(text), text)
+        }
+        for text in ["只找小说，不要下载", "先别导入章节", "下载小说并发布", "登录购买小说",
+                     "下载小说后删除原文件", "下载小说并发送给朋友", "把我的故事写成小说"] {
+            XCTAssertFalse(AssistantActionRouter.requestsNovelImport(text), text)
+        }
+    }
+
     func testSourceWritingHandoffRequiresExplicitIntent() {
         for request in ["查一下这个小说的网址，把它作为整个剧本", "找到这篇文章，做成一部连续剧",
                         "用 https://example.com/memoir 写成一部纪录片", "帮我找这份资料，写出第一集的剧本",

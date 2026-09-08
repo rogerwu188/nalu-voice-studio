@@ -2723,6 +2723,11 @@ final class VoiceInterviewViewModel {
     private func handleAssistantAction(_ request: AssistantActionRequest, turnID: String = UUID().uuidString) {
         switch request {
         case .requiresConfirmation(let description):
+            if AssistantActionRouter.requestsNovelImport(description),
+               AssistantActionRouter.sourceURL(in: description) != nil {
+                handleAssistantAction(.webResearch(query: description), turnID: turnID)
+                return
+            }
             let response = "我先帮您查找公开来源。下载整份资料、登录、购买或发布会另行确认，不影响现在先查找。"
             messages.append(.init(speaker: .nalu, text: response))
             handleAssistantAction(.webResearch(query: description), turnID: turnID)
@@ -2732,7 +2737,11 @@ final class VoiceInterviewViewModel {
                 return
             }
             assistantActionStatus = "正在替您上网查找…"
-            let startMessage = "好的，我现在替您上网查找。查找期间不会改变您的故事，也不会自动下载或发布任何内容。"
+            let novelImportRequested = AssistantActionRouter.requestsNovelImport(query)
+                && AssistantActionRouter.sourceURL(in: query) != nil
+            let startMessage = novelImportRequested
+                ? "好的，我按您提供的网址识别小说目录，把可访问的章节保存到这台 Mac。不会购买或发布。"
+                : "好的，我现在替您上网查找。查找期间不会改变您的故事，也不会自动下载或发布任何内容。"
             messages.append(.init(speaker: .nalu, text: startMessage))
             speechPlayback.speak(startMessage, rate: comfortPreferences.speechRate)
             let resumePrompt = selectedProjectID == nil
@@ -2783,7 +2792,26 @@ final class VoiceInterviewViewModel {
                         savedRevision = saved.revision
                     }
                     let result: WebResearchResult
-                    if let sourceURL = AssistantActionRouter.sourceURL(in: query), let projectID {
+                    if novelImportRequested, let sourceURL = AssistantActionRouter.sourceURL(in: query), let projectID {
+                        guard let catalogURL = URL(string: sourceURL) else { throw WebResearchError.invalidResponse }
+                        var imported = try await runtime.startNovelImport(projectID: projectID, sourceURL: sourceURL)
+                        while imported.status == "ready" {
+                            guard projectSelectionGeneration == generation, !Task.isCancelled else {
+                                assistantActionStatus = nil
+                                return
+                            }
+                            assistantActionStatus = imported.progressText
+                            imported = try await runtime.fetchNextNovelChapter(projectID: projectID)
+                            if imported.status == "ready" {
+                                try await Task.sleep(for: .seconds(1))
+                            }
+                        }
+                        let ending = imported.status == "complete"
+                            ? "本次识别到的章节已保存；尚未核实是否覆盖全书，也没有自动生成或批准剧本。"
+                            : "本次导入暂停或未完成，已保存章节保留，不会从头重复下载。"
+                        result = WebResearchResult(answer: imported.progressText + "。" + ending,
+                            sources: [.init(title: "小说目录", url: catalogURL)])
+                    } else if let sourceURL = AssistantActionRouter.sourceURL(in: query), let projectID {
                         let source = try await runtime.readSourceText(projectID: projectID, url: sourceURL)
                         guard let url = URL(string: source.url) else { throw WebResearchError.invalidResponse }
                         result = WebResearchResult(
@@ -2805,7 +2833,7 @@ final class VoiceInterviewViewModel {
                     assistantActionStatus = nil
                     guard projectSelectionGeneration == generation else { return }
                     messages.append(.init(speaker: .nalu, text: response))
-                    if AssistantActionRouter.requestsSourceWriting(query) {
+                    if AssistantActionRouter.requestsSourceWriting(query) && !novelImportRequested {
                         // Continue the user's existing writing request with the persisted
                         // source context, without routing it back through web search.
                         handleInteractiveStoryInput(query)

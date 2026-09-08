@@ -81,3 +81,19 @@ paginated catalogs, mixed-volume numbering, source-body cleanup, arbitrary websi
 native invocation and chapter-to-writer context still require work and real QA.
 "Complete" queue status only means the selected chapter list was fetched; it must
 not be represented to the user as proof that the entire novel was discovered.
+
+## Native explicit-URL entry (awaiting CI/installed QA)
+
+Native action handling now recognizes explicit novel/chapter import plus a URL,
+creates/reuses the project, discovers its saved catalog and fetches one chapter per
+request with a one-second interval. The existing action status displays stored count.
+Project switching stops the next fetch; a completed in-flight fetch can still be saved
+to its original project. Import summary is persisted as a conversation answer.
+Import does not use the excerpt writer handoff: that would incorrectly write from a
+status sentence rather than the imported novel. Chapter-context writer integration
+is explicitly still required, not discarded from scope.
+
+Added intent tests for positive import, negation and unrelated protected actions.
+`git diff --check` passes. Local Swift toolchain remains broken; tests are not claimed
+executed until CI. Still missing: name-only source choice, voice pause/resume, paginated
+catalog and clean body extraction, imported chapter writer retrieval and installed QA.

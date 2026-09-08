@@ -8,6 +8,15 @@ enum AssistantActionRequest: Equatable {
 enum AssistantActionRouter {
     static let maximumQueryCharacters = 2_000
 
+    static func requestsNovelImport(_ text: String) -> Bool {
+        let cleaned = text.filter { !$0.isWhitespace }
+        guard !["不要", "先别", "暂不", "只查", "只找", "登录", "购买", "付款", "发布",
+                "下单", "上传", "发送", "删除", "注册"].contains(where: cleaned.contains)
+        else { return false }
+        return ["小说", "章节", "整本书"].contains(where: cleaned.contains)
+            && ["抓取", "下载", "导入", "保存到本地"].contains(where: cleaned.contains)
+    }
+
     static func requestsSourceWriting(_ text: String) -> Bool {
         let cleaned = text.filter { !$0.isWhitespace }
         guard !["不要", "先别", "暂不", "只查", "只找"].contains(where: cleaned.contains) else { return false }
