@@ -14,13 +14,14 @@ enum AssistantActionRouter {
                 "下单", "上传", "发送", "删除", "注册"].contains(where: cleaned.contains)
         else { return false }
         return ["小说", "章节", "整本书"].contains(where: cleaned.contains)
-            && ["抓取", "下载", "导入", "保存到本地"].contains(where: cleaned.contains)
+            && (["抓取", "下载", "导入", "保存到本地"].contains(where: cleaned.contains)
+                || requestsSourceWriting(cleaned))
     }
 
     static func requestsSourceWriting(_ text: String) -> Bool {
         let cleaned = text.filter { !$0.isWhitespace }
         guard !["不要", "先别", "暂不", "只查", "只找"].contains(where: cleaned.contains) else { return false }
-        if ["作为剧本", "生成剧本", "改编成", "写成剧本", "做成短剧"].contains(where: cleaned.contains) { return true }
+        if ["作为剧本", "生成剧本", "改编成", "写成剧本", "做成短剧", "拿来写剧本", "用来写剧本"].contains(where: cleaned.contains) { return true }
         // Spoken requests include measure words and fillers, not exact UI labels.
         // This starts only unapproved writing, never production or publication.
         let patterns = [
@@ -39,7 +40,7 @@ enum AssistantActionRouter {
             "网上", "网络上", "上网", "网站", "网页", "搜索", "搜一下", "查一下", "查找", "帮我找",
         ]
         let sourceLookup = cleaned.range(
-            of: #"(?:请|帮我)?找(?:到|一下)?(?:这|那)(?:篇文章|本书|份资料|个网址)"#,
+            of: #"(?:请|帮我)?找(?:到|一下)?(?:这|那|一)(?:篇文章|本书|本小说|份资料|个网址)"#,
             options: .regularExpression
         ) != nil && requestsSourceWriting(cleaned)
         guard executionSignals.contains(where: cleaned.contains)

@@ -11,7 +11,7 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "3260eb2940c121f0aec8adfa419d0daae6589c40",
+  "observed_head": "5fd9b9e356c096e1c028556b49d77e3ca2213aab",
   "last_advanced_at": "2026-09-08T18:47:45Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Executed isolated native627d89d app: runtime health200 on18767; clicked actual Create Project, sidebar immediately showed new project, microphone button visible. Quit app and verified owned runtime shutdown/no listener. Evidence docs/qa/native-novel-artifact-2026-09-08.md. No mic/model call or voice import QA; no visible text/URL input fallback. Current HEAD/full workflow still not accepted."
+    "summary": "Native novel searches now offer explicit source selection before URL import; natural novel-to-script wording also enters this path instead of writing from search summaries. Added native routing/choice tests, awaiting CI and installed QA. Backend novel import regressions:12 passed. Pending choice remains in memory; recovery is open. Evidence docs/qa/novel-source-selection-2026-09-08.md. Full SOP not accepted."
   },
   "next_action": {
     "sop": "SOP-04",

@@ -2,6 +2,20 @@ import XCTest
 @testable import NaluVoiceStudio
 
 final class NovelImportTests: XCTestCase {
+    func testNaturalNovelWritingSearchRequiresActualImport() {
+        for text in ["找一本小说，拿来写剧本", "网上找到这个小说，把它作为整个剧本", "帮我找小说改编成连续剧"] {
+            XCTAssertTrue(AssistantActionRouter.requestsNovelImport(text), text)
+            XCTAssertEqual(AssistantActionRouter.route(text), .webResearch(query: text))
+        }
+        for text in ["只查小说在哪里", "不要下载小说", "搜索小说然后发布", "找这篇文章作为剧本"] {
+            XCTAssertFalse(AssistantActionRouter.requestsNovelImport(text), text)
+        }
+        let choice = NovelSourceChoice(sources: [.init(title: "目录", url: URL(string: "https://example.org/book")!)], writingRequested: true)
+        let query = choice.importQuery(for: "第一个")!
+        XCTAssertTrue(AssistantActionRouter.requestsNovelImport(query))
+        XCTAssertTrue(AssistantActionRouter.requestsSourceWriting(query))
+        XCTAssertEqual(AssistantActionRouter.sourceURL(in: query), "https://example.org/book")
+    }
     func testSourceSelectionRequiresExplicitExistingChoice() {
         let choice = NovelSourceChoice(sources: [
             .init(title: "目录", url: URL(string: "https://example.org/book")!)
