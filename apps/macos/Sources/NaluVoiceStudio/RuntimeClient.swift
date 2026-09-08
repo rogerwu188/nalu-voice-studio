@@ -1165,7 +1165,8 @@ actor RuntimeClient {
         let (data, response) = try await authorizedData(for: request)
         try validate(response, data: data)
         let run = try decoder.decode(ProductionRun.self, from: data)
-        guard run.dryRun, run.episodeID == episodeID, run.id != plan.run_id else {
+        guard run.dryRun, run.episodeID == episodeID, run.id != plan.run_id,
+              run.error == nil, run.status == "preflight" else {
             throw LibrarySnapshotRefreshError.contextChanged
         }
         return run

@@ -5,6 +5,7 @@ import Testing
 private final class PreparationProtocol: URLProtocol, @unchecked Sendable {
     static var requests: [URLRequest] = []
     static var bodies: [Data] = []
+    static var responseError: String? = nil
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
     override func startLoading() {
@@ -23,8 +24,8 @@ private final class PreparationProtocol: URLProtocol, @unchecked Sendable {
         Self.bodies.append(sent)
         let body = """
         {"id":"run-fixture","project_id":"project","season_id":"season","episode_id":"episode",
-        "status":"preflight_passed","dry_run":true,"requested_model":"seedance-2.0-pro",
-        "estimated_budget_credits":null,"package_path":"fixture.json","error":null,
+        "status":"preflight","dry_run":true,"requested_model":"seedance-2.0-pro",
+        "estimated_budget_credits":null,"package_path":"fixture.json","error":\(Self.responseError == nil ? "null" : "\"preflight failed\""),
         "created_at":"fixture","updated_at":"fixture"}
         """
         client?.urlProtocol(self, didReceive: HTTPURLResponse(url: request.url!, statusCode: 201,
@@ -63,6 +64,15 @@ struct ProductionPreparationTests {
             #expect(body["paid_generation_approved"] as? Bool == false)
             #expect(body["repair_source_run_id"] as? String == "parent")
             #expect(body["expected_repair_plan_sha256"] as? String == digest)
+        }
+        PreparationProtocol.responseError = "failed"
+        defer { PreparationProtocol.responseError = nil }
+        do {
+            _ = try await runtime.prepareEpisodeRepair(episodeID: "episode", plan: plan,
+                approvedBy: "local-user", confirmation: "确认准备")
+            Issue.record("Failed preflight was presented as a prepared repair version")
+        } catch {
+            #expect(error is LibrarySnapshotRefreshError)
         }
     }
 
