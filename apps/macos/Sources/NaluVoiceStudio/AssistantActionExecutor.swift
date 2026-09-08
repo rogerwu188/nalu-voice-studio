@@ -65,7 +65,7 @@ enum AssistantActionRouter {
     }
 }
 
-struct WebResearchSource: Equatable, Sendable {
+struct WebResearchSource: Codable, Equatable, Sendable {
     let title: String
     let url: URL
 }

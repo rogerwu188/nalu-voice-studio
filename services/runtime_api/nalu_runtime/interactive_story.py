@@ -38,6 +38,19 @@ class StoryAnswer(BaseModel):
     outcome: Literal["answered", "lookup_failed", "writer_failed"] = "answered"
     external_writer: ExternalWriterDeclaration | None = None
     writer_response_json: str | None = Field(default=None, max_length=2000000)
+    novel_source_choice: "NovelSourceChoice | None" = None
+
+
+class NovelSourceCandidate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    title: str = Field(min_length=1, max_length=1000)
+    url: str = Field(min_length=1, max_length=4000, pattern=r"^https://")
+
+
+class NovelSourceChoice(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    sources: list[NovelSourceCandidate] = Field(min_length=1, max_length=5)
+    writingRequested: bool
 
 
 class InteractiveStory:

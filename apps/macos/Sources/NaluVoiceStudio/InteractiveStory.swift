@@ -15,6 +15,7 @@ struct InteractiveEpisodeDraft: Codable, Equatable, Sendable {
 }
 
 struct InteractiveStoryAnswer: Codable, Equatable, Sendable {
+    var novel_source_choice: NovelSourceChoice? = nil
     let reply: String
     let summary: String
     let episode_drafts: [InteractiveEpisodeDraft]
@@ -84,4 +85,5 @@ struct InteractiveStoryAnswerRequest: Encodable {
     let outcome: String
     var external_writer: ExternalWriterDeclaration? = nil
     var writer_response_json: String? = nil
+    var novel_source_choice: NovelSourceChoice? = nil
 }

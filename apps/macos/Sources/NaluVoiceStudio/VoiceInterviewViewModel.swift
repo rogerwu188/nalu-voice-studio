@@ -1151,6 +1151,7 @@ final class VoiceInterviewViewModel {
                     let story = try await runtime.interactiveStory(projectID: projectID)
                     guard projectSelectionGeneration == generation else { return }
                     messages = story.conversationMessages()
+                    pendingNovelSourceChoice = story.turns.last?.answer?.novel_source_choice
                     if messages.isEmpty {
                         messages = [.init(speaker: .nalu, text: "我们可以从您的故事开始，也可以先找您想用的网上资料。请告诉我。")]
                     }
@@ -2883,7 +2884,8 @@ final class VoiceInterviewViewModel {
                             projectID: projectID, turnID: turnID,
                             answer: InteractiveStoryAnswerRequest(
                                 expected_revision: savedRevision, reply: response,
-                                summary: "", episode_drafts: [], outcome: "answered"
+                                summary: "", episode_drafts: [], outcome: "answered",
+                                novel_source_choice: needsNovelChoice && !choice.sources.isEmpty ? choice : nil
                             )
                         )
                     }

@@ -3,7 +3,7 @@ import json
 import pytest
 from fastapi.testclient import TestClient
 from nalu_runtime.app import create_app
-from nalu_runtime.interactive_story import InteractiveStory, StoryInput
+from nalu_runtime.interactive_story import InteractiveStory, StoryAnswer, StoryInput
 from nalu_runtime.interactive_writer_service import writer_request
 from nalu_runtime.novel_import import NovelImport, catalog_chapters, writing_context
 from nalu_runtime.repository import ConflictError
@@ -212,6 +212,24 @@ def test_sqlite_restart_revision_and_replay_preserve_long_source_window(tmp_path
                             text="继续改编小说下一段", source_mode="web_source"))
     assert exhausted["novel_source"]["passages"] == []
     assert exhausted["novel_source"]["continuation_anchor"]["end_character"] == 60100
+
+
+def test_source_choice_survives_restart_until_next_turn(tmp_path):
+    service, project, _ = setup_import(tmp_path, lambda url: {})
+    story = InteractiveStory(service.database)
+    story.append(project, StoryInput(turn_id="search", expected_revision=0,
+                 text="找小说", source_mode="web_source"))
+    choice = {"sources": [{"title": "目录", "url": "https://example.com/book"}],
+              "writingRequested": True}
+    answer = StoryAnswer(expected_revision=1, reply="请选择", novel_source_choice=choice)
+    story.answer(project, "search", answer)
+    api = TestClient(create_app(tmp_path / "db", tmp_path / "data"))
+    restored = InteractiveStory(api.app.state.repository.db)
+    assert restored.read(project)["turns"][-1]["answer"]["novel_source_choice"] == choice
+    assert restored.answer(project, "search", answer)["revision"] == 2
+    new = restored.append(project, StoryInput(turn_id="selected", expected_revision=2,
+                          text="导入小说 https://example.com/book", source_mode="web_source"))
+    assert new["turns"][-1].get("answer") is None
 
 
 @pytest.mark.parametrize("mode", ["complete", "cycle", "external", "failed", "limit"])

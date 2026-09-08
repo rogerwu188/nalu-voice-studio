@@ -1,6 +1,6 @@
 import Foundation
 
-struct NovelSourceChoice {
+struct NovelSourceChoice: Codable, Equatable, Sendable {
     let sources: [WebResearchSource]
     let writingRequested: Bool
 

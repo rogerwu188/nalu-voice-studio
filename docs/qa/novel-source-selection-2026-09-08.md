@@ -58,3 +58,13 @@ CI 34265782203 (5fd9b9e source-choice implementation) reports both x86_64 and
 arm64 Swift test steps successful; arm64 bundle/smoke/update/rollback steps also
 passed. Whole workflow was still running when inspected. Latest c09c73d run
 34266276689 was pending, so this is not current-release CI acceptance.
+
+## Persisted source candidates
+
+Story answers now optionally store bounded source candidates and the user's
+writing intent in project-owned SQLite. Native project-history loading restores
+the last turn's candidates. Once a new turn begins, prior candidates are not
+restored as pending. Existing answers without this optional field still decode.
+Runtime recreation and idempotent answer replay tested; 15 import tests passed
+in 2.60s, ruff passes. Native compile/installed restart QA and OpenAPI snapshot
+refresh remain pending. No automatic search or paid retry on restore.
