@@ -6,6 +6,7 @@ import SwiftUI
     @State private var mix: EpisodeMixModel
     @State private var mixTask: Task<Void, Never>?
     @State private var confirmingRender = false
+    @State private var confirmingRepair = false
     let onRead: (String) -> Void
 
     init(sound: EpisodeSoundPlan, onRead: @escaping (String) -> Void) {
@@ -70,7 +71,23 @@ import SwiftUI
             VStack(alignment: .leading, spacing: 12) {
                 Text(mix.notice).fixedSize(horizontal: false, vertical: true)
                 if mix.busy { ProgressView("正在准备或合成本集视频") }
-                if mix.prepared == nil {
+                if let repair = mix.repairPlan {
+                    ForEach(repair.repair_tasks.indices, id: \.self) { index in
+                        Text(repair.repair_tasks[index].required_action)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    if mix.repairVersion == nil {
+                        Button("保留原片，准备修订版", systemImage: "doc.on.doc") {
+                            onRead("原成片会保留。这一步只准备修订版本，不会扣费、生成视频或发行。确认准备吗？")
+                            confirmingRepair = true
+                        }.buttonStyle(.borderedProminent)
+                            .disabled(mix.busy || mixTask != nil)
+                            .accessibilityIdentifier("nalu.episode.mix.prepare-repair")
+                    } else {
+                        Text("请返回本集制作进度，查看新版本并继续核对制作方案。")
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                } else if mix.prepared == nil {
                     Button("核对本集并准备合成", systemImage: "film.stack") {
                         guard let sources = model.mixSources else { return }
                         runMix { await mix.prepare(sources: sources) }
@@ -96,6 +113,13 @@ import SwiftUI
                 Button("确认，开始合成") { runMix { await mix.renderConfirmed() } }
                     .disabled(mix.busy || mixTask != nil)
                 Button("先不合成", role: .cancel) {}
+            }
+            .confirmationDialog("保留原成片，准备一个修订版本？不会扣费、生成视频或发行。",
+                                isPresented: $confirmingRepair, titleVisibility: .visible) {
+                Button("确认，准备修订版") {
+                    runMix { await mix.prepareRepairConfirmed(confirmation: "用户确认保留原成片并准备修订版本，不授权付费生成或发行") }
+                }.disabled(mix.busy || mixTask != nil)
+                Button("先不修订", role: .cancel) {}
             }
     }
 
