@@ -43,3 +43,18 @@ resetting the source window to chapter one: revisions now preserve the frozen
 window/cursor. A subsequent continuation reaches an empty new-material window,
 without wrapping. 14 import tests pass in 2.47s; ruff passes. Model requests are
 constructed only, not sent. No native speech or final script-quality claim.
+
+## Combined and live-source regression at c09c73d
+
+35 tests passed in 6.85s across interactive story, writer service, source reader
+and novel import. The opt-in real Wikisource rehearsal also passed again:
+100 catalog entries, two chapters saved, second chapter 7,322 characters with
+SHA256 `7c17b29129923bad720fd8cc4d66e1892a9ea4a1618f4ae450f498021be23bcc`.
+Runtime recreation recovered SQLite and writer request included chapter two.
+Evidence database: `/var/folders/y4/k84st0yj7fz043tnxkfrjn1w0000gn/T/nalu-live-novel-87ddsrqn/nalu.sqlite3`.
+No model call and no full-book import occurred.
+
+CI 34265782203 (5fd9b9e source-choice implementation) reports both x86_64 and
+arm64 Swift test steps successful; arm64 bundle/smoke/update/rollback steps also
+passed. Whole workflow was still running when inspected. Latest c09c73d run
+34266276689 was pending, so this is not current-release CI acceptance.
