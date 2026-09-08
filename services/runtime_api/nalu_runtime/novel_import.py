@@ -125,14 +125,14 @@ def writing_context(state, user_text, *, character_budget=60000):
     if not state:
         return None
     chapter_start = 1
-    match = re.search(r"第\s*([0-9０-９零〇一二三四五六七八九十百千万两]+)\s*章", user_text)
+    match = re.search(r"第\s*([0-9０-９零〇一二三四五六七八九十百千万两]+)\s*[章回节]", user_text)
     if match:
         chapter_start = chapter_number(match[1])
     start_index = 1
     if match:
         start_index = len(state["chapters"]) + 1
         for index, item in enumerate(state["chapters"], start=1):
-            label = re.match(r"第\s*([0-9０-９零〇一二三四五六七八九十百千万两]+)\s*章", item["title"])
+            label = re.match(r"第\s*([0-9０-９零〇一二三四五六七八九十百千万两]+)\s*[章回节]", item["title"])
             if label and chapter_number(label[1]) == chapter_start:
                 start_index = index
                 break

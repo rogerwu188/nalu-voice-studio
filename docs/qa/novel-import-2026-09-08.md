@@ -175,3 +175,20 @@ URL succeeds with 7,184 characters. This is real HTTPS reader evidence (no model
 no paid call, no installed app test), not a full novel import. The first chapter
 still contains a short Wiki navigation/header prefix: body cleanup is NOT fully
 accepted. No novel was imported into a user project or used for generation here.
+
+## Real-source SQLite-to-writer request rehearsal
+
+Added opt-in `scripts/verify_live_novel_import.py` (run via .venv/bin/python), not
+part of automatic CI. It creates an isolated temporary project, reads the live
+100-chapter catalog, saves one chapter, pauses, recreates the Runtime over the same
+SQLite, verifies identical first-chapter data, resumes, saves chapter two and checks
+the actual constructed writer-request source digest. No model endpoint is called.
+
+First run failed the final assertion: “第二回” did not select chapter two because
+source-context selection only recognized “章”. Fixed both user/title matching to
+accept 章/回/节. Twelve import regression tests pass in 2.08s; ruff passes.
+Real rerun passed: chapter two 7,322 characters, SHA256
+`7c17b29129923bad720fd8cc4d66e1892a9ea4a1618f4ae450f498021be23bcc`.
+Temporary database: `/var/folders/y4/k84st0yj7fz043tnxkfrjn1w0000gn/T/nalu-live-novel-h4q3brz6/nalu.sqlite3`.
+This is live-source Runtime evidence, not installed native speech, generated scripts,
+all 100 chapters, complete text cleaning, video or publication acceptance.

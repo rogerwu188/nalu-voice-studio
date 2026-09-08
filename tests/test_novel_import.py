@@ -165,7 +165,7 @@ def test_imported_chapters_reach_frozen_writer_context(tmp_path):
     service.fetch_next(project)
     assert writer_request(story.read(project), "fixture-model") == body
     updated = story.append(project, StoryInput(turn_id="next", expected_revision=1,
-                           text="接着改编第二章", source_mode="web_source"))
+                           text="接着改编第二回", source_mode="web_source"))
     assert updated["novel_source"]["passages"][0]["source_url"] == "https://example.com/2"
 
 

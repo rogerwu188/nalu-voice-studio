@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "a915fdb64c2b5cf2a8eba4ae7b4d3cd8191fd17c",
-  "last_advanced_at": "2026-09-08T18:29:10Z",
+  "observed_head": "627d89ddfab2c1312183cf600933563e4eac3718",
+  "last_advanced_at": "2026-09-08T18:34:36Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Real public-site read exposed Unicode HTTP request-target failure; fixed path/query encoding. 13 source tests passed1.24s; real Wikisource 西遊記 catalog read2630chars/180links, parsed100chapters and read first chapter7184chars. Header contamination remains; this is reader-only real evidence, not installed import or full-book generation. No paid calls."
+    "summary": "Opt-in live novel Runtime rehearsal found and fixed second-回 selection bug. Real100-chapter catalog,2chapters saved, pause/restart/recovery and exact second-chapter writer request digest now verified in isolated SQLite.12 regressions passed2.08s; ruff passes. No model call or installed/native/full-book/video acceptance. Evidence docs/qa/novel-import-2026-09-08.md and scripts/verify_live_novel_import.py."
   },
   "next_action": {
     "sop": "SOP-04",
