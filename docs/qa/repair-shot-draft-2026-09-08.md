@@ -24,3 +24,11 @@ Native transport now performs scoped context GET followed by draft POST and reje
 wrong parent, invalid digests or an approved/authorized response. Native transport
 tests and UI recovery after partially completed preparation still need wiring;
 do not mark the interactive journey complete. No automatic paid calls.
+
+Native shot-plan loading now checks saved work first. Only if empty does it read
+repair context and prepare the local original-plan draft; ordinary preflight
+context returns null. A context failure leaves loaded=false, preventing paid
+generation fallback. Existing saved drafts use only their normal GET and are not
+overwritten. Added native tests for GET/GET/POST recovery, saved-draft GET-only
+reload, failed context blocking generation and ordinary null context. Swift CI
+and installed recovery QA remain pending. Backend3 repair cases still pass.

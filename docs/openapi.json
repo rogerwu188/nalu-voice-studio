@@ -16942,7 +16942,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ShotPlanInheritanceRequest"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ShotPlanInheritanceRequest"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Get Repair Shot Draft Context V1 Production Runs  Run Id  Repair Shot Draft Context Get"
                 }
               }
             },

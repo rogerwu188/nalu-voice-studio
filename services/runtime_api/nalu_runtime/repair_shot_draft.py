@@ -14,7 +14,7 @@ def repair_shot_draft_context(production, run_id):
     package = ShotPlanningService(repo)._package(target)
     source_id = package.get("production_policy", {}).get("repair_lineage", {}).get("source_run_id")
     if not source_id:
-        raise ConflictError("this run is not a repair version")
+        return None
     source = repo.get_run(source_id)
     if (source.project_id, source.season_id, source.episode_id) != (target.project_id, target.season_id, target.episode_id):
         raise ConflictError("repair source belongs to another episode")

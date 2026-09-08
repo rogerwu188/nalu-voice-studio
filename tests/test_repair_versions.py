@@ -22,6 +22,8 @@ def test_local_repair_version_preserves_parent_and_replays_after_restart(
     assert api.get(endpoint).json() == []
     assert api.get('/v1/episodes/missing/production-runs').status_code == 404
     parent = api.post(endpoint, json={"dry_run": True}).json()
+    ordinary_context = api.get(f"/v1/production-runs/{parent['id']}/repair-shot-draft/context")
+    assert ordinary_context.status_code == 200 and ordinary_context.json() is None
     parent_package = json.loads(Path(parent["package_path"]).read_text())
     shot = {"source_excerpt": "林叔", "scene": "家", "duration_seconds": 10,
             "entry_state": "门外", "action": "回家", "exit_state": "门内", "camera": "中景",

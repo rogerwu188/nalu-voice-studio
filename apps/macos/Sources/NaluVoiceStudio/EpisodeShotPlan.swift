@@ -208,14 +208,22 @@ final class EpisodeShotPlanModel {
         busy = true
         defer { busy = false }
         do {
-            let saved = try await runtime.currentShotPlan(runID: runID)
+            var saved = try await runtime.currentShotPlan(runID: runID)
+            var recoveredRepair = false
+            if saved == nil {
+                // Only explicit repair lineage can create this local draft.
+                // A read failure must not fall through to paid regeneration.
+                saved = try await runtime.recoverRepairShotDraft(runID: runID)
+                recoveredRepair = saved != nil
+            }
             guard !Task.isCancelled else { return }
             event = saved
             editedPlan = saved?.payload.plan
             loaded = true
             snapshotRefreshPending = false
-            notice = nil
+            notice = recoveredRepair ? "已接回原分镜作为修订草稿。请修改需要修复的镜头，再确认；没有重新生成视频或扣费。" : nil
         } catch {
+            loaded = false
             notice = "暂时无法读取本集分镜。请稍后点“读取已保存方案”；没有重新生成。"
         }
     }

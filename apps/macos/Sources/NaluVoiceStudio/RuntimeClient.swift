@@ -406,15 +406,17 @@ actor RuntimeClient {
         try await get("v1/production-runs/\(runID)/shot-plans/current")
     }
 
-    func recoverRepairShotDraft(runID: String, sourceRunID: String) async throws -> EpisodeShotPlanEvent {
+    func recoverRepairShotDraft(runID: String, sourceRunID: String? = nil) async throws -> EpisodeShotPlanEvent? {
         struct Context: Codable {
             let source_run_id: String
             let source_event_id: String
             let expected_plan_sha256: String
             let expected_package_sha256: String
         }
-        let context: Context = try await get("v1/production-runs/\(runID)/repair-shot-draft/context")
-        guard context.source_run_id == sourceRunID, sourceRunID != runID,
+        let savedContext: Context? = try await get("v1/production-runs/\(runID)/repair-shot-draft/context")
+        guard let context = savedContext else { return nil }
+        guard (sourceRunID == nil || context.source_run_id == sourceRunID), context.source_run_id != runID,
+              !context.source_run_id.isEmpty,
               !context.source_event_id.isEmpty,
               EpisodeDialogueStageReceipt.validSHA(context.expected_plan_sha256),
               EpisodeDialogueStageReceipt.validSHA(context.expected_package_sha256) else {

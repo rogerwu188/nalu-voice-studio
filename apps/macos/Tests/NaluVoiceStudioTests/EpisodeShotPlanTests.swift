@@ -35,6 +35,34 @@ private final class ShotReviewProtocol: URLProtocol, @unchecked Sendable {
 
 @Suite(.serialized)
 struct EpisodeShotPlanTests {
+    @MainActor @Test func repairLoadRecoversDraftAndFailureNeverEnablesRegeneration() async throws {
+        let sha = String(repeating: "a", count: 64)
+        let context = try JSONSerialization.data(withJSONObject: ["source_run_id": "parent",
+            "source_event_id": "original", "expected_plan_sha256": sha, "expected_package_sha256": sha])
+        ShotReviewProtocol.requests = []
+        ShotReviewProtocol.queued = [(200, Data("null".utf8)), (200, context), (200, try fixture())]
+        let model = EpisodeShotPlanModel(runID: "run-one", runtime: runtime())
+        await model.load()
+        #expect(model.loaded && model.event?.payload.approved == false)
+        #expect(model.notice?.contains("修订草稿") == true)
+        #expect(ShotReviewProtocol.requests.map(\.httpMethod) == ["GET", "GET", "POST"])
+        #expect(ShotReviewProtocol.requests.last?.url?.path.hasSuffix("repair-shot-draft") == true)
+        ShotReviewProtocol.requests = []
+        ShotReviewProtocol.queued = [(200, try fixture())]
+        await model.load()
+        #expect(ShotReviewProtocol.requests.count == 1) // existing draft: no replay POST
+        ShotReviewProtocol.requests = []
+        ShotReviewProtocol.queued = [(200, Data("null".utf8)), (503, Data("{}".utf8))]
+        let interrupted = EpisodeShotPlanModel(runID: "run-one", runtime: runtime())
+        await interrupted.load()
+        #expect(!interrupted.loaded && interrupted.event == nil)
+        await interrupted.generate()
+        #expect(ShotReviewProtocol.requests.count == 2)
+        ShotReviewProtocol.queued = [(200, Data("null".utf8)), (200, Data("null".utf8))]
+        await interrupted.load()
+        #expect(interrupted.loaded && interrupted.event == nil) // ordinary first production
+    }
+
     @Test func picturePreviewRejectsWrongEditContentAndMasterClaims() throws {
         // Header/content validator fixture only, not a playable-video QA claim.
         let bytes = Data([0, 0, 0, 12]) + Data("ftypisom".utf8)

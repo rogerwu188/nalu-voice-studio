@@ -1283,7 +1283,7 @@ def create_app(
             raise HTTPException(403, "native repair preparation required")
         return prepare_repair_shot_draft(production, run_id, request)
 
-    @app.get("/v1/production-runs/{run_id}/repair-shot-draft/context", response_model=ShotPlanInheritanceRequest)
+    @app.get("/v1/production-runs/{run_id}/repair-shot-draft/context", response_model=ShotPlanInheritanceRequest | None)
     def get_repair_shot_draft_context(run_id: str):
         return repair_shot_draft_context(production, run_id)
 
