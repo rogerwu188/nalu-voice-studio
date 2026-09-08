@@ -108,6 +108,41 @@ actor RuntimeClient {
         return try decoder.decode(RuntimeHealth.self, from: data)
     }
 
+    func prepareEpisodeMix(sound: EpisodeSoundPlan, dialogue: EpisodeDialogueStageReceipt,
+                           sources: [EpisodeSoundSourceReceipt.Source]) async throws -> EpisodePreparedMix {
+        try Task.checkCancellation()
+        try sound.validateCueWindows()
+        guard sound.payload.edit_approved, dialogue.run_id == sound.run_id,
+              dialogue.payload.lineage.sound_plan_id == sound.id,
+              dialogue.payload.lineage.sound_plan_sha256 == sound.payload.sound_plan_sha256,
+              sources.count == 4, Set(sources.map(\.layer)) == Set(EpisodeSoundRole.allCases) else {
+            throw LibrarySnapshotRefreshError.contextChanged
+        }
+        var request = URLRequest(url: baseURL.appending(path: "v1/production-runs/\(sound.run_id)/adopted-dialogue/prepare-mix"))
+        request.httpMethod = "POST"; request.timeoutInterval = 300
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try encoder.encode(EpisodeMixRequest(staging_id: dialogue.id,
+            expected_staging_sha256: dialogue.payload.staging_sha256, sound_layers: sources))
+        let (data, response) = try await authorizedData(for: request)
+        try validate(response, data: data)
+        try Task.checkCancellation()
+        return try EpisodePreparedMix(body: data, sound: sound, dialogue: dialogue, sources: sources)
+    }
+
+    func renderEpisodeMix(_ mix: EpisodePreparedMix) async throws -> EpisodeRenderedMix {
+        try Task.checkCancellation()
+        var request = URLRequest(url: baseURL.appending(path: "v1/production-runs/\(mix.runID)/postproduction-materializations"))
+        request.httpMethod = "POST"; request.timeoutInterval = 1800
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = mix.body
+        let (data, response) = try await authorizedData(for: request)
+        try validate(response, data: data)
+        try Task.checkCancellation()
+        let result = try decoder.decode(EpisodeRenderedMix.self, from: data)
+        try result.validate(mix)
+        return result
+    }
+
     func storageDiagnostics() async throws -> StorageDiagnostics {
         try await get("v1/diagnostics/storage")
     }
