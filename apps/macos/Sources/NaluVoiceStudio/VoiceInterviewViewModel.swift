@@ -2579,7 +2579,7 @@ final class VoiceInterviewViewModel {
         }
     }
 
-    private func createInterviewedProject(_ draft: ProjectDraft) async {
+    func createInterviewedProject(_ draft: ProjectDraft) async {
         let generation = projectSelectionGeneration
         let sourceProjectID = selectedProjectID
         let sourceDraftID = draftProjectID
