@@ -395,11 +395,13 @@ def create_app(
         if origin is not None:
             raise HTTPException(403, "native novel import required")
         try:
+            if request.chapters is None:
+                return import_summary(novel_import.discover(project_id, request.source_url))
             return import_summary(novel_import.create(
                 project_id, request.source_url, [item.model_dump() for item in request.chapters]
             ))
-        except ValueError as exc:
-            raise HTTPException(422, "invalid chapter selection") from exc
+        except (ValueError, OSError, LookupError) as exc:
+            raise HTTPException(422, "无法识别章节目录；请提供可访问的小说目录网址，已有内容保留。") from exc
 
     @app.post("/v1/projects/{project_id}/novel-import/{action}")
     def advance_novel_import(project_id: str, action: str,

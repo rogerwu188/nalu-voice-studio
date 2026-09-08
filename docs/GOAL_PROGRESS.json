@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "5df16485e36f570c52dada59ab6d52cfc001fa12",
-  "last_advanced_at": "2026-09-08T17:50:54Z",
+  "observed_head": "7e89eb17357998c5c728aa58f478aed2eecacf0d",
+  "last_advanced_at": "2026-09-08T17:55:18Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Novel import Runtime API create/status/fetch-next/pause/resume/chapter-read is connected to SQLite queue. 14 source/queue/API tests passed 1.79s with mocked network, ruff/OpenAPI compatibility passed. CI34257181305 on2892ab8 fully passed (prior routing fix). Current API still needs CI, automatic catalog detection, native orchestration and writer retrieval; no installed or real-site completion claim."
+    "summary": "Source-only novel import API now discovers explicit Chinese chapter links, deduplicates and orders chapter numbers, rejects ambiguous volumes and recovers saved selection. 16 source/import tests passed 1.95s (mock network), ruff/OpenAPI compatibility passed. Paginated catalog, chapter body extraction, native action and writer context remain incomplete; queue complete is not whole-novel completeness."
   },
   "next_action": {
     "sop": "SOP-04",

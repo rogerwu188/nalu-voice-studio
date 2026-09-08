@@ -1,7 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
 from nalu_runtime.app import create_app
-from nalu_runtime.novel_import import NovelImport
+from nalu_runtime.novel_import import NovelImport, catalog_chapters
 from nalu_runtime.repository import ConflictError
 
 
@@ -109,3 +109,39 @@ def test_public_api_import_restore_and_chapter_read(tmp_path, monkeypatch):
     assert calls == ["https://example.com/1"]
     assert restored.get(path + "/chapters/0").status_code == 404
     assert restored.post(path + "/delete-all").status_code == 404
+
+
+def test_source_only_import_discovers_without_manual_chapter_list(tmp_path, monkeypatch):
+    calls = []
+
+    def reader(url):
+        calls.append(url)
+        return {"url": url, "text": "目录", "truncated": False, "links": [
+            {"url": "https://example.com/2", "title": "第二章 归来"},
+            {"url": "https://example.com/1", "title": "第1章 出发"},
+            {"url": "https://example.com/1", "title": "第1章 出发"},
+            {"url": "https://ads.example.com/3", "title": "第三章 广告"},
+            {"url": "https://example.com/login", "title": "登录"},
+        ]}
+
+    monkeypatch.setattr("nalu_runtime.novel_import.read_public_chapter", reader)
+    api = TestClient(create_app(tmp_path / "db", tmp_path / "data"))
+    project = api.post("/v1/projects", json={"title": "自动目录"}).json()["id"]
+    path = f"/v1/projects/{project}/novel-import"
+    payload = {"source_url": "https://example.com/index"}
+    response = api.post(path, json=payload)
+    assert response.status_code == 201, response.text
+    assert [c["title"] for c in response.json()["chapters"]] == ["第1章 出发", "第二章 归来"]
+    assert api.post(path, json=payload).json() == response.json()
+    assert calls == [payload["source_url"]]
+
+
+def test_catalog_does_not_silently_choose_between_volumes():
+    page = {"url": "https://example.com/index", "links": [
+        {"url": "https://example.com/a", "title": "第一章 甲"},
+        {"url": "https://example.com/b", "title": "第1章 乙"},
+    ]}
+    with pytest.raises(ValueError, match="ambiguous"):
+        catalog_chapters(page)
+    with pytest.raises(ValueError, match="incomplete"):
+        catalog_chapters({**page, "truncated": True})

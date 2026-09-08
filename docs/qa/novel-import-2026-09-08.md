@@ -65,3 +65,19 @@ the selection DTO is an internal interface for the forthcoming directory parser.
 
 CI 34257181305 for 2892ab807bad75bac4dded7d3bb7d88444315694 fully passed.
 This covers the prior native source-routing repair, not this API checkpoint.
+
+## Source-only catalog selection
+
+POST may now omit chapters and supply only source_url. The service validates project
+state, reads the directory through the public reader, selects explicit same-host Chinese
+chapter-title links, deduplicates URLs and sorts numeric/Chinese chapter numbers.
+Duplicate numbering across different URLs fails as ambiguous instead of choosing a volume.
+Same-source replay recovers the saved selection without another catalog request.
+
+16 source/import/API tests pass in 1.95s; ruff and OpenAPI compatibility pass. The
+source-only API test includes reverse directory order, duplicate URLs, external ads,
+navigation and replay. Network is mocked. It is a bounded directory implementation:
+paginated catalogs, mixed-volume numbering, source-body cleanup, arbitrary websites,
+native invocation and chapter-to-writer context still require work and real QA.
+"Complete" queue status only means the selected chapter list was fetched; it must
+not be represented to the user as proof that the entire novel was discovered.

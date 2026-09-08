@@ -5995,13 +5995,20 @@
         "additionalProperties": false,
         "properties": {
           "chapters": {
-            "items": {
-              "$ref": "#/components/schemas/NovelChapterSelection"
-            },
-            "maxItems": 2000,
-            "minItems": 1,
-            "title": "Chapters",
-            "type": "array"
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/NovelChapterSelection"
+                },
+                "maxItems": 2000,
+                "minItems": 1,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapters"
           },
           "source_url": {
             "maxLength": 4000,
@@ -6011,8 +6018,7 @@
           }
         },
         "required": [
-          "source_url",
-          "chapters"
+          "source_url"
         ],
         "title": "NovelImportCreate",
         "type": "object"

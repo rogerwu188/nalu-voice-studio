@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import re
 import uuid
 from urllib.parse import urldefrag, urlsplit
 
@@ -25,7 +26,7 @@ class NovelChapterSelection(BaseModel):
 class NovelImportCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
     source_url: str = Field(min_length=1, max_length=4000)
-    chapters: list[NovelChapterSelection] = Field(min_length=1, max_length=2000)
+    chapters: list[NovelChapterSelection] | None = Field(default=None, min_length=1, max_length=2000)
 
     @field_validator("source_url")
     @classmethod
@@ -51,6 +52,56 @@ def chapter_url(value):
             or parsed.username or parsed.password or parsed.port not in {None, 443}):
         raise ValueError("chapter requires public HTTPS URL")
     return value
+
+
+def catalog_chapters(page):
+    """Extract explicit chapter links; never classify arbitrary navigation as prose."""
+    if page.get("truncated"):
+        raise ValueError("catalog page is incomplete")
+    origin = urlsplit(chapter_url(page["url"]))
+    chapters = []
+    seen = set()
+    for link in page.get("links", []):
+        title = link.get("title", "").strip()
+        match = re.match(r"^第\s*([0-9０-９零〇一二三四五六七八九十百千万两]+)\s*[章节回]", title)
+        if not match:
+            continue
+        try:
+            url = chapter_url(link["url"])
+        except (ValueError, KeyError):
+            continue
+        if urlsplit(url).hostname != origin.hostname or url in seen or url == page["url"]:
+            continue
+        seen.add(url)
+        chapters.append({"url": url, "title": title[:500], "number": chapter_number(match[1])})
+    if not chapters:
+        raise ValueError("no explicit chapter directory found")
+    if len(chapters) > 2000:
+        raise ValueError("catalog exceeds chapter limit")
+    if len({item["number"] for item in chapters}) != len(chapters):
+        raise ValueError("ambiguous chapter numbering; use a single-volume directory")
+    return [{"url": item["url"], "title": item["title"]}
+            for item in sorted(chapters, key=lambda item: item["number"])]
+
+
+def chapter_number(text):
+    if text.isdecimal():
+        return int(text)
+    digits = {value: index for index, value in enumerate("零一二三四五六七八九")}
+    digits.update({"〇": 0, "两": 2})
+    total = section = number = 0
+    for char in text:
+        if char in digits:
+            number = digits[char]
+        elif char == "万":
+            total += (section + number) * 10000
+            section = number = 0
+        elif char in {"十", "百", "千"}:
+            section += (number or 1) * {"十": 10, "百": 100, "千": 1000}[char]
+            number = 0
+        else:
+            raise ValueError("mixed chapter numbering")
+    return total + section + number
 
 
 class NovelImport:
@@ -83,6 +134,19 @@ class NovelImport:
     def read(self, project_id):
         with self.database.connect() as connection:
             return self._load(connection, project_id)[1]
+
+    def discover(self, project_id, source_url):
+        source_url = chapter_url(source_url)
+        # Validate project before contacting a website. Repeated source requests
+        # recover their saved selection instead of rediscovering a changed catalog.
+        with self.database.connect() as connection:
+            _, state = self._load(connection, project_id, writing=True)
+            if state:
+                if state["selection"]["source_url"] != source_url:
+                    raise ConflictError("project already has a different novel import")
+                return state
+        page = self.reader(source_url)
+        return self.create(project_id, source_url, catalog_chapters(page))
 
     def create(self, project_id, source_url, chapters):
         source_url = chapter_url(source_url)
