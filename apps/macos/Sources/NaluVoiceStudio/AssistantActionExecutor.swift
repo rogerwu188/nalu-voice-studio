@@ -75,7 +75,7 @@ struct WebResearchResult: Equatable, Sendable {
     let answer: String
     let sources: [WebResearchSource]
 
-    func conversationText(resumePrompt: String) -> String {
+    func conversationText(resumePrompt: String?) -> String {
         var sections = [answer]
         if !sources.isEmpty {
             let links = sources.prefix(5).map { source in
@@ -88,8 +88,15 @@ struct WebResearchResult: Equatable, Sendable {
             }
             sections.append("参考来源：\n" + links.joined(separator: "\n"))
         }
-        sections.append("我们再接着刚才的创作：\(resumePrompt)")
+        if let resumePrompt, !resumePrompt.isEmpty {
+            sections.append("我们再接着刚才的创作：\(resumePrompt)")
+        }
         return sections.joined(separator: "\n\n")
+    }
+
+    func spokenText(resumePrompt: String?) -> String {
+        guard let resumePrompt, !resumePrompt.isEmpty else { return answer }
+        return "我查到了。\(answer) 我们再接着刚才的创作。\(resumePrompt)"
     }
 }
 

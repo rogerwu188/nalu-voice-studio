@@ -2914,7 +2914,7 @@ final class VoiceInterviewViewModel {
                         writingRequested: AssistantActionRouter.requestsSourceWriting(query))
                     let response = needsNovelChoice
                         ? (choice.sources.isEmpty ? "尚未找到可选择的小说来源，您可以提供网址，或补充书名和作者。" : choice.prompt)
-                        : result.conversationText(resumePrompt: resumePrompt)
+                        : result.conversationText(resumePrompt: novelImportRequested ? nil : resumePrompt)
                     if let projectID, let savedRevision {
                         _ = try await runtime.saveStoryAnswer(
                             projectID: projectID, turnID: turnID,
@@ -2940,7 +2940,7 @@ final class VoiceInterviewViewModel {
                         return
                     }
                     speechPlayback.speak(
-                        "我查到了。\(result.answer) 我们再接着刚才的创作。\(resumePrompt)",
+                        result.spokenText(resumePrompt: novelImportRequested ? nil : resumePrompt),
                         rate: comfortPreferences.speechRate
                     )
                 } catch {

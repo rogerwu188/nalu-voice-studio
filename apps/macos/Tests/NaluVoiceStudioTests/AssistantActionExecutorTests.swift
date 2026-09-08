@@ -98,6 +98,13 @@ final class AssistantActionExecutorTests: XCTestCase {
             "https://example.com/project", "https://example.com/release",
         ])
         XCTAssertTrue(result.conversationText(resumePrompt: "请继续讲童年").contains("再接着刚才的创作"))
+        XCTAssertTrue(result.spokenText(resumePrompt: "请继续讲童年").contains("请继续讲童年"))
+        for prompt in [nil, ""] as [String?] {
+            let sourceOnly = result.conversationText(resumePrompt: prompt)
+            XCTAssertTrue(sourceOnly.contains("https://example.com/project"))
+            XCTAssertFalse(sourceOnly.contains("再接着刚才的创作"))
+            XCTAssertEqual(result.spokenText(resumePrompt: prompt), result.answer)
+        }
     }
 
     func testResponseParserFailsClosedWithoutText() throws {
