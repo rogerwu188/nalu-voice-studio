@@ -390,6 +390,13 @@ struct ContentView: View {
                             Divider()
                         }
                         if let runID = selectedEpisodeProgress?.runID {
+                            if let project = selectedProject, let season = selectedSeason, let episode = selectedEpisode {
+                                ProductionVersionHistoryView(projectID: project.id, seasonID: season.id,
+                                    episodeID: episode.id, currentRunID: runID, onRead: model.readShotPlanText)
+                                    .id("history-" + runID)
+                                    .padding(.horizontal, 24)
+                                    .padding(.vertical, 12)
+                            }
                             EpisodeShotPlanView(runID: runID, guardianRequired: selectedProject?.audienceMode == "child",
                                 refreshRevision: model.shotPlanRefreshRevisionByRunID[runID, default: 0],
                                 onRead: model.readShotPlanText, onCharactersPrepared: { ids in

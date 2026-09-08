@@ -25,3 +25,18 @@ reported passed. Native selection UI is still outstanding.
 CI34284802594 on e8c8a3e has since completed successfully. Together with the
 separate native sound-read evidence this closes that narrow regression only;
 it does not cover these newer version-history changes.
+
+## Native inspection panel — awaiting build and QA
+
+ContentView now places a collapsed version-history panel beside current production.
+It explicitly reads the scoped version list, labels current/prior and dry-run
+records, downloads only the selected sealed master using the existing digest
+validation, and exposes VideoPlayer without production/approval/publication actions.
+Large controls, existing naluFont scaling and a read-aloud status action preserve
+the incumbent interaction style (impeccable local-extension guidance).
+Selection/exit releases the player and deletes only its downloaded temporary copy;
+an in-flight response after disappearance is discarded and its copy removed.
+
+`git diff --check` passes. No local Swift build due to the recorded SDK mismatch.
+CI build, actual parent-video viewing after repair, switching/exit cleanup and
+native visual/finish review remain required. This is implementation, not UI PASS.
