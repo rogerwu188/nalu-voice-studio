@@ -53,3 +53,13 @@ stays qa_review: integrity/readability is not semantic acceptance.
 CI34285819509 runtime job failed before pytest: observed_head was abbreviated.
 Corrected progress to full272d06cf74ddb45840d0f1456a6a6cf6336cd0c1; local goal
 progress audit now passes. No tests skipped by that CI are claimed passed.
+
+## Current build and full runtime regression
+
+CI34286316710 on7ddce0c81308373d12b396c875d84e5385fb235a completed success
+(arm64, x86_64, universal bundle and runtime). Local full pytest at the same
+clean code revision passed800 tests in528.95s, with two dependency deprecation
+warnings. This includes version-reader Swift CI but not native visual acceptance.
+The artifact download is in progress at `/tmp/nalu-history-qa-7YdxCe`.
+Isolated qv1poe20 SQLite still contains parent run_frame_review at qa_review and
+child run_ddfaf60101144e24bf5b2f90b3961549 at preflight, ready for history QA.
