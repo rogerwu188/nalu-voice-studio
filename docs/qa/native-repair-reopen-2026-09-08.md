@@ -67,3 +67,21 @@ release build and SwiftPM target. `otool -L` on the crashing binary showed
 `_AVKit_SwiftUI` but no AVKit framework. The new per-architecture bundle check
 rejects this old binary with `发布包缺少 AVKit 播放器框架链接：arm64`.
 Both edited shell scripts pass `bash -n`; fixed binary playback remains unverified.
+
+## Native 671d4c7 playback and repair submission
+
+CI34283502068 arm64 ZIP SHA256
+`d71b5c4d23f8e694b37eccdbe9658c47f399f350fbcac421693f9ee16cd5dae0`.
+Application `/tmp/nalu-player-fixed-cScJ7d/extracted/Nalu Voice Studio.app`
+explicitly links AVKit. On the same valid qv1poe20 fixture, saved cuts restored,
+picture preview opened without the previous crash, and the play action was invoked.
+The original edit approval and sound context restored. This is synthetic playback,
+not semantic acceptance of a real episode.
+
+Repair confirmation became reachable. Choosing cancel left SQLite with only
+`run_frame_review|qa_review`. Reopening and confirming created
+`run_ddfaf60101144e24bf5b2f90b3961549|preflight|dry_run=1` with no error; original
+run remained qa_review. Parent-byte comparison and restart recovery are still next.
+Sound selection displayed an unavailable message and repair instructions included
+raw English: these remain unresolved. Full CI and final repaired master are not
+accepted. No paid provider operation or release was performed by these actions.
