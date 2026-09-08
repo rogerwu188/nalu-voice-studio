@@ -46,6 +46,32 @@ def endpoint(run):
     return f"/v1/production-runs/{run['id']}/production-authorization"
 
 
+def test_production_package_excludes_raw_novel_and_interview_but_preserves_local_sources(tmp_path):
+    api = client(tmp_path)
+    repo = api.app.state.repository
+    planned = api.post("/v1/project-plans", json={"project": {
+        "title": "小说生产边界", "planned_episode_count": 1}}).json()
+    episode = planned["episodes"][0]
+    project_id = repo.get_season(episode["season_id"]).project_id
+    bible = {"nalu_novel_import_v1": {"chapters": [{"text": "UNSELECTED_NOVEL_PRIVATE"}]},
+             "nalu_interactive_story_v1": {"turns": ["UNAPPROVED_INTERVIEW"]},
+             "visual_style": "水彩"}
+    with repo.db.connect() as connection:
+        connection.execute("UPDATE projects SET project_bible_json=? WHERE id=?", (json.dumps(bible), project_id))
+    script = api.post(f"/v1/episodes/{episode['id']}/scripts", json={
+        "content": "已确认的分集剧本", "summary_for_voice_review": "确认版本"}).json()
+    assert api.post(f"/v1/episodes/{episode['id']}/scripts/{script['revision']}/approve",
+                    json={"approved_by": "tester"}).status_code == 200
+    response = api.post(f"/v1/episodes/{episode['id']}/production-runs", json={"dry_run": True})
+    assert response.status_code == 201, response.text
+    raw = Path(response.json()["package_path"]).read_text()
+    package = json.loads(raw)
+    assert "UNSELECTED_NOVEL_PRIVATE" not in raw and "UNAPPROVED_INTERVIEW" not in raw
+    assert package["project"]["project_bible"] == {"visual_style": "水彩"}
+    assert package["approved_script"]["content"] == "已确认的分集剧本"
+    assert repo.get_project(project_id).project_bible == bible
+
+
 def test_authorization_preserves_run_script_plan_and_requires_separate_task_cost(tmp_path):
     api, run, body = setup(tmp_path)
     repo = api.app.state.repository

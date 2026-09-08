@@ -2593,6 +2593,9 @@ class ProductionService:
         # It includes unapproved episodes, queued corrections and raw model output.
         # Keep it in SQLite/export, outside the professional production package.
         production_project["project_bible"].pop("nalu_interactive_story_v1", None)
+        # Full downloaded chapters and import queues are local source material,
+        # not approved production instructions or provider attachments.
+        production_project["project_bible"].pop("nalu_novel_import_v1", None)
         package = ProductionPackage(
             project=production_project,
             season=season.model_dump(mode="json"),
