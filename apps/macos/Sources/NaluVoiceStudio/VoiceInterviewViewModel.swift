@@ -28,10 +28,14 @@ final class VoiceInterviewViewModel {
     var projects: [NaluProject] = []
     var selectedProjectID: String? {
         didSet {
-            if selectedProjectID != oldValue { projectSelectionGeneration = UUID() }
+            if selectedProjectID != oldValue {
+                projectSelectionGeneration = UUID()
+                pendingNovelSourceChoice = nil
+            }
         }
     }
     private var projectSelectionGeneration = UUID()
+    private var pendingNovelSourceChoice: NovelSourceChoice?
     var seasons: [NaluSeason] = []
     var episodes: [NaluEpisode] = []
     var episodeProgressByID: [String: EpisodeProductionProgress] = [:]
@@ -223,6 +227,11 @@ final class VoiceInterviewViewModel {
         transcript = ""
         transcriptConfidence = 0
         if applyComfortCommand(spoken) { return }
+        if let query = pendingNovelSourceChoice?.importQuery(for: spoken) {
+            pendingNovelSourceChoice = nil
+            handleAssistantAction(.webResearch(query: query))
+            return
+        }
         if let control = NovelImportControl.parse(spoken) {
             handleNovelImportControl(control)
             return
@@ -2863,7 +2872,12 @@ final class VoiceInterviewViewModel {
                     } else {
                         result = try await webResearch.research(query)
                     }
-                    let response = result.conversationText(resumePrompt: resumePrompt)
+                    let needsNovelChoice = novelImportRequested && AssistantActionRouter.sourceURL(in: query) == nil
+                    let choice = NovelSourceChoice(sources: Array(result.sources.prefix(5)),
+                        writingRequested: AssistantActionRouter.requestsSourceWriting(query))
+                    let response = needsNovelChoice
+                        ? (choice.sources.isEmpty ? "尚未找到可选择的小说来源，您可以提供网址，或补充书名和作者。" : choice.prompt)
+                        : result.conversationText(resumePrompt: resumePrompt)
                     if let projectID, let savedRevision {
                         _ = try await runtime.saveStoryAnswer(
                             projectID: projectID, turnID: turnID,
@@ -2875,7 +2889,12 @@ final class VoiceInterviewViewModel {
                     }
                     assistantActionStatus = nil
                     guard projectSelectionGeneration == generation else { return }
+                    pendingNovelSourceChoice = needsNovelChoice && !choice.sources.isEmpty ? choice : nil
                     messages.append(.init(speaker: .nalu, text: response))
+                    if needsNovelChoice {
+                        speechPlayback.speak(response, rate: comfortPreferences.speechRate)
+                        return
+                    }
                     if AssistantActionRouter.requestsSourceWriting(query) && sourceWritingReady {
                         // Continue the user's existing writing request with the persisted
                         // source context, without routing it back through web search.

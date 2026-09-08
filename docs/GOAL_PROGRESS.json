@@ -11,7 +11,7 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "2dbf4678c669fb6cfb7a7e0dfce8c4c73dab6314",
+  "observed_head": "3260eb2940c121f0aec8adfa419d0daae6589c40",
   "last_advanced_at": "2026-09-08T18:47:45Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
@@ -29,7 +29,7 @@
   },
   "next_action": {
     "sop": "SOP-04",
-    "id": "complete-novel-import-user-journey",
+    "id": "verify-and-persist-novel-source-selection",
     "summary": "Verify current native CI and installed explicit URL import-to-writing. Finish voice pause/resume, name-only source selection and long-book context traversal; test actual public-site extraction. Then complete native render-to-seal/prerequisite QA and remove professional sound-form burden. Existing Hops401 remains no automatic paid retry; full SOP retained.",
     "requires_user_authorization": false
   },
