@@ -11,7 +11,7 @@ actor RuntimeClient {
     func startNovelImport(projectID: String, sourceURL: String) async throws -> NovelImportStatus {
         var request = URLRequest(url: baseURL.appending(path: "v1/projects/\(projectID)/novel-import"))
         request.httpMethod = "POST"
-        request.timeoutInterval = 90
+        request.timeoutInterval = 600
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try encoder.encode(NovelImportDraft(source_url: sourceURL))
         let (data, response) = try await authorizedData(for: request)

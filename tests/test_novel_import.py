@@ -167,3 +167,40 @@ def test_imported_chapters_reach_frozen_writer_context(tmp_path):
     updated = story.append(project, StoryInput(turn_id="next", expected_revision=1,
                            text="接着改编第二章", source_mode="web_source"))
     assert updated["novel_source"]["passages"][0]["source_url"] == "https://example.com/2"
+
+
+@pytest.mark.parametrize("mode", ["complete", "cycle", "external", "failed", "limit"])
+def test_paginated_catalog_is_not_silently_partial(tmp_path, mode):
+    calls = []
+
+    def reader(url):
+        calls.append(url)
+        number = int(url.rsplit("=", 1)[1])
+        if number == 2 and mode == "failed":
+            raise TimeoutError("catalog unavailable")
+        links = [{"url": f"https://example.com/chapter/{number}",
+                  "title": f"第{number}章 故事"}]
+        next_url = None
+        if number == 1 or mode == "limit":
+            next_url = f"https://example.com/index?page={number + 1}"
+        elif mode == "cycle":
+            next_url = "https://example.com/index?page=1"
+        elif mode == "external":
+            next_url = "https://different.example/index?page=3"
+        if next_url:
+            links.append({"url": next_url, "title": "下一页目录"})
+        return {"url": url, "text": "目录", "links": links, "truncated": False}
+
+    api = TestClient(create_app(tmp_path / "db", tmp_path / "data"))
+    project = api.post("/v1/projects", json={"title": "分页"}).json()["id"]
+    service = NovelImport(api.app.state.repository.db, reader)
+    if mode == "complete":
+        result = service.discover(project, "https://example.com/index?page=1")
+        assert [c["title"] for c in result["chapters"]] == ["第1章 故事", "第2章 故事"]
+        service.discover(project, "https://example.com/index?page=1")
+        assert len(calls) == 2
+    else:
+        with pytest.raises((ValueError, TimeoutError)):
+            service.discover(project, "https://example.com/index?page=1")
+        assert service.read(project) is None
+        assert len(calls) == (8 if mode == "limit" else 2)

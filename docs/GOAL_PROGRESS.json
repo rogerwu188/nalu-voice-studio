@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "a436fd334965f674ce7202ffbeeea932efa4642c",
-  "last_advanced_at": "2026-09-08T18:04:47Z",
+  "observed_head": "bac866701f2438f893e1eef4d0ec4b69a9410de0",
+  "last_advanced_at": "2026-09-08T18:10:43Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Imported passages now freeze with each claimed story input and enter writer context with source/hash/coverage; explicit chapter lookup supported. Native completed-import plus explicit writing can continue via this context. 15 import/story/writer tests passed 5.53s, no live provider. Bounded60k context is not whole-book coverage; full-book planning, pagination/body cleanup, name-only source selection, pause/resume and native QA remain open."
+    "summary": "Explicit same-host catalog pagination now combines up to8 pages and refuses partial catalog on failure/cycle/limit. 22 import/source tests passed2.78s with mocked network, ruff/diff checks pass. CI34260033944 on d977bc9 passed; bac8667 CI running. Body cleanup, long-book context traversal, native pause/resume, name-only selection and real-site/installed QA remain open; no final SOP completion."
   },
   "next_action": {
     "sop": "SOP-04",

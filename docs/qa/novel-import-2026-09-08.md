@@ -116,3 +116,18 @@ of a download-status sentence. Native CI/installed verification remains pending.
 writer request and proving later imported chapters cannot change an earlier request
 snapshot. A subsequent second-chapter request receives the second chapter. Ruff and
 diff checks pass; these mocks are not full website-to-video acceptance.
+
+## Explicit catalog pagination
+
+Discovery follows explicit next-catalog-page labels on the same host, validating
+each page has chapter links and combining them before creating the import. It
+deduplicates/orders the combined list. A cycle, ambiguous next link, cross-host hop,
+failed page, or more than eight pages fails without committing a partial catalog.
+The native discovery timeout is 600s to cover bounded redirects across eight pages;
+this is not a durable background discovery job. Larger/JS-driven catalogs and
+resuming discovery itself remain unsupported. Chapter fetch resume still persists.
+
+22 import/source tests pass in 2.78s; ruff and diff checks pass. Network remains mocked.
+CI34260033944 on d977bc986ad2094a3e6ea4c33caa03b0c67bfee4 fully passed.
+CI34261082444 on bac8667 is currently running, not proof of this pagination change.
+Native installed QA, real-site verification and complete production/release remain open.

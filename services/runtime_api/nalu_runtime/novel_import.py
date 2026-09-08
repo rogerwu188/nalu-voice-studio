@@ -84,6 +84,22 @@ def catalog_chapters(page):
             for item in sorted(chapters, key=lambda item: item["number"])]
 
 
+def next_catalog_page(page):
+    current = urlsplit(chapter_url(page["url"]))
+    candidates = set()
+    for link in page.get("links", []):
+        label = re.sub(r"\s+", "", link.get("title", ""))
+        if label not in {"下一页", "下页", "下一页目录", "下一页章节目录", "下页目录"}:
+            continue
+        url = chapter_url(link["url"])
+        if urlsplit(url).hostname != current.hostname:
+            raise ValueError("catalog pagination left source host")
+        candidates.add(url)
+    if len(candidates) > 1:
+        raise ValueError("ambiguous catalog pagination")
+    return next(iter(candidates), None)
+
+
 def chapter_number(text):
     if text.isdecimal():
         return int(text)
@@ -183,8 +199,30 @@ class NovelImport:
                 if state["selection"]["source_url"] != source_url:
                     raise ConflictError("project already has a different novel import")
                 return state
-        page = self.reader(source_url)
-        return self.create(project_id, source_url, catalog_chapters(page))
+        next_url = source_url
+        visited = set()
+        combined = []
+        for _ in range(8):
+            if next_url in visited:
+                raise ValueError("catalog pagination cycle")
+            visited.add(next_url)
+            page = self.reader(next_url)
+            resolved = chapter_url(page["url"])
+            if urlsplit(resolved).hostname != urlsplit(source_url).hostname:
+                raise ValueError("catalog redirect left source host")
+            if resolved != next_url and resolved in visited:
+                raise ValueError("catalog redirect cycle")
+            visited.add(resolved)
+            # Require every page to actually contain chapter links. A chapter
+            # reader's next-page link must not become a recursive novel crawler.
+            catalog_chapters(page)
+            combined.extend(page.get("links", []))
+            next_url = next_catalog_page(page)
+            if next_url is None:
+                return self.create(project_id, source_url, catalog_chapters({
+                    "url": source_url, "links": combined, "truncated": False,
+                }))
+        raise ValueError("catalog exceeds page limit; no partial import was created")
 
     def create(self, project_id, source_url, chapters):
         source_url = chapter_url(source_url)
