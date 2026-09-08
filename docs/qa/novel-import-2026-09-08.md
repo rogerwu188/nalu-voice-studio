@@ -131,3 +131,16 @@ resuming discovery itself remain unsupported. Chapter fetch resume still persist
 CI34260033944 on d977bc986ad2094a3e6ea4c33caa03b0c67bfee4 fully passed.
 CI34261082444 on bac8667 is currently running, not proof of this pagination change.
 Native installed QA, real-site verification and complete production/release remain open.
+
+## Chapter body extraction
+
+Complete-page reads now prefer explicitly identified reading containers over article
+fallback. Nested navigation, scripts, headers/footers, forms, recognized ad containers
+and hidden text are excluded within them. Link discovery and title metadata remain
+independent. Unknown page layouts retain page text with `page_text_unverified`, not
+a claim of correctly isolated prose. Extraction provenance is saved per chapter and
+included in writer passages; real-site selection accuracy is still unverified.
+
+26 source/import/writer tests pass in 3.13s with fake network pages. Ruff initially
+identified mutable class constants; changed them to frozensets before final check.
+No new model call, real website request, installed app replacement or SOP promotion.

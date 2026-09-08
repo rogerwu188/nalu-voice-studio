@@ -150,6 +150,7 @@ def writing_context(state, user_text, *, character_budget=60000):
                          "chapter_sha256": item["sha256"], "text": excerpt,
                          "start_character": 0, "end_character": len(excerpt),
                          "chapter_characters": len(text), "complete_chapter": len(excerpt) == len(text)})
+        passages[-1]["body_extraction"] = item.get("body_extraction", "unknown")
         remaining -= len(excerpt)
     return {"source_url": state["selection"]["source_url"],
             "import_status": state["status"], "selected_chapter_count": len(state["chapters"]),
@@ -312,6 +313,7 @@ class NovelImport:
                 state["status"] = "failed"
             else:
                 item.update(status="complete", text=text, resolved_url=resolved_url,
+                            body_extraction=page.get("body_extraction", "unknown"),
                             sha256=hashlib.sha256(text.encode()).hexdigest(), error=None)
                 state["status"] = ("complete" if all(c["status"] == "complete"
                                                     for c in state["chapters"]) else "ready")

@@ -95,6 +95,62 @@ class SourceLinksParser(HTMLParser):
             self.links.append({"url": url, "title": "".join(parts).strip(), "rel": rel})
 
 
+class ChapterBodyParser(HTMLParser):
+    """Extract explicit reading containers without pretending arbitrary text is a chapter."""
+
+    markers = frozenset({"content", "chapter-content", "chaptercontent", "read-content",
+                         "readcontent", "bookcontent", "book-text", "booktext", "txtcont"})
+    void_tags = frozenset({"area", "base", "br", "col", "embed", "hr", "img", "input",
+                          "link", "meta", "param", "source", "track", "wbr"})
+
+    def __init__(self):
+        super().__init__()
+        self.stack = []
+        self.candidates = []
+
+    def handle_starttag(self, tag, attrs):
+        values = dict(attrs)
+        labels = set((values.get("class") or "").lower().split())
+        labels.add((values.get("id") or "").lower())
+        hidden = (tag in {"script", "style", "noscript", "nav", "header", "footer",
+                          "aside", "form", "button", "svg"}
+                  or "hidden" in values or values.get("aria-hidden") == "true"
+                  or bool(labels & {"advertisement", "ads", "ad-banner"}))
+        suppressed = hidden or any(entry[1] for entry in self.stack)
+        if not suppressed and (labels & self.markers or tag == "article"):
+            candidate = {"tag": tag, "parts": [], "explicit": bool(labels & self.markers)}
+            self.candidates.append(candidate)
+        else:
+            candidate = None
+        if tag not in self.void_tags:
+            self.stack.append((tag, suppressed, candidate))
+
+    def handle_startendtag(self, tag, attrs):
+        self.handle_starttag(tag, attrs)
+        if tag not in self.void_tags:
+            self.handle_endtag(tag)
+
+    def handle_endtag(self, tag):
+        for index in range(len(self.stack) - 1, -1, -1):
+            if self.stack[index][0] == tag:
+                del self.stack[index:]
+                break
+
+    def handle_data(self, data):
+        if not data.strip() or any(entry[1] for entry in self.stack):
+            return
+        for _, _, candidate in self.stack:
+            if candidate is not None:
+                candidate["parts"].append(data.strip())
+
+    def extracted(self):
+        candidates = [(item["explicit"], "\n".join(item["parts"])) for item in self.candidates]
+        candidates = [item for item in candidates if item[1].strip()]
+        if not candidates:
+            return None
+        return max(candidates, key=lambda item: (item[0], len(item[1])))[1]
+
+
 def public_target(url):
     parsed = urlsplit(url)
     if (parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password
@@ -160,18 +216,25 @@ def _read_public_source(url, *, complete):
                 raise SourceReadError("source page exceeds reading limit")
             text = body.decode(response.headers.get_content_charset() or "utf-8", errors="replace")
             metadata = SourceLinksParser(url)
+            extraction = "plain_text"
             if content_type == "text/html":
                 if complete:
                     metadata.feed(text)
+                body_parser = ChapterBodyParser()
+                if complete:
+                    body_parser.feed(text)
                 parser = SourceTextParser()
                 parser.feed(text)
-                text = "\n".join(parser.parts)
+                body_text = body_parser.extracted() if complete else None
+                text = body_text if body_text else "\n".join(parser.parts)
+                extraction = "reading_container" if body_text else "page_text_unverified"
             if not text.strip():
                 raise SourceReadError("source has no readable text")
             if complete:
                 return {"requested_url": original, "url": url, "text": text,
                         "title": "".join(metadata.title_parts).strip(),
                         "links": metadata.links, "truncated": False,
+                        "body_extraction": extraction,
                         "scope": "complete_text_page"}
             return {"requested_url": original, "url": url, "text": text[:24000],
                     "truncated": len(text) > 24000, "scope": "single_page_excerpt"}

@@ -76,6 +76,27 @@ def test_oversize_chapter_is_error_not_incomplete_success(monkeypatch):
         source_reader.read_public_chapter("https://example.com/ch1")
 
 
+def test_chapter_body_excludes_navigation_ads_and_footer(monkeypatch):
+    html = '''<title>网站名 第一章</title><header>登录注册</header>
+    <article>推荐阅读<div id="content"><p>爷爷回到故乡。</p><br/>
+    <p>他看见了那棵树。</p><div class="ads">立即购买</div>
+    <span hidden>隐藏文字</span><script>广告代码</script>
+    <nav><a href="2.html">下一章</a></nav></div></article><footer>网站声明</footer>'''
+    fake_source_transport(monkeypatch, html.encode())
+    result = source_reader.read_public_chapter("https://example.com/1.html")
+    assert result["text"] == "爷爷回到故乡。\n他看见了那棵树。"
+    assert result["body_extraction"] == "reading_container"
+    assert result["links"][0]["url"] == "https://example.com/2.html"
+    assert result["title"] == "网站名 第一章"
+
+
+def test_unknown_page_structure_is_explicitly_unverified(monkeypatch):
+    fake_source_transport(monkeypatch, "<div>无法判断是目录还是正文</div>".encode())
+    result = source_reader.read_public_chapter("https://example.com/page")
+    assert result["body_extraction"] == "page_text_unverified"
+    assert result["text"] == "无法判断是目录还是正文"
+
+
 def test_source_tls_keeps_verification_with_bundled_trust_roots():
     context = source_reader.source_tls_context()
     assert context.verify_mode == ssl.CERT_REQUIRED
