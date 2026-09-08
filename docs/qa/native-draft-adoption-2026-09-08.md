@@ -21,3 +21,17 @@ This is native workflow evidence, not real writer, semantic script quality,
 microphone recognition, production/master or release acceptance. Current app
 still exposes professional season/script panels; elderly-oriented simplification
 and source/story end-to-end acceptance remain open. No SOP promoted.
+# Follow-up: approved script to native preparation
+
+On the same isolated fixture and a4a0a06 native artifact, restarted the app and
+entered `开始本集制作` through the visible text field with Return. First episode
+changed from approved 20% to preflight 30%; the UI explicitly said no video had
+been generated or charged. Second episode remained planned at 0%.
+After quitting, SQLite contained run `run_b80516204ce042e9b5d38b3a7474773f`,
+status `preflight`, dry_run=1. The owned runtime process 29534 exited and port
+18767 had no listener. No installed app or user project was replaced.
+
+This extends synthetic draft adoption/approval evidence to actual native local
+preparation, not real writer, provider generation, finished video or release.
+Current source regression command `uv run pytest tests/test_novel_import.py
+tests/test_interactive_story.py -q` also passed: 26 tests in 7.70 seconds.
