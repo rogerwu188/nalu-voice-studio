@@ -90,16 +90,18 @@ struct EpisodeShotPlanTests {
             try await runtime().recoverEpisodeInputs(runID: "run", planID: "plan", planSHA: "changed")
         }
         ShotReviewProtocol.requests = []; ShotReviewProtocol.bodies = []
-        ShotReviewProtocol.queued = [(200, try response(edited: false)), (200, Data("[]".utf8)), (503, Data()),
-            (200, try response(edited: false)), (200, try response(edited: true)), (503, Data()),
-            (200, try response(edited: false, plan: "foreign"))]
+        let inputHistory = try JSONSerialization.data(withJSONObject: [inputObject])
+        let foreignInput = try JSONSerialization.jsonObject(with: response(edited: false, plan: "foreign"))
+        ShotReviewProtocol.queued = [(200, Data("[]".utf8)), (200, try response(edited: false)), (200, Data("[]".utf8)), (503, Data()),
+            (200, inputHistory), (200, try response(edited: true)), (503, Data()),
+            (200, try JSONSerialization.data(withJSONObject: [foreignInput])), (409, Data())]
         let model = EpisodeEditingModel(runID: "run", planID: "plan", planSHA: "plan-sha", runtime: runtime())
         #expect(ShotReviewProtocol.requests.isEmpty)
         await model.load()
         #expect(!model.canSave) // Never manufacture a cut to bypass whole-source QA.
         model.trim(index: 0, beginning: true)
         #expect(model.canSave)
-        #expect(ShotReviewProtocol.requests.count == 2) // Staging + read-only recovery; local editing is not submission.
+        #expect(ShotReviewProtocol.requests.count == 3) // Missing history, staging, then edit recovery.
         await model.save()
         #expect(model.saved == nil && model.cuts[0].source_in_seconds == 0.5)
         await model.load()
@@ -107,8 +109,8 @@ struct EpisodeShotPlanTests {
         await model.save()
         #expect(model.saved?.id == "edit")
         #expect(model.notice.contains("剪辑已保存") && model.notice.contains("暂未同步"))
-        let first = try JSONSerialization.jsonObject(with: ShotReviewProtocol.bodies[2]) as! NSDictionary
-        let retry = try JSONSerialization.jsonObject(with: ShotReviewProtocol.bodies[4]) as! NSDictionary
+        let first = try JSONSerialization.jsonObject(with: ShotReviewProtocol.bodies[3]) as! NSDictionary
+        let retry = try JSONSerialization.jsonObject(with: ShotReviewProtocol.bodies[5]) as! NSDictionary
         #expect(first == retry)
         await model.load()
         #expect(model.inputs?.payload.plan_id == "plan" && model.cuts[0].source_in_seconds == 0.5)
@@ -118,10 +120,12 @@ struct EpisodeShotPlanTests {
         let savedEdit = try JSONSerialization.jsonObject(with: response(edited: true))
         let history = try JSONSerialization.data(withJSONObject: [
             ["event_type": "unrelated_event", "payload": ["not": "an edit"]], savedEdit])
-        ShotReviewProtocol.queued = [(200, try response(edited: false)), (200, history)]
+        ShotReviewProtocol.queued = [(200, inputHistory), (200, history)]
+        let recoveryStart = ShotReviewProtocol.requests.count
         let restarted = EpisodeEditingModel(runID: "run", planID: "plan", planSHA: "plan-sha", runtime: runtime())
         await restarted.load()
         #expect(restarted.saved?.id == "edit" && restarted.cuts.first?.source_in_seconds == 0.5)
+        #expect(ShotReviewProtocol.requests.dropFirst(recoveryStart).allSatisfy { $0.httpMethod == "GET" })
         #expect(ShotReviewProtocol.requests.last?.httpMethod == "GET")
         #expect(ShotReviewProtocol.requests.last?.url?.path.hasSuffix("production-runs/run/events") == true)
         #expect(ShotReviewProtocol.requests.filter { $0.url?.path.hasSuffix("episode-edit-drafts") == true }.count == 2)
@@ -132,7 +136,7 @@ struct EpisodeShotPlanTests {
             if field == "source_input_sha256" { payload[field] = "stale" }
             else { payload[field] = 99 }
             broken["payload"] = payload
-            ShotReviewProtocol.queued = [(200, try response(edited: false)),
+            ShotReviewProtocol.queued = [(200, inputHistory),
                 (200, try JSONSerialization.data(withJSONObject: [broken]))]
             let invalid = EpisodeEditingModel(runID: "run", planID: "plan", planSHA: "plan-sha", runtime: runtime())
             await invalid.load()

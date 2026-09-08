@@ -78,7 +78,13 @@ struct EpisodeInputEnvelope: Decodable {
         busy = true
         defer { busy = false }
         do {
-            let result = try await runtime.stageEpisodeInputs(runID: runID, planID: planID, planSHA: planSHA)
+            let existing = try await runtime.recoverEpisodeInputs(runID: runID, planID: planID, planSHA: planSHA)
+            let result: EpisodeEditingEvent
+            if let existing {
+                result = existing
+            } else {
+                result = try await runtime.stageEpisodeInputs(runID: runID, planID: planID, planSHA: planSHA)
+            }
             // Reload never discards local edits when the source version is unchanged.
             if inputs?.payload.input_sha256 != result.payload.input_sha256 {
                 guard cuts.isEmpty else {
