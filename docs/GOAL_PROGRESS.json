@@ -11,7 +11,7 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "c1b36895724dbdb48942c70066ccf6e86923c054",
+  "observed_head": "520ad99291f83e678d91fd555ca8d92a99c3ee6e",
   "last_advanced_at": "2026-09-08T20:18:16Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
@@ -29,7 +29,8 @@
   },
   "next_action": {
     "sop": "SOP-09",
-    "id": "verify-avkit-player-and-continue-native-repair",
+    "id": "verify-qa-sound-read-and-continue-repair-production",
+    "current_acceptance": "CI34283502068 on671d4c7 completed success. Actual native preview opened without crash; cancel created no child, confirm created dry-run preflight child, relaunch retained exactly one child, original sealed-output integrity returned200. Evidence63d3aa1 in native-repair-reopen-2026-09-08.md. Do not repeat these gates as if missing. Actual repaired master and release are still absent. e8c8a3e allows QA sound asset reads;520ad99 adds GET-only runtime test. CI34284802594 running;34284909550 pending. Next verify those tests and native sound loading, then address saved revision asset reuse/history access and real repaired production. Historical player/CI notes below are superseded by this entry. No SOP promotion.",
     "player_checkpoint": "Native f8fbfa7 restored both saved cuts through GET-only history; do not repeat backend-only recovery work. Picture-preview returned200 then application exited134 while demangling AVPlayerView. c1b3689 explicitly links AVKit in direct release build and SwiftPM, and checks every binary slice. New release check correctly rejects crashing old artifact. CI34283360865 pending behind34281384986; actual fixed-player QA not yet performed. Next use new artifact with valid qv1poe20 fixture, restore edits, open preview, then confirm/cancel repair and verify parent preservation/restart. No provider generation or public release is authorized by this checkpoint. This field supersedes historical CI/next-step statements below.",
     "latest_evidence": "docs/qa/native-repair-reopen-2026-09-08.md",
     "recovery_checkpoint": "89cd1ec adds saved-input GET validation; 8a0da80 uses it before staging and tests GET-only saved-edit reopening. CI34280772668 pending behind34280702938, not accepted. Native fixture62851e2 now preserves consent; generation completed successfully at /private/var/folders/y4/k84st0yj7fz043tnxkfrjn1w0000gn/T/nalu-native-postproduction-qv1poe20. Old d7l59eeu fixture has revoked consent and must not be reused for happy-path QA. Next verify Swift tests, connect automatic saved preview restoration as needed, and repeat native repair cancel/confirm/restart without new paid calls. Historical summary below is superseded where it lists older CI status.",

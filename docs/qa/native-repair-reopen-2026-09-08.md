@@ -99,3 +99,10 @@ owned Runtime; the restarted application was also explicitly quit.
 No new shot plan, repaired video or release was created. Historical-version access,
 sound selection availability, plain-language repair guidance and true repaired
 master acceptance remain open. Full CI34283502068 was still running.
+
+Subsequent check: CI34283502068 on671d4c7 completed successfully across all jobs.
+This closes that artifact's CI evidence gap, not the remaining full-product gates.
+The QA sound-list failure was traced to the native run-status allowlist excluding
+qa_review. e8c8a3e permits the read;520ad99 adds a real RuntimeClient URLProtocol
+test asserting only GET run/assets requests and no ready mix/receipts. Their CI
+and native sound selection verification are still pending.
