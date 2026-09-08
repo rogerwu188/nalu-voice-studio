@@ -1,4 +1,25 @@
-# Repair version contract — implementation pending
+# Repair version contract — partially implemented, not accepted
+
+## Current implementation and acceptance boundary
+
+As of6387039, local repair-run creation exists, with immutable parent lineage,
+explicit confirmation and durable request identity. Native transport ac21284,
+state70a3df0, confirmation UI05b7f6a, failed-preflight rejection2c7b5c8,
+success/retry testsd0123b4 and read-only sound recovery5014378/6387039 are
+implemented. These are not evidence of a repaired video or complete acceptance.
+
+Next native acceptance must use one artifact containing all those commits:
+
+1. Reopen a failed-QA run and recover its confirmed sound plan using GET only.
+2. Read repair tasks aloud, cancel confirmation, verify no child run exists.
+3. Confirm preparation; verify one distinct child run with dry_run=true and
+   unchanged parent media/seal/QA bytes. No provider request or publication.
+4. Repeat/reopen the same request; verify no duplicate child or lost repair plan.
+5. Reject stale/cross-run receipts and failed preflight without success wording.
+
+Selective shot reuse/replacement, actually rendered repaired master, full QA and
+controlled publication remain open. CI34278162803 covers older70a3df0 only;
+latest6387039 CI34278863318 was pending when this checklist was recorded.
 
 ## Observed integration gap
 
