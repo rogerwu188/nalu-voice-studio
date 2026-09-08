@@ -2792,6 +2792,7 @@ final class VoiceInterviewViewModel {
                         savedRevision = saved.revision
                     }
                     let result: WebResearchResult
+                    var sourceWritingReady = !novelImportRequested
                     if novelImportRequested, let sourceURL = AssistantActionRouter.sourceURL(in: query), let projectID {
                         guard let catalogURL = URL(string: sourceURL) else { throw WebResearchError.invalidResponse }
                         var imported = try await runtime.startNovelImport(projectID: projectID, sourceURL: sourceURL)
@@ -2809,6 +2810,7 @@ final class VoiceInterviewViewModel {
                         let ending = imported.status == "complete"
                             ? "本次识别到的章节已保存；尚未核实是否覆盖全书，也没有自动生成或批准剧本。"
                             : "本次导入暂停或未完成，已保存章节保留，不会从头重复下载。"
+                        sourceWritingReady = imported.status == "complete"
                         result = WebResearchResult(answer: imported.progressText + "。" + ending,
                             sources: [.init(title: "小说目录", url: catalogURL)])
                     } else if let sourceURL = AssistantActionRouter.sourceURL(in: query), let projectID {
@@ -2833,7 +2835,7 @@ final class VoiceInterviewViewModel {
                     assistantActionStatus = nil
                     guard projectSelectionGeneration == generation else { return }
                     messages.append(.init(speaker: .nalu, text: response))
-                    if AssistantActionRouter.requestsSourceWriting(query) && !novelImportRequested {
+                    if AssistantActionRouter.requestsSourceWriting(query) && sourceWritingReady {
                         // Continue the user's existing writing request with the persisted
                         // source context, without routing it back through web search.
                         handleInteractiveStoryInput(query)

@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "d977bc986ad2094a3e6ea4c33caa03b0c67bfee4",
-  "last_advanced_at": "2026-09-08T17:58:38Z",
+  "observed_head": "a436fd334965f674ce7202ffbeeea932efa4642c",
+  "last_advanced_at": "2026-09-08T18:04:47Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Native explicit novel-import plus URL now calls catalog/create and sequential fetch APIs, shows saved count, stops starting new requests after project switch and persists result summary. Added intent tests, diff check passes; Swift execution awaits CI. Imported chapter writer-context, name-only source selection, voice pause/resume, body cleanup, catalog pagination and installed QA remain incomplete."
+    "summary": "Imported passages now freeze with each claimed story input and enter writer context with source/hash/coverage; explicit chapter lookup supported. Native completed-import plus explicit writing can continue via this context. 15 import/story/writer tests passed 5.53s, no live provider. Bounded60k context is not whole-book coverage; full-book planning, pagination/body cleanup, name-only source selection, pause/resume and native QA remain open."
   },
   "next_action": {
     "sop": "SOP-04",

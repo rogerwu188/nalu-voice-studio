@@ -43,6 +43,7 @@ struct InteractiveStoryState: Codable, Sendable {
     var draft_writers: [String: ExternalWriterDeclaration?]? = nil
     var draft_receipts: [String: String?]? = nil
     var queued_inputs: [QueuedStoryInput]? = nil
+    var novel_source: JSONValue? = nil
 
     func conversationMessages() -> [InterviewMessage] {
         var messages: [InterviewMessage] = []

@@ -97,3 +97,22 @@ Added intent tests for positive import, negation and unrelated protected actions
 `git diff --check` passes. Local Swift toolchain remains broken; tests are not claimed
 executed until CI. Still missing: name-only source choice, voice pause/resume, paginated
 catalog and clean body extraction, imported chapter writer retrieval and installed QA.
+
+## Bounded source-to-writer handoff
+
+New claimed story inputs now freeze imported source passages into novel_source.
+Runtime writer requests include that snapshot; the native Codable model also preserves
+it for the configured direct-writer path. This is bounded to 60,000 characters with
+exact source URL, chapter digest, character offsets and completeness flags. Explicit
+Chinese/Arabic chapter requests select the matching chapter title, not its list index.
+It is not whole-novel understanding: large chapters require subsequent passage retrieval,
+and global book planning/summaries remain to be implemented. Missing/unread content must
+not be claimed read. No real model request was made.
+
+The native import-plus-writing flow now continues an explicit writing request only
+when selected chapters finish importing, using the new saved source evidence instead
+of a download-status sentence. Native CI/installed verification remains pending.
+15 import/story/writer tests pass in 5.53s, including inspecting the actual constructed
+writer request and proving later imported chapters cannot change an earlier request
+snapshot. A subsequent second-chapter request receives the second chapter. Ruff and
+diff checks pass; these mocks are not full website-to-video acceptance.

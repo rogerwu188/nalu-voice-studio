@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from .database import Database
 from .models import ExternalWriterDeclaration
+from .novel_import import NovelImport, writing_context
 from .repository import ConflictError, NotFoundError, utc_now
 from .writer_receipt import WriterReceiptVerificationError, interactive_receipt
 
@@ -106,6 +107,13 @@ class InteractiveStory:
             if state["turns"] and state["turns"][-1]["status"] == "pending":
                 state["turns"][-1]["status"] = "superseded"
             state["revision"] += 1
+            # Freeze source evidence with this input. Background import progress
+            # must not mutate the body of an already charged/recoverable request.
+            context = writing_context(bible.get(NovelImport.key), request.text)
+            if context is not None:
+                state["novel_source"] = context
+            else:
+                state.pop("novel_source", None)
             state["turns"].append({
                 "turn_id": request.turn_id, "text": request.text,
                 "source_mode": request.source_mode, "status": "pending",

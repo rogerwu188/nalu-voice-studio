@@ -1,6 +1,10 @@
+import json
+
 import pytest
 from fastapi.testclient import TestClient
 from nalu_runtime.app import create_app
+from nalu_runtime.interactive_story import InteractiveStory, StoryInput
+from nalu_runtime.interactive_writer_service import writer_request
 from nalu_runtime.novel_import import NovelImport, catalog_chapters
 from nalu_runtime.repository import ConflictError
 
@@ -145,3 +149,21 @@ def test_catalog_does_not_silently_choose_between_volumes():
         catalog_chapters(page)
     with pytest.raises(ValueError, match="incomplete"):
         catalog_chapters({**page, "truncated": True})
+
+
+def test_imported_chapters_reach_frozen_writer_context(tmp_path):
+    service, project, _ = setup_import(tmp_path, lambda url: {
+        "url": url, "text": "小说正文：" + url, "truncated": False})
+    service.fetch_next(project)
+    story = InteractiveStory(service.database)
+    state = story.append(project, StoryInput(turn_id="write", expected_revision=0,
+                         text="请把第一章写成第一集", source_mode="web_source"))
+    body = writer_request(state, "fixture-model")
+    context = json.loads(json.loads(body)["messages"][1]["content"])
+    assert context["novel_source"]["passages"][0]["text"] == "小说正文：https://example.com/1"
+    assert context["novel_source"]["scope"] == "explicit_bounded_passages_not_whole_novel"
+    service.fetch_next(project)
+    assert writer_request(story.read(project), "fixture-model") == body
+    updated = story.append(project, StoryInput(turn_id="next", expected_revision=1,
+                           text="接着改编第二章", source_mode="web_source"))
+    assert updated["novel_source"]["passages"][0]["source_url"] == "https://example.com/2"
