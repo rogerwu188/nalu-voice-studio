@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "73c8849b7ec31d01e86804e85435c4f68f236a11",
-  "last_advanced_at": "2026-09-08T19:27:28Z",
+  "observed_head": "bdcab713e1e27b05d5e44369c8524412ca78542e",
+  "last_advanced_at": "2026-09-08T19:51:14Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-09",
     "status": "IN_PROGRESS",
-    "summary": "Native render-to-seal/structural/decoded QA is implemented;05330f3 full CI34267285622 passed. Exact seal-event replay fixed3bd6b89; actual encoded negative and positive technical fixtures verified, not narrative acceptance. Native failure classification f70162a and output-bound repair-plan retrieval73c8849 await CI/installed QA. Novel candidates now persist in SQLite and long-chapter context survives revisions; installed source journey still pending. Evidence docs/qa/native-output-handoff-2026-09-08.md. No SOP promoted."
+    "summary": "At bdcab713: 65 tests across novel import, interactive story, production authorization, repair versions and rendered-output immutability passed in30.63s. Ruff services/tests/scripts and OpenAPI snapshot passed. Two-input synthetic drafts enter reviewed local production; native resume intent and explicit download routing implemented but current macOS CI34271271115 pending. Prior32212b5 Intel/arm64 jobs passed, full job still running; not current acceptance. Real writer/native source journey, actual repaired master and release remain incomplete. No SOP promoted."
   },
   "next_action": {
     "sop": "SOP-09",
