@@ -3,6 +3,18 @@ import XCTest
 @testable import NaluVoiceStudio
 
 final class EpisodeOutputHandoffTests: XCTestCase {
+    func testRepairPlanIsBoundToExactFailedOutput() throws {
+        let sha = String(repeating: "a", count: 64)
+        let json: [String: Any] = ["schema_version": "nalu.postproduction-repair-plan/v1",
+            "run_id": "run", "output_seal_sha256": sha, "master_sha256": sha, "plan_sha256": sha,
+            "repair_tasks": [["code": "frame_repeat", "target": "video", "issue": "repeat",
+                              "required_action": "repair", "release_blocking": true]]]
+        let plan = try JSONDecoder().decode(EpisodeRepairPlan.self, from: JSONSerialization.data(withJSONObject: json))
+        XCTAssertNoThrow(try plan.validate(runID: "run", sealSHA: sha, masterSHA: sha))
+        XCTAssertThrowsError(try plan.validate(runID: "other", sealSHA: sha, masterSHA: sha))
+        XCTAssertThrowsError(try plan.validate(runID: "run", sealSHA: String(repeating: "b", count: 64), masterSHA: sha))
+        XCTAssertThrowsError(try plan.validate(runID: "run", sealSHA: sha, masterSHA: String(repeating: "c", count: 64)))
+    }
     func testQualityFailureDoesNotExposeProviderTextOrClaimApproval() {
         let repeated = EpisodeOutputQualityFailure(codes: ["video:VIDEO_FRAME_REPEAT_EXCESSIVE"])
         XCTAssertTrue(repeated.userMessage.contains("画面重复过多"))

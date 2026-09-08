@@ -2,6 +2,7 @@ import Foundation
 
 struct EpisodeOutputQualityFailure: Error {
     let repeatedFrames: Bool
+    var repairPlan: EpisodeRepairPlan? = nil
 
     init(codes: [String]) {
         repeatedFrames = codes.contains("video:VIDEO_FRAME_REPEAT_EXCESSIVE")

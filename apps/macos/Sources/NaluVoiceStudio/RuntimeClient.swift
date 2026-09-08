@@ -194,7 +194,14 @@ actor RuntimeClient {
                 throw LibrarySnapshotRefreshError.contextChanged
             }
             if report["status"] as? String == "FAIL" {
-                throw EpisodeOutputQualityFailure(codes: report["failures"] as? [String] ?? [])
+                var failure = EpisodeOutputQualityFailure(codes: report["failures"] as? [String] ?? [])
+                // Repair lookup is read-only. Failure to retrieve it must not
+                // disguise an already verified quality failure as a timeout.
+                if let plan: EpisodeRepairPlan = try? await get("v1/production-runs/\(mix.runID)/postproduction-repair-plan"),
+                   (try? plan.validate(runID: mix.runID, sealSHA: sealSHA, masterSHA: handoff.masterSHA)) != nil {
+                    failure.repairPlan = plan
+                }
+                throw failure
             }
             guard report["status"] as? String == "PASS" else {
                 throw LibrarySnapshotRefreshError.contextChanged

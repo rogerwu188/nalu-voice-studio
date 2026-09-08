@@ -7,6 +7,7 @@ import Observation
     private(set) var busy = false
     private(set) var prepared: EpisodePreparedMix?
     private(set) var result: EpisodeRenderedMix?
+    private(set) var repairPlan: EpisodeRepairPlan?
     private(set) var attempted = false
     private(set) var notice = "声音素材准备好后，可以核对并合成这一集。"
 
@@ -46,8 +47,10 @@ import Observation
             try rendered.validate(prepared)
             try Task.checkCancellation()
             result = rendered
+            repairPlan = nil
             notice = "这一集已合成，等待成片检查；尚未验收，也没有发布。"
         } catch let failure as EpisodeOutputQualityFailure {
+            repairPlan = failure.repairPlan
             notice = failure.userMessage
         } catch {
             notice = "合成结果还未核实。原制作方案已保留，可重试核对同一版。关闭页面不代表后台已停止。"

@@ -58,3 +58,13 @@ status remains the separate unverified-outcome path. Added native error-copy and
 model-state tests; CI execution and installed layout/speech inspection pending.
 Impeccable clarify guidance informed the distinction; no visual redesign.
 The actual repair action and retry-button behavior still need integration.
+
+## Native repair-plan recovery
+
+After a validated FAIL report, native transport now reads the existing repair
+plan and requires matching run, seal and master identities plus blocking tasks.
+Unavailable/stale plans are not attached, but cannot turn a known quality failure
+into an unknown transport error. The mix model retains the validated plan for
+the repair flow and clears it on successful QA. Added binding tests; native CI
+pending. Repair presentation, explicit new-version production and durable native
+reopening remain incomplete. No paid generation or publication is invoked.
