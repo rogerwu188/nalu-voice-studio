@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Opt-in real HTTPS -> isolated SQLite -> writer-request rehearsal, no model call."""
 
+import argparse
 import json
 import tempfile
+import time
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -11,6 +13,10 @@ from nalu_runtime.interactive_writer_service import writer_request
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--chapters", type=int, default=2, choices=range(2, 101),
+                        metavar="2..100", help="explicit number of live chapters to fetch")
+    count = parser.parse_args().chapters
     # Keep evidence isolated from the user's running application and projects.
     root = Path(tempfile.mkdtemp(prefix="nalu-live-novel-"))
     source = "https://zh.wikisource.org/wiki/西遊記"
@@ -41,12 +47,26 @@ def main():
         request = json.loads(writer_request(turn.json(), "fixture-no-call"))
         context = json.loads(request["messages"][1]["content"])["novel_source"]
         assert context["passages"][0]["chapter_sha256"] == chapter["sha256"]
+        for expected in range(3, count + 1):
+            time.sleep(0.5)
+            fetched = api.post(route + "/fetch-next")
+            assert fetched.status_code == 200, fetched.text
+            assert fetched.json()["completed_chapters"] == expected, fetched.text
+            if expected % 10 == 0:
+                print(json.dumps({"saved_chapters": expected, "target": count}), flush=True)
+        final = api.get(route).json()
+        assert final["completed_chapters"] == count
+        if count == 100:
+            assert final["status"] == "complete"
+            assert all(item["status"] == "complete" for item in final["chapters"])
+            assert api.get(route + "/chapters/100").json()["text"]
         print(json.dumps({"source": source, "catalog_chapters": 100,
-                          "saved_chapters": 2, "second_chapter_characters": len(chapter["text"]),
+                          "saved_chapters": count, "second_chapter_characters": len(chapter["text"]),
                           "second_chapter_sha256": chapter["sha256"],
                           "database": str(root / "nalu.sqlite3"),
                           "restart_recovery": True, "writer_received_second_chapter": True,
-                          "model_called": False, "full_book_import": False}, ensure_ascii=False))
+                          "model_called": False, "full_catalog_import": count == 100,
+                          "full_book_import": False}, ensure_ascii=False))
 
 
 if __name__ == "__main__":
