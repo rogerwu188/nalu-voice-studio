@@ -88,3 +88,12 @@ rejection. Tests assert exactly four or five requests, expected ordering, no
 unconsumed responses and no extra retry/publication. They reuse the validated mix
 fixture, rather than bypassing preparation validation. Diff check passes; native
 CI execution remains pending. This is simulated transport, not installed-user QA.
+
+## Repair-plan server binding
+
+Repair-plan GET now verifies the persisted seal digest and run/project/episode
+identity, plus plan-to-seal/master hashes. A correctly hashed but stale plan is
+rejected. It deliberately does not require undamaged media bytes: repair guidance
+must remain readable for the damaged output it describes.28 output-immutability
+tests passed in22.83s; ruff passes. Added stale-plan regression without changing
+real user files. Installed recovery and new-version repair execution remain open.

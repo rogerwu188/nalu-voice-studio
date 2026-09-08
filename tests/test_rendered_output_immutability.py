@@ -1298,6 +1298,17 @@ def test_failed_final_qa_creates_specific_idempotent_repair_tasks(tmp_path: Path
     assert api.get(f"/v1/production-runs/{run['id']}").json()["status"] == "qa_review"
 
     plan_path = Path(run["package_path"]).parent / "postproduction-repair-plan.json"
+    original_plan = plan_path.read_text(encoding="utf-8")
+    stale = json.loads(original_plan)
+    stale["output_seal_sha256"] = "0" * 64
+    stale["plan_sha256"] = hashlib.sha256(json.dumps(
+        {key: value for key, value in stale.items() if key != "plan_sha256"},
+        ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    plan_path.write_text(json.dumps(stale), encoding="utf-8")
+    rejected_stale = api.get(f"/v1/production-runs/{run['id']}/postproduction-repair-plan")
+    assert rejected_stale.status_code == 409
+    assert "no longer matches" in rejected_stale.text
+    plan_path.write_text(original_plan, encoding="utf-8")
     tampered = json.loads(plan_path.read_text(encoding="utf-8"))
     tampered["repair_tasks"][0]["required_action"] = "跳过返修"
     plan_path.write_text(

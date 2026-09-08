@@ -921,6 +921,22 @@ class ProductionService:
             raise ConflictError("postproduction repair plan digest mismatch")
         if plan.run_id != run.id:
             raise ConflictError("postproduction repair plan belongs to another run")
+        # Validate the immutable seal identity, not current media bytes: damaged
+        # media is precisely when the user still needs the repair instructions.
+        seal_path = self._run_directory(run) / "rendered-output-seal.json"
+        try:
+            if seal_path.is_symlink():
+                raise ValueError("symlink")
+            seal = RenderedOutputSeal.model_validate_json(seal_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            raise ConflictError("repair plan output seal is unavailable") from exc
+        masters = [item for item in seal.artifacts if item.kind == "master_video"]
+        if (self._canonical_sha256(seal.model_dump(mode="json", exclude={"manifest_sha256"})) != seal.manifest_sha256
+                or seal.run_id != run.id or seal.project_id != run.project_id or seal.episode_id != run.episode_id
+                or plan.output_seal_sha256 != seal.manifest_sha256
+                or (plan.master_sha256 is not None and
+                    (len(masters) != 1 or plan.master_sha256 != masters[0].sha256))):
+            raise ConflictError("repair plan no longer matches the sealed output")
         return plan
 
     def media_structure_qa(self, run_id: str) -> MediaStructureQAReport:
