@@ -8,8 +8,9 @@ against the current main branch.
 ## Status vocabulary
 
 [Native sound selection state](qa/native-sound-selection-2026-09-08.md) now
-preserves exact retries and invalidates superseded settings. UI/mix wiring,
-native CI and installed acceptance remain incomplete; no SOP is promoted.
+preserves exact retries and invalidates superseded settings. Selection controls
+are now connected after edit approval. Mix wiring, native CI and installed
+acceptance remain incomplete; no SOP is promoted.
 
 [Native sound-source transport](qa/native-sound-source-transport-2026-09-08.md)
 now supports typed sound-role preparation. Selector/mix action and installed

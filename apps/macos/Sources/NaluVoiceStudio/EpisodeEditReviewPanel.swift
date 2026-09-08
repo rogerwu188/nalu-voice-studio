@@ -42,6 +42,8 @@ import SwiftUI
             if let sound = model.soundPlan, model.loaded, model.latest?.payload.edit_approved == true {
                 EpisodeAudioPanel(sound: sound, onRead: onRead).id(sound.id)
                     .disabled(model.busy || model.pending != nil)
+                EpisodeSoundSelectionPanel(sound: sound, onRead: onRead).id(sound.id)
+                    .disabled(model.busy || model.pending != nil)
             }
         }
         .accessibilityIdentifier("nalu.episode.edit-review")

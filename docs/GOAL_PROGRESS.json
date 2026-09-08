@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "1787c600c45387c91ead76b137d57997769e7834",
-  "last_advanced_at": "2026-09-08T16:54:56Z",
+  "observed_head": "fbefb81a7804bf4a1eceff7a32565bf42b04b9ab",
+  "last_advanced_at": "2026-09-08T17:00:44Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Native sound selection model retains choices and exact retries, rejects stale readiness after parameter changes; injected native tests added, not yet executed. Backend source/binding 22 tests passed in 0.51s. Prior transport CI 34253996299 still in progress. Evidence docs/qa/native-sound-selection-2026-09-08.md. UI/mix/render wiring and installed/final QA remain open."
+    "summary": "Native sound selection controls now connected after episode edit approval: selection, preparation, exact retry, refresh and readback. State tests await CI 34254408000 (pending); transport CI 34253996299 still in progress. Evidence docs/qa/native-sound-selection-2026-09-08.md. No installed or visual QA; prepare-mix/render action, restart recovery and final acceptance remain open."
   },
   "next_action": {
     "sop": "SOP-04",
