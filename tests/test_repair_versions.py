@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 
+import pytest
 from nalu_runtime.models import RunStatus
 from test_rendered_output_immutability import (
     advance_episode_to_qa,
@@ -9,7 +10,10 @@ from test_rendered_output_immutability import (
 )
 
 
-def test_local_repair_version_preserves_parent_and_replays_after_restart(tmp_path):
+@pytest.mark.parametrize("parent_changes_before_commit", [False, True])
+def test_local_repair_version_preserves_parent_and_replays_after_restart(
+    tmp_path, monkeypatch, parent_changes_before_commit
+):
     api = client(tmp_path)
     _, episode, _ = approved_episode_with_library(api)
     endpoint = f"/v1/episodes/{episode['id']}/production-runs"
@@ -43,7 +47,21 @@ def test_local_repair_version_preserves_parent_and_replays_after_restart(tmp_pat
     stale = api.post(endpoint, json={**body, "expected_repair_plan_sha256": "0" * 64},
                      headers={"Idempotency-Key": "stale-plan"})
     assert stale.status_code == 409, stale.text
+    if parent_changes_before_commit:
+        repository = api.app.state.repository
+        original_commit = repository.commit_preflight_run
+
+        def commit_after_parent_changed(*args, **kwargs):
+            repository.update_run_status(parent["id"], RunStatus.CANCELLED)
+            return original_commit(*args, **kwargs)
+
+        monkeypatch.setattr(repository, "commit_preflight_run", commit_after_parent_changed)
     response = api.post(endpoint, json=body, headers=headers)
+    if parent_changes_before_commit:
+        assert response.status_code == 409, response.text
+        assert api.app.state.repository.latest_run_for_episode(episode["id"]).id == parent["id"]
+        assert all((directory / path).read_bytes() == content for path, content in old_files.items())
+        return
     assert response.status_code == 201, response.text
     repair = response.json()
     assert repair["id"] != parent["id"] and repair["dry_run"]

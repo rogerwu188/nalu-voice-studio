@@ -56,3 +56,11 @@ old files unchanged.12 existing authorization tests pass (6.20s). This is an
 initial implementation, not the complete contract: native confirmation, concurrent
 plan mutation/failure recovery, selective asset reuse and actual repaired master
 acceptance remain required. No paid call or release occurred.
+
+Follow-up transaction test: two cases pass (3.69s). In addition to exact replay,
+the test changes the parent to CANCELLED after engine validation but before the
+repository commit. The API rejects with 409, latest run remains the parent, and
+all original files retain their bytes. This covers a status race, not concurrent
+plan-file mutation or every recovery boundary. Missing confirmation/requester,
+missing digest and inherited paid approval are rejected with 422; stale digest
+is rejected with 409. CI for implementation 16abb58 is pending in run34270680499.
