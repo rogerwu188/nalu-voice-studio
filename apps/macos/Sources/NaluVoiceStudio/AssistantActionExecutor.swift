@@ -29,7 +29,12 @@ enum AssistantActionRouter {
         let executionSignals = [
             "网上", "网络上", "上网", "网站", "网页", "搜索", "搜一下", "查一下", "查找", "帮我找",
         ]
-        guard executionSignals.contains(where: cleaned.contains) || sourceURL(in: cleaned) != nil else { return nil }
+        let sourceLookup = cleaned.range(
+            of: #"(?:请|帮我)?找(?:到|一下)?(?:这|那)(?:篇文章|本书|份资料|个网址)"#,
+            options: .regularExpression
+        ) != nil && requestsSourceWriting(cleaned)
+        guard executionSignals.contains(where: cleaned.contains)
+                || sourceURL(in: cleaned) != nil || sourceLookup else { return nil }
 
         if requiresConfirmation(cleaned) {
             return .requiresConfirmation(description: String(cleaned.prefix(maximumQueryCharacters)))

@@ -49,3 +49,21 @@ CI 34254979644 (277a13a4068149ccfe9bb29ac53054cc7b1a079b) completed its arm64
 native mix/state tests, not the newer natural-language routing fix. Next evidence
 needed is installed current-client input/review execution and real-provider access,
 then production entry without professional manual intervention.
+
+## Current-client regression and next delivery gap
+
+CI 34254979644 on 277a13a is now fully successful, not current-release proof.
+CI 34256325262 on 8cc3aad arm64 job 102163168157 failed one of 152 XCTest
+cases: `找到这篇文章，做成一部连续剧` passed the writing-intent check but failed
+the separate lookup router. Added bounded source lookup plus writing-intent routing,
+retaining negative tests for ordinary reminiscence and adapting the user's own article.
+`git diff --check` passes; patched native execution awaits CI. The local CLT's duplicate
+SwiftBridging module definitions remain unchanged; no system-tool workaround attempted.
+
+Inspection also identifies a concrete next downstream gap: EpisodeMixModel only
+records the rendered result. Native code has no rendered-output-seal request, while
+verifyFinalMaster immediately downloads a sealed master. Semantic QA further requires
+a sealed shot manifest and prior structure/decoded QA. Do not merely add a success
+notice or seal three files and claim this journey works: connect the complete local
+render-to-QA handoff and validate its produced evidence before native acceptance.
+No new paid calls, publication, app installation or final acceptance occurred here.

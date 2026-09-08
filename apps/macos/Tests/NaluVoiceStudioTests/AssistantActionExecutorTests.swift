@@ -35,6 +35,10 @@ final class AssistantActionExecutorTests: XCTestCase {
             .webResearch(query: "打开网站帮我找这本书的介绍")
         )
         XCTAssertNil(AssistantActionRouter.route("我小时候住在海边"))
+        XCTAssertNil(AssistantActionRouter.route("爷爷找到这篇文章，想起了小时候"))
+        XCTAssertNil(AssistantActionRouter.route("把我的文章改编成三集短剧"))
+        XCTAssertEqual(AssistantActionRouter.route("找到这篇文章，做成一部连续剧"),
+                       .webResearch(query: "找到这篇文章，做成一部连续剧"))
     }
 
     func testExternalWritesAndDownloadsRequireVisibleConfirmation() {

@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "765ce49a767846d13f674ffa5d2f601dee535747",
-  "last_advanced_at": "2026-09-08T17:18:31Z",
+  "observed_head": "8cc3aad4175953225d05d756dbb9fd8c5dd3e10c",
+  "last_advanced_at": "2026-09-08T17:23:28Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Fixed actual interactive-to-local-render state handoff: no manual run/episode SQL edits or synthetic workspace descriptor in full render test. Final synthetic encoded-media test passed in 96.25s incl. origin/stale-plan rejection; 8 atomic entry guards and 36 regressions passed. Evidence docs/qa/adopted-local-production-entry-2026-09-08.md. Current CI, installed/live-provider and final acceptance still open."
+    "summary": "Current CI 34256325262 arm64 failed one of 152 XCTest cases: explicit article-to-series input did not route to lookup. Patched bounded source-lookup handoff; added negative narration cases. New native CI required; no local compiler or installed acceptance claim. Also traced missing render-to-seal/prerequisite-QA handoff; see docs/qa/core-flow-alignment-2026-09-08.md."
   },
   "next_action": {
     "sop": "SOP-04",
