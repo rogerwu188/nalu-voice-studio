@@ -45,3 +45,19 @@ review; total picture-preview receipt count remained one. Preview SHA256 was
 This rerenders a local transient proxy, not a provider video or release master;
 no read-only saved-file endpoint is claimed. Native reopening and repair remain
 unaccepted until exercised on the updated application.
+
+## Native f8fbfa7: recovery succeeds, player crashes
+
+CI34281384986 arm64 artifact SHA256
+`066018c1f837c0ec7a0bc01df840a928861ea3cfb649e77f5a9cbe9ccadd39bb`.
+Isolated application at `/tmp/nalu-reopen-fixed-yaGYCv/extracted/Nalu Voice Studio.app`.
+With the valid qv1poe20 fixture, opening editing and requesting saved inputs
+restored both cuts (0.5–7.5 seconds and 0.5–6.5 seconds). Runtime logs showed
+two GET events requests, no repeated accepted-input staging POST.
+
+Clicking picture preview returned HTTP200 from the backend, then the native
+process exited134: `failed to demangle superclass of VideoPlayerView from mangled
+name 'So12AVPlayerViewC': unknown error`. Owned runtime shut down after the crash.
+Crash report: `/Users/rogerwu/Library/Logs/DiagnosticReports/NaluVoiceStudio-2026-09-08-145547.ips`.
+Repair confirmation was not reached. Next resolve native player loading and
+repeat this exact journey; do not promote any SOP or claim full recovery PASS.
