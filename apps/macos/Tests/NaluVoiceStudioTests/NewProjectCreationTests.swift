@@ -40,9 +40,14 @@ struct NewProjectCreationTests {
         #expect(NewProjectProtocol.creations == 2)
         #expect(Set(model.projects.map(\.id)).count == 2)
         #expect(model.selectedProjectID == "project-2")
+        #expect(model.draftProjectID == "project-2")
         #expect(model.transcript.isEmpty)
         await model.selectProject("project-1")
         #expect(model.transcript == "第一部故事未发送")
+        #expect(model.draftProjectID == "project-1")
+        await model.selectProject("project-2")
+        #expect(model.draftProjectID == "project-2")
+        #expect(model.transcript.isEmpty)
         #expect(!model.projectCreationInProgress)
     }
 

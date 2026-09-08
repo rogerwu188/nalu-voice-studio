@@ -30,6 +30,10 @@ final class VoiceInterviewViewModel {
         didSet {
             if selectedProjectID != oldValue {
                 unsentInputByProject[oldValue ?? ""] = (transcript, transcriptConfidence)
+                interviewByProject[oldValue ?? ""] = (interviewFlow, draftProjectID)
+                let interview = interviewByProject[selectedProjectID ?? ""]
+                interviewFlow = interview?.flow ?? InterviewFlow()
+                draftProjectID = interview?.draftID
                 speechCaptureGeneration = UUID()
                 if isListening { speech.stop(); isListening = false }
                 let draft = unsentInputByProject[selectedProjectID ?? ""]
@@ -43,6 +47,7 @@ final class VoiceInterviewViewModel {
     private var projectSelectionGeneration = UUID()
     private var speechCaptureGeneration = UUID()
     private var unsentInputByProject: [String: (text: String, confidence: Float)] = [:]
+    private var interviewByProject: [String: (flow: InterviewFlow, draftID: String?)] = [:]
     private var pendingNovelSourceChoice: NovelSourceChoice?
     var seasons: [NaluSeason] = []
     var episodes: [NaluEpisode] = []
@@ -604,11 +609,12 @@ final class VoiceInterviewViewModel {
             draft.description = "语音采访进行中"
             draft.projectBible["draft_state"] = "voice_interview"
             let project = try await runtime.createProject(draft)
-            draftProjectID = project.id
             // A successful creation must remain selectable even if a later reload fails.
             projects.insert(project, at: 0)
             planningVoiceFlow = PlanningVoiceFlow()
-            _ = interviewFlow.begin()
+            var newInterview = InterviewFlow()
+            _ = newInterview.begin()
+            interviewByProject[project.id] = (newInterview, project.id)
             await selectProject(project.id)
         } catch {
             errorMessage = error.localizedDescription

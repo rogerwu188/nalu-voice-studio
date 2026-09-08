@@ -15,3 +15,12 @@ draftProjectID when it exists, rather than creating a new project. Fix explicit
 new-project behavior while retaining concurrent-click protection. Verify two
 distinct IDs and independent unsent drafts afterward. Do not label this QA PASS.
 No model request or real-user data was used. App was quit after inspection.
+
+Implementation follow-up: explicit creation no longer reuses draftProjectID;
+an in-flight guard suppresses overlapping clicks. The created project is retained
+in the sidebar without relying on a second list request. InterviewFlow and draft
+project identity now travel together per selected project, like unsent input,
+so returning to A cannot rename/finalize B. This state is in-memory only, not a
+claim of restart-persistent interview checkpoints. Native tests cover distinct
+creation, overlapping clicks, input restoration and project identity restoration.
+These tests await macOS CI and a new native artifact; no PASS promotion.
