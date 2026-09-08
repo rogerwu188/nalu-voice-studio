@@ -10,7 +10,7 @@ from test_rendered_output_immutability import (
 )
 
 
-@pytest.mark.parametrize("parent_changes_before_commit", [False, True])
+@pytest.mark.parametrize("parent_changes_before_commit", [False, True, "plan"])
 def test_local_repair_version_preserves_parent_and_replays_after_restart(
     tmp_path, monkeypatch, parent_changes_before_commit
 ):
@@ -52,7 +52,10 @@ def test_local_repair_version_preserves_parent_and_replays_after_restart(
         original_commit = repository.commit_preflight_run
 
         def commit_after_parent_changed(*args, **kwargs):
-            repository.update_run_status(parent["id"], RunStatus.CANCELLED)
+            if parent_changes_before_commit == "plan":
+                (directory / "postproduction-repair-plan.json").write_text("{}", encoding="utf-8")
+            else:
+                repository.update_run_status(parent["id"], RunStatus.CANCELLED)
             return original_commit(*args, **kwargs)
 
         monkeypatch.setattr(repository, "commit_preflight_run", commit_after_parent_changed)
@@ -60,7 +63,8 @@ def test_local_repair_version_preserves_parent_and_replays_after_restart(
     if parent_changes_before_commit:
         assert response.status_code == 409, response.text
         assert api.app.state.repository.latest_run_for_episode(episode["id"]).id == parent["id"]
-        assert all((directory / path).read_bytes() == content for path, content in old_files.items())
+        assert all((directory / path).read_bytes() == content for path, content in old_files.items()
+                   if not (parent_changes_before_commit == "plan" and path.name == "postproduction-repair-plan.json"))
         return
     assert response.status_code == 201, response.text
     repair = response.json()

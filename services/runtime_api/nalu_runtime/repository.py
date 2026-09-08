@@ -6,7 +6,7 @@ import math
 import re
 import sqlite3
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Callable
 from urllib.parse import urlsplit
 from uuid import uuid4
 
@@ -6708,6 +6708,7 @@ class Repository:
         operation_scope: str | None = None,
         idempotency_key: str | None = None,
         repair_source_run_id: str | None = None,
+        validate_repair_source: Callable[[], None] | None = None,
     ) -> ProductionRun:
         """Commit a successful preflight and every related database mutation atomically."""
         if (operation_scope is None) != (idempotency_key is None):
@@ -6734,6 +6735,9 @@ class Repository:
                 raise ConflictError("production run hierarchy changed before commit")
             valid_status = EpisodeStatus(episode_row["status"]) == EpisodeStatus.SCRIPT_APPROVED
             if repair_source_run_id is not None:
+                if validate_repair_source is None:
+                    raise ConflictError("repair source validation is required before commit")
+                validate_repair_source()
                 latest = connection.execute(
                     "SELECT id, status FROM production_runs WHERE episode_id=? ORDER BY created_at DESC, id DESC LIMIT 1",
                     (run.episode_id,),

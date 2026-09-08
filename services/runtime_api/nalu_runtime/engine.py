@@ -2768,6 +2768,12 @@ class ProductionService:
             created_at=now,
             updated_at=now,
         )
+        def validate_repair_source() -> None:
+            if request.repair_source_run_id:
+                current = self.postproduction_repair_plan(request.repair_source_run_id)
+                if current.plan_sha256 != request.expected_repair_plan_sha256:
+                    raise ConflictError("repair plan changed before production commit")
+
         return self.repository.commit_preflight_run(
             run,
             assets,
@@ -2775,6 +2781,7 @@ class ProductionService:
             operation_scope=operation_scope,
             idempotency_key=effective_idempotency_key,
             repair_source_run_id=request.repair_source_run_id,
+            validate_repair_source=validate_repair_source if request.repair_source_run_id else None,
         )
 
     def cancel_run(self, run_id: str, request: RunActionRequest) -> ProductionRun:
