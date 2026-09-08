@@ -14,3 +14,9 @@ This is integration evidence, not live-model or installed-user acceptance: the
 reader and writer content are synthetic, provider_execution_verified is false,
 and the run is dry-run. Real writer, native source choice/resume, actual video and
 controlled publication remain required. No SOP status is promoted.
+
+Follow-up: both input variants now attempt production before approving either
+draft and require409. After explicitly approving episode one and preparing its
+run, episode two still returns409. Two cases pass in3.42s; Ruff passes. This
+guards episode-specific approval rather than interpreting one approval as a
+series-wide production authorization. It remains synthetic integration evidence.

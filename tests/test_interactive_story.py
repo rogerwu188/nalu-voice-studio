@@ -84,6 +84,9 @@ def test_two_episode_writer_drafts_enter_review_with_distinct_bound_receipts(tmp
                 assert bound.json()["artifact_binding_verified"] is True
                 assert bound.json()["provider_execution_verified"] is False
             assert script["approved_at"] is None
+            premature = client.post(f"/v1/episodes/{episode['id']}/production-runs",
+                                    json={"dry_run": True})
+            assert premature.status_code == 409, premature.text
 
         first = plan["episodes"][0]["id"]
         assert client.post(f"/v1/episodes/{first}/scripts/1/approve",
@@ -94,6 +97,10 @@ def test_two_episode_writer_drafts_enter_review_with_distinct_bound_receipts(tmp
         package = json.loads(Path(run.json()["package_path"]).read_text())
         assert package["project"]["project_bible"] == {"setting": "海边"}
         assert package["approved_script"]["content"] == drafts[0]["script"]
+        second = plan["episodes"][1]["id"]
+        still_unapproved = client.post(f"/v1/episodes/{second}/production-runs",
+                                      json={"dry_run": True})
+        assert still_unapproved.status_code == 409, still_unapproved.text
         assert "合成第2集：海边，相认。" not in json.dumps(package, ensure_ascii=False)
         # Excluding working state from production must not erase it locally.
         restored = client.get(path).json()
