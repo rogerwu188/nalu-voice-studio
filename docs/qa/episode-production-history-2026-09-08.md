@@ -40,3 +40,16 @@ an in-flight response after disappearance is discarded and its copy removed.
 `git diff --check` passes. No local Swift build due to the recorded SDK mismatch.
 CI build, actual parent-video viewing after repair, switching/exit cleanup and
 native visual/finish review remain required. This is implementation, not UI PASS.
+
+## Original master retrieval after revision
+
+Extended repair regression reads the original sealed-master endpoint after child
+creation and Runtime recreation, verifies exact returned bytes and digest header,
+rejects unsealed child access, and confirms reading does not rebind the active run.
+Tampering with the original fixture file then correctly returns409. All3 repair
+cases pass4.20s; ruff passes. The deliberately invalid video is inspectable but
+stays qa_review: integrity/readability is not semantic acceptance.
+
+CI34285819509 runtime job failed before pytest: observed_head was abbreviated.
+Corrected progress to full272d06cf74ddb45840d0f1456a6a6cf6336cd0c1; local goal
+progress audit now passes. No tests skipped by that CI are claimed passed.

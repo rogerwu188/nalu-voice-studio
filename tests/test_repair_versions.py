@@ -1,3 +1,4 @@
+import hashlib
 import json
 from pathlib import Path
 
@@ -85,3 +86,16 @@ def test_local_repair_version_preserves_parent_and_replays_after_restart(
     assert api.get(f"/v1/episodes/{other_episode['id']}/production-runs").json() == []
     assert api.app.state.repository.latest_run_for_episode(episode["id"]).id == repair["id"]
     assert all((directory / path).read_bytes() == content for path, content in old_files.items())
+    # History playback reads the original seal, never the child workspace.
+    restarted = client(tmp_path)
+    download = restarted.get(base + "/sealed-master")
+    assert download.status_code == 200, download.text
+    assert download.content == b"invalid test master"
+    assert download.headers["X-Nalu-Master-SHA256"] == hashlib.sha256(download.content).hexdigest()
+    assert restarted.get(f"/v1/production-runs/{repair['id']}/sealed-master").status_code == 409
+    assert restarted.app.state.repository.latest_run_for_episode(episode["id"]).id == repair["id"]
+    # Byte integrity is not semantic acceptance: this deliberately invalid video
+    # is inspectable, but remains QA_REVIEW. Tampering must block even inspection.
+    assert restarted.get(base).json()["status"] == "qa_review"
+    (exports / "bad.mp4").write_bytes(b"tampered")
+    assert restarted.get(base + "/sealed-master").status_code == 409
