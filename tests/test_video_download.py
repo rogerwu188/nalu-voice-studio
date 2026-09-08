@@ -21,6 +21,23 @@ def mp4(frames=12, rate=12):
     return output.getvalue()
 
 
+def motion_mp4(frames=24, rate=24):
+    """Deterministic changing pixels for technical QA, not narrative footage."""
+    output = io.BytesIO()
+    rng = np.random.default_rng(42)
+    with av.open(output, "w", format="mp4") as container:
+        stream = container.add_stream("libx264", rate=rate)
+        stream.width, stream.height, stream.pix_fmt = 32, 32, "yuv420p"
+        for _ in range(frames):
+            pixels = rng.integers(40, 220, size=(32, 32, 3), dtype=np.uint8)
+            frame = av.VideoFrame.from_ndarray(pixels, format="rgb24")
+            for packet in stream.encode(frame):
+                container.mux(packet)
+        for packet in stream.encode():
+            container.mux(packet)
+    return output.getvalue()
+
+
 def test_video_inspection_is_decoding_not_creative_or_audio_acceptance():
     report = video_download.inspect_video(mp4())
     assert report["width"] == report["height"] == 32

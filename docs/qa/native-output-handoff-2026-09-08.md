@@ -32,3 +32,17 @@ Final negative-handoff regression passed in95.74s: real encoding, exact seal rep
 structural PASS, specific decoded FAIL, retained QA_REVIEW, unchanged master bytes,
 and subsequent consent-revocation rejection. This is a passing rejection test,
 not a passing video or release.
+
+## Positive technical render handoff
+
+Added a second adopted-render case with deterministic per-frame changing pixels
+at24fps. It follows the same actual encoding, replay, four-artifact seal,
+structural and decoded QA endpoints. Passed in118.60s: both technical gates PASS,
+while the run remains QA_REVIEW; consent revocation still blocks further access.
+The low-frame-rate rejection case remains separate; no QA thresholds were changed.
+15 video-reader tests also passed in0.27s; ruff passes. Random-pixel test imagery
+is not narrative footage and proves no creative, semantic, human or release QA.
+
+CI34267285622 on05330f3 reports Swift tests successful for both architectures;
+the complete workflow was still running when inspected. Native installed
+failure recovery and real production acceptance remain open.

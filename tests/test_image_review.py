@@ -20,11 +20,12 @@ from test_image_download import png
 
 @pytest.mark.parametrize("case", ["accept", "reject", "stale_image", "changed_file", "changed_plan", "downstream", "restart",
                                   "other_shot_prepared", "same_shot_prepared", "other_shot_budget", "same_shot_budget",
-                                  "other_shot_remote", "same_shot_remote", "video_assemble", "video_assemble_stage", "video_assemble_stage_render", "video_missing_director", "video_unknown_prior", "video_wrong_index",
+                                  "other_shot_remote", "same_shot_remote", "video_assemble", "video_assemble_stage", "video_assemble_stage_render", "video_assemble_stage_render_motion", "video_missing_director", "video_unknown_prior", "video_wrong_index",
                                   "video_script_changed", "video_frame_rejected", "video_sound", "video_sound_empty",
                                   "video_sound_changed", "video_sound_script", "video_sound_archive", "video_sound_hash"])
 def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypatch, case):
-    render_adopted_dialogue = case == "video_assemble_stage_render"
+    motion_source = case == "video_assemble_stage_render_motion"
+    render_adopted_dialogue = case in {"video_assemble_stage_render", "video_assemble_stage_render_motion"}
     if render_adopted_dialogue:
         case = "video_assemble_stage"
     db_path, root = tmp_path / "db", tmp_path / "data"
@@ -210,6 +211,9 @@ def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypat
         # no monkeypatch of VideoPreparationService for this acceptance chain.
         from nalu_runtime.task_observation_service import TaskObservationService
         from test_video_download import mp4
+        if motion_source:
+            from test_video_download import motion_mp4 as mp4
+        source_rate = 24 if motion_source else 12
         with repo.db.connect() as db:
             db.execute("INSERT INTO remote_task_bindings VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                        ("review-video", run.id, video_record["task_key"], "giggle", run.requested_model,
@@ -217,7 +221,7 @@ def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypat
                         None, None, "{}", "unknown", None, now, now))
         observation = TaskObservationService(repo).refresh(run.id, "review-video", SimpleNamespace(query=lambda _: GiggleTaskObservation(
             "synthetic-video-id", "completed", ("https://example.org/video.mp4",), "d" * 64)))
-        video_bytes = mp4(frames=12 * shot["duration_seconds"])
+        video_bytes = mp4(frames=source_rate * shot["duration_seconds"], rate=source_rate)
         monkeypatch.setattr("nalu_runtime.video_materialization.download_video", lambda _: video_bytes)
         candidate = api.post(f"/v1/production-runs/{run.id}/video-observations/{observation.id}/materialize")
         assert candidate.status_code == 200, candidate.text
@@ -231,7 +235,7 @@ def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypat
         assert accepted.json()["payload"]["master_accepted"] is False
         tail = api.post(f"/v1/production-runs/{run.id}/video-reviews/{accepted.json()['id']}/tail-frame")
         assert tail.status_code == 200, tail.text
-        assert tail.json()["payload"]["frame_index"] == 12 * shot["duration_seconds"] - 1
+        assert tail.json()["payload"]["frame_index"] == source_rate * shot["duration_seconds"] - 1
         next_request = {"expected_plan_sha256": plan["plan_sha256"], "shot_index": 1, "approved_tail_id": tail.json()["id"]}
         following = api.post(url, json=next_request)
         assert following.status_code == 200, following.text
@@ -259,7 +263,7 @@ def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypat
                             None, None, "{}", "unknown", None, now, now))
             observed2 = TaskObservationService(repo).refresh(run.id, "second-video", SimpleNamespace(query=lambda _: GiggleTaskObservation(
                 "synthetic-second-video", "completed", ("https://example.org/second.mp4",), "e" * 64)))
-            second_bytes = mp4(frames=12 * 7)
+            second_bytes = mp4(frames=source_rate * 7, rate=source_rate)
             monkeypatch.setattr("nalu_runtime.video_materialization.download_video", lambda _: second_bytes)
             second = api.post(f"/v1/production-runs/{run.id}/video-observations/{observed2.id}/materialize").json()
             adopted2 = api.post(f"/v1/production-runs/{run.id}/video-results/{second['id']}/reviews", json={
@@ -652,7 +656,7 @@ def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypat
                     assert checked.status_code == 200, checked.text
                     assert checked.json()["output_seal_sha256"] == sealed.json()["manifest_sha256"]
                     assert checked.json()["master_sha256"] == rendered_payload["master"]["sha256"]
-                    if gate == "media-structure-qa":
+                    if gate == "media-structure-qa" or motion_source:
                         assert checked.json()["status"] == "PASS", checked.text
                     else:
                         # This low-frame-rate synthetic source repeats frames
