@@ -189,6 +189,24 @@ def test_imported_chapters_reach_frozen_writer_context(tmp_path):
     assert updated["novel_source"]["passages"][0]["source_url"] == "https://example.com/2"
 
 
+@pytest.mark.parametrize("spoken_range", ["改编第一章到第一章", "请写第1至1章", "第一回—第一回"])
+def test_explicit_range_does_not_spill_into_later_chapters(tmp_path, spoken_range):
+    service, project, _ = setup_import(tmp_path, lambda url: {
+        "url": url, "text": "abcdef", "truncated": False})
+    service.fetch_next(project)
+    service.fetch_next(project)
+    state = service.read(project)
+    first = writing_context(state, spoken_range, character_budget=3)
+    assert first["requested_chapter_end"] == 1
+    assert [p["text"] for p in first["passages"]] == ["abc"]
+    second = writing_context(state, "继续改编小说下一段", previous=first)
+    assert [p["text"] for p in second["passages"]] == ["def"]
+    assert writing_context(state, "继续改编小说下一段", previous=second)["passages"] == []
+    assert len(writing_context(state, "第一章至第二章")["passages"]) == 2
+    with pytest.raises(ConflictError):
+        writing_context(state, "第二章到第一章")
+
+
 def test_sqlite_restart_revision_and_replay_preserve_long_source_window(tmp_path):
     service, project, _ = setup_import(tmp_path, lambda url: {
         "url": url, "text": "甲" * 60000 + "乙" * 100, "truncated": False})
