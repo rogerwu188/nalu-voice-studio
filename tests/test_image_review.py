@@ -23,7 +23,8 @@ from test_image_download import png
                                   "other_shot_remote", "same_shot_remote", "video_assemble", "video_assemble_stage", "video_assemble_stage_render", "video_assemble_stage_render_motion", "video_missing_director", "video_unknown_prior", "video_wrong_index",
                                   "video_script_changed", "video_frame_rejected", "video_sound", "video_sound_empty",
                                   "video_sound_changed", "video_sound_script", "video_sound_archive", "video_sound_hash"])
-def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypatch, case):
+def test_exact_saved_frame_preview_and_versioned_user_review(
+        tmp_path, monkeypatch, case, *, preserve_native_fixture=False):
     motion_source = case == "video_assemble_stage_render_motion"
     render_adopted_dialogue = case in {"video_assemble_stage_render", "video_assemble_stage_render_motion"}
     if render_adopted_dialogue:
@@ -666,6 +667,10 @@ def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypat
                 assert repo.get_run(run.id).status == RunStatus.QA_REVIEW
                 assert master_path.read_bytes() == master_before_replay
                 events_before_replay = len(repo.list_run_events(run.id))
+                if preserve_native_fixture:
+                    # Native reopening needs the valid pre-revocation state.
+                    # Normal pytest execution still exercises both revocations below.
+                    return
                 repo.revoke_asset_consent(recording.id, AssetConsentRevocationCreate(
                     requested_by="synthetic-qa", reason="测试成片后撤回录音授权"))
                 refused = reopened.post(f"/v1/production-runs/{run.id}/postproduction-materializations", json=prepared_mix.json())

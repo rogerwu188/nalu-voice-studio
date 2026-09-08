@@ -16,7 +16,7 @@ def main():
     root = Path(tempfile.mkdtemp(prefix="nalu-native-postproduction-")).resolve()
     with pytest.MonkeyPatch.context() as patches:
         test_exact_saved_frame_preview_and_versioned_user_review(
-            root, patches, "video_assemble_stage_render")
+            root, patches, "video_assemble_stage_render", preserve_native_fixture=True)
     # The fixture's closed SQLite database becomes the isolated app's database.
     (root / "db").rename(root / "nalu.sqlite3")
     print(json.dumps({"application_support": str(root),
