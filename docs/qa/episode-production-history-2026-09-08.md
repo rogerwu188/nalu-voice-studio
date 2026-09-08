@@ -79,3 +79,10 @@ verified: do not claim a completed viewing journey from successful file loading.
 Next add explicit large, accessible play/pause controls, then one confirmation
 pass on the native artifact. No provider calls, asset reuse or final-master QA
 were performed by this test. Native finish review remains outstanding.
+
+Playback-gap fix: added explicit large “从头播放这版视频” and “暂停视频” native
+buttons above the player, with stable accessibility identifiers. The former
+seeks to zero and plays; the latter pauses the existing local player. No additional
+download, production action or acceptance write is attached. This follows the
+existing edit-preview control and impeccable action-clarity guidance. Diff and
+goal-progress checks pass; actual playback confirmation on a new bundle is pending.

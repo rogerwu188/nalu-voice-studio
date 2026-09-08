@@ -40,9 +40,18 @@ import SwiftUI
                 }
                 Button("读一下当前情况", systemImage: "speaker.wave.2") { onRead(notice) }
                     .controlSize(.large)
-                if player != nil {
+                if let player {
                     Text("仅供查看，播放不代表验收通过").naluFont(.body)
+                    Button("从头播放这版视频", systemImage: "play.fill") {
+                        player.seek(to: .zero); player.play()
+                    }
+                    .buttonStyle(.borderedProminent).controlSize(.large)
+                    .accessibilityIdentifier("nalu.episode.version-history.play")
+                    Button("暂停视频", systemImage: "pause.fill") { player.pause() }
+                        .buttonStyle(.bordered).controlSize(.large)
+                        .accessibilityIdentifier("nalu.episode.version-history.pause")
                     VideoPlayer(player: player).frame(minHeight: 240, idealHeight: 360)
+                        .accessibilityLabel("这版保存的视频，仅供查看，未代表验收通过")
                 }
             }.padding(.top, 12)
         }
