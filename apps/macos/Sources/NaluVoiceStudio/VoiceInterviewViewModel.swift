@@ -122,6 +122,7 @@ final class VoiceInterviewViewModel {
     private var hookReviewVoiceStep: HookReviewVoiceStep?
     private var hookReviewShouldCapture = false
     var draftProjectID: String?
+    private(set) var projectCreationInProgress = false
     var feedbackDraftText = ""
     var isCapturingFeedback = false
     var feedbackWasDictated = false
@@ -594,18 +595,9 @@ final class VoiceInterviewViewModel {
     }
 
     func beginProject() async {
-        planningVoiceFlow = PlanningVoiceFlow()
-        messages = [
-            InterviewMessage(
-                speaker: .nalu,
-                text: interviewFlow.begin()
-            )
-        ]
-        if let draftProjectID,
-           projects.contains(where: { $0.id == draftProjectID }) {
-            await selectProject(draftProjectID)
-            return
-        }
+        guard !projectCreationInProgress else { return }
+        projectCreationInProgress = true
+        defer { projectCreationInProgress = false }
         do {
             var draft = ProjectDraft()
             draft.title = "未命名故事"
@@ -613,7 +605,10 @@ final class VoiceInterviewViewModel {
             draft.projectBible["draft_state"] = "voice_interview"
             let project = try await runtime.createProject(draft)
             draftProjectID = project.id
-            projects = try await runtime.listProjects(includeArchived: includeArchivedProjects)
+            // A successful creation must remain selectable even if a later reload fails.
+            projects.insert(project, at: 0)
+            planningVoiceFlow = PlanningVoiceFlow()
+            _ = interviewFlow.begin()
             await selectProject(project.id)
         } catch {
             errorMessage = error.localizedDescription
