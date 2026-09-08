@@ -16,3 +16,11 @@ Origin rejection, false approval/generation/spending flags, task reset, Runtime
 restart replay and no overwrite after revision. Synthetic original plan fixture.
 OpenAPI regenerated; native caller, real asset reuse and repaired master still
 need implementation/QA. This is not a completed repair pipeline or SOP PASS.
+
+Added read-only `/repair-shot-draft/context` for native clients to obtain exact
+source event and immutable package hashes without reading local filesystem paths.
+Runtime recreation/context identity and non-repair rejection added;3 cases pass4.28s.
+Native transport now performs scoped context GET followed by draft POST and rejects
+wrong parent, invalid digests or an approved/authorized response. Native transport
+tests and UI recovery after partially completed preparation still need wiring;
+do not mark the interactive journey complete. No automatic paid calls.

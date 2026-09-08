@@ -101,6 +101,10 @@ def test_local_repair_version_preserves_parent_and_replays_after_restart(
     draft_request = {"source_run_id": parent["id"], "source_event_id": original_event.id,
                      "expected_plan_sha256": original_plan["plan_sha256"],
                      "expected_package_sha256": package["package_sha256"]}
+    context = client(tmp_path).get(draft_endpoint + "/context")
+    assert context.status_code == 200, context.text
+    assert context.json() == draft_request
+    assert api.get(f"/v1/production-runs/{parent['id']}/repair-shot-draft/context").status_code == 409
     assert api.post(draft_endpoint, json=draft_request, headers={"Origin": "https://example.com"}).status_code == 403
     assert api.post(draft_endpoint, json={**draft_request, "expected_plan_sha256": "0" * 64}).status_code == 409
     draft = api.post(draft_endpoint, json=draft_request)

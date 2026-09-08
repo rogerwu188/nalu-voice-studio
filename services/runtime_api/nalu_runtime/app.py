@@ -201,7 +201,7 @@ from .release_evidence import (
     ReleaseEvidenceVerifier,
 )
 from .remote_submitter import DurableRemoteTaskSubmitter
-from .repair_shot_draft import prepare_repair_shot_draft
+from .repair_shot_draft import prepare_repair_shot_draft, repair_shot_draft_context
 from .repository import ConflictError, NotFoundError, Repository
 from .reviewed_video import (
     ContinuationPreparationRequest,
@@ -1282,6 +1282,10 @@ def create_app(
         if origin is not None:
             raise HTTPException(403, "native repair preparation required")
         return prepare_repair_shot_draft(production, run_id, request)
+
+    @app.get("/v1/production-runs/{run_id}/repair-shot-draft/context", response_model=ShotPlanInheritanceRequest)
+    def get_repair_shot_draft_context(run_id: str):
+        return repair_shot_draft_context(production, run_id)
 
     @app.post("/v1/production-runs/{run_id}/library-snapshot-refresh", response_model=RunEvent)
     def refresh_confirmed_library(run_id: str, request: LibrarySnapshotRefreshRequest,

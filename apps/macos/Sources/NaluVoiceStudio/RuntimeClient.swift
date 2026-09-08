@@ -406,6 +406,29 @@ actor RuntimeClient {
         try await get("v1/production-runs/\(runID)/shot-plans/current")
     }
 
+    func recoverRepairShotDraft(runID: String, sourceRunID: String) async throws -> EpisodeShotPlanEvent {
+        struct Context: Codable {
+            let source_run_id: String
+            let source_event_id: String
+            let expected_plan_sha256: String
+            let expected_package_sha256: String
+        }
+        let context: Context = try await get("v1/production-runs/\(runID)/repair-shot-draft/context")
+        guard context.source_run_id == sourceRunID, sourceRunID != runID,
+              !context.source_event_id.isEmpty,
+              EpisodeDialogueStageReceipt.validSHA(context.expected_plan_sha256),
+              EpisodeDialogueStageReceipt.validSHA(context.expected_package_sha256) else {
+            throw LibrarySnapshotRefreshError.contextChanged
+        }
+        let draft: EpisodeShotPlanEvent = try await post("v1/production-runs/\(runID)/repair-shot-draft", body: context)
+        guard draft.run_id == runID, !draft.payload.approved,
+              draft.payload.production_authorization == nil,
+              EpisodeDialogueStageReceipt.validSHA(draft.payload.plan_sha256) else {
+            throw LibrarySnapshotRefreshError.contextChanged
+        }
+        return draft
+    }
+
     func prepareReviewedVideo(runID: String, planID: String, draft: ReviewedVideoDraft) async throws -> FrameProductionEvent {
         try await post("v1/production-runs/\(runID)/shot-plans/\(planID)/video-preparations", body: draft)
     }
