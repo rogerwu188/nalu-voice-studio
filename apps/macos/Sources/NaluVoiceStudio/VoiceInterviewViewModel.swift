@@ -2580,17 +2580,28 @@ final class VoiceInterviewViewModel {
     }
 
     private func createInterviewedProject(_ draft: ProjectDraft) async {
+        let generation = projectSelectionGeneration
+        let sourceProjectID = selectedProjectID
+        let sourceDraftID = draftProjectID
+        var sourceFlow = interviewFlow
         do {
             let plan = try await runtime.createProjectPlan(
                 ProjectPlanDraft(
                     project: draft,
                     seasonTitle: "第一季",
-                    projectID: draftProjectID
+                    projectID: sourceDraftID
                 )
             )
+            sourceFlow.creationSucceeded()
+            interviewByProject[sourceProjectID ?? ""] = (sourceFlow, nil)
+            guard generation == projectSelectionGeneration else { return }
+            interviewFlow = sourceFlow
             draftProjectID = nil
-            projects = try await runtime.listProjects(includeArchived: includeArchivedProjects)
+            let refreshed = (try? await runtime.listProjects(includeArchived: includeArchivedProjects)) ?? projects
+            guard generation == projectSelectionGeneration else { return }
+            projects = refreshed
             await selectProject(plan.project.id)
+            guard selectedProjectID == plan.project.id else { return }
             interviewFlow.creationSucceeded()
             messages.append(
                 .init(
@@ -2599,19 +2610,26 @@ final class VoiceInterviewViewModel {
                 )
             )
         } catch {
-            interviewFlow.creationFailed()
+            sourceFlow.creationFailed()
+            interviewByProject[sourceProjectID ?? ""] = (sourceFlow, sourceDraftID)
+            guard generation == projectSelectionGeneration else { return }
+            interviewFlow = sourceFlow
             errorMessage = error.localizedDescription
         }
     }
 
     private func renameDraftProjectDuringInterview() async {
         guard let draftProjectID else { return }
+        let generation = projectSelectionGeneration
         do {
             _ = try await runtime.renameProject(
                 id: draftProjectID, title: interviewFlow.draft.title
             )
-            projects = try await runtime.listProjects(includeArchived: includeArchivedProjects)
+            let refreshed = try await runtime.listProjects(includeArchived: includeArchivedProjects)
+            guard generation == projectSelectionGeneration else { return }
+            projects = refreshed
         } catch {
+            guard generation == projectSelectionGeneration else { return }
             errorMessage = error.localizedDescription
         }
     }
