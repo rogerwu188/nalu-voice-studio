@@ -2,6 +2,8 @@ import Foundation
 import Observation
 
 @MainActor @Observable final class EpisodeSoundSelectionModel {
+    // Reading assets during QA does not authorize staging, rendering or release.
+    static let readableRunStatuses: Set<String> = ["preflight", "waiting_for_approval", "running", "qa_review"]
     let sound: EpisodeSoundPlan
     private let loadAssets: @MainActor () async throws -> [NaluAsset]
     private let stage: @MainActor (EpisodeSoundSourceDraft) async throws -> EpisodeSoundSourceReceipt
@@ -20,7 +22,7 @@ import Observation
         self.loadAssets = loadAssets ?? {
             let run = try await runtime.productionRun(runID: sound.run_id)
             guard run.id == sound.run_id, run.episodeID == sound.payload.episode_id,
-                  ["preflight", "waiting_for_approval", "running"].contains(run.status) else {
+                  Self.readableRunStatuses.contains(run.status) else {
                 throw LibrarySnapshotRefreshError.contextChanged
             }
             let all = try await runtime.listAssets(projectID: run.projectID)

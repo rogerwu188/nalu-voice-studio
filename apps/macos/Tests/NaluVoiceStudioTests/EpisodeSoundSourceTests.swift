@@ -3,6 +3,13 @@ import Testing
 @testable import NaluVoiceStudio
 
 struct EpisodeSoundSourceTests {
+    @MainActor @Test func qaCanReadSoundAssetsWithoutAllowingTerminalOrUnknownRuns() {
+        #expect(EpisodeSoundSelectionModel.readableRunStatuses.contains("qa_review"))
+        for state in ["cancelled", "failed", "published", "unknown"] {
+            #expect(!EpisodeSoundSelectionModel.readableRunStatuses.contains(state))
+        }
+    }
+
     private let sha = String(repeating: "a", count: 64)
 
     @MainActor @Test func selectionPreservesExactRetryAndNeverClaimsAnIncompleteMix() async throws {
