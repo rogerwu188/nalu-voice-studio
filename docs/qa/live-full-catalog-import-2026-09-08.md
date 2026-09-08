@@ -20,3 +20,12 @@ This proves complete import of this discovered catalog, not a critical-edition
 textual completeness comparison, all website compatibility or entire-book model
 comprehension. No model called; no user project touched. Native UI journey,
 real writer generation, video and publication acceptance remain outstanding.
+
+Follow-up on the same saved database: `verify_source_windows` traverses the full
+explicit 1..100 range with the production 60000-character context budget. Thirteen
+windows concatenate exactly to all741732 stored characters, with no skips or
+duplicates. Joined text SHA256:
+`f5b5cbcc383297efbaf1f8c4d178600431e3fecefc8faa24b77c730324603494`.
+The reusable helper was executed directly against the saved state and is now
+part of future `--chapters 100` runs. No new download or model call was needed.
+This verifies source traversal, not model understanding or narrative continuity.

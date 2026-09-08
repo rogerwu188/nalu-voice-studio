@@ -2,6 +2,7 @@
 """Opt-in real HTTPS -> isolated SQLite -> writer-request rehearsal, no model call."""
 
 import argparse
+import hashlib
 import json
 import tempfile
 import time
@@ -10,6 +11,23 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 from nalu_runtime.app import create_app
 from nalu_runtime.interactive_writer_service import writer_request
+from nalu_runtime.novel_import import NovelImport, writing_context
+
+
+def verify_source_windows(state):
+    window = writing_context(state, "第一回至第一百回")
+    chunks, windows = [], 0
+    while window["passages"]:
+        windows += 1
+        assert windows <= 100, "continuation failed to advance"
+        assert sum(len(p["text"]) for p in window["passages"]) <= 60000
+        chunks.extend(p["text"] for p in window["passages"])
+        window = writing_context(state, "继续改编小说下一段", previous=window)
+    text = "".join(chunks)
+    assert text == "".join(p["text"] for p in state["chapters"]), "source windows skip or duplicate text"
+    return {"windows": windows, "characters": len(text),
+            "joined_text_sha256": hashlib.sha256(text.encode()).hexdigest(),
+            "no_skips_or_duplicates": True, "model_called": False}
 
 
 def main():
@@ -60,6 +78,7 @@ def main():
             assert final["status"] == "complete"
             assert all(item["status"] == "complete" for item in final["chapters"])
             assert api.get(route + "/chapters/100").json()["text"]
+            print(json.dumps(verify_source_windows(NovelImport(api.app.state.repository.db).read(project))))
         print(json.dumps({"source": source, "catalog_chapters": 100,
                           "saved_chapters": count, "second_chapter_characters": len(chapter["text"]),
                           "second_chapter_sha256": chapter["sha256"],
