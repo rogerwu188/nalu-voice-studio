@@ -168,6 +168,33 @@ actor RuntimeClient {
         try Task.checkCancellation()
         let result = try decoder.decode(EpisodeRenderedMix.self, from: data)
         try result.validate(mix)
+        let handoff = try EpisodeOutputHandoff(materialization: data)
+        var sealRequest = URLRequest(url: baseURL.appending(path: "v1/production-runs/\(mix.runID)/rendered-output-seal"))
+        sealRequest.httpMethod = "POST"
+        sealRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        sealRequest.httpBody = handoff.body
+        let (sealData, sealResponse) = try await authorizedData(for: sealRequest)
+        try validate(sealResponse, data: sealData)
+        guard let seal = try JSONSerialization.jsonObject(with: sealData) as? [String: Any],
+              seal["run_id"] as? String == mix.runID,
+              let sealSHA = seal["manifest_sha256"] as? String,
+              EpisodeDialogueStageReceipt.validSHA(sealSHA) else {
+            throw LibrarySnapshotRefreshError.contextChanged
+        }
+        for gate in ["media-structure-qa", "decoded-media-qa"] {
+            try Task.checkCancellation()
+            var check = URLRequest(url: baseURL.appending(path: "v1/production-runs/\(mix.runID)/\(gate)"))
+            check.httpMethod = "POST"; check.timeoutInterval = 1800
+            let (reportData, reportResponse) = try await authorizedData(for: check)
+            try validate(reportResponse, data: reportData)
+            guard let report = try JSONSerialization.jsonObject(with: reportData) as? [String: Any],
+                  report["run_id"] as? String == mix.runID,
+                  report["output_seal_sha256"] as? String == sealSHA,
+                  report["master_sha256"] as? String == handoff.masterSHA,
+                  report["status"] as? String == "PASS" else {
+                throw LibrarySnapshotRefreshError.contextChanged
+            }
+        }
         return result
     }
 
