@@ -5,8 +5,9 @@ import json
 import math
 import re
 import sqlite3
+from collections.abc import Callable
 from datetime import UTC, datetime
-from typing import Any, Callable
+from typing import Any
 from urllib.parse import urlsplit
 from uuid import uuid4
 
