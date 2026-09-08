@@ -51,6 +51,25 @@ final class InteractiveStoryTests: XCTestCase {
     }
 
     @MainActor
+    func testTypedInputKeepsRejectedTextAndDoesNotUseSpeechConfidence() {
+        let model = VoiceInterviewViewModel()
+        model.transcript = "   "
+        XCTAssertFalse(model.submitTypedTranscript())
+        model.transcript = String(repeating: "字", count: 2001)
+        XCTAssertFalse(model.submitTypedTranscript())
+        XCTAssertEqual(model.transcript.count, 2001)
+        model.transcript = "字大一点"
+        model.isListening = true
+        XCTAssertFalse(model.submitTypedTranscript())
+        XCTAssertEqual(model.transcript, "字大一点")
+        model.isListening = false
+        model.transcriptConfidence = 0.1
+        XCTAssertTrue(model.submitTypedTranscript())
+        XCTAssertTrue(model.transcript.isEmpty)
+        XCTAssertFalse(model.messages.contains { $0.text.contains("没有听清楚") })
+    }
+
+    @MainActor
     func testExistingProjectNeverResumesAtCreateProjectPrompt() {
         let model = VoiceInterviewViewModel()
         model.selectedProjectID = "synthetic-project"

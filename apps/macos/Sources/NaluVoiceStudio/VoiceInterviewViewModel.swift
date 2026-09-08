@@ -212,6 +212,22 @@ final class VoiceInterviewViewModel {
         }
     }
 
+    @discardableResult
+    func submitTypedTranscript() -> Bool {
+        guard !isListening else { return false }
+        let text = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return false }
+        guard text.count <= AssistantActionRouter.maximumQueryCharacters else {
+            errorMessage = "这段文字太长，请分成每次不超过 2000 字发送；原文已保留。"
+            return false
+        }
+        // Typed text has no speech-recognition confidence. Reuse the same
+        // conversation routing, consent and durable queue as spoken input.
+        transcriptConfidence = 1
+        commitTranscript()
+        return true
+    }
+
     func commitTranscript() {
         let spoken = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !spoken.isEmpty else { return }

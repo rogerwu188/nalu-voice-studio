@@ -584,6 +584,27 @@ struct ContentView: View {
             .padding(.bottom, 24)
             .padding(.top, 12)
             .accessibilityIdentifier(NaluPrimaryAccessibilityID.microphoneToggle)
+            HStack(spacing: 12) {
+                TextField("也可以在这里打字或粘贴小说网址", text: Binding(
+                    get: { model.transcript }, set: { model.transcript = $0 }
+                ))
+                    .textFieldStyle(.roundedBorder)
+                    .naluFont(.body)
+                    .accessibilityLabel("故事、问题或小说网址")
+                    .accessibilityIdentifier("nalu.conversation.text-input")
+                    .onSubmit {
+                        if !realtimeVoice.state.isActive { model.submitTypedTranscript() }
+                    }
+                Button("发送", systemImage: "arrow.up.circle.fill") {
+                    model.submitTypedTranscript()
+                }
+                .controlSize(.large)
+                .disabled(model.transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .accessibilityIdentifier("nalu.conversation.send-text")
+            }
+            .disabled(model.isListening || realtimeVoice.state.isActive)
+            .padding(.horizontal, 24)
+            .padding(.bottom, 16)
         }
         .alert("Nalu 需要您的帮助", isPresented: errorBinding) {
             Button("知道了", role: .cancel) { model.errorMessage = nil }
