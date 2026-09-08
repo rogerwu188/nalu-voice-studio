@@ -187,6 +187,7 @@ from .models import (
     WriterProviderReconciliationRecord,
     WriterReceiptReconciliation,
 )
+from .novel_import import NovelImport, NovelImportCreate, import_summary
 from .postproduction_materializer import PostproductionMaterializationError
 from .privacy_service import ProjectPrivacyService
 from .production_authorization import ProductionAuthorizationRequest, ProductionAuthorizationService
@@ -261,6 +262,7 @@ def create_app(
     database.initialize()
     repository = Repository(database)
     interactive_story = InteractiveStory(database)
+    novel_import = NovelImport(database)
     remote_task_submitter = DurableRemoteTaskSubmitter(repository)
     production = ProductionService(
         repository,
@@ -382,6 +384,43 @@ def create_app(
                 "code": source_failure_code(exc),
                 "message": "无法读取公开文字来源；请提供可访问的 HTTPS 网页或直接提供文字。",
             }) from exc
+
+    @app.get("/v1/projects/{project_id}/novel-import")
+    def novel_import_status(project_id: str):
+        return import_summary(novel_import.read(project_id))
+
+    @app.post("/v1/projects/{project_id}/novel-import", status_code=201)
+    def create_novel_import(project_id: str, request: NovelImportCreate,
+                            origin: str | None = Header(default=None)):
+        if origin is not None:
+            raise HTTPException(403, "native novel import required")
+        try:
+            return import_summary(novel_import.create(
+                project_id, request.source_url, [item.model_dump() for item in request.chapters]
+            ))
+        except ValueError as exc:
+            raise HTTPException(422, "invalid chapter selection") from exc
+
+    @app.post("/v1/projects/{project_id}/novel-import/{action}")
+    def advance_novel_import(project_id: str, action: str,
+                             origin: str | None = Header(default=None)):
+        if origin is not None:
+            raise HTTPException(403, "native novel import required")
+        operations = {"fetch-next": novel_import.fetch_next, "pause": novel_import.pause,
+                      "resume": novel_import.resume}
+        if action not in operations:
+            raise HTTPException(404, "unknown novel import action")
+        return import_summary(operations[action](project_id))
+
+    @app.get("/v1/projects/{project_id}/novel-import/chapters/{chapter_number}")
+    def novel_import_chapter(project_id: str, chapter_number: int):
+        state = novel_import.read(project_id)
+        if not state or chapter_number < 1 or chapter_number > len(state["chapters"]):
+            raise HTTPException(404, "chapter not found")
+        chapter = state["chapters"][chapter_number - 1]
+        if chapter["status"] != "complete":
+            raise HTTPException(409, "chapter import is not complete")
+        return {"chapter_number": chapter_number, **chapter}
 
     @app.post("/v1/projects/{project_id}/interactive-story/turns")
     def append_story_input(project_id: str, request: StoryInput) -> dict:

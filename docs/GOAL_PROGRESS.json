@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "2892ab807bad75bac4dded7d3bb7d88444315694",
-  "last_advanced_at": "2026-09-08T17:28:36Z",
+  "observed_head": "5df16485e36f570c52dada59ab6d52cfc001fa12",
+  "last_advanced_at": "2026-09-08T17:50:54Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Added project-owned SQLite novel chapter queue with ordered selection, persisted full text/digests, per-attempt claims, pause/resume, crash recovery and no refetch of completed chapters. 13 queue/source tests PASS 1.48s, mocked network; ruff passed. Still needs Runtime API/native integration, catalog extraction and writer retrieval. Evidence docs/qa/novel-import-2026-09-08.md; no real-site or installed QA claim."
+    "summary": "Novel import Runtime API create/status/fetch-next/pause/resume/chapter-read is connected to SQLite queue. 14 source/queue/API tests passed 1.79s with mocked network, ruff/OpenAPI compatibility passed. CI34257181305 on2892ab8 fully passed (prior routing fix). Current API still needs CI, automatic catalog detection, native orchestration and writer retrieval; no installed or real-site completion claim."
   },
   "next_action": {
     "sop": "SOP-04",

@@ -46,3 +46,22 @@ selection mismatch, pause during fetch and crash recovery. First run exposed a f
 whose text was exactly 24,000 characters, fixed to test beyond that boundary. Ruff passes.
 Network remains mocked. No API/native caller, automatic catalog selection, writer context
 retrieval or actual novel import is claimed complete.
+
+## Runtime interface
+
+Project-scoped `/v1/projects/{project_id}/novel-import` now supports GET status and
+POST selected source/ordered chapters. POST suffixes `fetch-next`, `pause`, `resume`
+drive the persisted queue; each fetch performs at most one chapter read. GET
+`chapters/{chapter_number}` returns a completed chapter (one-based index), or 409
+while incomplete. Status responses omit chapter bodies. Browser Origin writes are
+rejected. Selection creation does not perform network work; fetch does not call a model.
+
+14 queue/source/API tests pass in 1.79s, including API-only create/pause/resume/fetch,
+app re-creation over SQLite, full-text retrieval and no duplicate completed fetch.
+OpenAPI export and backward compatibility pass. Network is still a fixture.
+Catalog detection, native orchestration, automatic authorized fetch progression and
+writer retrieval remain incomplete. Users must not be asked to fill chapter lists;
+the selection DTO is an internal interface for the forthcoming directory parser.
+
+CI 34257181305 for 2892ab807bad75bac4dded7d3bb7d88444315694 fully passed.
+This covers the prior native source-routing repair, not this API checkpoint.

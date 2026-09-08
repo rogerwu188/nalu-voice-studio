@@ -5,8 +5,43 @@ import json
 import uuid
 from urllib.parse import urldefrag, urlsplit
 
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
 from .repository import ConflictError, NotFoundError, utc_now
 from .source_reader import read_public_chapter, source_failure_code
+
+
+class NovelChapterSelection(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    url: str = Field(min_length=1, max_length=4000)
+    title: str = Field(min_length=1, max_length=500)
+
+    @field_validator("url")
+    @classmethod
+    def validate_url(cls, value):
+        return chapter_url(value)
+
+
+class NovelImportCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    source_url: str = Field(min_length=1, max_length=4000)
+    chapters: list[NovelChapterSelection] = Field(min_length=1, max_length=2000)
+
+    @field_validator("source_url")
+    @classmethod
+    def validate_url(cls, value):
+        return chapter_url(value)
+
+
+def import_summary(state):
+    if state is None:
+        return None
+    return {"schema_version": state["schema_version"], "status": state["status"],
+            "updated_at": state["updated_at"],
+            "source_url": state["selection"]["source_url"],
+            "completed_chapters": sum(c["status"] == "complete" for c in state["chapters"]),
+            "chapters": [{key: value for key, value in item.items() if key != "text"}
+                         for item in state["chapters"]]}
 
 
 def chapter_url(value):
