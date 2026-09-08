@@ -190,8 +190,13 @@ actor RuntimeClient {
             guard let report = try JSONSerialization.jsonObject(with: reportData) as? [String: Any],
                   report["run_id"] as? String == mix.runID,
                   report["output_seal_sha256"] as? String == sealSHA,
-                  report["master_sha256"] as? String == handoff.masterSHA,
-                  report["status"] as? String == "PASS" else {
+                  report["master_sha256"] as? String == handoff.masterSHA else {
+                throw LibrarySnapshotRefreshError.contextChanged
+            }
+            if report["status"] as? String == "FAIL" {
+                throw EpisodeOutputQualityFailure(codes: report["failures"] as? [String] ?? [])
+            }
+            guard report["status"] as? String == "PASS" else {
                 throw LibrarySnapshotRefreshError.contextChanged
             }
         }

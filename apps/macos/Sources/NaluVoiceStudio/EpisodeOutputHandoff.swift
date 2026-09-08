@@ -1,5 +1,20 @@
 import Foundation
 
+struct EpisodeOutputQualityFailure: Error {
+    let repeatedFrames: Bool
+
+    init(codes: [String]) {
+        repeatedFrames = codes.contains("video:VIDEO_FRAME_REPEAT_EXCESSIVE")
+    }
+
+    var userMessage: String {
+        if repeatedFrames {
+            return "视频已经合成并保留，但画面重复过多，未通过检查。需要修复镜头后制作新版本；反复重试这一版不会改善画面。尚未验收，也没有发布。"
+        }
+        return "视频已经合成并保留，但画面、声音或字幕检查未通过。需要查看检查结果并修复后制作新版本；不是让您重新讲故事。尚未验收，也没有发布。"
+    }
+}
+
 struct EpisodeOutputHandoff {
     let body: Data
     let masterSHA: String

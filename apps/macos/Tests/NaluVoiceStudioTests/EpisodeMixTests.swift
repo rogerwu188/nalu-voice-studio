@@ -74,6 +74,14 @@ struct EpisodeMixTests {
                 #expect(renderBodies == [bytes, bytes] && model.result != nil)
                 await model.renderConfirmed()
                 #expect(renderBodies.count == 2)
+                let rejected = EpisodeMixModel(sound: sound, prepareMix: { _ in mix }, renderMix: { _ in
+                    throw EpisodeOutputQualityFailure(codes: ["video:VIDEO_FRAME_REPEAT_EXCESSIVE"])
+                })
+                await rejected.prepare(sources: sources)
+                await rejected.renderConfirmed()
+                #expect(rejected.result == nil && rejected.attempted && !rejected.busy)
+                #expect(rejected.prepared?.body == bytes)
+                #expect(rejected.notice.contains("画面重复过多"))
             } else {
                 #expect(throws: (any Error).self) {
                     try EpisodePreparedMix(body: bytes, sound: sound, dialogue: receipt, sources: sources)

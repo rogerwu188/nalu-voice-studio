@@ -46,3 +46,15 @@ is not narrative footage and proves no creative, semantic, human or release QA.
 CI34267285622 on05330f3 reports Swift tests successful for both architectures;
 the complete workflow was still running when inspected. Native installed
 failure recovery and real production acceptance remain open.
+
+## Distinguish known quality failure from unknown transport outcome
+
+Native validated, hash-bound FAIL reports now throw a dedicated quality error.
+The mix model preserves the exact plan and leaves result unset while explaining
+that the video exists but needs repair, rather than implying the user must retell
+their story. Known repeated-frame failure has specific plain-language copy;
+unrecognized diagnostic text is never directly surfaced. Timeout/integrity/unknown
+status remains the separate unverified-outcome path. Added native error-copy and
+model-state tests; CI execution and installed layout/speech inspection pending.
+Impeccable clarify guidance informed the distinction; no visual redesign.
+The actual repair action and retry-button behavior still need integration.

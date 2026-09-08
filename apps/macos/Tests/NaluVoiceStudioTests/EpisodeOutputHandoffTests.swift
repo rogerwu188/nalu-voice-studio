@@ -3,6 +3,14 @@ import XCTest
 @testable import NaluVoiceStudio
 
 final class EpisodeOutputHandoffTests: XCTestCase {
+    func testQualityFailureDoesNotExposeProviderTextOrClaimApproval() {
+        let repeated = EpisodeOutputQualityFailure(codes: ["video:VIDEO_FRAME_REPEAT_EXCESSIVE"])
+        XCTAssertTrue(repeated.userMessage.contains("画面重复过多"))
+        XCTAssertTrue(repeated.userMessage.contains("尚未验收"))
+        let unknown = EpisodeOutputQualityFailure(codes: ["secret-file-path-private-diagnostic"])
+        XCTAssertFalse(unknown.userMessage.contains("secret-file"))
+        XCTAssertTrue(unknown.userMessage.contains("不是让您重新讲故事"))
+    }
     func testRequiresAllFourArtifactsAndSafePaths() throws {
         let sha = String(repeating: "a", count: 64)
         var object: [String: Any] = [:]

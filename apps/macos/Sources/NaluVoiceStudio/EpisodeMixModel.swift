@@ -47,6 +47,8 @@ import Observation
             try Task.checkCancellation()
             result = rendered
             notice = "这一集已合成，等待成片检查；尚未验收，也没有发布。"
+        } catch let failure as EpisodeOutputQualityFailure {
+            notice = failure.userMessage
         } catch {
             notice = "合成结果还未核实。原制作方案已保留，可重试核对同一版。关闭页面不代表后台已停止。"
         }
