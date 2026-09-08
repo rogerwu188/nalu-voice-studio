@@ -189,6 +189,31 @@ def test_imported_chapters_reach_frozen_writer_context(tmp_path):
     assert updated["novel_source"]["passages"][0]["source_url"] == "https://example.com/2"
 
 
+def test_sqlite_restart_revision_and_replay_preserve_long_source_window(tmp_path):
+    service, project, _ = setup_import(tmp_path, lambda url: {
+        "url": url, "text": "甲" * 60000 + "乙" * 100, "truncated": False})
+    service.fetch_next(project)
+    story = InteractiveStory(service.database)
+    story.append(project, StoryInput(turn_id="first", expected_revision=0,
+                 text="第一章写成剧本", source_mode="web_source"))
+    # Recreate the Runtime and repository over the same on-disk database.
+    restarted = TestClient(create_app(tmp_path / "db", tmp_path / "data"))
+    story = InteractiveStory(restarted.app.state.repository.db)
+    request = StoryInput(turn_id="continue", expected_revision=1,
+                        text="继续改编小说下一段", source_mode="web_source")
+    second = story.append(project, request)
+    assert second["novel_source"]["passages"][0]["text"] == "乙" * 100
+    body = writer_request(second, "fixture-model")
+    assert writer_request(story.append(project, request), "fixture-model") == body
+    revised = story.append(project, StoryInput(turn_id="revise", expected_revision=2,
+                          text="这一段写得温柔一点", source_mode="web_source"))
+    assert revised["novel_source"] == second["novel_source"]
+    exhausted = story.append(project, StoryInput(turn_id="end", expected_revision=3,
+                            text="继续改编小说下一段", source_mode="web_source"))
+    assert exhausted["novel_source"]["passages"] == []
+    assert exhausted["novel_source"]["continuation_anchor"]["end_character"] == 60100
+
+
 @pytest.mark.parametrize("mode", ["complete", "cycle", "external", "failed", "limit"])
 def test_paginated_catalog_is_not_silently_partial(tmp_path, mode):
     calls = []

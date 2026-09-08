@@ -131,6 +131,10 @@ def writing_context(state, user_text, *, character_budget=60000, previous=None):
     start_index = 1
     start_character = 0
     continue_source = re.fullmatch(r"(?:请)?(?:继续|接着)(?:改编|读取|处理)小说(?:后面的内容|下一段)[。！!]?", user_text.strip())
+    if not match and not continue_source and previous and previous.get("source_url") == state["selection"]["source_url"]:
+        # A script revision or conversational detour must retain the current
+        # source window, not reset both the text and continuation cursor.
+        return previous
     if continue_source and previous and previous.get("source_url") == state["selection"]["source_url"]:
         prior = previous.get("passages", []) or ([previous["continuation_anchor"]] if previous.get("continuation_anchor") else [])
         if prior:

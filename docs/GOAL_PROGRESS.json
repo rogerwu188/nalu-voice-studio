@@ -11,7 +11,7 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "5fd9b9e356c096e1c028556b49d77e3ca2213aab",
+  "observed_head": "aaab56c2e1e2c9adfcf8f771023845de9424525d",
   "last_advanced_at": "2026-09-08T18:47:45Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Native novel searches now offer explicit source selection before URL import; natural novel-to-script wording also enters this path instead of writing from search summaries. Added native routing/choice tests, awaiting CI and installed QA. Backend novel import regressions:12 passed. Pending choice remains in memory; recovery is open. Evidence docs/qa/novel-source-selection-2026-09-08.md. Full SOP not accepted."
+    "summary": "Verified SQLite restart, idempotent writer-request replay and long-chapter continuation. Fixed ordinary script revisions resetting source to chapter one.14 import tests pass; no paid writer called. Native source selection/CI/installed QA and durable choice recovery remain open. Evidence docs/qa/novel-source-selection-2026-09-08.md. Full SOP not accepted."
   },
   "next_action": {
     "sop": "SOP-04",

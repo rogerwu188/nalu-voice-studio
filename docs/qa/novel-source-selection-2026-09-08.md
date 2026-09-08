@@ -33,3 +33,13 @@ does not wrap to chapter one; pending chapters block traversal rather than being
 silently skipped. Ordinary script revisions do not advance this cursor.
 13 import tests pass in 2.15s; ruff passes. Full-book planning, natural paraphrase
 coverage, paid writer execution and installed E2E remain unaccepted.
+
+## SQLite restart and revision continuity
+
+Recreated Runtime/repository over the same SQLite after the first 60,000-character
+window. Next input reaches the remaining 100 characters; replaying its turn ID
+produces the identical writer request. Found and fixed ordinary revision input
+resetting the source window to chapter one: revisions now preserve the frozen
+window/cursor. A subsequent continuation reaches an empty new-material window,
+without wrapping. 14 import tests pass in 2.47s; ruff passes. Model requests are
+constructed only, not sent. No native speech or final script-quality claim.
