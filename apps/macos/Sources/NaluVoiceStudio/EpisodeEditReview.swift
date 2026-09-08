@@ -81,6 +81,10 @@ struct EpisodeEditReviewEnvelope: Decodable {
             latest = result; loaded = true
             if result?.payload.edit_approved != true { soundPreparationPending = false; soundPlan = nil }
             if soundPlan?.payload.edit_review_id != result?.id { soundPlan = nil }
+            if soundPlan == nil, let result, result.payload.edit_approved {
+                soundPlan = try await runtime.recoverEpisodeSound(edit: edit, review: result)
+                guard !Task.isCancelled else { return }
+            }
             // An uncertain POST is resolved only by its exact recorded decision.
             if let pending, uncertain {
                 if result?.payload.preview_id == pending.preview_id,

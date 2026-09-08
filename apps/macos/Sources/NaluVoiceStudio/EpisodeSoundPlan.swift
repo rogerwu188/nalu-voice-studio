@@ -1,5 +1,14 @@
 import Foundation
 
+struct EpisodeSoundEnvelope: Decodable {
+    let sound: EpisodeSoundPlan?
+    private enum CodingKeys: String, CodingKey { case event_type }
+    init(from decoder: Decoder) throws {
+        let type = try decoder.container(keyedBy: CodingKeys.self).decode(String.self, forKey: .event_type)
+        sound = type == "episode_sound_plan_drafted" ? try EpisodeSoundPlan(from: decoder) : nil
+    }
+}
+
 struct EpisodeAudioTakeDraft: Encodable, Sendable {
     let sound_plan_id: String
     let expected_sound_plan_sha256: String

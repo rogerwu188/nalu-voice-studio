@@ -448,6 +448,22 @@ actor RuntimeClient {
         let receipt: EpisodeSoundPlan = try await post("v1/production-runs/\(edit.run_id)/sound-plan-drafts",
             body: Draft(expected_plan_sha256: edit.payload.plan_sha256, edit_id: edit.id, expected_edit_sha256: sha,
                         expected_edit_review_id: review?.id))
+        return try validateSavedSound(receipt, edit: edit, review: review)
+    }
+
+    func recoverEpisodeSound(edit: EpisodeEditingEvent, review: EpisodeEditReview) async throws -> EpisodeSoundPlan? {
+        try validateEpisodeEditReview(review, edit: edit)
+        guard review.payload.edit_approved else { return nil }
+        let events: [EpisodeSoundEnvelope] = try await get("v1/production-runs/\(edit.run_id)/events")
+        guard let saved = events.compactMap(\.sound).last(where: {
+            $0.payload.edit_id == edit.id && $0.payload.edit_review_id == review.id
+        }) else { return nil }
+        return try validateSavedSound(saved, edit: edit, review: review)
+    }
+
+    private func validateSavedSound(_ receipt: EpisodeSoundPlan, edit: EpisodeEditingEvent,
+                                    review: EpisodeEditReview?) throws -> EpisodeSoundPlan {
+        guard let sha = edit.payload.edit_sha256 else { throw LibrarySnapshotRefreshError.contextChanged }
         let sound = receipt.payload
         try receipt.validateCueWindows()
         guard !Task.isCancelled, receipt.run_id == edit.run_id, receipt.event_type == "episode_sound_plan_drafted",
