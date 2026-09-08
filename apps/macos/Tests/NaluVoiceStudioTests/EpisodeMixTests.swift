@@ -45,6 +45,7 @@ struct EpisodeMixTests {
             if change == "none" {
                 let mix = try EpisodePreparedMix(body: bytes, sound: sound, dialogue: receipt, sources: sources)
                 #expect(mix.body == bytes && mix.runID == "run" && mix.episodeID == "episode")
+                try await verifyOutputTransport(mix)
                 let wrong = EpisodeRenderedMix(schema_version: "nalu.postproduction-materialization/v1",
                     run_id: "other", episode_id: "episode", plan_sha256: sha, result_sha256: sha, master: ["sha256": .string(sha)])
                 #expect(throws: (any Error).self) { try wrong.validate(mix) }

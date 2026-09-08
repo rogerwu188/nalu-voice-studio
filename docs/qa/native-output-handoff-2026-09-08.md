@@ -78,3 +78,13 @@ Corrected stale GOAL_PROGRESS entries claiming handoff/candidate persistence had
 not been implemented. Next work remains native failure/reopen recovery, repair
 presentation/new-version production, semantic/human QA and installed source journey.
 No completion status change, paid call or release action.
+
+## Native URLSession transport coverage added
+
+Added request-sequence tests through RuntimeClient.renderEpisodeMix (injected
+URLProtocol, no network): technical success, validated quality failure with repair
+plan, unavailable repair lookup preserving known failure, and wrong-master QA
+rejection. Tests assert exactly four or five requests, expected ordering, no
+unconsumed responses and no extra retry/publication. They reuse the validated mix
+fixture, rather than bypassing preparation validation. Diff check passes; native
+CI execution remains pending. This is simulated transport, not installed-user QA.
