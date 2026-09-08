@@ -84,17 +84,28 @@ struct EpisodeMixTests {
                 #expect(rejected.prepared?.body == bytes)
                 #expect(rejected.notice.contains("画面重复过多"))
                 var restorationRenders = 0
+                var repairRequests = 0
                 let recoveredPlan = EpisodeRepairPlan(schema_version: "nalu.postproduction-repair-plan/v1",
                     run_id: "run", output_seal_sha256: sha, master_sha256: sha, plan_sha256: sha,
                     repair_tasks: [.init(code: "frame_repeat", target: "video", issue: "repeat",
                         required_action: "repair", release_blocking: true)])
                 let restored = EpisodeMixModel(sound: sound, prepareMix: { _ in mix }, renderMix: { _ in
                     restorationRenders += 1; throw URLError(.badServerResponse)
-                }, recoverRepair: { recoveredPlan })
+                }, recoverRepair: { recoveredPlan }, prepareRepair: { plan, confirmation in
+                    #expect(plan.plan_sha256 == sha && !confirmation.isEmpty)
+                    repairRequests += 1
+                    throw URLError(.cannotConnectToHost)
+                })
                 await restored.restoreRepair()
                 #expect(restorationRenders == 0 && restored.result == nil && restored.prepared == nil)
                 #expect(restored.repairPlan?.plan_sha256 == sha && !restored.busy)
                 #expect(restored.notice.contains("画面重复过多"))
+                await restored.prepareRepairConfirmed(confirmation: " ")
+                #expect(repairRequests == 0)
+                await restored.prepareRepairConfirmed(confirmation: "确认准备修订版")
+                #expect(repairRequests == 1 && restored.repairVersion == nil && !restored.busy)
+                #expect(restored.repairPlan?.plan_sha256 == sha)
+                #expect(restored.notice.contains("原成片和修复建议保留"))
             } else {
                 #expect(throws: (any Error).self) {
                     try EpisodePreparedMix(body: bytes, sound: sound, dialogue: receipt, sources: sources)

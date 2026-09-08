@@ -5,6 +5,8 @@ import Observation
     private let prepareMix: @MainActor ([EpisodeSoundSourceReceipt.Source]) async throws -> EpisodePreparedMix
     private let renderMix: @MainActor (EpisodePreparedMix) async throws -> EpisodeRenderedMix
     private let recoverRepair: @MainActor () async throws -> EpisodeRepairPlan
+    private let prepareRepair: @MainActor (EpisodeRepairPlan, String) async throws -> ProductionRun
+    private(set) var repairVersion: ProductionRun?
     private(set) var busy = false
     private(set) var prepared: EpisodePreparedMix?
     private(set) var result: EpisodeRenderedMix?
@@ -15,7 +17,8 @@ import Observation
     init(sound: EpisodeSoundPlan, runtime: RuntimeClient = RuntimeClient(),
          prepareMix: (@MainActor ([EpisodeSoundSourceReceipt.Source]) async throws -> EpisodePreparedMix)? = nil,
          renderMix: (@MainActor (EpisodePreparedMix) async throws -> EpisodeRenderedMix)? = nil,
-         recoverRepair: (@MainActor () async throws -> EpisodeRepairPlan)? = nil) {
+         recoverRepair: (@MainActor () async throws -> EpisodeRepairPlan)? = nil,
+         prepareRepair: (@MainActor (EpisodeRepairPlan, String) async throws -> ProductionRun)? = nil) {
         self.prepareMix = prepareMix ?? { sources in
             let current = try await runtime.prepareEpisodeDialogue(sound: sound)
             let dialogue = try await runtime.stageEpisodeDialogue(sound: sound, preparation: current)
@@ -23,6 +26,26 @@ import Observation
         }
         self.renderMix = renderMix ?? { try await runtime.renderEpisodeMix($0) }
         self.recoverRepair = recoverRepair ?? { try await runtime.recoverEpisodeRepairPlan(runID: sound.run_id) }
+        self.prepareRepair = prepareRepair ?? { plan, confirmation in
+            guard plan.run_id == sound.run_id else { throw LibrarySnapshotRefreshError.contextChanged }
+            return try await runtime.prepareEpisodeRepair(episodeID: sound.payload.episode_id,
+                plan: plan, approvedBy: "local-user", confirmation: confirmation)
+        }
+    }
+
+    func prepareRepairConfirmed(confirmation: String) async {
+        guard !busy, repairVersion == nil, let repairPlan,
+              !confirmation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        busy = true
+        defer { busy = false }
+        do {
+            let version = try await prepareRepair(repairPlan, confirmation)
+            try Task.checkCancellation()
+            repairVersion = version
+            notice = "修订版本已准备。原成片保留；尚未重新生成视频、扣费或发行。"
+        } catch {
+            notice = "修订版本结果尚未核实。原成片和修复建议保留；再次确认会核对同一个请求，不会自动付费。"
+        }
     }
 
     func restoreRepair() async {
