@@ -11,7 +11,7 @@ let package = Package(
         .executable(name: "NaluUpdateHelper", targets: ["NaluUpdateHelper"]),
     ],
     targets: [
-        .executableTarget(name: "NaluVoiceStudio"),
+        .executableTarget(name: "NaluVoiceStudio", linkerSettings: [.linkedFramework("AVKit")]),
         .executableTarget(name: "NaluVisualAnalyzer"),
         .executableTarget(name: "NaluSemanticRecognizer"),
         .target(name: "NaluUpdateCore"),

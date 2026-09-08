@@ -24,6 +24,14 @@ test -d "$bundle"
 test -f "$plist"
 test -x "$runtime"
 test -x "$executable"
+# SwiftUI's VideoPlayer overlay is not a substitute for loading AVKit itself.
+# Inspect every slice; a launch-only smoke test does not instantiate the player.
+for architecture in $(/usr/bin/lipo -archs "$executable"); do
+  if ! /usr/bin/otool -arch "$architecture" -L "$executable" | /usr/bin/grep -Fq '/AVKit.framework/'; then
+    echo "发布包缺少 AVKit 播放器框架链接：$architecture" >&2
+    exit 1
+  fi
+done
 test -x "$visual_analyzer"
 test -x "$semantic_recognizer"
 test -x "$update_helper"

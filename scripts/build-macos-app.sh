@@ -49,6 +49,7 @@ swiftc -parse-as-library \
   -framework SwiftUI \
   -framework AppKit \
   -framework AVFoundation \
+  -framework AVKit \
   -framework Speech \
   -framework WebKit \
   -o "$binary_path"
