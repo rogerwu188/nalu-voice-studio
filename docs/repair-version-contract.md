@@ -64,3 +64,17 @@ all original files retain their bytes. This covers a status race, not concurrent
 plan-file mutation or every recovery boundary. Missing confirmation/requester,
 missing digest and inherited paid approval are rejected with 422; stale digest
 is rejected with 409. CI for implementation 16abb58 is pending in run34270680499.
+# Commit-boundary verification, 2026-09-08
+
+At c37b289 the repository requires a repair-source validator while committing
+the local preflight transaction. The engine rechecks the typed repair plan,
+canonical digest, current output seal and expected plan digest. A plan corrupted
+between initial validation and commit now rejects with409; no child run is
+committed and parent output files are unchanged. This narrows the validation
+window but does not claim a filesystem transaction or protection against arbitrary
+out-of-process mutation after the check.
+
+Executed: `.venv/bin/pytest tests/test_repair_versions.py
+tests/test_production_authorization.py tests/test_interactive_story.py -q`:
+22 passed in7.73s. Ruff on modified runtime files/tests passed. Fixtures only;
+real repaired master, native repair confirmation and full CI remain required.
