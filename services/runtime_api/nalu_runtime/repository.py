@@ -6707,6 +6707,7 @@ class Repository:
         approved_script_revision: int,
         operation_scope: str | None = None,
         idempotency_key: str | None = None,
+        repair_source_run_id: str | None = None,
     ) -> ProductionRun:
         """Commit a successful preflight and every related database mutation atomically."""
         if (operation_scope is None) != (idempotency_key is None):
@@ -6717,7 +6718,7 @@ class Repository:
             connection.execute("BEGIN IMMEDIATE")
             episode_row = connection.execute(
                 """SELECT e.status, e.approved_script_revision, e.season_id,
-                          s.project_id, p.audience_mode
+                          s.project_id, p.audience_mode, p.archived_at
                    FROM episodes e
                    JOIN seasons s ON s.id = e.season_id
                    JOIN projects p ON p.id = s.project_id
@@ -6731,8 +6732,18 @@ class Repository:
                 or episode_row["project_id"] != run.project_id
             ):
                 raise ConflictError("production run hierarchy changed before commit")
+            valid_status = EpisodeStatus(episode_row["status"]) == EpisodeStatus.SCRIPT_APPROVED
+            if repair_source_run_id is not None:
+                latest = connection.execute(
+                    "SELECT id, status FROM production_runs WHERE episode_id=? ORDER BY created_at DESC, id DESC LIMIT 1",
+                    (run.episode_id,),
+                ).fetchone()
+                valid_status = (latest is not None and latest["id"] == repair_source_run_id
+                                and latest["status"] == RunStatus.QA_REVIEW and run.dry_run
+                                and episode_row["archived_at"] is None
+                                and EpisodeStatus(episode_row["status"]) in {EpisodeStatus.POSTPRODUCTION, EpisodeStatus.QA_REVIEW})
             if (
-                EpisodeStatus(episode_row["status"]) != EpisodeStatus.SCRIPT_APPROVED
+                not valid_status
                 or episode_row["approved_script_revision"] != approved_script_revision
             ):
                 raise ConflictError("approved script changed before production commit")
@@ -6817,10 +6828,10 @@ class Repository:
             self._record_episode_transition(
                 connection,
                 run.episode_id,
-                EpisodeStatus.SCRIPT_APPROVED,
+                EpisodeStatus(episode_row["status"]),
                 EpisodeStatus.PREPRODUCTION,
                 "production-service",
-                f"production run {run.id} passed preflight",
+                f"production run {run.id} passed preflight" + (f"; repair of {repair_source_run_id}" if repair_source_run_id else ""),
             )
             if operation_scope is not None and idempotency_key is not None:
                 updated = connection.execute(

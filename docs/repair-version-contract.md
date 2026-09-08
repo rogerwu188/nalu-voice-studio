@@ -41,3 +41,18 @@ separate controlled publication approval.
   restores progress after restart, and never asks users to re-enter the story.
 
 This document is a concrete implementation contract, not completion evidence.
+
+## Initial implementation evidence
+
+ProductionRunCreate now accepts an explicitly confirmed, parent/plan-bound local
+repair request with mandatory idempotency key and no paid approval. Engine reuses
+the established preflight/package transaction; repository rechecks latest parent,
+QA state, script and archive state before atomically activating the new run.
+The original run and files remain unchanged; new policy records repair lineage.
+
+One public-API test passes (4.24s): failed structure QA → repair plan → distinct
+local run → restart/exact replay → competing old-parent request rejected;
+old files unchanged.12 existing authorization tests pass (6.20s). This is an
+initial implementation, not the complete contract: native confirmation, concurrent
+plan mutation/failure recovery, selective asset reuse and actual repaired master
+acceptance remain required. No paid call or release occurred.

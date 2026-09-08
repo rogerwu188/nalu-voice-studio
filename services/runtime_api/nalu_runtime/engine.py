@@ -2440,6 +2440,8 @@ class ProductionService:
             raise ConflictError("an approved episode script is required before production")
         if not request.dry_run and not idempotency_key:
             raise ConflictError("paid production requires an Idempotency-Key header")
+        if request.repair_source_run_id and not idempotency_key:
+            raise ConflictError("repair version requires an Idempotency-Key header")
 
         season = self.repository.get_season(episode.season_id)
         project = self.repository.get_project(season.project_id)
@@ -2579,7 +2581,23 @@ class ProductionService:
         if claim_status == "failed":
             raise ConflictError("the prior production request failed; inspect its evidence")
 
-        if episode.status != EpisodeStatus.SCRIPT_APPROVED:
+        repair_lineage = None
+        if request.repair_source_run_id:
+            parent = self.repository.get_run(request.repair_source_run_id)
+            latest = self.repository.latest_run_for_episode(episode_id)
+            plan = self.postproduction_repair_plan(parent.id)
+            parent_package = json.loads(Path(parent.package_path).read_text(encoding="utf-8"))
+            if (parent.episode_id != episode_id or parent.project_id != project.id
+                    or parent.status != RunStatus.QA_REVIEW or latest is None or latest.id != parent.id
+                    or project.archived_at is not None
+                    or episode.status not in {EpisodeStatus.POSTPRODUCTION, EpisodeStatus.QA_REVIEW}
+                    or plan.plan_sha256 != request.expected_repair_plan_sha256
+                    or parent_package["approved_script"]["revision"] != episode.approved_script_revision):
+                raise ConflictError("repair source, plan or approved script is no longer current")
+            repair_lineage = {"source_run_id": parent.id, "repair_plan_sha256": plan.plan_sha256,
+                              "output_seal_sha256": plan.output_seal_sha256,
+                              "requested_by": request.approved_by, "confirmation": request.repair_confirmation}
+        if episode.status != EpisodeStatus.SCRIPT_APPROVED and repair_lineage is None:
             self.repository.finish_operation(
                 operation_scope,
                 effective_idempotency_key,
@@ -2633,6 +2651,7 @@ class ProductionService:
                 "paid_submitter_required": True,
                 "paid_submitter_authority": self.remote_task_submitter.authority_name,
                 "release_fail_closed": True,
+                **({"repair_lineage": repair_lineage} if repair_lineage else {}),
             },
         )
         canonical = package.model_dump(mode="json", exclude={"package_sha256"})
@@ -2755,6 +2774,7 @@ class ProductionService:
             approved_script_revision=episode.approved_script_revision,
             operation_scope=operation_scope,
             idempotency_key=effective_idempotency_key,
+            repair_source_run_id=request.repair_source_run_id,
         )
 
     def cancel_run(self, run_id: str, request: RunActionRequest) -> ProductionRun:

@@ -1458,9 +1458,17 @@ class ProductionRunCreate(BaseModel):
     estimated_budget_credits: int | None = Field(default=None, ge=0)
     paid_generation_approved: bool = False
     approved_by: str | None = None
+    repair_source_run_id: str | None = Field(default=None, min_length=1, max_length=160)
+    expected_repair_plan_sha256: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
+    repair_confirmation: str | None = Field(default=None, min_length=1, max_length=2000)
 
     @model_validator(mode="after")
     def guard_paid_runs(self) -> ProductionRunCreate:
+        if self.repair_source_run_id is not None:
+            if not self.dry_run or self.paid_generation_approved or not self.expected_repair_plan_sha256 or not self.repair_confirmation or not self.approved_by:
+                raise ValueError("repair version requires explicit local preparation confirmation; paid work is separate")
+        elif self.expected_repair_plan_sha256 is not None or self.repair_confirmation is not None:
+            raise ValueError("repair fields require a source run")
         if not self.dry_run and (not self.paid_generation_approved or not self.approved_by):
             raise ValueError("paid production requires explicit approval and approver identity")
         return self

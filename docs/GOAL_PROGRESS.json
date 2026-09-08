@@ -29,8 +29,8 @@
   },
   "next_action": {
     "sop": "SOP-09",
-    "id": "implement-dedicated-repair-version-operation",
-    "summary": "Implement docs/repair-version-contract.md: ordinary start requires SCRIPT_APPROVED and cannot reopen failed QA runs. Add explicit idempotent parent-bound local repair version without overwriting original or inheriting paid/release approval; test state transition, concurrency and unchanged bytes. Then native confirmation/repair selection and semantic/human QA. Current native transport/reopen CI remains pending; do not reimplement completed handoff. Full source/story/video/release SOP retained, Hops401 no automatic paid retry.",
+    "id": "verify-repair-races-and-source-native-journey",
+    "summary": "Initial parent-bound local repair version implemented, not accepted: 13 repair/authorization tests passed; expanded rejection/replay test passed separately, OpenAPI compatible. Next verify commit-time plan mutation/concurrency, then native confirmation. Preserve source/story/video/release priority: novel tests 16 passed, installed source-to-script journey remains unverified. Do not treat local preflight as repaired video or inherit paid approval. CI and native QA pending; Hops401 no automatic paid retry.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

@@ -7044,10 +7044,48 @@
             ],
             "title": "Estimated Budget Credits"
           },
+          "expected_repair_plan_sha256": {
+            "anyOf": [
+              {
+                "pattern": "^[a-f0-9]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Repair Plan Sha256"
+          },
           "paid_generation_approved": {
             "default": false,
             "title": "Paid Generation Approved",
             "type": "boolean"
+          },
+          "repair_confirmation": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repair Confirmation"
+          },
+          "repair_source_run_id": {
+            "anyOf": [
+              {
+                "maxLength": 160,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repair Source Run Id"
           },
           "requested_model": {
             "default": "seedance-2.0-pro",
