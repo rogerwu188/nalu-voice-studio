@@ -39,14 +39,25 @@ def test_supplements_persist_without_superseding_inflight_answer(tmp_path, sourc
             assert state["turns"][-1]["source_mode"] == source_mode
 
 
-def test_two_episode_writer_drafts_enter_review_with_distinct_bound_receipts(tmp_path):
+@pytest.mark.parametrize("source_mode", ["narrated_story", "web_source"])
+def test_two_episode_writer_drafts_enter_review_with_distinct_bound_receipts(tmp_path, monkeypatch, source_mode):
+    monkeypatch.setattr("nalu_runtime.novel_import.read_public_chapter", lambda url: {
+        "url": url, "text": "合成小说原文：海边相认", "truncated": False})
     with TestClient(create_app(tmp_path / "db", tmp_path / "data")) as client:
         plan = client.post("/v1/project-plans", json={"project": {
             "title": "合成两集故事", "planned_episode_count": 2,
             "project_bible": {"setting": "海边"}}}).json()
         path = f"/v1/projects/{plan['project']['id']}/interactive-story"
-        client.post(path + "/turns", json={"turn_id": "story", "expected_revision": 0,
-            "text": "合成故事写两集", "source_mode": "narrated_story"})
+        if source_mode == "web_source":
+            import_path = f"/v1/projects/{plan['project']['id']}/novel-import"
+            assert client.post(import_path, json={"source_url": "https://example.com/book", "chapters": [
+                {"url": "https://example.com/book/1", "title": "第一章"}]}).status_code == 201
+            assert client.post(import_path + "/fetch-next").json()["status"] == "complete"
+        turn = client.post(path + "/turns", json={"turn_id": "story", "expected_revision": 0,
+            "text": "合成故事写两集", "source_mode": source_mode})
+        assert turn.status_code == 200
+        if source_mode == "web_source":
+            assert turn.json()["novel_source"]["passages"][0]["text"] == "合成小说原文：海边相认"
         drafts = [{"episode_number": n, "title": f"第{n}集", "outline": "合成场景",
                    "script": f"合成第{n}集：海边，相认。"} for n in (1, 2)]
         raw = json.dumps({"id": "fixture-multiple", "model": "fixture-writer-1", "choices": [{
@@ -88,6 +99,9 @@ def test_two_episode_writer_drafts_enter_review_with_distinct_bound_receipts(tmp
         restored = client.get(path).json()
         assert len(restored["episode_drafts"]) == 2
         assert restored["turns"][0]["answer"]["writer_response_json"] == raw
+        if source_mode == "web_source":
+            assert client.get(import_path + "/chapters/1").json()["text"] == "合成小说原文：海边相认"
+            assert "合成小说原文" not in json.dumps(package, ensure_ascii=False)
 
 
 def test_writer_declaration_tracks_revised_episode_and_retains_response(tmp_path):
