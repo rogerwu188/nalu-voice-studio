@@ -1,10 +1,79 @@
 import socket
 import ssl
+from email.message import Message
 
 import pytest
 from fastapi.testclient import TestClient
 from nalu_runtime import source_reader
 from nalu_runtime.app import create_app
+
+
+def test_chapter_links_keep_directory_order_and_reject_unsafe_targets():
+    parser = source_reader.SourceLinksParser("https://example.com/book/index.html")
+    parser.feed('''<title>故事目录</title>
+        <a href="2.html">第二章 <b>归来</b></a>
+        <a href="1.html#text">第一章</a><a href="1.html">重复</a>
+        <a href="javascript:alert(1)">脚本</a><a href="https://u:p@example.com/a">凭证</a>
+        <a href="3.html" rel="next">下一章</a>''')
+    assert "".join(parser.title_parts) == "故事目录"
+    assert [item["url"] for item in parser.links] == [
+        "https://example.com/book/2.html", "https://example.com/book/1.html",
+        "https://example.com/book/3.html",
+    ]
+    assert parser.links[0]["title"] == "第二章 归来"
+    assert parser.links[-1]["rel"] == "next"
+
+
+def fake_source_transport(monkeypatch, body):
+    class Response:
+        status = 200
+        headers = Message()
+        headers["Content-Type"] = "text/html; charset=utf-8"
+
+        def getheader(self, name, default=None):
+            return self.headers.get(name, default)
+
+        def read(self, limit):
+            return body[:limit]
+
+    class Connection:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def request(self, *args, **kwargs):
+            pass
+
+        def getresponse(self):
+            return Response()
+
+        def close(self):
+            pass
+
+    class Context:
+        def wrap_socket(self, raw, **kwargs):
+            return raw
+
+    monkeypatch.setattr(source_reader.http.client, "HTTPSConnection", Connection)
+    monkeypatch.setattr(source_reader.socket, "create_connection", lambda *a, **k: object())
+    monkeypatch.setattr(source_reader, "source_tls_context", Context)
+    monkeypatch.setattr(source_reader.socket, "getaddrinfo",
+                        lambda *a, **k: [(2, 1, 6, "", ("93.184.216.34", 443))])
+
+
+def test_chapter_read_does_not_silently_truncate_at_excerpt_limit(monkeypatch):
+    story = "海边的故事。" * 5000
+    fake_source_transport(monkeypatch, f"<title>第一章</title><p>{story}</p>".encode())
+    page = source_reader.read_public_chapter("https://example.com/ch1")
+    assert story in page["text"] and not page["truncated"]
+    assert page["scope"] == "complete_text_page"
+    excerpt = source_reader.read_public_source("https://example.com/ch1")
+    assert len(excerpt["text"]) == 24000 and excerpt["truncated"]
+
+
+def test_oversize_chapter_is_error_not_incomplete_success(monkeypatch):
+    fake_source_transport(monkeypatch, b"x" * 1_000_001)
+    with pytest.raises(source_reader.SourceReadError, match="reading limit"):
+        source_reader.read_public_chapter("https://example.com/ch1")
 
 
 def test_source_tls_keeps_verification_with_bundled_trust_roots():

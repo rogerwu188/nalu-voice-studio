@@ -5,7 +5,7 @@ import ipaddress
 import socket
 import ssl
 from html.parser import HTMLParser
-from urllib.parse import urljoin, urlsplit
+from urllib.parse import urldefrag, urljoin, urlsplit
 
 import certifi
 
@@ -49,6 +49,52 @@ class SourceTextParser(HTMLParser):
             self.parts.append(data.strip())
 
 
+class SourceLinksParser(HTMLParser):
+    """Keep document order for chapter discovery; never execute page instructions."""
+
+    def __init__(self, base_url):
+        super().__init__()
+        self.base_url = base_url
+        self.links = []
+        self.title_parts = []
+        self.in_title = False
+        self.anchor = None
+        self.seen = set()
+
+    def handle_starttag(self, tag, attrs):
+        if tag == "title":
+            self.in_title = True
+        if tag == "a":
+            values = dict(attrs)
+            href = values.get("href")
+            self.anchor = [href, [], values.get("rel") or ""] if href else None
+
+    def handle_data(self, data):
+        if self.in_title:
+            self.title_parts.append(data)
+        if self.anchor:
+            self.anchor[1].append(data)
+
+    def handle_endtag(self, tag):
+        if tag == "title":
+            self.in_title = False
+        if tag != "a" or self.anchor is None:
+            return
+        href, parts, rel = self.anchor
+        self.anchor = None
+        try:
+            url = urldefrag(urljoin(self.base_url, href))[0]
+            parsed = urlsplit(url)
+            valid = (parsed.scheme == "https" and parsed.hostname
+                     and not parsed.username and not parsed.password
+                     and parsed.port in {None, 443} and len(url) <= 4000)
+        except ValueError:
+            return
+        if valid and url not in self.seen:
+            self.seen.add(url)
+            self.links.append({"url": url, "title": "".join(parts).strip(), "rel": rel})
+
+
 def public_target(url):
     parsed = urlsplit(url)
     if (parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password
@@ -62,6 +108,19 @@ def public_target(url):
 
 
 def read_public_source(url):
+    return _read_public_source(url, complete=False)
+
+
+def read_public_chapter(url):
+    """Read a complete bounded text page plus candidate chapter links.
+
+    Oversized pages fail explicitly; never silently label an excerpt as a chapter.
+    Every fetched page and redirect still passes the pinned-IP public target check.
+    """
+    return _read_public_source(url, complete=True)
+
+
+def _read_public_source(url, *, complete):
     original = url
     for _ in range(4):
         parsed, ip = public_target(url)
@@ -100,12 +159,20 @@ def read_public_source(url):
             if len(body) > 1_000_000:
                 raise SourceReadError("source page exceeds reading limit")
             text = body.decode(response.headers.get_content_charset() or "utf-8", errors="replace")
+            metadata = SourceLinksParser(url)
             if content_type == "text/html":
+                if complete:
+                    metadata.feed(text)
                 parser = SourceTextParser()
                 parser.feed(text)
                 text = "\n".join(parser.parts)
             if not text.strip():
                 raise SourceReadError("source has no readable text")
+            if complete:
+                return {"requested_url": original, "url": url, "text": text,
+                        "title": "".join(metadata.title_parts).strip(),
+                        "links": metadata.links, "truncated": False,
+                        "scope": "complete_text_page"}
             return {"requested_url": original, "url": url, "text": text[:24000],
                     "truncated": len(text) > 24000, "scope": "single_page_excerpt"}
         except http.client.HTTPException as exc:
