@@ -29,8 +29,8 @@
   },
   "next_action": {
     "sop": "SOP-09",
-    "id": "verify-native-qa-failure-recovery-and-semantic-handoff",
-    "summary": "Do not reimplement render-to-seal: it is connected. Verify current native CI34268994642 and failure transport/reopen behavior, expose validated repair plan with explicit new-version workflow, connect semantic/human QA after technical PASS. Confirm installed source-choice/import/writing journey and remove professional sound-form burden. Existing Hops401 means no automatic paid retry. Full SOP-00 through13 remains intact.",
+    "id": "implement-dedicated-repair-version-operation",
+    "summary": "Implement docs/repair-version-contract.md: ordinary start requires SCRIPT_APPROVED and cannot reopen failed QA runs. Add explicit idempotent parent-bound local repair version without overwriting original or inheriting paid/release approval; test state transition, concurrency and unchanged bytes. Then native confirmation/repair selection and semantic/human QA. Current native transport/reopen CI remains pending; do not reimplement completed handoff. Full source/story/video/release SOP retained, Hops401 no automatic paid retry.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
