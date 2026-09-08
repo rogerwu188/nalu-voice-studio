@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "aaab56c2e1e2c9adfcf8f771023845de9424525d",
-  "last_advanced_at": "2026-09-08T18:47:45Z",
+  "observed_head": "73c8849b7ec31d01e86804e85435c4f68f236a11",
+  "last_advanced_at": "2026-09-08T19:27:28Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -23,14 +23,14 @@
     "result": "PASS"
   },
   "current_checkpoint": {
-    "sop": "SOP-04",
+    "sop": "SOP-09",
     "status": "IN_PROGRESS",
-    "summary": "Verified SQLite restart, idempotent writer-request replay and long-chapter continuation. Fixed ordinary script revisions resetting source to chapter one.14 import tests pass; no paid writer called. Native source selection/CI/installed QA and durable choice recovery remain open. Evidence docs/qa/novel-source-selection-2026-09-08.md. Full SOP not accepted."
+    "summary": "Native render-to-seal/structural/decoded QA is implemented;05330f3 full CI34267285622 passed. Exact seal-event replay fixed3bd6b89; actual encoded negative and positive technical fixtures verified, not narrative acceptance. Native failure classification f70162a and output-bound repair-plan retrieval73c8849 await CI/installed QA. Novel candidates now persist in SQLite and long-chapter context survives revisions; installed source journey still pending. Evidence docs/qa/native-output-handoff-2026-09-08.md. No SOP promoted."
   },
   "next_action": {
-    "sop": "SOP-04",
+    "sop": "SOP-09",
     "id": "verify-native-qa-failure-recovery-and-semantic-handoff",
-    "summary": "Actual adopted full-render regression passed on ef9f62d in93.81s. Native renderEpisodeMix returns materialization only; EpisodeMixModel only displays notice. Connect explicit render to idempotent sealing of master/captions/postproduction/shot manifests, then structural/decoded QA before native speech and human acceptance. Verify failure recovery without rerender or publication. Native source-choice CI/restart QA remains pending; Hops401 no automatic paid retry; full SOP retained.",
+    "summary": "Do not reimplement render-to-seal: it is connected. Verify current native CI34268994642 and failure transport/reopen behavior, expose validated repair plan with explicit new-version workflow, connect semantic/human QA after technical PASS. Confirm installed source-choice/import/writing journey and remove professional sound-form burden. Existing Hops401 means no automatic paid retry. Full SOP-00 through13 remains intact.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

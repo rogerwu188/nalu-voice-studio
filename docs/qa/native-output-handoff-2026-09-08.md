@@ -68,3 +68,13 @@ into an unknown transport error. The mix model retains the validated plan for
 the repair flow and clears it on successful QA. Added binding tests; native CI
 pending. Repair presentation, explicit new-version production and durable native
 reopening remain incomplete. No paid generation or publication is invoked.
+
+## Cross-flow revalidation and progress correction
+
+At73c8849, OpenAPI check is current and52 combined interactive-story, writer,
+novel-import and output-immutability tests passed in37.13s. Full CI34267285622
+passed on05330f3 (initial native handoff), not on latest repair retrieval.
+Corrected stale GOAL_PROGRESS entries claiming handoff/candidate persistence had
+not been implemented. Next work remains native failure/reopen recovery, repair
+presentation/new-version production, semantic/human QA and installed source journey.
+No completion status change, paid call or release action.
