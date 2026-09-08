@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 from nalu_runtime.models import RunStatus
+from nalu_runtime.video_preparation import digest
 from test_rendered_output_immutability import (
     advance_episode_to_qa,
     approved_episode_with_library,
@@ -21,6 +22,16 @@ def test_local_repair_version_preserves_parent_and_replays_after_restart(
     assert api.get(endpoint).json() == []
     assert api.get('/v1/episodes/missing/production-runs').status_code == 404
     parent = api.post(endpoint, json={"dry_run": True}).json()
+    parent_package = json.loads(Path(parent["package_path"]).read_text())
+    shot = {"source_excerpt": "林叔", "scene": "家", "duration_seconds": 10,
+            "entry_state": "门外", "action": "回家", "exit_state": "门内", "camera": "中景",
+            "dialogue_or_narration": "回家", "sound": "脚步", "image_prompt": "门口",
+            "video_prompt": "走进家", "reference_asset_ids": [], "transition": "scene_start"}
+    original_plan = {"plan": {"summary": "回家", "shots": [shot] * (episode["target_seconds"] // 10)},
+                     "approved": True, "production_package_sha256": parent_package["package_sha256"],
+                     "script_revision": parent_package["approved_script"]["revision"]}
+    original_plan["plan_sha256"] = digest(original_plan)
+    original_event = api.app.state.repository.append_run_event(parent["id"], "shot_plan_approved", payload=original_plan)
     advance_episode_to_qa(api, episode["id"])
     api.app.state.repository.update_run_status(parent["id"], RunStatus.QA_REVIEW)
     directory = Path(parent["package_path"]).parent
@@ -86,6 +97,22 @@ def test_local_repair_version_preserves_parent_and_replays_after_restart(
     assert api.get(f"/v1/episodes/{other_episode['id']}/production-runs").json() == []
     assert api.app.state.repository.latest_run_for_episode(episode["id"]).id == repair["id"]
     assert all((directory / path).read_bytes() == content for path, content in old_files.items())
+    draft_endpoint = f"/v1/production-runs/{repair['id']}/repair-shot-draft"
+    draft_request = {"source_run_id": parent["id"], "source_event_id": original_event.id,
+                     "expected_plan_sha256": original_plan["plan_sha256"],
+                     "expected_package_sha256": package["package_sha256"]}
+    assert api.post(draft_endpoint, json=draft_request, headers={"Origin": "https://example.com"}).status_code == 403
+    assert api.post(draft_endpoint, json={**draft_request, "expected_plan_sha256": "0" * 64}).status_code == 409
+    draft = api.post(draft_endpoint, json=draft_request)
+    assert draft.status_code == 200, draft.text
+    assert draft.json()["event_type"] == "shot_plan_drafted"
+    assert draft.json()["payload"]["approved"] is False
+    assert draft.json()["payload"]["generation_performed"] is False
+    assert draft.json()["payload"]["paid_approved"] is False
+    assert all(task["state"] == "awaiting_plan_review_and_frame" for task in draft.json()["payload"]["tasks"])
+    assert client(tmp_path).post(draft_endpoint, json=draft_request).json() == draft.json()
+    api.app.state.repository.append_run_event(repair["id"], "shot_plan_revised", payload={})
+    assert api.post(draft_endpoint, json=draft_request).status_code == 409
     # History playback reads the original seal, never the child workspace.
     restarted = client(tmp_path)
     download = restarted.get(base + "/sealed-master")
