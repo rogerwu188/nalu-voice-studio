@@ -38,3 +38,17 @@ context now validates approval, digest and plan schema and returns409 for invali
 saved evidence. Regression includes missing digest and digest-consistent empty
 shot inventory. All3 repair cases pass4.84s; ruff passes. This is rejection/error
 handling, not evidence of real video repair or native recovery acceptance.
+
+## Saved synthetic production fixture
+
+Used isolated qv1poe20 SQLite (never user data) with its existing sealed parent
+run_frame_review and child run_ddfaf60101144e24bf5b2f90b3961549. Context GET and
+draft POST both returned200; saved evt_74d555b4e12c46ee9e514d80e5bb006f contains
+the original two shots, approved=false and generation_performed=false. Exact
+replay returned the identical event; original sealed-output integrity returned200.
+No provider request or new video occurred. This exercises the saved full fixture
+structure, not a real provider-produced film or native UI action.
+
+Important QA state: qv1poe20 child now HAS a saved draft. Native reload there can
+verify saved-draft display only, not the create-to-recover POST path. A fresh
+isolated child is required to prove automatic native recovery end-to-end.
