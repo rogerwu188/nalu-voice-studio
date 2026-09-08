@@ -3,7 +3,7 @@ import Testing
 @testable import NaluVoiceStudio
 
 struct EpisodeMixTests {
-    @Test func preparedMixBindsSelectedSourcesAndKeepsExactBody() throws {
+    @MainActor @Test func preparedMixBindsSelectedSourcesAndKeepsExactBody() async throws {
         let sha = String(repeating: "a", count: 64)
         let sound = EpisodeSoundPlan(id: "sound", run_id: "run", event_type: "episode_sound_plan_drafted",
             payload: .init(episode_id: "episode", edit_id: "edit", edit_sha256: sha, plan_id: "plan",
@@ -48,6 +48,32 @@ struct EpisodeMixTests {
                 let wrong = EpisodeRenderedMix(schema_version: "nalu.postproduction-materialization/v1",
                     run_id: "other", episode_id: "episode", plan_sha256: sha, result_sha256: sha, master: ["sha256": .string(sha)])
                 #expect(throws: (any Error).self) { try wrong.validate(mix) }
+                var preparations = 0
+                var renderBodies: [Data] = []
+                var fail = true
+                let model = EpisodeMixModel(sound: sound, prepareMix: { _ in
+                    preparations += 1; return mix
+                }, renderMix: { plan in
+                    renderBodies.append(plan.body)
+                    if fail { throw URLError(.timedOut) }
+                    return EpisodeRenderedMix(schema_version: "nalu.postproduction-materialization/v1",
+                        run_id: "run", episode_id: "episode", plan_sha256: sha, result_sha256: sha,
+                        master: ["sha256": .string(sha)])
+                })
+                await model.renderConfirmed()
+                #expect(renderBodies.isEmpty)
+                await model.prepare(sources: sources)
+                #expect(preparations == 1 && renderBodies.isEmpty)
+                await model.renderConfirmed()
+                #expect(model.attempted && model.result == nil && !model.busy)
+                model.changeSelection()
+                await model.prepare(sources: [])
+                #expect(preparations == 1 && model.prepared?.body == bytes)
+                fail = false
+                await model.renderConfirmed()
+                #expect(renderBodies == [bytes, bytes] && model.result != nil)
+                await model.renderConfirmed()
+                #expect(renderBodies.count == 2)
             } else {
                 #expect(throws: (any Error).self) {
                     try EpisodePreparedMix(body: bytes, sound: sound, dialogue: receipt, sources: sources)

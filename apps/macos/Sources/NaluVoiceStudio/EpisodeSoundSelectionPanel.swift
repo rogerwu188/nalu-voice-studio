@@ -3,10 +3,14 @@ import SwiftUI
 @MainActor struct EpisodeSoundSelectionPanel: View {
     @State private var model: EpisodeSoundSelectionModel
     @State private var operation: Task<Void, Never>?
+    @State private var mix: EpisodeMixModel
+    @State private var mixTask: Task<Void, Never>?
+    @State private var confirmingRender = false
     let onRead: (String) -> Void
 
     init(sound: EpisodeSoundPlan, onRead: @escaping (String) -> Void) {
         _model = State(initialValue: EpisodeSoundSelectionModel(sound: sound))
+        _mix = State(initialValue: EpisodeMixModel(sound: sound))
         self.onRead = onRead
     }
 
@@ -62,9 +66,37 @@ import SwiftUI
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }.buttonStyle(.bordered).controlSize(.large).padding(.vertical, 8)
+                .disabled(mix.busy || mix.prepared != nil)
+            VStack(alignment: .leading, spacing: 12) {
+                Text(mix.notice).fixedSize(horizontal: false, vertical: true)
+                if mix.busy { ProgressView("正在准备或合成本集视频") }
+                if mix.prepared == nil {
+                    Button("核对本集并准备合成", systemImage: "film.stack") {
+                        guard let sources = model.mixSources else { return }
+                        runMix { await mix.prepare(sources: sources) }
+                    }.disabled(model.mixSources == nil || operation != nil || mix.busy || mixTask != nil)
+                } else if mix.result == nil {
+                    Button(mix.attempted ? "重试核对同一版合成" : "合成这一集", systemImage: "film") {
+                        onRead("将使用刚才核对的方案，在本机合成这一集。不会发布。确认开始吗？")
+                        confirmingRender = true
+                    }.buttonStyle(.borderedProminent).disabled(mix.busy || mixTask != nil)
+                        .accessibilityIdentifier("nalu.episode.mix.render")
+                    if !mix.attempted {
+                        Button("先调整素材", systemImage: "pencil") { mix.changeSelection(); onRead(mix.notice) }
+                            .disabled(mix.busy || mixTask != nil)
+                    }
+                }
+                Button("读一下合成进度", systemImage: "speaker.wave.2") { onRead(mix.notice) }
+            }.buttonStyle(.bordered).controlSize(.large).padding(.vertical, 8)
         }.naluFont(.body).accessibilityIdentifier("nalu.episode.sound-selection")
             .task { await model.load() }
-            .onDisappear { operation?.cancel(); operation = nil }
+            .onDisappear { operation?.cancel(); operation = nil; mixTask?.cancel(); mixTask = nil }
+            .confirmationDialog("在这台 Mac 合成这一集？完成后仍需检查，不会自动发布。",
+                                isPresented: $confirmingRender, titleVisibility: .visible) {
+                Button("确认，开始合成") { runMix { await mix.renderConfirmed() } }
+                    .disabled(mix.busy || mixTask != nil)
+                Button("先不合成", role: .cancel) {}
+            }
     }
 
     private func canPrepare(_ role: EpisodeSoundRole) -> Bool {
@@ -80,6 +112,16 @@ import SwiftUI
             guard !Task.isCancelled else { return }
             operation = nil
             onRead(model.notice)
+        }
+    }
+
+    private func runMix(_ action: @escaping @MainActor () async -> Void) {
+        guard mixTask == nil else { return }
+        mixTask = Task {
+            await action()
+            guard !Task.isCancelled else { return }
+            mixTask = nil
+            onRead(mix.notice)
         }
     }
 }

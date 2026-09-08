@@ -8,8 +8,9 @@ against the current main branch.
 ## Status vocabulary
 
 [Native mix transport](qa/native-mix-transport-2026-09-08.md) now connects prepared
-dialogue/sound sources to backend mix/render endpoints. Action UI and current
-native tests/installed QA remain open. This is not episode completion.
+dialogue/sound sources to backend mix/render endpoints, with explicit native
+render confirmation and frozen retries. Current native tests/installed QA,
+durable recovery and video QA handoff remain open. This is not episode completion.
 
 [Native sound selection state](qa/native-sound-selection-2026-09-08.md) now
 preserves exact retries and invalidates superseded settings. Selection controls

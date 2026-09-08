@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "8fdc5e5ed972c1bbc5bd34eba0c911e730898820",
-  "last_advanced_at": "2026-09-08T17:02:36Z",
+  "observed_head": "794a59dc34353eda4e85c7d5d9d5aeef56984915",
+  "last_advanced_at": "2026-09-08T17:04:35Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Native prepare-mix/render transport added with exact prepared body and selected-source context guards; native tests added but execution pending. Backend binding 8 tests passed in 0.44s. Evidence docs/qa/native-mix-transport-2026-09-08.md. CI 34254408000 superseded/cancelled, not passed. Explicit native render action, installed QA and full acceptance remain open."
+    "summary": "Explicit native mix preparation/render action now wired, with frozen retry and submission guards; injected native tests added, execution pending. Evidence docs/qa/native-mix-transport-2026-09-08.md. Older transport CI 34253996299 arm64 passed but overall still running. Current installed QA, durable recovery and full acceptance remain open."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Connect native sound-role asset choices and preparation receipts to prepare-mix/render; implement authorized missing-sound preparation rather than synthetic placeholders. Verify native staging/current CI. Evidence docs/qa/authorized-sound-source-2026-09-07.md. Local compiler remains broken; installed and final master/release QA pending. No Hops 401 retries.",
+    "summary": "Verify new native mix action CI; connect run-state cancellation/recovery, durable pending render and video QA handoff. Implement authorized missing-sound preparation instead of synthetic placeholders. Local compiler remains broken; installed full master/release QA pending. No Hops 401 retries.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
