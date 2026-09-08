@@ -1456,6 +1456,12 @@ def create_app(
             raise HTTPException(403, "native mix preparation required")
         return EpisodeDialogueService(repository, data_root).prepare_mix(run_id, request)
 
+    @app.get("/v1/production-runs/{run_id}/adopted-dialogue/prepared-mix", response_model=PostproductionMaterializationCreate | None)
+    def recover_episode_mix(run_id: str, sound_plan_id: str,
+                            expected_sound_plan_sha256: str = Query(pattern=r"^[a-f0-9]{64}$")):
+        return EpisodeDialogueService(repository, data_root).recover_prepared_mix(
+            run_id, sound_plan_id, expected_sound_plan_sha256)
+
     @app.post("/v1/production-runs/{run_id}/adopted-dialogue/stage", response_model=RunEvent)
     def stage_episode_dialogue(run_id: str, request: EpisodeDialogueStageRequest, origin: str | None = Header(default=None)):
         if origin is not None:

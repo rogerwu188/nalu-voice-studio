@@ -596,6 +596,23 @@ def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypat
                 prepared_mix = api.post(f"{dialogue_url}/prepare-mix", json=mix_selection)
                 assert prepared_mix.status_code == 200, prepared_mix.text
                 assert prepared_mix.json()["adopted_dialogue_staging_id"] == staged_dialogue.json()["id"]
+                recovery_query = {"sound_plan_id": prepared_sound.json()["id"],
+                    "expected_sound_plan_sha256": approved_sound["sound_plan_sha256"]}
+                # Read through the separately opened app/SQLite connection.
+                recovered_mix = reopened.get(f"{dialogue_url}/prepared-mix", params=recovery_query)
+                assert recovered_mix.status_code == 200, recovered_mix.text
+                assert recovered_mix.json() == prepared_mix.json()
+                saved_count = len(repo.list_run_events(run.id))
+                assert api.post(f"{dialogue_url}/prepare-mix", json=mix_selection).json() == prepared_mix.json()
+                assert len(repo.list_run_events(run.id)) == saved_count
+                # A -> B -> A restores A as current, not an old historical receipt.
+                alternate = api.post(f"{dialogue_url}/prepare-mix", json={**mix_selection, "width": 80})
+                assert alternate.status_code == 200, alternate.text
+                assert api.post(f"{dialogue_url}/prepare-mix", json=mix_selection).json() == prepared_mix.json()
+                assert reopened.get(f"{dialogue_url}/prepared-mix", params=recovery_query).json() == prepared_mix.json()
+                assert len(repo.list_run_events(run.id)) == saved_count + 2
+                assert reopened.get(f"{dialogue_url}/prepared-mix", params={**recovery_query,
+                    "expected_sound_plan_sha256": "0" * 64}).status_code == 409
                 # Fixture enters rendering state explicitly; not a production authorization claim.
                 with repo.db.connect() as fixture_db:
                     fixture_db.execute("UPDATE production_runs SET status = 'running' WHERE id = ?", (run.id,))

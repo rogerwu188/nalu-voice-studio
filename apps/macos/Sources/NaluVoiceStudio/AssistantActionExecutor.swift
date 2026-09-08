@@ -9,8 +9,17 @@ enum AssistantActionRouter {
     static let maximumQueryCharacters = 2_000
 
     static func requestsSourceWriting(_ text: String) -> Bool {
-        guard !["不要", "先别", "暂不", "只查", "只找"].contains(where: text.contains) else { return false }
-        return ["作为剧本", "生成剧本", "改编成", "写成剧本", "做成短剧"].contains(where: text.contains)
+        let cleaned = text.filter { !$0.isWhitespace }
+        guard !["不要", "先别", "暂不", "只查", "只找"].contains(where: cleaned.contains) else { return false }
+        if ["作为剧本", "生成剧本", "改编成", "写成剧本", "做成短剧"].contains(where: cleaned.contains) { return true }
+        // Spoken requests include measure words and fillers, not exact UI labels.
+        // This starts only unapproved writing, never production or publication.
+        let patterns = [
+            #"(?:作为|当作|用作)(?:这个|那个|整个|整部|我们的|我的)*剧本"#,
+            #"(?:做成|拍成|写成|改成)(?:一部|一个|一套|多集|若干集)?(?:电视)?(?:连续剧|短剧|电影|纪录片|动画片)"#,
+            #"(?:写|编|生成)(?:一下|出|成)?(?:第[一二三四五六七八九十0-9]+集|分集)(?:的)?剧本"#,
+        ]
+        return patterns.contains { cleaned.range(of: $0, options: .regularExpression) != nil }
     }
 
     static func route(_ spoken: String) -> AssistantActionRequest? {
@@ -18,7 +27,7 @@ enum AssistantActionRouter {
         guard !cleaned.isEmpty else { return nil }
 
         let executionSignals = [
-            "网上", "网络上", "上网", "网站", "搜索", "搜一下", "查一下", "查找", "帮我找",
+            "网上", "网络上", "上网", "网站", "网页", "搜索", "搜一下", "查一下", "查找", "帮我找",
         ]
         guard executionSignals.contains(where: cleaned.contains) || sourceURL(in: cleaned) != nil else { return nil }
 

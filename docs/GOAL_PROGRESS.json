@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "794a59dc34353eda4e85c7d5d9d5aeef56984915",
-  "last_advanced_at": "2026-09-08T17:04:35Z",
+  "observed_head": "277a13a4068149ccfe9bb29ac53054cc7b1a079b",
+  "last_advanced_at": "2026-09-08T17:09:58Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Explicit native mix preparation/render action now wired, with frozen retry and submission guards; injected native tests added, execution pending. Evidence docs/qa/native-mix-transport-2026-09-08.md. Older transport CI 34253996299 arm64 passed but overall still running. Current installed QA, durable recovery and full acceptance remain open."
+    "summary": "Priority drift identified; returning to actual narrated/source writing journeys. Fixed source-writing handoff for user's natural phrasing; native tests pending. Prior pending SQLite mix recovery passed synthetic full-render test (92.48s), not native E2E. Earlier 1787c60 full CI 34253996299 passed; newer changes unverified. Evidence docs/qa/core-flow-alignment-2026-09-08.md."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Verify new native mix action CI; connect run-state cancellation/recovery, durable pending render and video QA handoff. Implement authorized missing-sound preparation instead of synthetic placeholders. Local compiler remains broken; installed full master/release QA pending. No Hops 401 retries.",
+    "summary": "Execute/trace both narrated-story and online-source input journeys, fix first real blocker and demonstrate same-project draft revision/approval before more downstream UI. Verify current native CI and installed path. Existing Hops 401 unresolved; no automatic paid retry. Remove mandatory professional sound sourcing from default user journey; all production/release SOP requirements remain intact.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

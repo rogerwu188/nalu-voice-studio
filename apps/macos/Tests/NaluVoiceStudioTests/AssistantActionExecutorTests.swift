@@ -3,6 +3,15 @@ import XCTest
 
 final class AssistantActionExecutorTests: XCTestCase {
     func testSourceWritingHandoffRequiresExplicitIntent() {
+        for request in ["查一下这个小说的网址，把它作为整个剧本", "找到这篇文章，做成一部连续剧",
+                        "用 https://example.com/memoir 写成一部纪录片", "帮我找这份资料，写出第一集的剧本",
+                        "这个网页作为 整个 剧本"] {
+            XCTAssertTrue(AssistantActionRouter.requestsSourceWriting(request), request)
+            XCTAssertNotNil(AssistantActionRouter.route(request), request)
+        }
+        for request in ["只找这本书，先别做成一部电影", "不要作为整个剧本", "查一下这部连续剧的演员"] {
+            XCTAssertFalse(AssistantActionRouter.requestsSourceWriting(request), request)
+        }
         XCTAssertTrue(AssistantActionRouter.requestsSourceWriting("找这个网址，把它作为剧本"))
         XCTAssertTrue(AssistantActionRouter.requestsSourceWriting("把我的文章改编成三集短剧"))
         XCTAssertFalse(AssistantActionRouter.requestsSourceWriting("帮我找这个网站"))

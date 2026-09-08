@@ -116,7 +116,46 @@ class EpisodeDialogueService:
                 _safe_input(exports, layer.source_relative_path, layer.source_sha256)
         except PostproductionMaterializationError as exc:
             raise ConflictError("selected sound-layer file is missing or changed") from exc
+        self.save_prepared_mix(run_id, prepared, lineage)
         return prepared
+
+    def save_prepared_mix(self, run_id, prepared, lineage):
+        """Persist the exact local render intent before the client can submit it."""
+        repo = self.repository
+        plan = prepared.model_dump(mode="json")
+        payload = {"run_id": run_id, "sound_plan_id": lineage["sound_plan_id"],
+            "sound_plan_sha256": lineage["sound_plan_sha256"], "plan": plan,
+            "plan_sha256": digest(plan), "generation_performed": False, "master_accepted": False}
+        with repo.db.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            run = db.execute("SELECT status FROM production_runs WHERE id=?", (run_id,)).fetchone()
+            if run is None or run["status"] not in {"preflight", "waiting_for_approval", "running"}:
+                raise ConflictError("run no longer accepts mix preparation")
+            previous = db.execute("SELECT payload_json FROM run_events WHERE run_id=? AND event_type=? ORDER BY sequence DESC LIMIT 1",
+                                  (run_id, "episode_mix_prepared")).fetchone()
+            if previous and previous["payload_json"] == encode(payload):
+                return
+            sequence = db.execute("SELECT COALESCE(MAX(sequence),0)+1 FROM run_events WHERE run_id=?", (run_id,)).fetchone()[0]
+            db.execute("INSERT INTO run_events VALUES (?,?,?,?,?,?,?,?,?)", (new_id("evt"), run_id, sequence,
+                "episode_mix_prepared", None, None, "Local mix plan saved; rendering not started.", encode(payload), utc_now()))
+
+    def recover_prepared_mix(self, run_id, sound_plan_id, expected_sound_plan_sha256):
+        """Read-only recovery; revoked inputs remain visible but cannot render."""
+        self.repository.get_run(run_id)
+        with self.repository.db.connect() as db:
+            row = db.execute("SELECT payload_json FROM run_events WHERE run_id=? AND event_type=? ORDER BY sequence DESC LIMIT 1",
+                             (run_id, "episode_mix_prepared")).fetchone()
+        if row is None:
+            return None
+        from .repository import decode
+        payload = decode(row["payload_json"])
+        if (payload.get("run_id") != run_id or payload.get("sound_plan_id") != sound_plan_id
+                or payload.get("sound_plan_sha256") != expected_sound_plan_sha256):
+            raise ConflictError("saved mix belongs to a different sound plan")
+        plan = PostproductionMaterializationCreate.model_validate(payload["plan"])
+        if digest(plan.model_dump(mode="json")) != payload.get("plan_sha256"):
+            raise ConflictError("saved mix plan digest changed")
+        return plan
 
     def validate_materialization(self, run_id, request):
         receipt = self.repository.get_run_event(request.adopted_dialogue_staging_id)

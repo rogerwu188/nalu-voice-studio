@@ -66,6 +66,11 @@ this checkpoint does not promote any SOP to PASS.
 
 ### Current user priority: core creative workflow (2026-09-06)
 
+2026-09-08 [alignment correction](qa/core-flow-alignment-2026-09-08.md): verify the
+two actual input journeys before expanding downstream controls. Four mandatory
+user-supplied sound roles are not an acceptable default elderly-user experience.
+Each checkpoint must name the real journey blocker it removes and evidence scope.
+
 SOP-03/SOP-04 and their downstream production path take priority over voice
 polish. Use the existing TTS baseline. Implement and demonstrate both inputs:
 

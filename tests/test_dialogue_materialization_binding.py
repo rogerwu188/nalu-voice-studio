@@ -24,6 +24,7 @@ def fixture(monkeypatch):
     events = {"stage": receipt, "sound": SimpleNamespace(payload=sound),
               "edit": SimpleNamespace(payload={"shots": [shot.model_dump(mode="json")], "frame_rate": 24})}
     service = EpisodeDialogueService(SimpleNamespace(get_run_event=lambda identity: events[identity]), "/unused")
+    monkeypatch.setattr(service, "save_prepared_mix", lambda *args: None)
     monkeypatch.setattr(service, "stage", lambda *args: receipt)
     dialogue = SimpleNamespace(layer="dialogue", source_relative_path=files["dialogue.wav"]["relative_path"],
         source_sha256=sha, source_in_seconds=0, source_cue_sha256s=[digest(sound["cues"][0])])

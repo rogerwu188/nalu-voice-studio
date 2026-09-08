@@ -13970,6 +13970,72 @@
         "summary": "Prepare Episode Mix"
       }
     },
+    "/v1/production-runs/{run_id}/adopted-dialogue/prepared-mix": {
+      "get": {
+        "operationId": "recover_episode_mix_v1_production_runs__run_id__adopted_dialogue_prepared_mix_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sound_plan_id",
+            "required": true,
+            "schema": {
+              "title": "Sound Plan Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expected_sound_plan_sha256",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-f0-9]{64}$",
+              "title": "Expected Sound Plan Sha256",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/PostproductionMaterializationCreate"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Recover Episode Mix V1 Production Runs  Run Id  Adopted Dialogue Prepared Mix Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Recover Episode Mix"
+      }
+    },
     "/v1/production-runs/{run_id}/adopted-dialogue/stage": {
       "post": {
         "operationId": "stage_episode_dialogue_v1_production_runs__run_id__adopted_dialogue_stage_post",
