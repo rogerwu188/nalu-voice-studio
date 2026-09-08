@@ -25,3 +25,23 @@ The app was explicitly quit after this inspection.
 
 Separate current source regression: novel import plus interactive story tests,
 26 passed in 7.15 seconds. This does not validate actual model writing or video.
+
+## Root cause and corrected fixture
+
+The staging response was 409, `shot planning context is no longer current`:
+the staging path requires preflight/waiting_for_approval, not qa_review.
+The old fixture also ended with intentionally revoked recording/environment
+consent. It must not be used as a valid-consent native happy-path fixture.
+62851e2 preserves the fixture before those revocations (normal tests retain them).
+New support: `/private/var/folders/y4/k84st0yj7fz043tnxkfrjn1w0000gn/T/nalu-native-postproduction-qv1poe20`.
+
+89cd1ec adds validated GET input-history recovery; 8a0da80 uses saved inputs
+before staging. Swift tests were added, not yet accepted on the final artifact.
+
+In the new fixture, the local picture-preview POST returned 200 / 9,491 bytes.
+Receipt `evt_90f6418bd80948598be0553f427ae2f3` matched the existing approved edit
+review; total picture-preview receipt count remained one. Preview SHA256 was
+`a51d9b9bf2a78976959f85a6a58fc7adc932a986af6c1ea7678f057e389edb2c`.
+This rerenders a local transient proxy, not a provider video or release master;
+no read-only saved-file endpoint is claimed. Native reopening and repair remain
+unaccepted until exercised on the updated application.
