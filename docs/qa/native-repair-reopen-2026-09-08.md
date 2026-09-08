@@ -85,3 +85,17 @@ run remained qa_review. Parent-byte comparison and restart recovery are still ne
 Sound selection displayed an unavailable message and repair instructions included
 raw English: these remain unresolved. Full CI and final repaired master are not
 accepted. No paid provider operation or release was performed by these actions.
+
+After explicit quit and relaunch of the same 671d4c7 artifact, the native project
+restored at 30% / preflight with the new repair run. SQLite still contained exactly
+the parent and one child, no duplicate on startup. The parent integrity GET returned
+200 and verified the sealed master SHA256
+`b6245d18902d05ef9e2bbadac75040666886c0faeb1a7c241b94a93947f9069d`.
+Child lineage binds plan `9e9e46535ad675450c9c14ae4c2219eaed0c461ff5e9b8320c83acfa60868307`
+and parent seal `63ba0900c3a682dac67a7a8b797d5b07d08c6e0643873a81e8dcae81c4710ad2`.
+This proves sealed-output preservation, not a full byte-for-byte comparison of
+every unsealed parent workspace file. The first quit exited0 and shut down its
+owned Runtime; the restarted application was also explicitly quit.
+No new shot plan, repaired video or release was created. Historical-version access,
+sound selection availability, plain-language repair guidance and true repaired
+master acceptance remain open. Full CI34283502068 was still running.
