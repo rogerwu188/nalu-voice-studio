@@ -23,3 +23,12 @@ restart/resume QA. Still open: restart, large-type layout, VoiceOver, true write
 drafts/video/release. Pause response still appends an unrelated audience question;
 this should be corrected in the core conversation flow. This is partial native
 evidence, not full SOP completion or verification of later f03b05e draft isolation.
+
+Restart follow-up (same artifact/data): launched again with the same isolated
+environment. The original project and13/100 conversation result restored.
+Typed 继续抓取 + Return; native busy label advanced to16/100. Typed 暂停抓取
++ Return; paused at21/100. No new source URL or project was needed. After quit,
+process82527 exited0, owned server28749 shut down and port18767 was free. A new
+SQLite connection confirmed paused state and21 complete chapters whose UTF-8
+SHA256 all match saved hashes. No paid model used. This verifies restart/resume
+of import-only intent; combined write-after-import still requires real writer QA.

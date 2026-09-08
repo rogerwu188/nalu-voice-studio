@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "bdcab713e1e27b05d5e44369c8524412ca78542e",
-  "last_advanced_at": "2026-09-08T19:51:14Z",
+  "observed_head": "541622f7ccd647f7837eb75c55e9d7fb2b89c5b9",
+  "last_advanced_at": "2026-09-08T20:18:16Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -29,8 +29,8 @@
   },
   "next_action": {
     "sop": "SOP-09",
-    "id": "verify-source-native-routing-and-resume",
-    "summary": "Verify native CI then installed source-to-script journey: 17c8530 restores same-URL writing intent on resume; explicit novel commands now enter source routing without generic confirmation. Native tests added, not executed locally (SDK mismatch). Novel backend 16 tests passed. Repair 16abb58 plus149bbdd remains initial local preflight only: parent status-race tested, plan mutation/native repaired-master still open. Keep full story/source/video/release objective; Hops401 no automatic paid retry.",
+    "id": "continue-native-source-to-writing-handoff",
+    "summary": "Native a4a0a06 artifact verified URL paste/Send, real download13/100, quit/restart, resume16/100, pause21/100 with SQLite hash checks. Evidence docs/qa/native-source-entry-live-2026-09-08.md. Next remove unrelated audience-question detour after paused source import, verify current f03b05e input isolation and source-to-writing handoff. Real writer blocked by configured Hops401; no automatic paid retry. All100 live catalog chapters and13 lossless context windows verified separately. True script/video/release remains open; do not repeat already demonstrated import-only QA or mark SOP complete.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,
