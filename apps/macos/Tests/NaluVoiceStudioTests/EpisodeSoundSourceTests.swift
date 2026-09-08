@@ -2,7 +2,26 @@ import Foundation
 import Testing
 @testable import NaluVoiceStudio
 
-struct EpisodeSoundSourceTests {
+private final class SoundAssetReadProtocol: URLProtocol, @unchecked Sendable {
+    static var responses: [Data] = []
+    static var requests: [URLRequest] = []
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override func startLoading() {
+        Self.requests.append(request)
+        guard !Self.responses.isEmpty else {
+            client?.urlProtocol(self, didFailWithError: URLError(.badServerResponse)); return
+        }
+        let data = Self.responses.removeFirst()
+        client?.urlProtocol(self, didReceive: HTTPURLResponse(url: request.url!, statusCode: 200,
+            httpVersion: nil, headerFields: nil)!, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: data)
+        client?.urlProtocolDidFinishLoading(self)
+    }
+    override func stopLoading() {}
+}
+
+@Suite(.serialized) struct EpisodeSoundSourceTests {
     @MainActor @Test func qaCanReadSoundAssetsWithoutAllowingTerminalOrUnknownRuns() {
         #expect(EpisodeSoundSelectionModel.readableRunStatuses.contains("qa_review"))
         for state in ["cancelled", "failed", "published", "unknown"] {
@@ -27,6 +46,22 @@ struct EpisodeSoundSourceTests {
             "id": "asset", "project_id": "project", "kind": "archive_audio", "name": "海浪",
             "local_uri": "file:///unused/fixture.wav", "subject_name": "", "metadata": ["sha256": sha],
             "consent_granted": true, "consent_scope": "project_only", "guardian_approved": true, "created_at": "fixture"]))
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [SoundAssetReadProtocol.self]
+        let runtime = RuntimeClient(baseURL: URL(string: "http://127.0.0.1:8765")!,
+            session: URLSession(configuration: config), accessCheck: { true })
+        let run = ProductionRun(id: "run", projectID: "project", seasonID: "season", episodeID: "episode",
+            status: "qa_review", dryRun: false, requestedModel: "fixture", estimatedBudgetCredits: nil,
+            packagePath: "unused", error: nil, createdAt: "fixture", updatedAt: "fixture")
+        SoundAssetReadProtocol.requests = []
+        SoundAssetReadProtocol.responses = [try JSONEncoder().encode(run), try JSONEncoder().encode([asset])]
+        let qaReader = EpisodeSoundSelectionModel(sound: sound, runtime: runtime)
+        await qaReader.load()
+        #expect(qaReader.loaded && qaReader.assets.count == 1)
+        #expect(SoundAssetReadProtocol.requests.map { $0.url!.path } ==
+            ["/v1/production-runs/run", "/v1/projects/project/assets"])
+        #expect(SoundAssetReadProtocol.requests.allSatisfy { $0.httpMethod == "GET" })
+        #expect(qaReader.receipts.isEmpty && qaReader.mixSources == nil)
         var available = [asset]
         var requests: [EpisodeSoundSourceDraft] = []
         var fail = true
