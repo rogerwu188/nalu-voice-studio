@@ -67,3 +67,20 @@ a sealed shot manifest and prior structure/decoded QA. Do not merely add a succe
 notice or seal three files and claim this journey works: connect the complete local
 render-to-QA handoff and validate its produced evidence before native acceptance.
 No new paid calls, publication, app installation or final acceptance occurred here.
+
+## Encoded shot-boundary input
+
+The local renderer now emits a digest-bound shot-boundary artifact from its actual
+normalized timeline, master hash and plan hash. The hard-cut/continuous-mix contract
+describes this executor, not a claim of creative approval or QA PASS. Visual change
+is required at cuts; identical boundary frames remain a detectable QA failure.
+The synthetic crash/restart rendering test decodes the resulting master through
+inspect_shot_boundaries, verifies artifact-tamper rejection and old v1 result recovery.
+It passes in 5.17s. OpenAPI compatibility with 9428282 passes. Full CI and native
+render-to-seal/QA orchestration remain open; this is not end-to-end completion.
+
+User added full web-novel import: find source, fetch accessible chapter text in order,
+persist locally with resumable progress, then use it for episode writing. The current
+source_reader only returns a 24,000-character single-page excerpt and discovers no
+chapters: it does not meet this requirement. Build proper chapter import without
+adding a copyright form gate, while respecting login/paywall/access boundaries.

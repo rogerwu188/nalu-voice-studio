@@ -1806,6 +1806,38 @@ def test_runtime_materializes_postproduction_and_recovers_after_state_commit_cra
     assert result["master"]["kind"] == "master_video"
     assert result["captions"]["kind"] == "captions"
     assert result["postproduction_manifest"]["kind"] == "postproduction_manifest"
+    boundary_artifact = result["shot_manifest"]
+    assert boundary_artifact["kind"] == "shot_manifest"
+    boundary_path = exports / boundary_artifact["relative_path"]
+    boundaries = json.loads(boundary_path.read_text())
+    assert boundaries["final_master_sha256"] == result["master"]["sha256"]
+    assert boundaries["materialization_plan_sha256"] == result["plan_sha256"]
+    assert [unit["unit_id"] for unit in boundaries["units"]] == ["S01", "S02"]
+    assert boundaries["units"][0]["start_seconds"] == 0
+    assert boundaries["units"][0]["end_seconds"] == boundaries["units"][1]["start_seconds"]
+    from nalu_runtime.semantic_media_qa import inspect_shot_boundaries
+    boundary_qa = inspect_shot_boundaries(
+        exports / result["master"]["relative_path"], boundary_path,
+        production_package_sha256=result["production_package_sha256"],
+        media_duration_seconds=boundaries["units"][-1]["end_seconds"],
+    )
+    assert boundary_qa["status"] == "PASS", boundary_qa
+    saved_boundaries = boundary_path.read_bytes()
+    boundary_path.write_bytes(saved_boundaries + b" ")
+    with pytest.raises(postproduction_materializer.PostproductionMaterializationError):
+        postproduction_materializer._verify_result(
+            finalized[0], exports_root=exports, expected_plan_sha256=result["plan_sha256"]
+        )
+    boundary_path.write_bytes(saved_boundaries)
+    # Older persisted v1 results did not contain this optional artifact.
+    legacy = {key: value for key, value in result.items()
+              if key not in {"shot_manifest", "result_sha256"}}
+    legacy["result_sha256"] = postproduction_materializer.canonical_sha256(legacy)
+    legacy_path = tmp_path / "legacy-materialization.json"
+    legacy_path.write_text(json.dumps(legacy))
+    assert postproduction_materializer._verify_result(
+        legacy_path, exports_root=exports, expected_plan_sha256=result["plan_sha256"]
+    ).shot_manifest is None
     assert [item["shot_id"] for item in result["normalized_segments"]] == ["S01", "S02"]
     assert {item["layer"] for item in result["audio_stems"]} == {
         "dialogue",

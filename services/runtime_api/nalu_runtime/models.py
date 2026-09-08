@@ -1676,6 +1676,7 @@ class PostproductionMaterializationResult(BaseModel):
     master: dict[str, Any]
     captions: dict[str, Any]
     postproduction_manifest: dict[str, Any]
+    shot_manifest: dict[str, Any] | None = None
     normalized_segments: list[dict[str, Any]]
     audio_stems: list[dict[str, Any]]
     published_mix: dict[str, Any]

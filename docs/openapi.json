@@ -6369,6 +6369,18 @@
             "title": "Schema Version",
             "type": "string"
           },
+          "shot_manifest": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shot Manifest"
+          },
           "workspace_manifest_sha256": {
             "pattern": "^[a-f0-9]{64}$",
             "title": "Workspace Manifest Sha256",

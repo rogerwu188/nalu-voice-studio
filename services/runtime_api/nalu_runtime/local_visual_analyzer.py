@@ -489,7 +489,7 @@ def execute_local_visual_analysis(
         )
     except (OSError, ValueError) as exc:
         raise LocalVisualAnalyzerError("postproduction materialization result is invalid") from exc
-    materialization_body = materialization.model_dump(mode="json", exclude={"result_sha256"})
+    materialization_body = materialization.model_dump(mode="json", exclude={"result_sha256"}, exclude_none=True)
     if canonical_sha256(materialization_body) != materialization.result_sha256:
         raise LocalVisualAnalyzerError("postproduction materialization result digest changed")
     master = _regular_file(

@@ -568,7 +568,7 @@ class ProductionService:
                     materialization_paths[0].read_text(encoding="utf-8")
                 )
                 materialization_body = materialization.model_dump(
-                    mode="json", exclude={"result_sha256"}
+                    mode="json", exclude={"result_sha256"}, exclude_none=True
                 )
                 if self._canonical_sha256(materialization_body) != materialization.result_sha256:
                     raise ValueError("materialization result digest changed")

@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "8cc3aad4175953225d05d756dbb9fd8c5dd3e10c",
-  "last_advanced_at": "2026-09-08T17:23:28Z",
+  "observed_head": "9428282cb48a12315702db8c5ae5d1b5c519ce0c",
+  "last_advanced_at": "2026-09-08T17:25:35Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Current CI 34256325262 arm64 failed one of 152 XCTest cases: explicit article-to-series input did not route to lookup. Patched bounded source-lookup handoff; added negative narration cases. New native CI required; no local compiler or installed acceptance claim. Also traced missing render-to-seal/prerequisite-QA handoff; see docs/qa/core-flow-alignment-2026-09-08.md."
+    "summary": "Renderer now produces actual encoded shot-boundary artifact required by downstream QA. Synthetic rendering/restart test decodes boundaries, rejects artifact drift, and recovers old v1 results: PASS 5.17s. OpenAPI compatibility passed. Native source-routing repair CI pending; installed render-to-seal/QA remains incomplete. User additionally requires complete accessible web-novel chapter import, not single-page excerpts."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Obtain current native CI/build evidence and execute installed narrated/source input-to-review paths; backend public-API handoff now passes mocks, not live provider. Existing Hops 401 remains unresolved, no automatic paid retry. Trace production state transition and remove mandatory professional sound sourcing from default journey without bypassing approval/QA. Full SOP scope retained.",
+    "summary": "Implement requested full web-novel import (source discovery, ordered accessible chapters, local SQLite persistence/resume, writing context), current reader only provides 24k excerpt. Also complete native render-to-seal/prerequisite QA and remove mandatory professional sound sourcing. Obtain current CI/native evidence; existing Hops401 does not authorize paid retry. Full SOP retained.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

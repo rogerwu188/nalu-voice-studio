@@ -519,7 +519,7 @@ def _verify_result(
         )
     except (OSError, ValueError) as exc:
         raise PostproductionMaterializationError("materialization result is unreadable") from exc
-    body = result.model_dump(mode="json", exclude={"result_sha256"})
+    body = result.model_dump(mode="json", exclude={"result_sha256"}, exclude_none=True)
     if canonical_sha256(body) != result.result_sha256:
         raise PostproductionMaterializationError("materialization result digest mismatch")
     if result.plan_sha256 != expected_plan_sha256:
@@ -533,6 +533,7 @@ def _verify_result(
         result.published_mix,
         *result.normalized_segments,
         *result.audio_stems,
+        *([result.shot_manifest] if result.shot_manifest is not None else []),
     ]:
         relative = Path(str(artifact.get("relative_path") or ""))
         candidate = exports_root / relative
@@ -834,6 +835,40 @@ def _materialize_postproduction_locked(
 
         master_sha256 = file_sha256(master_path)
         captions_sha256 = file_sha256(captions_path)
+        # Describe the cuts this executor actually encoded, not a claimed QA result.
+        # Cuts are direct concatenation; the published audio mix runs continuously.
+        transition = {
+            "transition_type": "hard_cut",
+            "visual_change_required": True,
+            "audio_bridge": "continuous published mix",
+        }
+        boundaries_body = {
+            "schema_version": "nalu.shot-boundary-manifest/v1",
+            "production_package_sha256": production_package_sha256,
+            "final_master_sha256": master_sha256,
+            "materialization_plan_sha256": plan_sha256,
+            "contract_source": "encoded-hard-cut-timeline",
+            "units": [
+                {
+                    "unit_id": shot["shot_id"],
+                    "start_seconds": shot["timeline_start_seconds"],
+                    "end_seconds": round(
+                        shot["timeline_start_seconds"] + shot["duration_seconds"], 6
+                    ),
+                    **({
+                        "incoming_transition_contract": transition,
+                        "incoming_transition_contract_sha256": canonical_sha256(transition),
+                    } if index else {}),
+                }
+                for index, shot in enumerate(selected_shots)
+            ],
+        }
+        boundaries_path = stage / f"{episode_code}_SHOT_BOUNDARIES.json"
+        boundaries_path.write_text(
+            json.dumps({**boundaries_body, "manifest_sha256": canonical_sha256(boundaries_body)},
+                       ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
         manifest_body = {
             "schema_version": "nalu.postproduction-lineage-manifest/v1",
             "production_package_sha256": production_package_sha256,
@@ -914,6 +949,10 @@ def _materialize_postproduction_locked(
             "master": master_artifact,
             "captions": captions_artifact,
             "postproduction_manifest": manifest_artifact,
+            "shot_manifest": _artifact(
+                (output_prefix / boundaries_path.name).as_posix(), boundaries_path,
+                kind="shot_manifest", media_type="application/json",
+            ),
             "normalized_segments": normalized_entries,
             "audio_stems": stem_entries,
             "published_mix": published_artifact,
