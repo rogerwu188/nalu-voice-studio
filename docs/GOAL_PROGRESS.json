@@ -29,8 +29,8 @@
   },
   "next_action": {
     "sop": "SOP-09",
-    "id": "verify-repair-races-and-source-native-journey",
-    "summary": "Initial parent-bound local repair version implemented, not accepted: 13 repair/authorization tests passed; expanded rejection/replay test passed separately, OpenAPI compatible. Next verify commit-time plan mutation/concurrency, then native confirmation. Preserve source/story/video/release priority: novel tests 16 passed, installed source-to-script journey remains unverified. Do not treat local preflight as repaired video or inherit paid approval. CI and native QA pending; Hops401 no automatic paid retry.",
+    "id": "verify-source-native-routing-and-resume",
+    "summary": "Verify native CI then installed source-to-script journey: 17c8530 restores same-URL writing intent on resume; explicit novel commands now enter source routing without generic confirmation. Native tests added, not executed locally (SDK mismatch). Novel backend 16 tests passed. Repair 16abb58 plus149bbdd remains initial local preflight only: parent status-race tested, plan mutation/native repaired-master still open. Keep full story/source/video/release objective; Hops401 no automatic paid retry.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

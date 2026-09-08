@@ -44,9 +44,10 @@ enum AssistantActionRouter {
             options: .regularExpression
         ) != nil && requestsSourceWriting(cleaned)
         guard executionSignals.contains(where: cleaned.contains)
-                || sourceURL(in: cleaned) != nil || sourceLookup else { return nil }
+                || sourceURL(in: cleaned) != nil || sourceLookup
+                || requestsNovelImport(cleaned) else { return nil }
 
-        if requiresConfirmation(cleaned) {
+        if requiresConfirmation(cleaned) && !requestsNovelImport(cleaned) {
             return .requiresConfirmation(description: String(cleaned.prefix(maximumQueryCharacters)))
         }
         return .webResearch(query: String(cleaned.prefix(maximumQueryCharacters)))

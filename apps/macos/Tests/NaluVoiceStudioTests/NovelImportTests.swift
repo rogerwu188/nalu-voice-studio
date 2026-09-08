@@ -2,6 +2,20 @@ import XCTest
 @testable import NaluVoiceStudio
 
 final class NovelImportTests: XCTestCase {
+    func testExplicitNovelDownloadReachesImportInsteadOfGenericConfirmation() {
+        for text in ["下载整本书", "导入这些章节", "下载小说 https://example.org/book，然后生成分集剧本草稿",
+                     "去网上下载这本小说"] {
+            XCTAssertTrue(AssistantActionRouter.requestsNovelImport(text))
+            XCTAssertEqual(AssistantActionRouter.route(text), .webResearch(query: text))
+        }
+        for text in ["下载小说 https://example.org/book 并发布", "登录下载小说 https://example.org/book",
+                     "购买小说 https://example.org/book", "下载小说 https://example.org/book 并删除原文件"] {
+            guard case .requiresConfirmation = AssistantActionRouter.route(text) else {
+                XCTFail("Protected operation must remain separate: \(text)")
+                continue
+            }
+        }
+    }
     func testResumePreservesOnlySameSourceWritingRequest() {
         let url = "https://example.org/book"
         let original = "导入小说 \(url)，然后生成分集剧本草稿"
