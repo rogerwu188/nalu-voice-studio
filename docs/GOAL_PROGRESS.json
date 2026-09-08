@@ -11,7 +11,7 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "52e5a0d3a48405ab95761ec9af9b2f059210e012",
+  "observed_head": "1787c600c45387c91ead76b137d57997769e7834",
   "last_advanced_at": "2026-09-08T16:54:56Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Previous regression CI 34180565640 passed on 52e5a0d. Native typed sound-role asset preparation transport and receipt-validation tests added; new native CI still required. Backend source/binding 22 tests pass (0.91s). Evidence docs/qa/native-sound-source-transport-2026-09-08.md. Goal service is now active; selector/mix action and installed/final QA remain open."
+    "summary": "Native sound selection model retains choices and exact retries, rejects stale readiness after parameter changes; injected native tests added, not yet executed. Backend source/binding 22 tests passed in 0.51s. Prior transport CI 34253996299 still in progress. Evidence docs/qa/native-sound-selection-2026-09-08.md. UI/mix/render wiring and installed/final QA remain open."
   },
   "next_action": {
     "sop": "SOP-04",
