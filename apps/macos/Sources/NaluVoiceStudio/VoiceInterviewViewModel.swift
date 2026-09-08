@@ -29,12 +29,20 @@ final class VoiceInterviewViewModel {
     var selectedProjectID: String? {
         didSet {
             if selectedProjectID != oldValue {
+                unsentInputByProject[oldValue ?? ""] = (transcript, transcriptConfidence)
+                speechCaptureGeneration = UUID()
+                if isListening { speech.stop(); isListening = false }
+                let draft = unsentInputByProject[selectedProjectID ?? ""]
+                transcript = draft?.text ?? ""
+                transcriptConfidence = draft?.confidence ?? 0
                 projectSelectionGeneration = UUID()
                 pendingNovelSourceChoice = nil
             }
         }
     }
     private var projectSelectionGeneration = UUID()
+    private var speechCaptureGeneration = UUID()
+    private var unsentInputByProject: [String: (text: String, confidence: Float)] = [:]
     private var pendingNovelSourceChoice: NovelSourceChoice?
     var seasons: [NaluSeason] = []
     var episodes: [NaluEpisode] = []
@@ -187,6 +195,7 @@ final class VoiceInterviewViewModel {
 
     func toggleListening() async {
         if isListening {
+            speechCaptureGeneration = UUID()
             speech.stop()
             isListening = false
             commitTranscript()
@@ -201,8 +210,11 @@ final class VoiceInterviewViewModel {
             return
         }
         do {
+            speechCaptureGeneration = UUID()
+            let capture = speechCaptureGeneration
             transcript = ""
             try speech.start { [weak self] text, confidence in
+                guard self?.speechCaptureGeneration == capture else { return }
                 self?.transcript = text
                 self?.transcriptConfidence = confidence
             }

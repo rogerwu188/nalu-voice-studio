@@ -51,6 +51,22 @@ final class InteractiveStoryTests: XCTestCase {
     }
 
     @MainActor
+    func testUnsentInputRemainsWithItsProject() {
+        let model = VoiceInterviewViewModel()
+        model.selectedProjectID = "project-a"
+        model.transcript = "导入小说 https://example.org/a"
+        model.transcriptConfidence = 0.7
+        model.selectedProjectID = "project-b"
+        XCTAssertTrue(model.transcript.isEmpty)
+        model.transcript = "乙项目的故事"
+        model.selectedProjectID = "project-a"
+        XCTAssertEqual(model.transcript, "导入小说 https://example.org/a")
+        XCTAssertEqual(model.transcriptConfidence, 0.7)
+        model.selectedProjectID = "project-b"
+        XCTAssertEqual(model.transcript, "乙项目的故事")
+    }
+
+    @MainActor
     func testTypedInputKeepsRejectedTextAndDoesNotUseSpeechConfidence() {
         let model = VoiceInterviewViewModel()
         model.transcript = "   "
