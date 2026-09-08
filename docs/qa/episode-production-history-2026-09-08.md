@@ -63,3 +63,19 @@ warnings. This includes version-reader Swift CI but not native visual acceptance
 The artifact download is in progress at `/tmp/nalu-history-qa-7YdxCe`.
 Isolated qv1poe20 SQLite still contains parent run_frame_review at qa_review and
 child run_ddfaf60101144e24bf5b2f90b3961549 at preflight, ready for history QA.
+
+## Native history inspection (partial, playback usability gap)
+
+7ddce0c arm64 ZIP SHA256
+`a330a21ecd129dead7a6e65899c94c043bb9aaa180726560a79221560a01a79f`.
+Isolated qv1poe20 app successfully listed two versions; selected 第1版以前保存,
+downloaded/validated the original seal and constructed VideoPlayer without crash.
+The active progress remained30% preflight; after quitting, SQLite still had exactly
+the same parent qa_review and child preflight. Owned runtime exited cleanly.
+
+Actual screenshot showed the player below the fold, visible after scrolling.
+The accessibility tree exposed no standalone playback control. Playback was NOT
+verified: do not claim a completed viewing journey from successful file loading.
+Next add explicit large, accessible play/pause controls, then one confirmation
+pass on the native artifact. No provider calls, asset reuse or final-master QA
+were performed by this test. Native finish review remains outstanding.
