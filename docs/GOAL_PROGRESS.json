@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "c03ccd56857769ecd5a82748bb58222880cb51e3",
-  "last_advanced_at": "2026-09-07T10:28:01Z",
+  "observed_head": "f36e91ca7bce40800b8c7795f5e64570f26bc3e0",
+  "last_advanced_at": "2026-09-07T10:34:06Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,12 +25,12 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "summary": "Native episode audio/caption preparation action implemented with typed staging receipt and exact pending retry. Added native transport/model test; execution pending CI because local SwiftBridging duplicate-module error blocks parsing. Backend dialogue/binding 15 tests pass (0.71s), OpenAPI current. Evidence docs/qa/native-dialogue-staging-2026-09-07.md. Not installed or native-QA accepted."
+    "summary": "Authorized local sound-source staging now fills managed mixing parameters from project assets. Actual synthetic two-shot render uses all four staged sound roles and passed in 70.34s; 58 focused/immutability regressions pass (21.67s). Evidence docs/qa/authorized-sound-source-2026-09-07.md. Native role selection, missing-sound generation and final acceptance remain incomplete."
   },
   "next_action": {
     "sop": "SOP-04",
     "id": "connect-approved-episode-to-concrete-video-dispatch",
-    "summary": "Verify new native staging CI/tests, then implement automatic sound preparation/selection and native mix/production action without professional forms; continue semantic/content/master QA. Evidence docs/qa/native-dialogue-staging-2026-09-07.md. Existing local compiler environment broken; installed workflow remains pending. No Hops 401 retries.",
+    "summary": "Connect native sound-role asset choices and preparation receipts to prepare-mix/render; implement authorized missing-sound preparation rather than synthetic placeholders. Verify native staging/current CI. Evidence docs/qa/authorized-sound-source-2026-09-07.md. Local compiler remains broken; installed and final master/release QA pending. No Hops 401 retries.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

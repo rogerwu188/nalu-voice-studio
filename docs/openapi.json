@@ -2316,6 +2316,66 @@
         "title": "EpisodeSoundPlanRequest",
         "type": "object"
       },
+      "EpisodeSoundSourceRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Asset Id",
+            "type": "string"
+          },
+          "expected_asset_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Expected Asset Sha256",
+            "type": "string"
+          },
+          "expected_sound_plan_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Expected Sound Plan Sha256",
+            "type": "string"
+          },
+          "gain_db": {
+            "default": 0,
+            "maximum": 12.0,
+            "minimum": -60.0,
+            "title": "Gain Db",
+            "type": "number"
+          },
+          "layer": {
+            "enum": [
+              "ambience",
+              "foley",
+              "music",
+              "sfx"
+            ],
+            "title": "Layer",
+            "type": "string"
+          },
+          "sound_plan_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Sound Plan Id",
+            "type": "string"
+          },
+          "source_in_seconds": {
+            "default": 0,
+            "maximum": 1800.0,
+            "minimum": 0.0,
+            "title": "Source In Seconds",
+            "type": "number"
+          }
+        },
+        "required": [
+          "sound_plan_id",
+          "expected_sound_plan_sha256",
+          "layer",
+          "asset_id",
+          "expected_asset_sha256"
+        ],
+        "title": "EpisodeSoundSourceRequest",
+        "type": "object"
+      },
       "EpisodeStatus": {
         "enum": [
           "planned",
@@ -17437,6 +17497,71 @@
           }
         },
         "summary": "Prepare Episode Sound Plan"
+      }
+    },
+    "/v1/production-runs/{run_id}/sound-sources": {
+      "post": {
+        "operationId": "stage_episode_sound_source_v1_production_runs__run_id__sound_sources_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "origin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Origin"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EpisodeSoundSourceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunEvent"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Stage Episode Sound Source"
       }
     },
     "/v1/production-runs/{run_id}/tasks/{binding_id}/refresh": {

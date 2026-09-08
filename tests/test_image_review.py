@@ -567,13 +567,29 @@ def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypat
             assert len(repo.list_run_events(run.id)) == stage_event_count
             if render_adopted_dialogue:
                 layers = []
+                sound_assets = []
+                sound_source_url = f"/v1/production-runs/{run.id}/sound-sources"
                 for layer in ("ambience", "foley", "music", "sfx"):
                     # Explicit synthetic tone tracks; not real sound-design evidence.
-                    relative = f"provider-results/synthetic-{layer}.wav"
-                    (dialogue_exports / relative).write_bytes(whole_audio.content)
-                    layers.append({"layer": layer, "source_relative_path": relative,
-                        "source_sha256": hashlib.sha256(whole_audio.content).hexdigest(),
-                        "source_cue_sha256s": [digest({"synthetic_layer": layer})], "gain_db": -12})
+                    sound_asset = AssetService(repo, root).import_bytes(project["id"], content=whole_audio.content,
+                        filename=f"synthetic-{layer}.wav", content_type="audio/wav", kind=AssetKind.ARCHIVE_AUDIO,
+                        name=f"合成测试 {layer}", subject_name="", season_id=None, episode_id=episode["id"],
+                        consent_granted=True, consent_scope=ConsentScope.PROJECT_ONLY, guardian_approved=False,
+                        consent_granted_by="synthetic-qa", consent_statement="合成测试音轨，仅验证混音链路")
+                    sound_assets.append(sound_asset)
+                    source_request = {"sound_plan_id": prepared_sound.json()["id"],
+                        "expected_sound_plan_sha256": approved_sound["sound_plan_sha256"], "layer": layer,
+                        "asset_id": sound_asset.id, "expected_asset_sha256": sound_asset.metadata["sha256"], "gain_db": -12}
+                    assert api.post(sound_source_url, json=source_request, headers={"Origin": "https://example.org"}).status_code == 403
+                    assert api.post(sound_source_url, json={**source_request, "source_in_seconds": 1}).status_code == 409
+                    prepared_source = api.post(sound_source_url, json=source_request)
+                    assert prepared_source.status_code == 200, prepared_source.text
+                    before_replay = len(repo.list_run_events(run.id))
+                    assert reopened.post(sound_source_url, json=source_request).json()["id"] == prepared_source.json()["id"]
+                    assert len(repo.list_run_events(run.id)) == before_replay
+                    source = prepared_source.json()["payload"]["source"]
+                    assert (dialogue_exports / source["source_relative_path"]).read_bytes() == whole_audio.content
+                    layers.append(source)
                 mix_selection = {"staging_id": staged_dialogue.json()["id"],
                     "expected_staging_sha256": staged_dialogue.json()["payload"]["staging_sha256"],
                     "requested_by": "synthetic-render-qa", "sound_layers": layers, "width": 64, "height": 64}
@@ -614,6 +630,13 @@ def test_exact_saved_frame_preview_and_versioned_user_review(tmp_path, monkeypat
                 blocked_integrity = reopened.get(f"/v1/production-runs/{run.id}/rendered-output-integrity")
                 assert blocked_integrity.status_code == 409
                 assert "consent" in blocked_integrity.json()["detail"]
+                from nalu_runtime.episode_sound_source import EpisodeSoundSourceService
+                sounds = EpisodeSoundSourceService(repo, root)
+                sounds.validate_sources(run.id, layers)
+                repo.revoke_asset_consent(sound_assets[0].id, AssetConsentRevocationCreate(
+                    requested_by="synthetic-qa", reason="撤回环境音测试授权"))
+                with pytest.raises(ConflictError, match="consent"):
+                    sounds.validate_sources(run.id, layers)
                 return
             staged_wav.write_bytes(b"changed-fixture")
             assert reopened.post(dialogue_stage_url, json=dialogue_stage_request).status_code == 409

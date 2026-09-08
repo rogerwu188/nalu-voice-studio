@@ -92,6 +92,8 @@ class EpisodeDialogueService:
                 or digest({k: v for k, v in p.items() if k != "staging_sha256"}) != request.expected_staging_sha256):
             raise ConflictError("mix preparation requires the exact staged dialogue")
         lineage, files = p["lineage"], p["files"]
+        from .episode_sound_source import EpisodeSoundSourceService
+        EpisodeSoundSourceService(repo, self.data_root).validate_sources(run_id, request.sound_layers, lineage["sound_plan_id"])
         sound = repo.get_run_event(lineage["sound_plan_id"]).payload
         edit = repo.get_run_event(sound["edit_id"]).payload
         prepared = PostproductionMaterializationCreate(
@@ -124,6 +126,9 @@ class EpisodeDialogueService:
                 or digest({k: v for k, v in p.items() if k != "staging_sha256"}) != request.expected_dialogue_staging_sha256):
             raise ConflictError("adopted dialogue staging identity changed")
         lineage = p["lineage"]
+        from .episode_sound_source import PREFIX, EpisodeSoundSourceService
+        EpisodeSoundSourceService(self.repository, self.data_root).validate_sources(run_id,
+            [layer for layer in request.audio_layers if layer.source_relative_path.startswith(PREFIX)], lineage["sound_plan_id"])
         current = self.stage(run_id, EpisodeDialogueStageRequest(sound_plan_id=lineage["sound_plan_id"],
             expected_sound_plan_sha256=lineage["sound_plan_sha256"], expected_lineage_sha256=lineage["lineage_sha256"]))
         if current.id != receipt.id:

@@ -29,6 +29,8 @@ def validate_rendered_dialogue_consent(repository, data_root, run_id):
                 or plan.get("run_id") != run_id):
             raise ValueError("changed plan")
         request = plan["request"]
+        from .episode_sound_source import EpisodeSoundSourceService
+        EpisodeSoundSourceService(repository, data_root).validate_sources(run_id, request.get("audio_layers", []))
         staging_id = request.get("adopted_dialogue_staging_id")
         if not staging_id:
             return  # Other pipeline sources retain their existing authorization gates.

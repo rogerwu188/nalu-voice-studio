@@ -434,6 +434,9 @@ class ProductionService:
         run_directory = self._run_directory(run)
         if (run_directory / "rendered-output-seal.json").exists():
             raise ConflictError("sealed outputs cannot be rematerialized")
+        from .episode_sound_source import EpisodeSoundSourceService
+        sound_sources = EpisodeSoundSourceService(self.repository, self.data_root)
+        sound_sources.validate_sources(run_id, request.audio_layers)
         adopted_sources = [request.captions_source_relative_path,
                            *(layer.source_relative_path for layer in request.audio_layers)]
         if any(path.startswith("provider-results/adopted-dialogue/") for path in adopted_sources) and not request.adopted_dialogue_staging_id:
@@ -487,6 +490,7 @@ class ProductionService:
         # that cached answer after a cancellation during durable promotion.
         if self.repository.get_run(run.id).status == RunStatus.CANCELLED:
             raise ConflictError("postproduction materialization was cancelled")
+        sound_sources.validate_sources(run_id, request.audio_layers)
         if request.adopted_dialogue_staging_id:
             EpisodeDialogueService(self.repository, self.data_root).validate_materialization(run_id, request)
         self.repository.mark_postproduction_materialized(

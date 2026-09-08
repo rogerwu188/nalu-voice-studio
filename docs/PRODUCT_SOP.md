@@ -7,6 +7,10 @@ against the current main branch.
 
 ## Status vocabulary
 
+[Authorized sound source preparation](qa/authorized-sound-source-2026-09-07.md)
+now feeds actual synthetic full rendering with scoped, replayable sound assets.
+Native sound choices, missing-sound production and final acceptance remain open.
+
 [Native dialogue staging](qa/native-dialogue-staging-2026-09-07.md) connects the
 confirmed audio/captions preparation action without professional fields. Native
 compilation/QA, other sound layers and the final production action remain open.
