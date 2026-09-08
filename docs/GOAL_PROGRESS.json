@@ -11,7 +11,7 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "0777eb9b263bf58795f81dda59279cb86b97fc3e",
+  "observed_head": "5598d2f751b74b821046a7f307d1f31af3ddbd02",
   "last_advanced_at": "2026-09-08T20:18:16Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
@@ -29,8 +29,8 @@
   },
   "next_action": {
     "sop": "SOP-09",
-    "id": "verify-current-native-fixes-and-production-handoff",
-    "summary": "Do not repeat native import/adoption/preflight checks already recorded in docs/qa/native-source-entry-live-2026-09-08.md and native-draft-adoption-2026-09-08.md. Check live CI34274051972, then current artifact for f03b05e project-input isolation and e4bef4a import-reply detour fix. Shot-plan generate() calls paid Hops writer, not local preparation; configured401 remains unresolved and diagnostic timeout does not prove app credential failure. No automatic paid retry. Continue safe production/repair implementation while real writer/provider/signing/publication gates remain open.",
+    "id": "verify-independent-project-creation-fix",
+    "summary": "CI34274051972 succeeded all four jobs. Native98fbf60 QA uncovered explicit new-project button reusing an existing draft, preventing two-project isolation acceptance (docs/qa/native-new-project-reuse-2026-09-08.md). Fixes1ea3f83/5598d2f create independent projects, suppress overlapping clicks and isolate interview identity/state. Added failure/retry preservation test; await macOS CI and native two-project QA including preserved unsent text and correct draft identity. CI34275403148 is currently live on older0777eb9; do not restart it. Latest fixes not yet accepted. Real writer/provider/release gates remain open; no automatic paid retry of Hops401.",
     "requires_user_authorization": false
   },
   "waiting_authorization": null,

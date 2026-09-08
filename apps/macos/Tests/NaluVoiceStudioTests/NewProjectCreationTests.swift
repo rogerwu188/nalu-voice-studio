@@ -4,6 +4,7 @@ import Testing
 
 private final class NewProjectProtocol: URLProtocol, @unchecked Sendable {
     static var creations = 0
+    static var rejectCreation = false
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
     override func startLoading() {
@@ -17,7 +18,8 @@ private final class NewProjectProtocol: URLProtocol, @unchecked Sendable {
             """
         }
         client?.urlProtocol(self, didReceive: HTTPURLResponse(url: request.url!,
-            statusCode: 200, httpVersion: nil, headerFields: nil)!, cacheStoragePolicy: .notAllowed)
+            statusCode: Self.rejectCreation && request.httpMethod == "POST" ? 503 : 200,
+            httpVersion: nil, headerFields: nil)!, cacheStoragePolicy: .notAllowed)
         client?.urlProtocol(self, didLoad: Data(body.utf8))
         client?.urlProtocolDidFinishLoading(self)
     }
@@ -26,6 +28,36 @@ private final class NewProjectProtocol: URLProtocol, @unchecked Sendable {
 
 @Suite(.serialized)
 struct NewProjectCreationTests {
+    @MainActor @Test func failedCreationPreservesOldProjectAndAllowsRetry() async {
+        NewProjectProtocol.creations = 0
+        NewProjectProtocol.rejectCreation = false
+        defer { NewProjectProtocol.rejectCreation = false }
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [NewProjectProtocol.self]
+        let model = VoiceInterviewViewModel(runtime: RuntimeClient(
+            baseURL: URL(string: "http://127.0.0.1:8765")!,
+            session: URLSession(configuration: config), accessCheck: { true }))
+        model.setLocalVoiceEnabled(false)
+        await model.beginProject()
+        model.transcript = "这段故事不能丢"
+        let oldMessages = model.messages.map(\.text)
+        NewProjectProtocol.rejectCreation = true
+        await model.beginProject()
+        #expect(model.selectedProjectID == "project-1")
+        #expect(model.draftProjectID == "project-1")
+        #expect(model.projects.count == 1)
+        #expect(model.transcript == "这段故事不能丢")
+        #expect(model.messages.map(\.text) == oldMessages)
+        #expect(model.errorMessage != nil)
+        #expect(!model.projectCreationInProgress)
+        NewProjectProtocol.rejectCreation = false
+        await model.beginProject()
+        #expect(model.selectedProjectID == "project-3")
+        #expect(model.projects.count == 2)
+        await model.selectProject("project-1")
+        #expect(model.transcript == "这段故事不能丢")
+    }
+
     @MainActor @Test func explicitNewProjectDoesNotReuseExistingDraft() async {
         NewProjectProtocol.creations = 0
         let config = URLSessionConfiguration.ephemeral
