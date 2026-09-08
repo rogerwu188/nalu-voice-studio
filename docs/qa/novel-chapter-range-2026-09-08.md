@@ -11,3 +11,10 @@ Arabic syntax, partial continuation, exhausted range, two chapters and reversed
 range. Initial test collection used pytest's reserved request parameter; corrected
 to spoken_range before the passing run. No model call or native acceptance is
 claimed; this does not implement whole-novel automatic episode planning.
+
+Follow-up: catalog coverage is now checked for explicit ranges. Missing first or
+last chapters and interior gaps reject the request rather than supplying an
+unmarked partial range. Work is bounded by catalog length even for enormous
+spoken end numbers. All 19 novel tests pass in3.10s, including missing/gapped and
+999999999 end-number cases. Ruff passes. Downloaded-but-pending chapters still
+stop source extraction under the existing unread-material rule.

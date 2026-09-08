@@ -136,6 +136,16 @@ def writing_context(state, user_text, *, character_budget=60000, previous=None):
         chapter_start = chapter_number(match[1])
     if chapter_end is not None and chapter_end < chapter_start:
         raise ConflictError("novel chapter range is reversed")
+    if chapter_range:
+        available = set()
+        for item in state["chapters"]:
+            label = re.match(rf"第\s*({numerals})\s*[章回节]", item["title"])
+            if label:
+                available.add(chapter_number(label[1]))
+        # Bound this check by the catalog size, not an arbitrary spoken number.
+        covered = sum(chapter_start <= number <= chapter_end for number in available)
+        if covered != chapter_end - chapter_start + 1:
+            raise ConflictError("requested novel range contains chapters missing from the catalog")
     start_index = 1
     start_character = 0
     continue_source = re.fullmatch(r"(?:请)?(?:继续|接着)(?:改编|读取|处理)小说(?:后面的内容|下一段)[。！!]?", user_text.strip())

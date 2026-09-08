@@ -205,6 +205,13 @@ def test_explicit_range_does_not_spill_into_later_chapters(tmp_path, spoken_rang
     assert len(writing_context(state, "第一章至第二章")["passages"]) == 2
     with pytest.raises(ConflictError):
         writing_context(state, "第二章到第一章")
+    for absent in ["第一章至第三章", "第三章至第四章", "第一章至第999999999章"]:
+        with pytest.raises(ConflictError, match="missing from the catalog"):
+            writing_context(state, absent)
+    # A gap inside a selected volume must not be silently replaced with less text.
+    state["chapters"][1]["title"] = "第三章"
+    with pytest.raises(ConflictError, match="missing from the catalog"):
+        writing_context(state, "第一章到第三章")
 
 
 def test_sqlite_restart_revision_and_replay_preserve_long_source_window(tmp_path):
