@@ -6023,6 +6023,54 @@
         "title": "NovelImportCreate",
         "type": "object"
       },
+      "NovelSourceCandidate": {
+        "additionalProperties": false,
+        "properties": {
+          "title": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "url": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "pattern": "^https://",
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "url"
+        ],
+        "title": "NovelSourceCandidate",
+        "type": "object"
+      },
+      "NovelSourceChoice": {
+        "additionalProperties": false,
+        "properties": {
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/NovelSourceCandidate"
+            },
+            "maxItems": 5,
+            "minItems": 1,
+            "title": "Sources",
+            "type": "array"
+          },
+          "writingRequested": {
+            "title": "Writingrequested",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "sources",
+          "writingRequested"
+        ],
+        "title": "NovelSourceChoice",
+        "type": "object"
+      },
       "PlatformPublicationApproval": {
         "properties": {
           "approval_sha256": {
@@ -10140,6 +10188,16 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/ExternalWriterDeclaration"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "novel_source_choice": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NovelSourceChoice"
               },
               {
                 "type": "null"

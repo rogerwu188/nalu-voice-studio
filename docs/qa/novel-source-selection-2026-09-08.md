@@ -68,3 +68,12 @@ restored as pending. Existing answers without this optional field still decode.
 Runtime recreation and idempotent answer replay tested; 15 import tests passed
 in 2.60s, ruff passes. Native compile/installed restart QA and OpenAPI snapshot
 refresh remain pending. No automatic search or paid retry on restore.
+
+## Contract and old-project replay
+
+Regenerated OpenAPI; backward compatibility against 1929d28 passes. Combined
+story/writer/reader/import suite passed 36 tests in 6.42s before the compatibility
+fix below. Old saved answers without the newly optional field must replay as
+equivalent to null; fixed normalization and added a pre-upgrade SQLite fixture.
+16 import tests pass in 2.68s, ruff passes. This changes no user database files;
+the upgrade fixture uses an isolated temporary project. Native CI remains pending.

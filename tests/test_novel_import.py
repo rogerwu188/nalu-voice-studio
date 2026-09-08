@@ -232,6 +232,21 @@ def test_source_choice_survives_restart_until_next_turn(tmp_path):
     assert new["turns"][-1].get("answer") is None
 
 
+def test_pre_candidate_answer_replay_after_upgrade(tmp_path):
+    service, project, _ = setup_import(tmp_path, lambda url: {})
+    story = InteractiveStory(service.database)
+    story.append(project, StoryInput(turn_id="old", expected_revision=0,
+                 text="我的故事", source_mode="narrated_story"))
+    answer = StoryAnswer(expected_revision=1, reply="请继续讲")
+    story.answer(project, "old", answer)
+    with service.database.connect() as connection:
+        row = connection.execute("SELECT project_bible_json FROM projects WHERE id=?", (project,)).fetchone()
+        bible = json.loads(row["project_bible_json"])
+        del bible[InteractiveStory.key]["turns"][-1]["answer"]["novel_source_choice"]
+        connection.execute("UPDATE projects SET project_bible_json=? WHERE id=?", (json.dumps(bible), project))
+    assert story.answer(project, "old", answer)["revision"] == 2
+
+
 @pytest.mark.parametrize("mode", ["complete", "cycle", "external", "failed", "limit"])
 def test_paginated_catalog_is_not_silently_partial(tmp_path, mode):
     calls = []

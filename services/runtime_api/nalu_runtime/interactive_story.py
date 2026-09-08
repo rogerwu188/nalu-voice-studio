@@ -145,7 +145,12 @@ class InteractiveStory:
                 raise ConflictError("answer no longer belongs to the current story input")
             turn = state["turns"][-1]
             payload = request.model_dump(exclude={"expected_revision"})
-            if turn.get("answer") == payload:
+            saved_answer = turn.get("answer")
+            # Older SQLite answers predate the optional candidate field. Missing
+            # and null are equivalent for exact answer replay after upgrading.
+            if saved_answer is not None:
+                saved_answer = {"novel_source_choice": None, **saved_answer}
+            if saved_answer == payload:
                 return state
             if state["revision"] != request.expected_revision or turn["status"] != "pending":
                 raise ConflictError("story changed; discard stale answer")
