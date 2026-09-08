@@ -232,17 +232,32 @@ struct EpisodeShotPlanTests {
         let restoredReview = EpisodeEditReviewModel(edit: edit, picture: picture, runtime: runtime())
         #expect(!restoredReview.canPrepareSound)
         let restoredHistory = try JSONSerialization.data(withJSONObject: [recorded])
-        ShotReviewProtocol.queued = [(200, restoredHistory)]
+        ShotReviewProtocol.queued = [(200, restoredHistory), (200, Data("[]".utf8))]
         let beforeRecovery = ShotReviewProtocol.requests.count
         await restoredReview.load()
         #expect(restoredReview.canPrepareSound)
-        #expect(ShotReviewProtocol.requests.count == beforeRecovery + 1)
+        #expect(ShotReviewProtocol.requests.count == beforeRecovery + 2)
         #expect(ShotReviewProtocol.requests.last?.httpMethod == "GET")
         ShotReviewProtocol.queued = [(200, try JSONSerialization.data(withJSONObject: soundReceipt))]
         await restoredReview.retrySoundPreparation()
         #expect(restoredReview.latest?.id == "review" && !restoredReview.soundPreparationPending)
         #expect(ShotReviewProtocol.requests.last?.url?.path.hasSuffix("sound-plan-drafts") == true)
         let cuePlan = try #require(restoredReview.soundPlan)
+        let reopened = EpisodeEditReviewModel(edit: edit, picture: picture, runtime: runtime())
+        ShotReviewProtocol.queued = [(200, restoredHistory),
+            (200, try JSONSerialization.data(withJSONObject: [soundReceipt]))]
+        let beforeReadOnly = ShotReviewProtocol.requests.count
+        await reopened.load()
+        #expect(reopened.soundPlan?.id == cuePlan.id)
+        #expect(ShotReviewProtocol.requests.count == beforeReadOnly + 2)
+        #expect(ShotReviewProtocol.requests.suffix(2).allSatisfy { $0.httpMethod == "GET" })
+        var wrongRun = soundReceipt
+        wrongRun["run_id"] = "another-run"
+        ShotReviewProtocol.queued = [(200, try JSONSerialization.data(withJSONObject: [wrongRun]))]
+        do {
+            _ = try await runtime().recoverEpisodeSound(edit: edit, review: try #require(reopened.latest))
+            Issue.record("A different run's sound plan must not be restored")
+        } catch {}
         var brokenSound = soundReceipt
         var brokenPayload = approvedSound
         brokenPayload["cues"] = [["shot_index": 0, "start_seconds": 1.0, "end_seconds": 7.5,
