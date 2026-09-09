@@ -90,3 +90,19 @@ Actual isolated run saved evt_845b97a989c44822b4767ae8791abb5b at13s. Synthetic
 recognizer-version and explicit test attestations are not human/ASR acceptance.
 No provider calls or new remote bindings. Four sound layers/mix/master remain
 pending; the script does not report the fixture as a finished film.
+
+## Synthetic repaired master rendered
+
+verify-repair-mix.py re-prepares four authorized sound layers and the adopted
+dialogue mix. First render rejected dry-run repair; fixed local-only transition
+to require an explicit same-episode repair source and saved reuse decision while
+preserving the dry-run/provider boundary. Then saved-source revalidation rejected
+RUNNING; current-package read-only mode now permits running/QA without enabling
+creative generation. Sixteen targeted tests pass6.02s; ruff passes.
+
+Actual resumed public render returned201 with337302-byte master SHA256
+b6245d18902d05ef9e2bbadac75040666886c0faeb1a7c241b94a93947f9069d,
+result f286a65c49ae97c8ab14516d829d3e593ff62867ab63e9fca5977d7a0a09aa2c.
+This is the same deliberately synthetic picture content, NOT improved visual QA
+or a release-ready film. Need seal/QA, replay regression, new branch coverage,
+native adoption controls and real-provider end-to-end acceptance. No SOP PASS.

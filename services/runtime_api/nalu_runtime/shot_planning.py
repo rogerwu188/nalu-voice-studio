@@ -104,11 +104,14 @@ class ShotPlanningService:
     def __init__(self, repository: Repository):
         self.repository = repository
 
-    def _package(self, run):
+    def _package(self, run, *, _read_saved=False):
         latest = self.repository.latest_run_for_episode(run.episode_id)
+        allowed = {"preflight", "waiting_for_approval"}
+        if _read_saved:
+            allowed |= {"running", "qa_review"}
         if (not latest or latest.id != run.id
                 or self.repository.get_project(run.project_id).archived_at
-                or self.repository.get_run(run.id).status not in {"preflight", "waiting_for_approval"}):
+                or self.repository.get_run(run.id).status not in allowed):
             raise ConflictError("shot planning context is no longer current")
         return self.read_immutable_package(run)
 

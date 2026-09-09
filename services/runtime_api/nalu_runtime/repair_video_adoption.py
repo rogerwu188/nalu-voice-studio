@@ -80,7 +80,7 @@ def read_repair_clip(repo, data_root, run_id, review_id):
                  and e.payload.get("shot_index") == payload["shot_index"]]
     if not decisions or decisions[-1].id != event.id:
         raise ConflictError("repair clip decision has changed")
-    package = ShotPlanningService(repo)._package(repo.get_run(run_id))
+    package = ShotPlanningService(repo)._package(repo.get_run(run_id), _read_saved=True)
     plan = ShotReviewService(repo).current(run_id)
     if (plan is None or plan.event_type != "shot_plan_approved" or plan.payload.get("approved") is not True
             or plan.id != payload["plan_id"] or plan.payload.get("plan_sha256") != payload["plan_sha256"]

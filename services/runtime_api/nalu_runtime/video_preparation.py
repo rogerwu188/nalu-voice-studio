@@ -69,7 +69,7 @@ class VideoPreparationService:
                 if latest is None or latest.id != _repair_target or run.status != RunStatus.QA_REVIEW:
                     raise ConflictError("saved shot belongs to a superseded production run")
                 from .shot_planning import ShotPlanningService
-                repair_package = ShotPlanningService(self.repository)._package(latest)
+                repair_package = ShotPlanningService(self.repository)._package(latest, _read_saved=True)
                 if (latest.project_id != run.project_id or latest.season_id != run.season_id
                         or repair_package.get("production_policy", {}).get("repair_lineage", {}).get("source_run_id") != run_id):
                     raise ConflictError("historical shot is not this repair's original")

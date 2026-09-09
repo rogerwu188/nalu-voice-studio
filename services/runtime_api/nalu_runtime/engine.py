@@ -427,8 +427,13 @@ class ProductionService:
         self, run_id: str, request: PostproductionMaterializationCreate
     ) -> PostproductionMaterializationResult:
         run = self.repository.get_run(run_id)
+        repair_local = False
+        if run.dry_run and request.adopted_dialogue_staging_id is not None:
+            from .shot_planning import ShotPlanningService
+            repair_local = bool(ShotPlanningService.read_immutable_package(run).get(
+                "production_policy", {}).get("repair_lineage", {}).get("source_run_id"))
         adopted_start = (run.status in {RunStatus.PREFLIGHT, RunStatus.WAITING_FOR_APPROVAL}
-                         and request.adopted_dialogue_staging_id is not None and not run.dry_run)
+                         and request.adopted_dialogue_staging_id is not None and (not run.dry_run or repair_local))
         if run.status not in {RunStatus.RUNNING, RunStatus.QA_REVIEW} and not adopted_start:
             raise ConflictError(
                 "local postproduction materialization requires a running run or exact QA replay"
@@ -492,7 +497,8 @@ class ProductionService:
                 raise ConflictError("local workspace descriptor is invalid")
             run = self.repository.begin_adopted_postproduction(run_id,
                 plan_sha256=digest(request.model_dump(mode="json")),
-                approved_revision=script["revision"], requested_by=request.requested_by)
+                approved_revision=script["revision"], requested_by=request.requested_by,
+                repair_source_run_id=immutable.get("production_policy", {}).get("repair_lineage", {}).get("source_run_id"))
         if not exports_root.is_dir() or not workspace_manifest.is_file():
             raise ConflictError("Qingshan workspace is incomplete before materialization")
         last_cancel_check = 0.0

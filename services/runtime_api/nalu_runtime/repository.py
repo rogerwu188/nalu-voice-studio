@@ -6909,13 +6909,21 @@ class Repository:
             )
         return self.get_run(run_id)
 
-    def begin_adopted_postproduction(self, run_id, *, plan_sha256, approved_revision, requested_by):
+    def begin_adopted_postproduction(self, run_id, *, plan_sha256, approved_revision, requested_by,
+                                    repair_source_run_id=None):
         """Enter local-only rendering from an exact prepared, approved episode."""
         with self.db.connect() as db:
             db.execute("BEGIN IMMEDIATE")
             run = db.execute("SELECT * FROM production_runs WHERE id=?", (run_id,)).fetchone()
-            if run is None or run["dry_run"] or run["status"] not in {"preflight", "waiting_for_approval"}:
+            if run is None or run["status"] not in {"preflight", "waiting_for_approval"}:
                 raise ConflictError("run cannot enter adopted local postproduction")
+            if run["dry_run"]:
+                source = db.execute("SELECT * FROM production_runs WHERE id=?", (repair_source_run_id,)).fetchone()
+                decision = db.execute("SELECT payload_json FROM run_events WHERE run_id=? AND event_type='repair_video_reviewed' ORDER BY sequence DESC LIMIT 1", (run_id,)).fetchone()
+                if (source is None or source["episode_id"] != run["episode_id"]
+                        or source["project_id"] != run["project_id"] or source["status"] != "qa_review"
+                        or decision is None or decode(decision["payload_json"]).get("candidate", {}).get("source_run_id") != repair_source_run_id):
+                    raise ConflictError("dry-run rendering requires an explicit adopted repair source")
             latest = db.execute("SELECT id FROM production_runs WHERE episode_id=? ORDER BY created_at DESC,id DESC LIMIT 1",
                                 (run["episode_id"],)).fetchone()
             episode = db.execute("SELECT * FROM episodes WHERE id=?", (run["episode_id"],)).fetchone()
