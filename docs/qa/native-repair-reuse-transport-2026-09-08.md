@@ -1,5 +1,19 @@
 # Native repair reuse transport — incomplete acceptance
 
+## Real encoded preview read at f9cbfff
+
+Unmocked TestClient GETs on isolated `nalu-native-postproduction-qv1poe20`,
+child `run_ddfaf60101144e24bf5b2f90b3961549`, returned both existing synthetic
+MP4s through repair-scoped content routes. First: 4462 bytes,
+SHA256 `f2cc7a1083c17995bc021b6beeedeb0cda4400ba7830276a65c3786eff4c8f50`;
+second: 4086 bytes,
+SHA256 `4f4f924ffee7eb0865b9964b422bdcc0ed28cb9f478b24df03ed965d904a933e`.
+Both matched candidate SHA, MP4 type/ftyp and no-store headers. Wrong candidate
+digest returned409 for each. Full child event lists were identical before/after.
+No model/provider call or user project operation occurred. This replaces mocked
+content-read-only evidence with actual encoded fixture reads, not native playback
+or final visual quality acceptance. Child remains an unapproved repair draft.
+
 Added native URLProtocol test for ordinary-run null context and repair context:
 only the two expected GETs are issued, no repair creation or production POST.
 Backend regression remains 3 passed (5.00s). f6e195b is pushed; latest native
