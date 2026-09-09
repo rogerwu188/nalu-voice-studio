@@ -52,10 +52,30 @@ def main():
         assert result["payload"]["edit_approved"] is True
         assert result["payload"]["duration_seconds"] == edit.payload["edited_duration_seconds"]
         assert api.post(base + "/sound-plan-drafts", json=request).json() == result
+        # Attach original synthetic recordings through current consent checks.
+        # Never carry the parent's listening/caption approval into the repair.
+        source_id = edit.payload["items"][0]["source_run_id"]
+        original_takes = [e for e in repo.list_run_events(source_id)
+                          if e.event_type == "episode_audio_take_attached"]
+        attached = []
+        for cue in result["payload"]["cues"]:
+            original = [e for e in original_takes if e.payload["shot_index"] == cue["shot_index"]][-1]
+            take_request = {"sound_plan_id": result["id"],
+                            "expected_sound_plan_sha256": result["payload"]["sound_plan_sha256"],
+                            "shot_index": cue["shot_index"], "asset_id": original.payload["asset_id"],
+                            "expected_asset_sha256": original.payload["expected_asset_sha256"],
+                            "source_in_seconds": original.payload["source_in_seconds"]}
+            take = api.post(base + "/audio-takes", json=take_request)
+            assert take.status_code == 200, take.text
+            assert take.json()["payload"]["audio_approved"] is False
+            assert take.json()["payload"]["captions_approved"] is False
+            assert api.post(base + "/audio-takes", json=take_request).json() == take.json()
+            attached.append(take.json()["id"])
         with repo.db.connect() as db:
             assert db.execute("SELECT COUNT(*) FROM remote_task_bindings WHERE run_id=?", (args.run_id,)).fetchone()[0] == count_before
         print(json.dumps({"run_id": args.run_id, "edit_id": edit.id, "sound_plan_id": result["id"],
                           "duration_seconds": result["payload"]["duration_seconds"],
+                          "unapproved_audio_take_ids": attached,
                           "real_film_accepted": False, "provider_calls": False}))
 
 

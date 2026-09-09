@@ -75,3 +75,11 @@ increase. Ruff passes. No actual audio was created or master accepted. Next
 prepare authorized recordings/sound layers for the repair and verify full render.
 Original full-render regression remains live in exec83513 (PID55996 observed
 running); do not restart or claim success until its result is available.
+
+Extended the reproducible handoff to reattach both original synthetic recordings
+through the current repair sound plan and current consent validation. Saved takes
+evt_c0ef665b9cd74e30add8418a4fd783da and evt_3b8d44d61a2045529d1cefa3a686662c;
+both remain audio_approved=false/captions_approved=false. Exact replays return
+identical events, no additional provider bindings. Script and ruff pass. This is
+local fixture evidence, not real speech recognition/listening or master acceptance.
+Next perform new repair listening/caption review and mix/render integration.
