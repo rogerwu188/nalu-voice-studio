@@ -15,7 +15,7 @@ class VideoTailService:
     def __init__(self, repository, data_root):
         self.repository, self.data_root = repository, data_root
 
-    def accepted_video(self, run_id, review_id):
+    def accepted_video(self, run_id, review_id, *, _repair_target=None):
         repo = self.repository
         review = repo.get_run_event(review_id)
         decision = review.payload
@@ -41,7 +41,10 @@ class VideoTailService:
             raise ConflictError("accepted preparation changed")
         request = VideoPreparationRequest.model_validate({k: saved[k] for k in VideoPreparationRequest.model_fields if k in saved})
         # Existing accepted preparation is being read, not prepared/submitted again.
-        validated = VideoPreparationService(repo, self.data_root).validate(run_id, request, _read_saved=True)
+        options = {"_read_saved": True}
+        if _repair_target is not None:
+            options["_repair_target"] = _repair_target
+        validated = VideoPreparationService(repo, self.data_root).validate(run_id, request, **options)
         if validated["preparation_sha256"] != decision["preparation_sha256"]:
             raise ConflictError("accepted shot inputs changed")
         return review, media, raw

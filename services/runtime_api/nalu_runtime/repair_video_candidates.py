@@ -8,6 +8,16 @@ from .video_preparation import digest
 from .video_tail import VideoTailService
 
 
+def same_referenced_assets(shot, source_assets, target_assets):
+    """Unrelated later audio uploads must not invalidate an unchanged picture."""
+    for identity in shot.reference_asset_ids:
+        old = [asset for asset in source_assets if asset.get("id") == identity]
+        new = [asset for asset in target_assets if asset.get("id") == identity]
+        if len(old) != 1 or len(new) != 1 or old != new:
+            return False
+    return True
+
+
 def repair_video_candidates(production, run_id):
     repo = production.repository
     context = repair_shot_draft_context(production, run_id)
@@ -32,8 +42,9 @@ def repair_video_candidates(production, run_id):
             or current.payload.get("production_package_sha256") != package["package_sha256"]):
         raise ConflictError("repair creative plan is unavailable")
     try:
-        shots = ShotPlan.model_validate(current.payload.get("plan")).shots
-        old_shots = ShotPlan.model_validate(original.payload.get("plan")).shots
+        target_plan = ShotPlan.model_validate(current.payload.get("plan"))
+        source_plan = ShotPlan.model_validate(original.payload.get("plan"))
+        shots, old_shots = target_plan.shots, source_plan.shots
     except ValueError:
         raise ConflictError("repair creative plan is invalid") from None
     events = repo.list_run_events(source.id)
@@ -43,7 +54,9 @@ def repair_video_candidates(production, run_id):
         # Match exact position and creative content; do not guess reordered shots.
         if index >= len(old_shots) or shot != old_shots[index]:
             item["reason"] = "creative_shot_changed"
-        elif old_package.get("inherited_assets", []) != package.get("inherited_assets", []):
+        elif (source_plan.visual_assets != target_plan.visual_assets
+              or not same_referenced_assets(shot, old_package.get("inherited_assets", []),
+                                            package.get("inherited_assets", []))):
             item["reason"] = "asset_snapshot_changed"
         else:
             tasks = [t for t in original.payload.get("tasks", []) if t.get("shot_index") == index]
@@ -53,7 +66,8 @@ def repair_video_candidates(production, run_id):
                 item["reason"] = "no_original_adopted_video"
             else:
                 try:
-                    review, media, _ = VideoTailService(repo, production.data_root).accepted_video(source.id, reviews[-1].id)
+                    review, media, _ = VideoTailService(repo, production.data_root).accepted_video(
+                        source.id, reviews[-1].id, _repair_target=run_id)
                     if (review.payload.get("approved_plan_event_id") != original.id
                             or review.payload.get("approved_plan_sha256") != original.payload["plan_sha256"]):
                         raise ConflictError("original video belongs to another creative plan")

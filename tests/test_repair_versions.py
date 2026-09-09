@@ -133,7 +133,8 @@ def test_local_repair_version_preserves_parent_and_replays_after_restart(
         'approved_plan_sha256': original_plan['plan_sha256'], 'review_sha256': 'a' * 64})
     calls = []
 
-    def validated_clip(self, run_id, review_id):
+    def validated_clip(self, run_id, review_id, *, _repair_target=None):
+        assert _repair_target == repair['id']
         calls.append((run_id, review_id))
         return source_review, SimpleNamespace(id='media-test', payload={'video': {'sha256': 'b' * 64}}), b'fixture'
 

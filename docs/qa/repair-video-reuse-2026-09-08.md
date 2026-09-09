@@ -14,3 +14,18 @@ of incomplete original receipts. The positive clip validator is mocked in this
 test: it proves routing/metadata only, NOT real-media reuse. Need real encoded
 fixture validation, explicit durable adoption, downstream staging and native
 review controls before claiming repaired production. No SOP promotion.
+
+Real encoded synthetic nel8waa9 fixture exposed two integration gaps: unrelated
+later audio uploads invalidated all shots, and historical read validation rejected
+the explicit repair parent. Compare only exact referenced assets (plus visual
+designs), and allow historical read only for the current same-project/season
+repair whose immutable package names that parent. Normal preparation never gains
+historical access. Four repair tests passed35.63s and ruff passed before additional
+negative historical-access coverage.
+
+Actual GET with unmocked decoder/receipt validator now returns shot0 as
+available_for_review, video SHA256
+f2cc7a1083c17995bc021b6beeedeb0cda4400ba7830276a65c3786eff4c8f50.
+Shot1 remains rejected by original-video validation and must be diagnosed, not
+waived. This is synthetic encoded media, not a real-provider or quality acceptance.
+Explicit adoption/staging/native controls remain missing.

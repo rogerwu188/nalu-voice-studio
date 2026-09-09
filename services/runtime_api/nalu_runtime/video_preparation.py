@@ -57,7 +57,7 @@ class VideoPreparationService:
                 encode(record), now))
         return self.repository.get_run_event(identity)
 
-    def validate(self, run_id: str, incoming: VideoPreparationRequest, *, _read_saved=False):
+    def validate(self, run_id: str, incoming: VideoPreparationRequest, *, _read_saved=False, _repair_target=None):
         run = self.repository.get_run(run_id)
         if self.repository.get_project(run.project_id).archived_at:
             raise ConflictError("archived project is read-only")
@@ -66,7 +66,15 @@ class VideoPreparationService:
             allowed |= {RunStatus.RUNNING, RunStatus.QA_REVIEW}
             latest = self.repository.latest_run_for_episode(run.episode_id)
             if latest is None or latest.id != run_id:
-                raise ConflictError("saved shot belongs to a superseded production run")
+                if latest is None or latest.id != _repair_target or run.status != RunStatus.QA_REVIEW:
+                    raise ConflictError("saved shot belongs to a superseded production run")
+                from .shot_planning import ShotPlanningService
+                repair_package = ShotPlanningService(self.repository)._package(latest)
+                if (latest.project_id != run.project_id or latest.season_id != run.season_id
+                        or repair_package.get("production_policy", {}).get("repair_lineage", {}).get("source_run_id") != run_id):
+                    raise ConflictError("historical shot is not this repair's original")
+        elif _repair_target is not None:
+            raise ConflictError("historical repair access is read-only")
         if run.status not in allowed:
             raise ConflictError("shot preparation requires a preflight or approval-waiting run")
         path = Path(run.package_path)
