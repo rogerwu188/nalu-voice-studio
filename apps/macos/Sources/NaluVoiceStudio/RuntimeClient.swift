@@ -14,6 +14,12 @@ actor RuntimeClient {
         return result
     }
 
+    func hasRepairSource(runID: String) async throws -> Bool {
+        struct Context: Decodable { var source_run_id: String }
+        let result: Context? = try await get("v1/production-runs/\(runID)/repair-shot-draft/context")
+        return result != nil
+    }
+
     func downloadRepairVideo(candidates: RepairVideoCandidates, shotIndex: Int) async throws -> URL {
         try candidates.validate(runID: candidates.run_id)
         guard let candidate = candidates.items.first(where: { $0.shot_index == shotIndex }),

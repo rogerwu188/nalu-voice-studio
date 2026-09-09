@@ -73,6 +73,8 @@ import SwiftUI
                                 .naluFont(.body).textSelection(.enabled)
                         }
                         if let event = model.event, event.payload.approved && !model.hasEdits && !model.snapshotRefreshPending {
+                            RepairVideoReviewView(runID: model.runID, shotIndex: selectedShot, onRead: onRead)
+                                .id("\(model.runID)-\(event.id)-\(selectedShot)-reuse")
                             let designs = (plan.visual_assets ?? []).filter {
                                 (shot.visual_asset_keys ?? []).contains($0.key) && $0.existing_asset_id == nil
                             }

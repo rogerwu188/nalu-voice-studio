@@ -1,5 +1,13 @@
 # Native repair reuse transport — incomplete acceptance
 
+Native shot panel now embeds a repair-only viewer after approved shot planning:
+GET context/candidates/decisions, explicit clip download, play/pause, user viewing
+attestation, and accept/reject. Download does not set the attestation. Leaving
+the view stops playback and removes the temporary copy, including late download
+completion. Read/save failures retain progress and offer state recovery. This
+implements the entry, but native CI and rendered interaction QA are still
+required; earlier statements that viewer wiring is absent are superseded.
+
 Review state now separates old CAS receipts from current-plan decisions. A plan
 change removes the displayed current approval but retains the prior receipt ID
 needed to replace it. New acceptance requires a viewed-shot marker; restoring
