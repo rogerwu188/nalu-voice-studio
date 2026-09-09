@@ -1,5 +1,16 @@
 # Native repair reuse transport — incomplete acceptance
 
+## Native edit handoff after correct-root relaunch
+
+Relaunched the existing arm64 QA bundle with explicit qv1poe20 support root
+and port18767 after observing an unrelated unnamed test project. Correct project
+`合成首帧确认` reappeared. Opening the shot panel restored the first saved reuse
+decision. Clicking `整理本集已采用的视频` restored both 8s/7s clip rows. Native
+half-second start trims produced 0.5..8 and 0.5..7; saving displayed a 14-second
+saved draft and enabled `制作无配音画面预览`. No provider or release action.
+This is actual native edit handoff/save evidence, not preview, sound, master QA
+or second-shot viewing evidence. The isolated child now has a saved edit.
+
 ## Real encoded preview read at f9cbfff
 
 Unmocked TestClient GETs on isolated `nalu-native-postproduction-qv1poe20`,
