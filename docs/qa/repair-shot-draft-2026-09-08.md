@@ -69,3 +69,10 @@ App remains active in exec session45725 for continuation. nel8waa9 now has a
 child and must no longer be described as a parent-only fixture. Initial parent
 opening-frame preparation returned409 at qa_review; this separate read-path
 gap is not fixed by successful creative draft recovery. Full CI still pending.
+
+Follow-up: CI34292299897 completed success. Native quit/relaunch on the same
+isolated support loaded child through GET shot-plans/current200 only, with no
+repair context or draft POST. Expanded panel displayed original sea shot and
+unconfirmed state; SQLite retained exactly one drafted event and zero remote
+task bindings. Restart session15134 was then quit. Actual repaired media and
+full production/release acceptance remain open; no SOP promotion.

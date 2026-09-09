@@ -86,3 +86,11 @@ seeks to zero and plays; the latter pauses the existing local player. No additio
 download, production action or acceptance write is attached. This follows the
 existing edit-preview control and impeccable action-clarity guidance. Diff and
 goal-progress checks pass; actual playback confirmation on a new bundle is pending.
+
+Native f4366e1 artifact from CI34292299897 (whole workflow success) exercised
+both explicit play and pause buttons on nel8waa9 original run_frame_review.
+The sealed file opened, and screenshot after play showed the synthetic gray
+picture with pillarboxing rather than the initial empty black player. No crash
+or active-child change occurred. This proves button reachability and rendered
+picture, not semantic film quality or measured audio/time progression. App quit
+cleanly; no production or publication operation was attached to those controls.
