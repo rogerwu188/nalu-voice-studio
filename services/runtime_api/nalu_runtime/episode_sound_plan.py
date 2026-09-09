@@ -86,7 +86,13 @@ class EpisodeSoundPlanService:
                 if len(timeline) != len(plan.shots) or len(items) != len(plan.shots):
                     raise ConflictError("edited shot inventory changed")
                 for item in items:
-                    review, media, _ = VideoTailService(repo, self.data_root).accepted_video(run_id, item["review_id"])
+                    if item.get("repair_review_id"):
+                        from .repair_video_adoption import read_repair_clip
+                        review, media, _ = read_repair_clip(repo, self.data_root, run_id, item["repair_review_id"])
+                        if review.run_id != item.get("source_run_id") or review.id != item["review_id"]:
+                            raise ConflictError("repair sound source changed")
+                    else:
+                        review, media, _ = VideoTailService(repo, self.data_root).accepted_video(run_id, item["review_id"])
                     if review.payload["review_sha256"] != item["review_sha256"] or media.id != item["materialization_id"]:
                         raise ConflictError("adopted media changed before retiming")
                 durations = [entry["frame_count"] / edit.payload["frame_rate"] for entry in timeline]

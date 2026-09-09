@@ -49,3 +49,20 @@ Three repair integration cases pass5.78s (positive clip validator still mocked
 for decision tests). Actual native adoption and downstream staging remain open.
 Previous full-render process handle80195 is missing after interruption, so no
 result is claimed; launched a new targeted full-render regression.
+
+## Actual repair staging and picture preview
+
+AcceptedEpisodeService now resolves explicit repair decisions when a shot has
+no new-run video review; original-source provenance is retained in staged items.
+Preview and sound timing use the same decision revalidation. A newer rejection,
+changed approved target plan, invalid source receipt or changed bytes blocks use.
+Fresh new-run video reviews retain precedence; invalid new work does not silently
+fall back to an older clip. No provider bindings are copied into the child.
+
+On isolated nel8waa9, approved synthetic repair plan, adopted both clips, staged
+evt_43a24e5c86f149468a955da87ca276ed, then selected0.5–7.5s and0.5–6.5s.
+Edit evt_3686bfc9388d46808c475d5cfd8f0da6 rendered an actual local picture proxy:
+HTTP200,9491 bytes. This is intentionally synthetic low-detail test media, not
+professional-quality repaired film. Native adoption UI, audio/master handoff and
+full repaired-production QA still require work. The fixture now has approved
+repair plan/adoption/edit events; do not reuse it as an unconfirmed draft fixture.

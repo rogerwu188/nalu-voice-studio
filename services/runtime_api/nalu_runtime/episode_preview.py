@@ -10,6 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from .models import PostproductionShotSource
 from .postproduction_materializer import _encode_mp4, _safe_input, _selected_frames
+from .repair_video_adoption import read_repair_clip
 from .repository import ConflictError, encode, new_id, utc_now
 from .shot_review import ShotReviewService
 from .video_preparation import digest
@@ -50,7 +51,12 @@ class EpisodePreviewService:
             raise ConflictError("edited source inventory is inconsistent")
         paths, geometry = [], None
         for source, item in zip(sources, items, strict=True):
-            review, media, _ = VideoTailService(repo, self.data_root).accepted_video(run_id, item["review_id"])
+            if item.get("repair_review_id"):
+                review, media, _ = read_repair_clip(repo, self.data_root, run_id, item["repair_review_id"])
+                if review.run_id != item.get("source_run_id") or review.id != item["review_id"]:
+                    raise ConflictError("repair preview source changed")
+            else:
+                review, media, _ = VideoTailService(repo, self.data_root).accepted_video(run_id, item["review_id"])
             if (review.payload["review_sha256"] != item["review_sha256"] or media.id != item["materialization_id"]
                     or source.source_sha256 != media.payload["video"]["sha256"] or source.shot_id != item["task_key"]):
                 raise ConflictError("adopted preview source changed")

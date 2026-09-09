@@ -5,6 +5,8 @@ from types import SimpleNamespace
 
 import pytest
 from nalu_runtime.models import RunStatus
+from nalu_runtime.repair_video_adoption import read_repair_clip
+from nalu_runtime.repository import ConflictError
 from nalu_runtime.video_preparation import digest
 from nalu_runtime.video_tail import VideoTailService
 from test_rendered_output_immutability import (
@@ -163,10 +165,14 @@ def test_local_repair_version_preserves_parent_and_replays_after_restart(
         assert accepted.json()['payload']['paid_approved'] is False
         assert accepted.json()['payload']['master_accepted'] is False
         assert client(tmp_path).post(review_url, json=review_body).json() == accepted.json()
+        resolved, _, raw = read_repair_clip(api.app.state.repository, tmp_path, repair['id'], accepted.json()['id'])
+        assert resolved.id == source_review.id and raw == b'fixture'
         assert api.post(review_url, json={**review_body, 'decision': 'reject'}).status_code == 409
         refused = api.post(review_url, json={**review_body, 'decision': 'reject',
                                              'expected_review_id': accepted.json()['id']})
         assert refused.status_code == 200 and refused.json()['payload']['adopted'] is False
+        with pytest.raises(ConflictError):
+            read_repair_clip(api.app.state.repository, tmp_path, repair['id'], accepted.json()['id'])
         assert api.post(review_url, json=review_body).status_code == 409
     # Real validator rejects the synthetic incomplete receipt, never adopts it.
     rejected = api.get(candidates_endpoint)

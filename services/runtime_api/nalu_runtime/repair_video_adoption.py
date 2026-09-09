@@ -6,8 +6,10 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from .repair_video_candidates import repair_video_candidates
 from .repository import ConflictError, encode, new_id, utc_now
+from .shot_planning import ShotPlanningService
 from .shot_review import ShotReviewService
 from .video_preparation import digest
+from .video_tail import VideoTailService
 
 
 class RepairVideoReviewRequest(BaseModel):
@@ -64,3 +66,35 @@ def review_repair_video(production, run_id, request):
             "Explicit original-clip reuse decision; no provider submission or final acceptance.",
             encode(payload), utc_now()))
     return repo.get_run_event(identity)
+
+
+def read_repair_clip(repo, data_root, run_id, review_id):
+    """Revalidate a stored decision for editing, never a new provider submission."""
+    event = repo.get_run_event(review_id)
+    payload = event.payload
+    if (event.run_id != run_id or event.event_type != "repair_video_reviewed"
+            or payload.get("adopted") is not True or payload.get("decision") != "accept"
+            or payload.get("review_sha256") != digest({k: v for k, v in payload.items() if k != "review_sha256"})):
+        raise ConflictError("repair clip is not currently adopted")
+    decisions = [e for e in repo.list_run_events(run_id) if e.event_type == "repair_video_reviewed"
+                 and e.payload.get("shot_index") == payload["shot_index"]]
+    if not decisions or decisions[-1].id != event.id:
+        raise ConflictError("repair clip decision has changed")
+    package = ShotPlanningService(repo)._package(repo.get_run(run_id))
+    plan = ShotReviewService(repo).current(run_id)
+    if (plan is None or plan.event_type != "shot_plan_approved" or plan.payload.get("approved") is not True
+            or plan.id != payload["plan_id"] or plan.payload.get("plan_sha256") != payload["plan_sha256"]
+            or plan.payload.get("plan_sha256") != digest({k: v for k, v in plan.payload.items() if k != "plan_sha256"})
+            or plan.payload.get("production_package_sha256") != package["package_sha256"]):
+        raise ConflictError("repair plan changed after clip adoption")
+    selected = payload["candidate"]
+    source_id = package.get("production_policy", {}).get("repair_lineage", {}).get("source_run_id")
+    if not source_id or source_id != selected["source_run_id"]:
+        raise ConflictError("repair clip belongs to another source")
+    source_review, media, raw = VideoTailService(repo, data_root).accepted_video(
+        source_id, selected["source_review_id"], _repair_target=run_id)
+    if (source_review.payload["review_sha256"] != selected["source_review_sha256"]
+            or media.id != selected["materialization_id"]
+            or media.payload["video"]["sha256"] != selected["video_sha256"]):
+        raise ConflictError("original adopted clip changed")
+    return source_review, media, raw

@@ -7,6 +7,7 @@ from pathlib import Path
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .models import PostproductionShotSource
+from .repair_video_adoption import read_repair_clip
 from .repository import ConflictError, encode, new_id, utc_now
 from .secure_files import secure_directory, sync_directory
 from .shot_planning import ShotPlan, ShotPlanningService
@@ -64,10 +65,16 @@ class AcceptedEpisodeService:
                     raise ConflictError("episode shot ordering is ambiguous")
                 task = matching[0]["task_key"]
                 reviews = [e for e in events if e.event_type == "video_shot_reviewed" and e.payload.get("task_key") == task]
-                if not reviews:
+                reused = [e for e in events if e.event_type == "repair_video_reviewed"
+                          and e.payload.get("shot_index") == index]
+                reuse = reused[-1] if not reviews and reused else None
+                if not reviews and reuse is None:
                     raise ConflictError(f"shot {index + 1} has no adopted video")
-                review, media, _ = VideoTailService(repo, self.data_root).accepted_video(run_id, reviews[-1].id)
-                if (review.payload.get("approved_plan_event_id") != plan.id
+                if reuse is not None:
+                    review, media, _ = read_repair_clip(repo, self.data_root, run_id, reuse.id)
+                else:
+                    review, media, _ = VideoTailService(repo, self.data_root).accepted_video(run_id, reviews[-1].id)
+                if reuse is None and (review.payload.get("approved_plan_event_id") != plan.id
                         or review.payload.get("approved_plan_sha256") != plan.payload["plan_sha256"]):
                     raise ConflictError("adopted video belongs to another plan")
                 item = {"shot_index": index, "task_key": task, "review_id": review.id,
@@ -76,6 +83,8 @@ class AcceptedEpisodeService:
                         "source_duration_seconds": media.payload["video"]["duration_seconds"],
                         "provider_task_id": repo.get_remote_task_binding(media.payload["binding_id"]).provider_task_id}
                 items.append(item)
+                if reuse is not None:
+                    item.update(repair_review_id=reuse.id, source_run_id=review.run_id)
             if sum(item["duration_seconds"] for item in items) > 1800:
                 raise ConflictError("episode exceeds the postproduction duration limit")
             if len({item["task_key"] for item in items}) != len(items):
@@ -95,7 +104,10 @@ class AcceptedEpisodeService:
                 secure_directory(current)
             sources = []
             for item in items:
-                _, raw = VideoMaterializationService(repo, self.data_root).read_saved(run_id, item["materialization_id"])
+                if item.get("repair_review_id"):
+                    _, _, raw = read_repair_clip(repo, self.data_root, run_id, item["repair_review_id"])
+                else:
+                    _, raw = VideoMaterializationService(repo, self.data_root).read_saved(run_id, item["materialization_id"])
                 filename = f"shot-{item['shot_index'] + 1:03d}-{item['video_sha256']}.mp4"
                 destination = directory / filename
                 if destination.exists() or destination.is_symlink():
