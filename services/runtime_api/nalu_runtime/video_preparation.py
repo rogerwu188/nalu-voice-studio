@@ -122,7 +122,8 @@ class VideoPreparationService:
         ratio_width, ratio_height = (int(part) for part in payload["aspect_ratio"].split(":"))
         if abs(width / height - ratio_width / ratio_height) > 0.01:
             raise ConflictError("opening frame aspect ratio differs from the selected video ratio")
-        frame_binding = self._frame_binding(run_id, incoming, hashlib.sha256(raw).hexdigest())
+        frame_binding = self._frame_binding(run_id, incoming, hashlib.sha256(raw).hexdigest(),
+                                            _repair_target=_repair_target)
         request_sha = digest(incoming.request)
         record = {"task_key": incoming.task_key, "request": incoming.request,
                   "request_sha256": request_sha, "production_package_sha256": package_sha,
@@ -135,9 +136,9 @@ class VideoPreparationService:
         record["preparation_sha256"] = digest(record)
         return record
 
-    def _frame_binding(self, run_id, incoming, frame_sha):
+    def _frame_binding(self, run_id, incoming, frame_sha, *, _repair_target=None):
         if incoming.approved_tail_id:
-            return self._tail_binding(run_id, incoming, frame_sha)
+            return self._tail_binding(run_id, incoming, frame_sha, _repair_target=_repair_target)
         events = self.repository.list_run_events(run_id)
         image_key = incoming.task_key + "-entry"
         preparations = [event for event in events if event.event_type == "image_task_prepared"
@@ -179,7 +180,7 @@ class VideoPreparationService:
         return {"approved_frame_review_id": review.id, "approved_frame_review_sha256": record["review_sha256"],
                 "frame_materialization_id": materialized.id}
 
-    def _tail_binding(self, run_id, incoming, frame_sha):
+    def _tail_binding(self, run_id, incoming, frame_sha, *, _repair_target=None):
         from .video_tail import VideoTailService
         if self.data_root is None or incoming.approved_frame_review_id:
             raise ConflictError("continuation requires local tail validation, not a new image approval")
@@ -199,7 +200,8 @@ class VideoPreparationService:
         review = self.repository.get_run_event(tail.payload["review_id"])
         if review.payload.get("approved_plan_event_id") != plan.id or review.payload.get("approved_plan_sha256") != incoming.approved_plan_sha256:
             raise ConflictError("previous video belongs to another plan revision")
-        tail, _ = VideoTailService(self.repository, self.data_root).read_saved(run_id, tail.id)
+        options = {} if _repair_target is None else {"_repair_target": _repair_target}
+        tail, _ = VideoTailService(self.repository, self.data_root).read_saved(run_id, tail.id, **options)
         anchor = incoming.request.get("opening_anchor", {})
         if (plan.payload["plan"]["shots"][index].get("transition") != "continuous"
                 or incoming.request.get("shot_role") != "SAME_SCENE_CONTINUATION"

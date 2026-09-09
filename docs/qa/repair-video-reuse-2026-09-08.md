@@ -29,3 +29,13 @@ f2cc7a1083c17995bc021b6beeedeb0cda4400ba7830276a65c3786eff4c8f50.
 Shot1 remains rejected by original-video validation and must be diagnosed, not
 waived. This is synthetic encoded media, not a real-provider or quality acceptance.
 Explicit adoption/staging/native controls remain missing.
+
+Second-clip rejection traced to continuous-shot tail validation dropping the
+explicit repair target during recursive original-source checks. Propagated the
+same scoped target through saved-tail reads only; extract/new preparation keeps
+the default restrictions and decreasing-shot lineage checks remain intact.
+Unmocked nel8waa9 GET now returns both clips available_for_review; second SHA256
+4f4f924ffee7eb0865b9964b422bdcc0ed28cb9f478b24df03ed965d904a933e.
+Eight repair tests pass23.54s, including exact tail receipt and wrong-run rejection.
+Full synthetic render regression started separately; no final repaired master
+or adoption acceptance is claimed.

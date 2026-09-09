@@ -49,8 +49,9 @@ class VideoTailService:
             raise ConflictError("accepted shot inputs changed")
         return review, media, raw
 
-    def _derive(self, run_id, review_id):
-        review, media, raw = self.accepted_video(run_id, review_id)
+    def _derive(self, run_id, review_id, *, _repair_target=None):
+        options = {} if _repair_target is None else {"_repair_target": _repair_target}
+        review, media, raw = self.accepted_video(run_id, review_id, **options)
         decision = review.payload
         # read_saved already performs bounded full video decoding. Decode the
         # same in-memory bytes, never seek to a guessed end or generate a frame.
@@ -93,11 +94,12 @@ class VideoTailService:
                 "video_tail_extracted", None, None, "Final decoded frame bound to the current video decision.", encode(record), utc_now()))
         return self.repository.get_run_event(event_id)
 
-    def read_saved(self, run_id, tail_id):
+    def read_saved(self, run_id, tail_id, *, _repair_target=None):
         event = self.repository.get_run_event(tail_id)
         if event.run_id != run_id or event.event_type != "video_tail_extracted":
             raise ConflictError("tail receipt belongs to another video")
-        record, png = self._derive(run_id, event.payload["review_id"])
+        options = {} if _repair_target is None else {"_repair_target": _repair_target}
+        record, png = self._derive(run_id, event.payload["review_id"], **options)
         if record != event.payload:
             raise ConflictError("tail frame changed; reconcile before continuing")
         return event, png
