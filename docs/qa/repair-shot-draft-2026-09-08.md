@@ -52,3 +52,20 @@ structure, not a real provider-produced film or native UI action.
 Important QA state: qv1poe20 child now HAS a saved draft. Native reload there can
 verify saved-draft display only, not the create-to-recover POST path. A fresh
 isolated child is required to prove automatic native recovery end-to-end.
+
+## Native automatic recovery on fresh child
+
+CI34292299897 arm64 artifact (f4366e1), ZIP SHA256
+`d878d23805d17faa1ccdf1877da55b4ed70962327ac51399fabfdb4aac426cf0`,
+launched from `/tmp/nalu-repair-recovery-Zq59xd/extracted` using isolated
+nel8waa9 support and port18767. Actual native confirmation created child
+`run_dde421db8d4f41c783daaecbc9b77bff`. Opening its shot panel performed
+GET current, GET repair context, POST repair draft (all200). UI displayed the
+original sea shot and an explicitly unconfirmed recovered-draft notice; current
+production remained30% preflight. No provider submission occurred.
+
+Native restart, historical playback and actual media reuse remain unverified.
+App remains active in exec session45725 for continuation. nel8waa9 now has a
+child and must no longer be described as a parent-only fixture. Initial parent
+opening-frame preparation returned409 at qa_review; this separate read-path
+gap is not fixed by successful creative draft recovery. Full CI still pending.
