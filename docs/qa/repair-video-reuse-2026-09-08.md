@@ -66,3 +66,12 @@ HTTP200,9491 bytes. This is intentionally synthetic low-detail test media, not
 professional-quality repaired film. Native adoption UI, audio/master handoff and
 full repaired-production QA still require work. The fixture now has approved
 repair plan/adoption/edit events; do not reuse it as an unconfirmed draft fixture.
+
+Reproducible `scripts/verify-repair-sound-handoff.py` exercised that isolated
+fixture's actual preview, explicit synthetic edit confirmation and sound retiming.
+Returned sound plan evt_e5259298dd5b4da4bf9790886ea7ae76 at13s, edit-approved=true;
+exact sound request replay returned the same event and provider bindings did not
+increase. Ruff passes. No actual audio was created or master accepted. Next
+prepare authorized recordings/sound layers for the repair and verify full render.
+Original full-render regression remains live in exec83513 (PID55996 observed
+running); do not restart or claim success until its result is available.
