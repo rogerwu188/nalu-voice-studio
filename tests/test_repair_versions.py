@@ -145,6 +145,29 @@ def test_local_repair_version_preserves_parent_and_replays_after_restart(
         assert checked['items'][0]['requires_review'] is True
         assert calls == [(parent['id'], source_review.id)]
         assert client(tmp_path).get(candidates_endpoint).json() == checked
+        review_url = f"/v1/production-runs/{repair['id']}/repair-video-reviews"
+        review_body = {"expected_candidates_sha256": checked['candidates_sha256'],
+                       "shot_index": 0, "decision": "accept", "reviewed_by": "tester",
+                       "confirmation": "I checked this original clip for this repair"}
+        assert api.post(review_url, json=review_body).status_code == 409
+        approved = api.post(f"/v1/production-runs/{repair['id']}/shot-plans/{draft.json()['id']}/review", json={
+            "expected_plan_sha256": draft.json()['payload']['plan_sha256'], "action": "approve",
+            "reviewed_by": "tester", "confirmation": "confirm repair plan"})
+        assert approved.status_code == 200, approved.text
+        checked = api.get(candidates_endpoint).json()
+        review_body['expected_candidates_sha256'] = checked['candidates_sha256']
+        assert api.post(review_url, json=review_body, headers={'Origin': 'https://example.com'}).status_code == 403
+        accepted = api.post(review_url, json=review_body)
+        assert accepted.status_code == 200, accepted.text
+        assert accepted.json()['payload']['adopted'] is True
+        assert accepted.json()['payload']['paid_approved'] is False
+        assert accepted.json()['payload']['master_accepted'] is False
+        assert client(tmp_path).post(review_url, json=review_body).json() == accepted.json()
+        assert api.post(review_url, json={**review_body, 'decision': 'reject'}).status_code == 409
+        refused = api.post(review_url, json={**review_body, 'decision': 'reject',
+                                             'expected_review_id': accepted.json()['id']})
+        assert refused.status_code == 200 and refused.json()['payload']['adopted'] is False
+        assert api.post(review_url, json=review_body).status_code == 409
     # Real validator rejects the synthetic incomplete receipt, never adopts it.
     rejected = api.get(candidates_endpoint)
     assert rejected.status_code == 200, rejected.text

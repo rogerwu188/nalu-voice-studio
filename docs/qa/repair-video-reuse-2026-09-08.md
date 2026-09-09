@@ -39,3 +39,13 @@ Unmocked nel8waa9 GET now returns both clips available_for_review; second SHA256
 Eight repair tests pass23.54s, including exact tail receipt and wrong-run rejection.
 Full synthetic render regression started separately; no final repaired master
 or adoption acceptance is claimed.
+
+Added native-only POST repair-video-reviews: requires approved repair plan,
+current candidate digest and explicit user attestation. Decisions are SQLite
+events, exact requests replay identically after Runtime recreation; latest-review
+comparison prevents stale accept from replacing a rejection. Existing editing
+blocks changed decisions. No provider task, charge or master approval is copied.
+Three repair integration cases pass5.78s (positive clip validator still mocked
+for decision tests). Actual native adoption and downstream staging remain open.
+Previous full-render process handle80195 is missing after interruption, so no
+result is claimed; launched a new targeted full-render regression.

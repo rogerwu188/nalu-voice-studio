@@ -8815,6 +8815,64 @@
         "title": "RenderedOutputSealCreate",
         "type": "object"
       },
+      "RepairVideoReviewRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "confirmation": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Confirmation",
+            "type": "string"
+          },
+          "decision": {
+            "enum": [
+              "accept",
+              "reject"
+            ],
+            "title": "Decision",
+            "type": "string"
+          },
+          "expected_candidates_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Expected Candidates Sha256",
+            "type": "string"
+          },
+          "expected_review_id": {
+            "anyOf": [
+              {
+                "maxLength": 160,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Review Id"
+          },
+          "reviewed_by": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Reviewed By",
+            "type": "string"
+          },
+          "shot_index": {
+            "maximum": 119.0,
+            "minimum": 0.0,
+            "title": "Shot Index",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expected_candidates_sha256",
+          "shot_index",
+          "decision",
+          "reviewed_by",
+          "confirmation"
+        ],
+        "title": "RepairVideoReviewRequest",
+        "type": "object"
+      },
       "ReviewedChangeEvidence": {
         "properties": {
           "approved_at": {
@@ -17005,6 +17063,71 @@
           }
         },
         "summary": "Get Repair Video Candidates"
+      }
+    },
+    "/v1/production-runs/{run_id}/repair-video-reviews": {
+      "post": {
+        "operationId": "post_repair_video_review_v1_production_runs__run_id__repair_video_reviews_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "origin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Origin"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RepairVideoReviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunEvent"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Repair Video Review"
       }
     },
     "/v1/production-runs/{run_id}/resume": {
