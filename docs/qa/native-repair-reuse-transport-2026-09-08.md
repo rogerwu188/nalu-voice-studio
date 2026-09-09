@@ -1,5 +1,11 @@
 # Native repair reuse transport — incomplete acceptance
 
+Added native URLProtocol test for ordinary-run null context and repair context:
+only the two expected GETs are issued, no repair creation or production POST.
+Backend regression remains 3 passed (5.00s). f6e195b is pushed; latest native
+viewer CI34298417543 is pending behind running34297992449. The latter's arm64
+job passed, but it predates the viewer and cannot prove viewer acceptance.
+
 Native shot panel now embeds a repair-only viewer after approved shot planning:
 GET context/candidates/decisions, explicit clip download, play/pause, user viewing
 attestation, and accept/reject. Download does not set the attestation. Leaving

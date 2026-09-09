@@ -2,7 +2,38 @@ import Foundation
 import Testing
 @testable import NaluVoiceStudio
 
-struct RepairVideoReuseTests {
+private final class RepairReadProtocol: URLProtocol, @unchecked Sendable {
+    static var body = Data("null".utf8)
+    static var requests: [URLRequest] = []
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override func startLoading() {
+        Self.requests.append(request)
+        client?.urlProtocol(self, didReceive: HTTPURLResponse(url: request.url!, statusCode: 200,
+            httpVersion: nil, headerFields: ["Content-Type": "application/json"])!, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: Self.body)
+        client?.urlProtocolDidFinishLoading(self)
+    }
+    override func stopLoading() {}
+}
+
+@Suite(.serialized) struct RepairVideoReuseTests {
+    @Test func openingOrdinaryRunDoesNotCreateRepairOrProduction() async throws {
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [RepairReadProtocol.self]
+        let runtime = RuntimeClient(baseURL: URL(string: "http://127.0.0.1:8765")!,
+            session: URLSession(configuration: config), accessCheck: { true })
+        RepairReadProtocol.requests = []
+        RepairReadProtocol.body = Data("null".utf8)
+        let ordinary = try await runtime.hasRepairSource(runID: "ordinary")
+        #expect(!ordinary)
+        RepairReadProtocol.body = Data(#"{"source_run_id":"parent"}"#.utf8)
+        #expect(try await runtime.hasRepairSource(runID: "child"))
+        #expect(RepairReadProtocol.requests.map { $0.httpMethod } == ["GET", "GET"])
+        #expect(RepairReadProtocol.requests.map { $0.url!.path } == [
+            "/v1/production-runs/ordinary/repair-shot-draft/context",
+            "/v1/production-runs/child/repair-shot-draft/context"])
+    }
     @Test func restoredDecisionRequiresSourceAndCannotGrantProductionAuthority() throws {
         let sha = String(repeating: "a", count: 64)
         let item = RepairVideoCandidate(shot_index: 0, status: "available_for_review", requires_review: true,
