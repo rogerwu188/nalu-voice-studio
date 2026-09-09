@@ -6,7 +6,8 @@ from nalu_runtime.models import ProductionRun, RunStatus
 from nalu_runtime.repository import ConflictError, encode, utc_now
 
 
-@pytest.mark.parametrize("change", [None, "dry", "cancelled", "revision", "plan", "archived", "episode", "newer"])
+@pytest.mark.parametrize("change", [None, "dry", "cancelled", "revision", "plan", "archived", "episode", "newer",
+                                    "repair", "repair_wrong_source", "repair_missing_decision"])
 def test_local_start_is_atomic_and_requires_current_prepared_episode(tmp_path, change):
     app = create_app(tmp_path / "db", tmp_path / "data")
     with TestClient(app) as client:
@@ -21,11 +22,18 @@ def test_local_start_is_atomic_and_requires_current_prepared_episode(tmp_path, c
             requested_model="seedance-2.0-pro", estimated_budget_credits=None,
             package_path=str(tmp_path / "unused-package.json"), created_at=now, updated_at=now)
         repo.save_run(run)
+        is_repair = isinstance(change, str) and change.startswith("repair")
+        if is_repair:
+            repo.save_run(run.model_copy(update={"id": "run-0", "status": RunStatus.QA_REVIEW}))
         with repo.db.connect() as db:
             db.execute("INSERT INTO run_events VALUES (?,?,?,?,?,?,?,?,?)", ("prepared", run.id, 1,
                 "episode_mix_prepared", None, None, "fixture", encode({"plan_sha256": "a" * 64}), now))
-            if change == "dry":
+            if change == "dry" or is_repair:
                 db.execute("UPDATE production_runs SET dry_run=1 WHERE id=?", (run.id,))
+            if is_repair and change != "repair_missing_decision":
+                db.execute("INSERT INTO run_events VALUES (?,?,?,?,?,?,?,?,?)", ("reuse", run.id, 2,
+                    "repair_video_reviewed", None, None, "fixture",
+                    encode({"candidate": {"source_run_id": "run-0"}}), now))
             if change == "cancelled":
                 db.execute("UPDATE production_runs SET status='cancelled' WHERE id=?", (run.id,))
             if change == "archived":
@@ -37,7 +45,10 @@ def test_local_start_is_atomic_and_requires_current_prepared_episode(tmp_path, c
         before = repo.get_episode(run.episode_id).status
         kwargs = {"plan_sha256": ("b" if change == "plan" else "a") * 64,
                   "approved_revision": 2 if change == "revision" else 1, "requested_by": "synthetic QA"}
-        if change is None:
+        if is_repair:
+            kwargs["repair_source_run_id"] = "wrong" if change == "repair_wrong_source" else "run-0"
+        event_count = len(repo.list_run_events(run.id))
+        if change is None or change == "repair":
             assert repo.begin_adopted_postproduction(run.id, **kwargs).status == RunStatus.RUNNING
             assert repo.get_episode(run.episode_id).status == "postproduction"
             assert repo.list_run_events(run.id)[-1].payload["network_call_performed"] is False
@@ -45,4 +56,4 @@ def test_local_start_is_atomic_and_requires_current_prepared_episode(tmp_path, c
             with pytest.raises(ConflictError):
                 repo.begin_adopted_postproduction(run.id, **kwargs)
             assert repo.get_episode(run.episode_id).status == before
-            assert len(repo.list_run_events(run.id)) == 1
+            assert len(repo.list_run_events(run.id)) == event_count

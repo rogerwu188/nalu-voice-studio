@@ -106,3 +106,13 @@ result f286a65c49ae97c8ab14516d829d3e593ff62867ab63e9fca5977d7a0a09aa2c.
 This is the same deliberately synthetic picture content, NOT improved visual QA
 or a release-ready film. Need seal/QA, replay regression, new branch coverage,
 native adoption controls and real-provider end-to-end acceptance. No SOP PASS.
+
+Follow-up: same prepared render replay returned the same result/master digest.
+Seal succeeded201 (initial ad-hoc assertion expected200 and was corrected by
+continuing QA, not resealing). Seal dc91f46412e5ad90bd45d58cfd3bbed6441e23e390ad53c9cffc00bd26fa4c49.
+Structure QA PASS:13s MP4 and2 caption cues. Decoded QA correctly FAIL:
+VIDEO_FRAME_REPEAT_EXCESSIVE, report db0563b4d13ab0baa345a6140335d725264c17b63343718fd938683294704a6e.
+No film acceptance: unchanged static fixture still needs real picture replacement.
+Atomic-start11 tests pass2.08s, including explicit repair/missing decision/wrong
+source. Original full-render regression83513 finished:2 passed26 deselected in
+597.77s. Native adoption UI and problem-shot replacement remain next work.
