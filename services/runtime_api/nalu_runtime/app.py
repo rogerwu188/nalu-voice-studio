@@ -1300,6 +1300,15 @@ def create_app(
             raise HTTPException(403, "native repair review required")
         return review_repair_video(production, run_id, request)
 
+    @app.get("/v1/production-runs/{run_id}/repair-video-reviews", response_model=list[RunEvent])
+    def get_repair_video_reviews(run_id: str):
+        repository.get_run(run_id)
+        latest = {}
+        for event in repository.list_run_events(run_id):
+            if event.event_type == "repair_video_reviewed":
+                latest[event.payload["shot_index"]] = event
+        return list(latest.values())
+
     @app.post("/v1/production-runs/{run_id}/library-snapshot-refresh", response_model=RunEvent)
     def refresh_confirmed_library(run_id: str, request: LibrarySnapshotRefreshRequest,
                                   origin: str | None = Header(default=None)):

@@ -171,6 +171,8 @@ def test_local_repair_version_preserves_parent_and_replays_after_restart(
         refused = api.post(review_url, json={**review_body, 'decision': 'reject',
                                              'expected_review_id': accepted.json()['id']})
         assert refused.status_code == 200 and refused.json()['payload']['adopted'] is False
+        assert client(tmp_path).get(review_url).json() == [refused.json()]
+        assert api.get('/v1/production-runs/missing/repair-video-reviews').status_code == 404
         with pytest.raises(ConflictError):
             read_repair_clip(api.app.state.repository, tmp_path, repair['id'], accepted.json()['id'])
         assert api.post(review_url, json=review_body).status_code == 409

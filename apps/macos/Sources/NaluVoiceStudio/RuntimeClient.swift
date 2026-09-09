@@ -8,6 +8,42 @@ actor RuntimeClient {
     private let decoder = JSONDecoder()
     private let encoder = JSONEncoder()
 
+    func repairVideoCandidates(runID: String) async throws -> RepairVideoCandidates {
+        let result: RepairVideoCandidates = try await get("v1/production-runs/\(runID)/repair-video-candidates")
+        try result.validate(runID: runID)
+        return result
+    }
+
+    func repairVideoDecisions(runID: String) async throws -> [RepairVideoDecision] {
+        let result: [RepairVideoDecision] = try await get("v1/production-runs/\(runID)/repair-video-reviews")
+        guard Set(result.map { $0.payload.shot_index }).count == result.count else {
+            throw LibrarySnapshotRefreshError.contextChanged
+        }
+        for decision in result { try validateRepairVideoDecision(decision, runID: runID) }
+        return result
+    }
+
+    func reviewRepairVideo(candidates: RepairVideoCandidates, shotIndex: Int,
+                           previousID: String?, accept: Bool) async throws -> RepairVideoDecision {
+        try candidates.validate(runID: candidates.run_id)
+        guard let candidate = candidates.items.first(where: { $0.shot_index == shotIndex }),
+              candidate.status == "available_for_review" else { throw LibrarySnapshotRefreshError.contextChanged }
+        let result: RepairVideoDecision = try await post("v1/production-runs/\(candidates.run_id)/repair-video-reviews",
+            body: RepairVideoDecisionRequest(expected_candidates_sha256: candidates.candidates_sha256,
+                shot_index: shotIndex, expected_review_id: previousID, decision: accept ? "accept" : "reject",
+                reviewed_by: "nalu-native-user", confirmation: accept ? "我已看过原镜头，确认用于这版修订" : "这版不使用这个原镜头"))
+        try validateRepairVideoDecision(result, runID: candidates.run_id)
+        guard result.payload.candidate == candidate, result.payload.plan_id == candidates.plan_event_id,
+              result.payload.plan_sha256 == candidates.plan_sha256, result.payload.adopted == accept else {
+            throw LibrarySnapshotRefreshError.contextChanged
+        }
+        return result
+    }
+
+    private func validateRepairVideoDecision(_ result: RepairVideoDecision, runID: String) throws {
+        try result.validate(runID: runID)
+    }
+
     func controlNovelImport(projectID: String, action: NovelImportControl) async throws -> NovelImportStatus {
         var request = URLRequest(url: baseURL.appending(path: "v1/projects/\(projectID)/novel-import/\(action.rawValue)"))
         request.httpMethod = "POST"
