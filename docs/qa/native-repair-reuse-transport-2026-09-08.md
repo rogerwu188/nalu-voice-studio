@@ -28,6 +28,15 @@ completion. Read/save failures retain progress and offer state recovery. This
 implements the entry, but native CI and rendered interaction QA are still
 required; earlier statements that viewer wiring is absent are superseded.
 
+## Isolated second-shot backend recovery
+
+Using the same qv1poe20 isolated database, the second candidate was explicitly
+accepted through the existing review endpoint (HTTP 200, no provider call), and
+two newly-created Runtime instances both returned accepts for shots 0 and 1.
+This proves durable decision recovery only; it is not evidence that a human
+viewed shot 2 in the native UI. Downstream clip-to-edit and final repaired
+render remain open.
+
 Review state now separates old CAS receipts from current-plan decisions. A plan
 change removes the displayed current approval but retains the prior receipt ID
 needed to replace it. New acceptance requires a viewed-shot marker; restoring
