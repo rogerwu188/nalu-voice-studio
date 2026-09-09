@@ -37,6 +37,17 @@ This proves durable decision recovery only; it is not evidence that a human
 viewed shot 2 in the native UI. Downstream clip-to-edit and final repaired
 render remain open.
 
+## Accepted-inputs handoff
+
+After both repair decisions existed, the isolated child run accepted a
+`POST /v1/production-runs/run_ddfaf60101144e24bf5b2f90b3961549/accepted-episode-inputs`
+with an empty request body. It returned HTTP 200 and event
+`evt_157f90b8b6db4c2fba270276a00c9310`; both items retained source run
+`run_frame_review` and their exact repair review IDs (`evt_7cfdb9968e564e77a1be7b21f6053629`,
+`evt_5ecc543cda4c4d50bc3546d465c20bd1`). This is a real isolated handoff into
+editing, with no provider call. Editing approval, audio/mix, render and QA
+remain incomplete.
+
 Review state now separates old CAS receipts from current-plan decisions. A plan
 change removes the displayed current approval but retains the prior receipt ID
 needed to replace it. New acceptance requires a viewed-shot marker; restoring
