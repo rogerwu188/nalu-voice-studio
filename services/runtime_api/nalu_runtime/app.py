@@ -202,6 +202,7 @@ from .release_evidence import (
 )
 from .remote_submitter import DurableRemoteTaskSubmitter
 from .repair_shot_draft import prepare_repair_shot_draft, repair_shot_draft_context
+from .repair_video_candidates import repair_video_candidates
 from .repository import ConflictError, NotFoundError, Repository
 from .reviewed_video import (
     ContinuationPreparationRequest,
@@ -1286,6 +1287,10 @@ def create_app(
     @app.get("/v1/production-runs/{run_id}/repair-shot-draft/context", response_model=ShotPlanInheritanceRequest | None)
     def get_repair_shot_draft_context(run_id: str):
         return repair_shot_draft_context(production, run_id)
+
+    @app.get("/v1/production-runs/{run_id}/repair-video-candidates")
+    def get_repair_video_candidates(run_id: str):
+        return repair_video_candidates(production, run_id)
 
     @app.post("/v1/production-runs/{run_id}/library-snapshot-refresh", response_model=RunEvent)
     def refresh_confirmed_library(run_id: str, request: LibrarySnapshotRefreshRequest,

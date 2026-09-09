@@ -1,10 +1,12 @@
 import hashlib
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from nalu_runtime.models import RunStatus
 from nalu_runtime.video_preparation import digest
+from nalu_runtime.video_tail import VideoTailService
 from test_rendered_output_immutability import (
     advance_episode_to_qa,
     approved_episode_with_library,
@@ -30,6 +32,8 @@ def test_local_repair_version_preserves_parent_and_replays_after_restart(
             "dialogue_or_narration": "回家", "sound": "脚步", "image_prompt": "门口",
             "video_prompt": "走进家", "reference_asset_ids": [], "transition": "scene_start"}
     original_plan = {"plan": {"summary": "回家", "shots": [shot] * (episode["target_seconds"] // 10)},
+                     "tasks": [{"shot_index": i, "task_key": f"shot-{i}"}
+                               for i in range(episode["target_seconds"] // 10)],
                      "approved": True, "production_package_sha256": parent_package["package_sha256"],
                      "script_revision": parent_package["approved_script"]["revision"]}
     original_plan["plan_sha256"] = digest(original_plan)
@@ -117,7 +121,35 @@ def test_local_repair_version_preserves_parent_and_replays_after_restart(
     assert draft.json()["payload"]["paid_approved"] is False
     assert all(task["state"] == "awaiting_plan_review_and_frame" for task in draft.json()["payload"]["tasks"])
     assert client(tmp_path).post(draft_endpoint, json=draft_request).json() == draft.json()
+    candidates_endpoint = f"/v1/production-runs/{repair['id']}/repair-video-candidates"
+    candidates = api.get(candidates_endpoint)
+    assert candidates.status_code == 200, candidates.text
+    assert all(i["reason"] == "no_original_adopted_video" for i in candidates.json()["items"])
+    assert candidates.json()["adopted"] is False
+    assert candidates.json()["generation_performed"] is False
+    assert api.get(f"/v1/production-runs/{parent['id']}/repair-video-candidates").status_code == 409
+    source_review = api.app.state.repository.append_run_event(parent['id'], 'video_shot_reviewed', payload={
+        'task_key': 'shot-0', 'approved_plan_event_id': original_event.id,
+        'approved_plan_sha256': original_plan['plan_sha256'], 'review_sha256': 'a' * 64})
+    calls = []
+
+    def validated_clip(self, run_id, review_id):
+        calls.append((run_id, review_id))
+        return source_review, SimpleNamespace(id='media-test', payload={'video': {'sha256': 'b' * 64}}), b'fixture'
+
+    with monkeypatch.context() as patch:
+        patch.setattr(VideoTailService, 'accepted_video', validated_clip)
+        checked = api.get(candidates_endpoint).json()
+        assert checked['items'][0]['status'] == 'available_for_review'
+        assert checked['items'][0]['requires_review'] is True
+        assert calls == [(parent['id'], source_review.id)]
+        assert client(tmp_path).get(candidates_endpoint).json() == checked
+    # Real validator rejects the synthetic incomplete receipt, never adopts it.
+    rejected = api.get(candidates_endpoint)
+    assert rejected.status_code == 200, rejected.text
+    assert rejected.json()['items'][0]['reason'] == 'original_video_no_longer_valid'
     api.app.state.repository.append_run_event(repair["id"], "shot_plan_revised", payload={})
+    assert api.get(candidates_endpoint).status_code == 409
     assert api.post(draft_endpoint, json=draft_request).status_code == 409
     # History playback reads the original seal, never the child workspace.
     restarted = client(tmp_path)
