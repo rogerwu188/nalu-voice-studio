@@ -1,5 +1,13 @@
 # Native repair reuse transport — incomplete acceptance
 
+Review state now separates old CAS receipts from current-plan decisions. A plan
+change removes the displayed current approval but retains the prior receipt ID
+needed to replace it. New acceptance requires a viewed-shot marker; restoring
+a receipt does not manufacture a new viewing event. Added native tests for
+these transitions, not yet executed locally (SDK/toolchain mismatch). The UI
+must mark viewing only from actual playback interaction, not download success.
+CI34298185471 for e017a4d is pending; prior34297992449 remains in progress.
+
 Follow-up: a repair-scoped clip content GET validates the expected candidate
 digest and current original-video provenance before serving MP4, with no-store.
 Tests cover read-only viewing, stale digest and missing shot rejection using a

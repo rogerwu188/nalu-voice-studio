@@ -13,6 +13,23 @@ struct RepairVideoReuseTests {
                 decision: "accept", adopted: true, generation_performed: false, paid_approved: false,
                 master_accepted: false, review_sha256: sha))
         try valid.validate(runID: "child")
+        let candidates = RepairVideoCandidates(run_id: "child", source_run_id: "parent", plan_event_id: "plan",
+            plan_sha256: sha, candidates_sha256: sha, items: [item], adopted: false, generation_performed: false)
+        var state = try RepairVideoReviewState(candidates: candidates, decisions: [])
+        #expect(!state.canAccept(0))
+        #expect(throws: (any Error).self) { try state.record(valid) }
+        try state.markViewed(0)
+        try state.record(valid)
+        #expect(state.currentDecision(for: 0)?.id == valid.id)
+        let restored = try RepairVideoReviewState(candidates: candidates, decisions: [valid])
+        #expect(restored.currentDecision(for: 0)?.id == valid.id)
+        #expect(!restored.canAccept(0)) // A saved decision is not a new playback event.
+        var changedPlan = candidates
+        changedPlan.plan_event_id = "new-plan"
+        let revised = try RepairVideoReviewState(candidates: changedPlan, decisions: [valid])
+        #expect(revised.currentDecision(for: 0) == nil)
+        #expect(revised.previousID(for: 0) == valid.id) // Preserve CAS for replacing the old receipt.
+        #expect(throws: (any Error).self) { try state.markViewed(99) }
         var missing = valid
         missing.payload.candidate.video_sha256 = nil
         var selfReference = valid

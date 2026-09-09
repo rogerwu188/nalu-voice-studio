@@ -94,3 +94,51 @@ struct RepairVideoDecisionRequest: Codable {
     var reviewed_by: String
     var confirmation: String
 }
+
+/// Keeps historical CAS receipts separate from approval of the current plan.
+struct RepairVideoReviewState {
+    let candidates: RepairVideoCandidates
+    private(set) var decisions: [Int: RepairVideoDecision] = [:]
+    private(set) var viewedShots: Set<Int> = []
+
+    init(candidates: RepairVideoCandidates, decisions: [RepairVideoDecision]) throws {
+        try candidates.validate(runID: candidates.run_id)
+        self.candidates = candidates
+        for decision in decisions {
+            try decision.validate(runID: candidates.run_id)
+            guard self.decisions[decision.payload.shot_index] == nil else {
+                throw LibrarySnapshotRefreshError.contextChanged
+            }
+            self.decisions[decision.payload.shot_index] = decision
+        }
+    }
+
+    func currentDecision(for shot: Int) -> RepairVideoDecision? {
+        guard let saved = decisions[shot], saved.payload.plan_id == candidates.plan_event_id,
+              saved.payload.plan_sha256 == candidates.plan_sha256,
+              saved.payload.candidate == candidates.items.first(where: { $0.shot_index == shot }) else { return nil }
+        return saved
+    }
+
+    func previousID(for shot: Int) -> String? { decisions[shot]?.id }
+
+    mutating func markViewed(_ shot: Int) throws {
+        guard candidates.items.contains(where: { $0.shot_index == shot && $0.status == "available_for_review" }) else {
+            throw LibrarySnapshotRefreshError.contextChanged
+        }
+        viewedShots.insert(shot)
+    }
+
+    func canAccept(_ shot: Int) -> Bool { viewedShots.contains(shot) }
+
+    mutating func record(_ decision: RepairVideoDecision) throws {
+        try decision.validate(runID: candidates.run_id)
+        let p = decision.payload
+        guard p.plan_id == candidates.plan_event_id, p.plan_sha256 == candidates.plan_sha256,
+              p.candidate == candidates.items.first(where: { $0.shot_index == p.shot_index }),
+              !p.adopted || canAccept(p.shot_index) else {
+            throw LibrarySnapshotRefreshError.contextChanged
+        }
+        decisions[p.shot_index] = decision
+    }
+}
