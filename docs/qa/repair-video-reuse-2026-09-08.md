@@ -83,3 +83,10 @@ both remain audio_approved=false/captions_approved=false. Exact replays return
 identical events, no additional provider bindings. Script and ruff pass. This is
 local fixture evidence, not real speech recognition/listening or master acceptance.
 Next perform new repair listening/caption review and mix/render integration.
+
+Opt-in --synthetic-dialogue now exercises new repair listening and synthetic
+transcript/caption confirmations, then whole-dialogue assembly and staging.
+Actual isolated run saved evt_845b97a989c44822b4767ae8791abb5b at13s. Synthetic
+recognizer-version and explicit test attestations are not human/ASR acceptance.
+No provider calls or new remote bindings. Four sound layers/mix/master remain
+pending; the script does not report the fixture as a finished film.

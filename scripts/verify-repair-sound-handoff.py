@@ -13,6 +13,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("application_support", type=Path)
     parser.add_argument("run_id")
+    parser.add_argument("--synthetic-dialogue", action="store_true",
+                        help="Exercise test-only listening/transcript confirmations and dialogue staging")
     args = parser.parse_args()
     root = args.application_support.resolve()
     if not root.name.startswith("nalu-native-postproduction-") or not (root / "nalu.sqlite3").is_file():
@@ -71,11 +73,45 @@ def main():
             assert take.json()["payload"]["captions_approved"] is False
             assert api.post(base + "/audio-takes", json=take_request).json() == take.json()
             attached.append(take.json()["id"])
+            if args.synthetic_dialogue:
+                take_base = base + "/audio-takes/" + take.json()["id"]
+                take_sha = take.json()["payload"]["take_sha256"]
+                listening = api.post(take_base + "/reviews", json={
+                    "expected_take_sha256": take_sha, "decision": "accept",
+                    "reviewed_by": "synthetic-qa", "confirmation": "Synthetic tone fixture only, not human listening acceptance"})
+                assert listening.status_code == 200, listening.text
+                audio_query = {"expected_take_sha256": take_sha, "expected_review_id": listening.json()["id"]}
+                audio = api.get(take_base + "/accepted-audio", params=audio_query)
+                assert audio.status_code == 200, audio.text
+                transcript = api.post(take_base + "/transcripts", json={**audio_query,
+                    "source_audio_sha256": audio.headers["x-nalu-audio-sha256"],
+                    "sample_count": take.json()["payload"]["decoded_sample_count"],
+                    "transcript": "合成测试字幕", "segments": [{"start_seconds": 0.1,
+                        "end_seconds": 0.8, "text": "合成测试字幕", "confidence": 0.9}],
+                    "recognizer_id": "apple-speech-on-device", "recognizer_version": "synthetic-fixture",
+                    "generated_at": "2026-09-07T09:00:00Z", "local_recognition": True})
+                assert transcript.status_code == 200, transcript.text
+                captions = api.post(take_base + "/transcripts/" + transcript.json()["id"] + "/reviews", json={
+                    "expected_transcript_sha256": transcript.json()["payload"]["transcript_sha256"],
+                    "segments": [{"start_seconds": 0.1, "end_seconds": 0.8, "text": "合成测试字幕"}],
+                    "reviewed_by": "synthetic-qa", "confirmation": "Synthetic caption fixture only"})
+                assert captions.status_code == 200, captions.text
+        dialogue_stage_id = None
+        if args.synthetic_dialogue:
+            query = {"sound_plan_id": result["id"],
+                     "expected_sound_plan_sha256": result["payload"]["sound_plan_sha256"]}
+            audio = api.get(base + "/adopted-dialogue", params=query)
+            assert audio.status_code == 200, audio.text
+            staged = api.post(base + "/adopted-dialogue/stage", json={**query,
+                "expected_lineage_sha256": audio.headers["x-nalu-lineage-sha256"]})
+            assert staged.status_code == 200, staged.text
+            dialogue_stage_id = staged.json()["id"]
         with repo.db.connect() as db:
             assert db.execute("SELECT COUNT(*) FROM remote_task_bindings WHERE run_id=?", (args.run_id,)).fetchone()[0] == count_before
         print(json.dumps({"run_id": args.run_id, "edit_id": edit.id, "sound_plan_id": result["id"],
                           "duration_seconds": result["payload"]["duration_seconds"],
-                          "unapproved_audio_take_ids": attached,
+                          "audio_take_ids": attached,
+                          "synthetic_dialogue_stage_id": dialogue_stage_id,
                           "real_film_accepted": False, "provider_calls": False}))
 
 
