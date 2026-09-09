@@ -49,6 +49,22 @@ finished. No adoption is performed by downloading. Backend tests: 3 passed in
 5.04s; ruff and diff checks passed. Native compilation remains unverified;
 CI34297992449 subsequently entered in_progress.
 
+## Native interaction evidence (arm64 artifact, isolated data)
+
+Artifact from CI34298769408 was checksum-verified and launched against the
+isolated qv1poe20 SQLite/data root. The app loaded the existing approved-plan
+project, opened the shot-plan panel, approved the repair plan, and showed the
+repair review panel. Shot 1: `查看原镜头` displayed an MP4 player; `从头播放原
+镜头` was invoked; the screenshot showed the pillarboxed video; the viewing
+checkbox was checked and `这版使用原镜头` produced the visible receipt
+`已确认：这版使用原镜头`. The app then switched to shot 2 through the native
+picker and showed its distinct `查看原镜头`/continuity controls. Opening shot 2
+loaded the player controls and an unchecked viewing attestation, so a prior shot
+approval was not incorrectly reused. No provider call, paid action, or user
+project was touched. This is isolated arm64 UI evidence only; Intel/universal,
+restart persistence, downstream clip-to-edit, repaired quality, and release
+acceptance remain open.
+
 Native transport now reads eligible clips and latest saved per-shot decisions,
 and submits an explicit accept/reject with candidate digest and prior decision
 ID. Restoring decisions uses GET only; it does not grant paid generation or
