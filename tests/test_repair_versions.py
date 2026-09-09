@@ -147,6 +147,15 @@ def test_local_repair_version_preserves_parent_and_replays_after_restart(
         assert checked['items'][0]['requires_review'] is True
         assert calls == [(parent['id'], source_review.id)]
         assert client(tmp_path).get(candidates_endpoint).json() == checked
+        content_url = candidates_endpoint + '/0/content'
+        before_view = len(api.app.state.repository.list_run_events(repair['id']))
+        viewed = api.get(content_url, params={'expected_candidates_sha256': checked['candidates_sha256']})
+        assert viewed.status_code == 200 and viewed.content == b'fixture'
+        assert viewed.headers['cache-control'] == 'no-store'
+        assert len(api.app.state.repository.list_run_events(repair['id'])) == before_view
+        assert api.get(content_url, params={'expected_candidates_sha256': '0' * 64}).status_code == 409
+        assert api.get(candidates_endpoint + '/99/content', params={
+            'expected_candidates_sha256': checked['candidates_sha256']}).status_code == 409
         review_url = f"/v1/production-runs/{repair['id']}/repair-video-reviews"
         review_body = {"expected_candidates_sha256": checked['candidates_sha256'],
                        "shot_index": 0, "decision": "accept", "reviewed_by": "tester",

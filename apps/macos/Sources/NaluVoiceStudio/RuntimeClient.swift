@@ -14,6 +14,39 @@ actor RuntimeClient {
         return result
     }
 
+    func downloadRepairVideo(candidates: RepairVideoCandidates, shotIndex: Int) async throws -> URL {
+        try candidates.validate(runID: candidates.run_id)
+        guard let candidate = candidates.items.first(where: { $0.shot_index == shotIndex }),
+              candidate.status == "available_for_review", let expectedSHA = candidate.video_sha256 else {
+            throw LibrarySnapshotRefreshError.contextChanged
+        }
+        let url = baseURL.appending(path:
+            "v1/production-runs/\(candidates.run_id)/repair-video-candidates/\(shotIndex)/content")
+            .appending(queryItems: [URLQueryItem(name: "expected_candidates_sha256", value: candidates.candidates_sha256)])
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 180
+        try await requireOwnedRuntime()
+        let (temporary, response) = try await session.download(for: request)
+        defer { try? FileManager.default.removeItem(at: temporary) }
+        guard let http = response as? HTTPURLResponse, http.statusCode == 200,
+              http.mimeType == "video/mp4", !Task.isCancelled else {
+            throw RuntimeError.requestFailed("原镜头暂时无法读取。请刷新镜头列表，原有制作进度会保留。")
+        }
+        let size = try FileManager.default.attributesOfItem(atPath: temporary.path)[.size] as? NSNumber
+        guard let size, (12...128_000_000).contains(size.intValue) else {
+            throw LibrarySnapshotRefreshError.contextChanged
+        }
+        let bytes = try Data(contentsOf: temporary, options: .mappedIfSafe)
+        guard SHA256.hash(data: bytes).map({ String(format: "%02x", $0) }).joined() == expectedSHA else {
+            throw RuntimeError.requestFailed("原镜头校验不一致，已停止播放。没有确认复用。")
+        }
+        let destination = FileManager.default.temporaryDirectory.appending(path: "nalu-repair-preview-\(UUID().uuidString).mp4")
+        try FileManager.default.copyItem(at: temporary, to: destination)
+        do { try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: destination.path) }
+        catch { try? FileManager.default.removeItem(at: destination); throw error }
+        return destination
+    }
+
     func repairVideoDecisions(runID: String) async throws -> [RepairVideoDecision] {
         let result: [RepairVideoDecision] = try await get("v1/production-runs/\(runID)/repair-video-reviews")
         guard Set(result.map { $0.payload.shot_index }).count == result.count else {

@@ -1,5 +1,18 @@
 # Native repair reuse transport — incomplete acceptance
 
+Follow-up: a repair-scoped clip content GET validates the expected candidate
+digest and current original-video provenance before serving MP4, with no-store.
+Tests cover read-only viewing, stale digest and missing shot rejection using a
+mocked media validator; this is not actual playback QA. Native viewer wiring
+is still required. f91a065 was pushed; CI34297992449 was pending at inspection.
+
+Native download transport now uses the scoped route with the frozen candidate
+digest, checks MP4 response and bounded file size, compares SHA256, and copies
+to a private temporary file. The caller must remove that playback copy when
+finished. No adoption is performed by downloading. Backend tests: 3 passed in
+5.04s; ruff and diff checks passed. Native compilation remains unverified;
+CI34297992449 subsequently entered in_progress.
+
 Native transport now reads eligible clips and latest saved per-shot decisions,
 and submits an explicit accept/reject with candidate digest and prior decision
 ID. Restoring decisions uses GET only; it does not grant paid generation or

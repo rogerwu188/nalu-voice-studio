@@ -1300,6 +1300,18 @@ def create_app(
             raise HTTPException(403, "native repair review required")
         return review_repair_video(production, run_id, request)
 
+    @app.get("/v1/production-runs/{run_id}/repair-video-candidates/{shot_index}/content", response_class=Response)
+    def get_repair_video_content(run_id: str, shot_index: int, expected_candidates_sha256: str):
+        candidates = repair_video_candidates(production, run_id)
+        if candidates["candidates_sha256"] != expected_candidates_sha256:
+            raise ConflictError("repair candidates changed; refresh before viewing")
+        selected = next((item for item in candidates["items"] if item["shot_index"] == shot_index), None)
+        if selected is None or selected["status"] != "available_for_review":
+            raise ConflictError("original clip is not available for this repair shot")
+        _, _, raw = VideoTailService(repository, data_root).accepted_video(
+            selected["source_run_id"], selected["source_review_id"], _repair_target=run_id)
+        return Response(content=raw, media_type="video/mp4", headers={"Cache-Control": "no-store"})
+
     @app.get("/v1/production-runs/{run_id}/repair-video-reviews", response_model=list[RunEvent])
     def get_repair_video_reviews(run_id: str):
         repository.get_run(run_id)
