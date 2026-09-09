@@ -44,7 +44,14 @@ def main():
             request = {key: binding[key] for key in ("asset_id", "expected_asset_sha256", "gain_db", "layer", "source_in_seconds")}
             request.update(sound_plan_id=sound.id, expected_sound_plan_sha256=sound.payload["sound_plan_sha256"])
             prepared = api.post(base + "/sound-sources", json=request)
-            assert prepared.status_code == 200, prepared.text
+            if prepared.status_code != 200:
+                print(json.dumps({"mix_prepared": False, "run_id": args.run_id,
+                    "failed_layer": layer, "asset_id": binding["asset_id"],
+                    "required_duration_seconds": sound.payload["duration_seconds"],
+                    "source_in_seconds": binding["source_in_seconds"],
+                    "status_code": prepared.status_code, "detail": prepared.text,
+                    "render_started": False, "real_master_accepted": False}), flush=True)
+                raise SystemExit(1)
             sources.append(prepared.json()["payload"]["source"])
         mix = api.post(base + "/adopted-dialogue/prepare-mix", json={
             "staging_id": staging.id, "expected_staging_sha256": staging.payload["staging_sha256"],
