@@ -11,7 +11,9 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 from nalu_runtime.app import create_app
 from nalu_runtime.asset_service import AssetService
+from nalu_runtime.episode_edit_review import EpisodeEditReviewService
 from nalu_runtime.models import AssetKind, ConsentScope
+from nalu_runtime.repository import ConflictError
 
 
 def main():
@@ -31,6 +33,16 @@ def main():
         base = f"/v1/production-runs/{args.run_id}"
         events = repo.list_run_events(args.run_id)
         sound = [e for e in events if e.event_type == "episode_sound_plan_drafted"][-1]
+        try:
+            EpisodeEditReviewService(repo, root / "data").approved(
+                args.run_id, sound.payload["edit_id"], sound.payload["edit_sha256"],
+                sound.payload.get("edit_review_id"))
+        except ConflictError as exc:
+            print(json.dumps({"mix_prepared": False, "run_id": args.run_id,
+                "failed_stage": "edit_approval", "detail": str(exc),
+                "assets_imported": False, "render_started": False,
+                "real_master_accepted": False}), flush=True)
+            raise SystemExit(1) from exc
         if repo.get_run(args.run_id).status in {"running", "qa_review"}:
             mix = api.get(base + "/adopted-dialogue/prepared-mix", params={"sound_plan_id": sound.id,
                 "expected_sound_plan_sha256": sound.payload["sound_plan_sha256"]})
