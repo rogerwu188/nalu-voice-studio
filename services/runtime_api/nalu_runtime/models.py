@@ -1780,7 +1780,8 @@ class RenderedOutputIntegrityReport(BaseModel):
 
 
 class FinalQAEvidence(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    # Human attestations must be explicit JSON booleans, not coerced strings or numbers.
+    model_config = ConfigDict(extra="forbid", strict=True)
 
     schema_version: Literal["nalu.final-qa-evidence/v1"]
     run_id: str = Field(min_length=1)

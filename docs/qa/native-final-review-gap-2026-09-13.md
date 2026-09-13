@@ -5,6 +5,12 @@ Scope: source inspection only, not installed QA or human acceptance.
 
 ## Confirmed wiring
 
+Attestation contract hardening: `FinalQAEvidence` now uses strict validation.
+Strings such as `"true"`/`"yes"` and integer `1` can no longer be coerced into
+human approval. Thirty negative field/value cases and a valid JSON round trip
+pass (31 tests); existing missing/failed final-QA repair tests pass (2 tests).
+This protects ingestion but does not implement the missing endpoint or UI.
+
 - `VoiceInterviewViewModel.verifyFinalMaster` downloads the sealed master,
   invokes on-device Apple Speech, and submits semantic QA. Its success message
   explicitly requires subsequent original-resolution human review.
