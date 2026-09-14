@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "d4c0d8b9fc73e074c8bfdf5028048977169a263e",
-  "last_advanced_at": "2026-09-08T20:18:16Z",
+  "observed_head": "27cd123",
+  "last_advanced_at": "2026-09-13T12:00:00Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-09",
     "status": "IN_PROGRESS",
-    "summary": "Current observed product commit d4c0d8b9fc73e074c8bfdf5028048977169a263e: CI34531543808 and upstream audit34634070040 completed successfully. Revised isolated14s repair master is sealed with structure and decoded technical QA only; semantic_asr_verified=false. Native same-candidate acceptance, real writer/video and release acceptance remain incomplete. Previous repeated status replies were no-progress turns, not development or proof that all safe work is blocked. Historical next_action entries are context, not live process handles."
+    "summary": "Current candidate 27cd123 adds strict FinalQAEvidence validation and 31 focused tests; CI is running. Native final human-review submission remains absent: backend completion reads an immutable sealed QA artifact and exposes no ingestion endpoint. Real writer/video, semantic ASR, native/ human acceptance, signing, notarization and release remain incomplete."
   },
   "next_action": {
     "immediate_action": "Inspect current native semantic/human review entry and connect any missing sealed-master review handoff; use isolated data and existing sealed outputs, never rerender the sealed child. First establish the actual missing native step from code and current evidence. Preserve source-to-script-to-episode production priority. Do not retry Hops401, paid generation, signing or publication without the required authorization. Repeated completed tests and status replies are not progress.",
