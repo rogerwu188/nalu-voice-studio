@@ -702,6 +702,24 @@ class ProductionService:
             )
         artifacts.sort(key=lambda artifact: artifact.relative_path)
 
+        # Reject a misbound review before publishing an irreversible seal.
+        reviews = [artifact for artifact in artifacts if artifact.kind == "qa_report"]
+        if reviews:
+            masters = [artifact for artifact in artifacts if artifact.kind == "master_video"]
+            if len(reviews) != 1 or len(masters) != 1:
+                raise ConflictError("final review seal requires one report and one master")
+            try:
+                review_payload = json.loads(
+                    (exports_root / reviews[0].relative_path).read_text(encoding="utf-8")
+                )
+            except (OSError, ValueError) as exc:
+                raise ConflictError("final review report is unreadable before seal") from exc
+            if not isinstance(review_payload, dict) or (
+                review_payload.get("run_id") != run_id
+                or review_payload.get("master_sha256") != masters[0].sha256
+            ):
+                raise ConflictError("final review report does not bind this run and master")
+
         seal_without_hash = {
             "schema_version": "nalu.rendered-output-seal/v1",
             "run_id": run.id,
