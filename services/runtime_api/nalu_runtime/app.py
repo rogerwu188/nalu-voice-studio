@@ -96,6 +96,8 @@ from .models import (
     EpisodePlanUpdate,
     EpisodeProductionProgress,
     EpisodeTransitionRequest,
+    FinalQAReview,
+    FinalQAReviewSubmission,
     FeedbackCreate,
     FeedbackDevelopmentHandoffCreate,
     FeedbackDevelopmentHandoffReceipt,
@@ -1786,6 +1788,21 @@ def create_app(
             filename=Path(artifact.relative_path).name,
             headers={"X-Nalu-Master-SHA256": artifact.sha256},
         )
+
+    @app.post(
+        "/v1/production-runs/{run_id}/final-human-review",
+        response_model=FinalQAReview,
+        status_code=201,
+    )
+    def submit_final_human_review(run_id: str, request: FinalQAReviewSubmission) -> FinalQAReview:
+        return production.submit_final_human_review(run_id, request)
+
+    @app.get(
+        "/v1/production-runs/{run_id}/final-human-review",
+        response_model=FinalQAReview,
+    )
+    def stored_final_human_review(run_id: str) -> FinalQAReview:
+        return production.stored_final_human_review(run_id)
 
     @app.post(
         "/v1/production-runs/{run_id}/semantic-media-qa",

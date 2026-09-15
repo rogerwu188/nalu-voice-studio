@@ -1799,6 +1799,11 @@ class FinalQAReview(BaseModel):
     notes: str = Field(default="", max_length=4000)
 
 
+class FinalQAReviewSubmission(FinalQAReview):
+    """Post-seal human review; persisted separately from immutable output seal."""
+    idempotency_key: str = Field(min_length=1, max_length=200)
+
+
 class FinalQAEvidence(FinalQAReview):
     """Release evidence requires every explicit human check to pass."""
 

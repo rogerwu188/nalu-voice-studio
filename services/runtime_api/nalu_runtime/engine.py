@@ -25,6 +25,8 @@ from .models import (
     EpisodeProductionProgress,
     EpisodeStatus,
     FinalQAEvidence,
+    FinalQAReview,
+    FinalQAReviewSubmission,
     LocalVisualAnalysisResult,
     MediaStructureQAReport,
     PlatformPublicationApproval,
@@ -2244,6 +2246,42 @@ class ProductionService:
             verifier,
             publication=publication,
         )
+
+    def submit_final_human_review(
+        self, run_id: str, request: FinalQAReviewSubmission
+    ) -> FinalQAReview:
+        integrity = self.rendered_output_integrity(run_id)
+        if not integrity.integrity_ok:
+            raise ConflictError("sealed output integrity failed before human review")
+        master = next((a for a in integrity.seal.artifacts if a.kind == "master_video"), None)
+        if master is None or request.run_id != run_id or request.master_sha256 != master.sha256:
+            raise ConflictError("human review is bound to a different run or master")
+        review = FinalQAReview.model_validate(request.model_dump(exclude={"idempotency_key"}))
+        path = self._run_directory(self.repository.get_run(run_id)) / "final-human-qa.json"
+        payload = review.model_dump(mode="json")
+        payload["idempotency_key"] = request.idempotency_key
+        encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+        if path.exists():
+            try:
+                existing = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, ValueError) as exc:
+                raise ConflictError("stored human review is unreadable") from exc
+            if existing != payload:
+                raise ConflictError("human review already exists with a different request")
+            return review
+        staging = path.with_suffix(".tmp")
+        staging.write_text(encoded, encoding="utf-8")
+        os.replace(staging, path)
+        return review
+
+    def stored_final_human_review(self, run_id: str) -> FinalQAReview:
+        path = self._run_directory(self.repository.get_run(run_id)) / "final-human-qa.json"
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            payload.pop("idempotency_key", None)
+            return FinalQAReview.model_validate(payload)
+        except (OSError, ValueError) as exc:
+            raise ConflictError("human review has not been recorded or is invalid") from exc
 
     def complete_run(
         self, run_id: str, request: ProductionCompletionRequest
