@@ -1779,7 +1779,8 @@ class RenderedOutputIntegrityReport(BaseModel):
     failures: list[str] = Field(default_factory=list)
 
 
-class FinalQAEvidence(BaseModel):
+class FinalQAReview(BaseModel):
+    """A human decision, including failed checks; not release approval by itself."""
     # Human attestations must be explicit JSON booleans, not coerced strings or numbers.
     model_config = ConfigDict(extra="forbid", strict=True)
 
@@ -1796,6 +1797,10 @@ class FinalQAEvidence(BaseModel):
     review_channel: Literal["human_original_resolution"]
     reviewed_at: str = Field(min_length=1, max_length=100)
     notes: str = Field(default="", max_length=4000)
+
+
+class FinalQAEvidence(FinalQAReview):
+    """Release evidence requires every explicit human check to pass."""
 
     @model_validator(mode="after")
     def require_every_release_check(self) -> FinalQAEvidence:
