@@ -11,7 +11,7 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "b4782c8",
+  "observed_head": "74962a5e27fad377fd9351e53dafbf83c84c5d56",
   "last_advanced_at": "2026-09-15T05:00:00Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
