@@ -4448,6 +4448,187 @@
         "title": "FeedbackTriageRecord",
         "type": "object"
       },
+      "FinalQAReview": {
+        "additionalProperties": false,
+        "description": "A human decision, including failed checks; not release approval by itself.",
+        "properties": {
+          "audio_sync_passed": {
+            "title": "Audio Sync Passed",
+            "type": "boolean"
+          },
+          "captions_passed": {
+            "title": "Captions Passed",
+            "type": "boolean"
+          },
+          "continuity_passed": {
+            "title": "Continuity Passed",
+            "type": "boolean"
+          },
+          "master_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Master Sha256",
+            "type": "string"
+          },
+          "notes": {
+            "default": "",
+            "maxLength": 4000,
+            "title": "Notes",
+            "type": "string"
+          },
+          "original_resolution_reviewed": {
+            "title": "Original Resolution Reviewed",
+            "type": "boolean"
+          },
+          "picture_passed": {
+            "title": "Picture Passed",
+            "type": "boolean"
+          },
+          "review_channel": {
+            "const": "human_original_resolution",
+            "title": "Review Channel",
+            "type": "string"
+          },
+          "reviewed_at": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Reviewed At",
+            "type": "string"
+          },
+          "reviewed_by": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Reviewed By",
+            "type": "string"
+          },
+          "run_id": {
+            "minLength": 1,
+            "title": "Run Id",
+            "type": "string"
+          },
+          "safety_passed": {
+            "title": "Safety Passed",
+            "type": "boolean"
+          },
+          "schema_version": {
+            "const": "nalu.final-qa-evidence/v1",
+            "title": "Schema Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "schema_version",
+          "run_id",
+          "master_sha256",
+          "original_resolution_reviewed",
+          "picture_passed",
+          "audio_sync_passed",
+          "captions_passed",
+          "continuity_passed",
+          "safety_passed",
+          "reviewed_by",
+          "review_channel",
+          "reviewed_at"
+        ],
+        "title": "FinalQAReview",
+        "type": "object"
+      },
+      "FinalQAReviewSubmission": {
+        "additionalProperties": false,
+        "description": "Post-seal human review; persisted separately from immutable output seal.",
+        "properties": {
+          "audio_sync_passed": {
+            "title": "Audio Sync Passed",
+            "type": "boolean"
+          },
+          "captions_passed": {
+            "title": "Captions Passed",
+            "type": "boolean"
+          },
+          "continuity_passed": {
+            "title": "Continuity Passed",
+            "type": "boolean"
+          },
+          "idempotency_key": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Idempotency Key",
+            "type": "string"
+          },
+          "master_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Master Sha256",
+            "type": "string"
+          },
+          "notes": {
+            "default": "",
+            "maxLength": 4000,
+            "title": "Notes",
+            "type": "string"
+          },
+          "original_resolution_reviewed": {
+            "title": "Original Resolution Reviewed",
+            "type": "boolean"
+          },
+          "output_seal_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Output Seal Sha256",
+            "type": "string"
+          },
+          "picture_passed": {
+            "title": "Picture Passed",
+            "type": "boolean"
+          },
+          "review_channel": {
+            "const": "human_original_resolution",
+            "title": "Review Channel",
+            "type": "string"
+          },
+          "reviewed_at": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Reviewed At",
+            "type": "string"
+          },
+          "reviewed_by": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Reviewed By",
+            "type": "string"
+          },
+          "run_id": {
+            "minLength": 1,
+            "title": "Run Id",
+            "type": "string"
+          },
+          "safety_passed": {
+            "title": "Safety Passed",
+            "type": "boolean"
+          },
+          "schema_version": {
+            "const": "nalu.final-qa-evidence/v1",
+            "title": "Schema Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "schema_version",
+          "run_id",
+          "master_sha256",
+          "original_resolution_reviewed",
+          "picture_passed",
+          "audio_sync_passed",
+          "captions_passed",
+          "continuity_passed",
+          "safety_passed",
+          "reviewed_by",
+          "review_channel",
+          "reviewed_at",
+          "idempotency_key",
+          "output_seal_sha256"
+        ],
+        "title": "FinalQAReviewSubmission",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -15474,6 +15655,92 @@
           }
         },
         "summary": "Get Run Events"
+      }
+    },
+    "/v1/production-runs/{run_id}/final-human-review": {
+      "get": {
+        "operationId": "stored_final_human_review_v1_production_runs__run_id__final_human_review_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FinalQAReview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Stored Final Human Review"
+      },
+      "post": {
+        "operationId": "submit_final_human_review_v1_production_runs__run_id__final_human_review_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FinalQAReviewSubmission"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FinalQAReview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Submit Final Human Review"
       }
     },
     "/v1/production-runs/{run_id}/image-observations/{observation_id}/materialize": {

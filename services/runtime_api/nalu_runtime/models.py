@@ -1802,6 +1802,7 @@ class FinalQAReview(BaseModel):
 class FinalQAReviewSubmission(FinalQAReview):
     """Post-seal human review; persisted separately from immutable output seal."""
     idempotency_key: str = Field(min_length=1, max_length=200)
+    output_seal_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
 
 
 class FinalQAEvidence(FinalQAReview):

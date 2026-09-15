@@ -8,6 +8,7 @@ import time
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
+from uuid import uuid4
 
 from .continuity import audit_continuity
 from .decoded_media_qa import inspect_decoded_media
@@ -2250,38 +2251,66 @@ class ProductionService:
     def submit_final_human_review(
         self, run_id: str, request: FinalQAReviewSubmission
     ) -> FinalQAReview:
+        with self._production_start_lock(f"final-human-review:{run_id}"):
+            return self._submit_final_human_review_locked(run_id, request)
+
+    def _validate_final_human_review_binding(
+        self, run_id: str, request: FinalQAReviewSubmission
+    ) -> None:
         integrity = self.rendered_output_integrity(run_id)
         if not integrity.integrity_ok:
             raise ConflictError("sealed output integrity failed before human review")
-        master = next((a for a in integrity.seal.artifacts if a.kind == "master_video"), None)
-        if master is None or request.run_id != run_id or request.master_sha256 != master.sha256:
+        masters = [a for a in integrity.seal.artifacts if a.kind == "master_video"]
+        if (
+            len(masters) != 1 or request.run_id != run_id
+            or request.master_sha256 != masters[0].sha256
+            or request.output_seal_sha256 != integrity.seal.manifest_sha256
+        ):
             raise ConflictError("human review is bound to a different run or master")
-        review = FinalQAReview.model_validate(request.model_dump(exclude={"idempotency_key"}))
+
+    @staticmethod
+    def _human_review_body(request: FinalQAReviewSubmission) -> FinalQAReview:
+        return FinalQAReview.model_validate(
+            request.model_dump(exclude={"idempotency_key", "output_seal_sha256"})
+        )
+
+    def _submit_final_human_review_locked(
+        self, run_id: str, request: FinalQAReviewSubmission
+    ) -> FinalQAReview:
+        self._validate_final_human_review_binding(run_id, request)
         path = self._run_directory(self.repository.get_run(run_id)) / "final-human-qa.json"
-        payload = review.model_dump(mode="json")
-        payload["idempotency_key"] = request.idempotency_key
-        encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"))
-        if path.exists():
-            try:
-                existing = json.loads(path.read_text(encoding="utf-8"))
-            except (OSError, ValueError) as exc:
-                raise ConflictError("stored human review is unreadable") from exc
-            if existing != payload:
+        if path.exists() or path.is_symlink():
+            existing = self._stored_final_human_submission(run_id)
+            if existing != request:
                 raise ConflictError("human review already exists with a different request")
-            return review
-        staging = path.with_suffix(".tmp")
-        staging.write_text(encoded, encoding="utf-8")
-        os.replace(staging, path)
-        return review
+            return self._human_review_body(existing)
+        if self.repository.get_run(run_id).status != RunStatus.QA_REVIEW:
+            raise ConflictError("new human review requires a run in QA review")
+        payload = request.model_dump(mode="json")
+        envelope = {"submission": payload, "sha256": self._canonical_sha256(payload)}
+        # Unique staging plus the per-run process lock prevents a second writer
+        # from overwriting a decision. Atomic replace publishes only complete JSON.
+        staging = path.with_name(f".final-human-qa-{uuid4().hex}.tmp")
+        self._write_and_promote_package(staging, path, json.dumps(envelope, sort_keys=True))
+        return self._human_review_body(request)
+
+    def _stored_final_human_submission(self, run_id: str) -> FinalQAReviewSubmission:
+        path = self._run_directory(self.repository.get_run(run_id)) / "final-human-qa.json"
+        if path.is_symlink() or not path.is_file():
+            raise ConflictError("human review has not been recorded or is invalid")
+        try:
+            envelope = json.loads(path.read_text(encoding="utf-8"))
+            payload = envelope["submission"]
+            if envelope["sha256"] != self._canonical_sha256(payload):
+                raise ValueError("human review digest mismatch")
+            request = FinalQAReviewSubmission.model_validate(payload)
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            raise ConflictError("human review has not been recorded or is invalid") from exc
+        self._validate_final_human_review_binding(run_id, request)
+        return request
 
     def stored_final_human_review(self, run_id: str) -> FinalQAReview:
-        path = self._run_directory(self.repository.get_run(run_id)) / "final-human-qa.json"
-        try:
-            payload = json.loads(path.read_text(encoding="utf-8"))
-            payload.pop("idempotency_key", None)
-            return FinalQAReview.model_validate(payload)
-        except (OSError, ValueError) as exc:
-            raise ConflictError("human review has not been recorded or is invalid") from exc
+        return self._human_review_body(self._stored_final_human_submission(run_id))
 
     def complete_run(
         self, run_id: str, request: ProductionCompletionRequest
