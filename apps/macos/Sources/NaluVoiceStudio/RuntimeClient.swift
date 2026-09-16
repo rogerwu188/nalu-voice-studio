@@ -1646,11 +1646,11 @@ actor RuntimeClient {
         try await post("v1/production-runs/\(runID)/semantic-media-qa", body: draft)
     }
 
-    func submitFinalHumanReview(runID: String, draft: FinalHumanReviewDraft) async throws -> FinalHumanReviewDraft {
+    func submitFinalHumanReview(runID: String, draft: FinalHumanReviewDraft) async throws -> FinalHumanReviewResult {
         try await post("v1/production-runs/\(runID)/final-human-review", body: draft)
     }
 
-    func storedFinalHumanReview(runID: String) async throws -> FinalHumanReviewDraft {
+    func storedFinalHumanReview(runID: String) async throws -> FinalHumanReviewResult {
         try await get("v1/production-runs/\(runID)/final-human-review")
     }
 

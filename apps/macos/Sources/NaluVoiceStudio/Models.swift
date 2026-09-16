@@ -385,6 +385,31 @@ struct SemanticMediaQAResult: Codable, Sendable {
     }
 }
 
+struct FinalHumanReviewResult: Decodable, Equatable, Sendable {
+    let schemaVersion: String
+    let runID: String
+    let masterSHA256: String
+    let originalResolutionReviewed: Bool
+    let picturePassed: Bool
+    let audioSyncPassed: Bool
+    let captionsPassed: Bool
+    let continuityPassed: Bool
+    let safetyPassed: Bool
+    let reviewedBy: String
+    let reviewChannel: String
+    let reviewedAt: String
+    let notes: String
+
+    enum CodingKeys: String, CodingKey {
+        case schemaVersion = "schema_version", runID = "run_id", masterSHA256 = "master_sha256"
+        case originalResolutionReviewed = "original_resolution_reviewed"
+        case picturePassed = "picture_passed", audioSyncPassed = "audio_sync_passed"
+        case captionsPassed = "captions_passed", continuityPassed = "continuity_passed"
+        case safetyPassed = "safety_passed", reviewedBy = "reviewed_by"
+        case reviewChannel = "review_channel", reviewedAt = "reviewed_at", notes
+    }
+}
+
 struct FinalHumanReviewDraft: Codable, Sendable {
     let schemaVersion: String
     let runID: String
