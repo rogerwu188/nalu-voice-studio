@@ -2315,6 +2315,12 @@ class ProductionService:
     def complete_run(
         self, run_id: str, request: ProductionCompletionRequest
     ) -> ProductionCompletionResult:
+        with self._production_start_lock(f"final-human-review:{run_id}"):
+            return self._complete_run_locked(run_id, request)
+
+    def _complete_run_locked(
+        self, run_id: str, request: ProductionCompletionRequest
+    ) -> ProductionCompletionResult:
         integrity = self.rendered_output_integrity(run_id)
         if not integrity.integrity_ok:
             run = self.repository.get_run(run_id)
@@ -2344,7 +2350,9 @@ class ProductionService:
             raise ConflictError("child production completion requires guardian approval")
 
         qa_artifacts = [artifact for artifact in seal.artifacts if artifact.kind == "qa_report"]
-        if len(qa_artifacts) != 1:
+        human_path = self._run_directory(run) / "final-human-qa.json"
+        has_human_review = human_path.exists() or human_path.is_symlink()
+        if not has_human_review and len(qa_artifacts) != 1:
             self._record_postproduction_repair_plan(
                 run,
                 output_seal_sha256=seal.manifest_sha256,
@@ -2369,16 +2377,24 @@ class ProductionService:
                 codes=["captions_presence"],
             )
             raise ConflictError("production completion requires sealed captions")
-        qa_artifact = qa_artifacts[0]
-        qa_path = (
-            self._run_directory(run) / "qingshan-workspace" / "exports" / qa_artifact.relative_path
-        )
         qa_bytes: bytes | None = None
         qa_payload: dict | None = None
         try:
-            qa_bytes = qa_path.read_bytes()
-            decoded_payload = json.loads(qa_bytes.decode("utf-8"))
-            qa_payload = decoded_payload if isinstance(decoded_payload, dict) else None
+            if has_human_review:
+                submission = self._stored_final_human_submission(run_id)
+                qa_payload = self._human_review_body(submission).model_dump(mode="json")
+                qa_bytes = human_path.read_bytes()
+                qa_sha256 = hashlib.sha256(qa_bytes).hexdigest()
+            else:
+                qa_artifact = qa_artifacts[0]
+                qa_path = (
+                    self._run_directory(run) / "qingshan-workspace" / "exports"
+                    / qa_artifact.relative_path
+                )
+                qa_bytes = qa_path.read_bytes()
+                decoded_payload = json.loads(qa_bytes.decode("utf-8"))
+                qa_payload = decoded_payload if isinstance(decoded_payload, dict) else None
+                qa_sha256 = qa_artifact.sha256
             evidence = FinalQAEvidence.model_validate(qa_payload)
         except (OSError, UnicodeError, ValueError) as exc:
             source_qa_sha256 = (
@@ -2409,7 +2425,7 @@ class ProductionService:
                 run,
                 output_seal_sha256=seal.manifest_sha256,
                 master_sha256=master_artifacts[0].sha256,
-                source_qa_sha256=qa_artifact.sha256,
+                source_qa_sha256=qa_sha256,
                 codes=["qa_run_binding"],
             )
             raise ConflictError("final QA report belongs to a different production run")
@@ -2418,7 +2434,7 @@ class ProductionService:
                 run,
                 output_seal_sha256=seal.manifest_sha256,
                 master_sha256=master_artifacts[0].sha256,
-                source_qa_sha256=qa_artifact.sha256,
+                source_qa_sha256=qa_sha256,
                 codes=["qa_master_binding"],
             )
             raise ConflictError("final QA report reviewed a different master")
@@ -2478,14 +2494,14 @@ class ProductionService:
         completed_run, episode = self.repository.complete_run_after_qa(
             run_id,
             output_seal_sha256=seal.manifest_sha256,
-            qa_report_sha256=qa_artifact.sha256,
+            qa_report_sha256=qa_sha256,
             completed_by=request.completed_by,
         )
         return ProductionCompletionResult(
             run=completed_run,
             episode=episode,
             output_seal_sha256=seal.manifest_sha256,
-            qa_report_sha256=qa_artifact.sha256,
+            qa_report_sha256=qa_sha256,
         )
 
     def start_run(

@@ -1034,8 +1034,9 @@ def test_failed_media_qa_recovers_repair_plan_after_event_commit_crash(tmp_path:
     assert sum(event["event_type"] == "postproduction_repair_required" for event in events) == 1
 
 
+@pytest.mark.parametrize("post_seal_review", [False, True])
 def test_verified_seal_and_human_qa_complete_atomically_and_retry_safely(
-    tmp_path: Path,
+    tmp_path: Path, post_seal_review: bool,
 ) -> None:
     api = client(tmp_path)
     _project, episode, entity = approved_episode_with_library(api)
@@ -1079,12 +1080,19 @@ def test_verified_seal_and_human_qa_complete_atomically_and_retry_safely(
     seal = api.post(
         f"/v1/production-runs/{run['id']}/rendered-output-seal",
         json=seal_payload(
-            include_qa=True,
+            include_qa=not post_seal_review,
             include_shot_manifest=True,
             include_postproduction_manifest=True,
             include_visual_continuity_manifest=True,
         ),
     ).json()
+    if post_seal_review:
+        review = json.loads((exports / "E01_FINAL_QA.json").read_text())
+        review.update(idempotency_key="human-test", output_seal_sha256=seal["manifest_sha256"])
+        submitted = api.post(
+            f"/v1/production-runs/{run['id']}/final-human-review", json=review,
+        )
+        assert submitted.status_code == 201, submitted.text
     assert (
         api.post(f"/v1/production-runs/{run['id']}/media-structure-qa").json()["status"] == "PASS"
     )
