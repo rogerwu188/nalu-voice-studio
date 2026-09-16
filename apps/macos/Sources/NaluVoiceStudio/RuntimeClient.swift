@@ -1646,6 +1646,14 @@ actor RuntimeClient {
         try await post("v1/production-runs/\(runID)/semantic-media-qa", body: draft)
     }
 
+    func submitFinalHumanReview(runID: String, draft: FinalHumanReviewDraft) async throws -> FinalHumanReviewDraft {
+        try await post("v1/production-runs/\(runID)/final-human-review", body: draft)
+    }
+
+    func storedFinalHumanReview(runID: String) async throws -> FinalHumanReviewDraft {
+        try await get("v1/production-runs/\(runID)/final-human-review")
+    }
+
     private func get<Response: Decodable>(_ path: String) async throws -> Response {
         let (data, response) = try await authorizedData(from: baseURL.appending(path: path))
         try validate(response, data: data)
