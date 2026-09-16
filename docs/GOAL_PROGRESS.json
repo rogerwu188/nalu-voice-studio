@@ -11,7 +11,7 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "0885030e3c05bea4c6ed2bc213dbcd0684173c55",
+  "observed_head": "ed8e047ccead9d4bbea8f0ffa88cfd4f7cd7715c",
   "last_advanced_at": "2026-09-15T05:00:00Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-09",
     "status": "IN_PROGRESS",
-    "summary": "Native RuntimeClient now has typed final-human-review POST/GET transport. Backend review/release regressions pass; local Swift Package validation is blocked by the environment PackageDescription linker failure, so native QA remains incomplete."
+    "summary": "Native RuntimeClient now decodes final-human-review responses separately from submission payloads, with a negative-decision model test. Local Swift Package validation remains blocked by the environment PackageDescription linker failure; native QA remains incomplete."
   },
   "next_action": {
     "immediate_action": "Implement independent final-human-QA ingestion endpoint backed by immutable run/master binding and idempotent replay; then connect native explicit original-resolution controls.",
