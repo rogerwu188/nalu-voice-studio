@@ -11,7 +11,7 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "eee85fe80d9efeb5854759f8a505cac78f759ee4",
+  "observed_head": "62554f1d973f5ae979e34f83c0f191611f36a6bf",
   "last_advanced_at": "2026-09-15T05:00:00Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-09",
     "status": "IN_PROGRESS",
-    "summary": "Completion now consumes persisted final-human-review records, preserves failed decisions, and blocks completion on failed/tampered/misbound reviews. 102 focused tests pass; native explicit review remains incomplete."
+    "summary": "Release packaging now revalidates the exact human QA decision committed at completion, including imported-run path safety; 102 focused tests pass. Native explicit review remains incomplete."
   },
   "next_action": {
     "immediate_action": "Implement independent final-human-QA ingestion endpoint backed by immutable run/master binding and idempotent replay; then connect native explicit original-resolution controls.",
