@@ -1816,6 +1816,7 @@ class ProductionService:
         run = self.repository.get_run(run_id)
         if run.status != RunStatus.COMPLETED:
             raise ConflictError("only a completed production run can create a release package")
+        self._verify_completed_human_review(run_id)
         episode = self.repository.get_episode(run.episode_id)
         if episode.status != EpisodeStatus.READY_TO_PUBLISH:
             raise ConflictError("episode is not ready to create a release package")
@@ -1940,6 +1941,7 @@ class ProductionService:
 
     def stored_release_package(self, run_id: str) -> ReleasePackage:
         run = self.repository.get_run(run_id)
+        self._verify_completed_human_review(run_id)
         release_path = self._run_directory(run) / "release-package.json"
         if not release_path.is_file() or release_path.is_symlink():
             raise ConflictError("offline release package has not been created")
@@ -2311,6 +2313,44 @@ class ProductionService:
 
     def stored_final_human_review(self, run_id: str) -> FinalQAReview:
         return self._human_review_body(self._stored_final_human_submission(run_id))
+
+    def _verify_completed_human_review(self, run_id: str) -> None:
+        """Revalidate the exact decision committed by completion, not a replacement."""
+        run_directory = self._run_directory(self.repository.get_run(run_id))
+        events = [event for event in self.repository.list_run_events(run_id)
+                  if event.event_type == "production_completed"]
+        if len(events) > 1:
+            raise ConflictError("release requires a unique completed QA decision")
+        if not events:
+            raise ConflictError("release requires a completed QA decision")
+        integrity = self.rendered_output_integrity(run_id)
+        if not integrity.integrity_ok:
+            raise ConflictError("release human review output integrity failed")
+        seal = integrity.seal
+        path = run_directory / "final-human-qa.json"
+        try:
+            if path.exists() or path.is_symlink():
+                review = self.stored_final_human_review(run_id)
+                digest = self._sha256_file(path)
+            else:
+                artifacts = [a for a in seal.artifacts if a.kind == "qa_report"]
+                if len(artifacts) != 1:
+                    raise ConflictError("completed human review is missing")
+                artifact = artifacts[0]
+                qa_path = path.parent / "qingshan-workspace" / "exports" / artifact.relative_path
+                review = FinalQAReview.model_validate_json(qa_path.read_bytes())
+                digest = artifact.sha256
+            FinalQAEvidence.model_validate(review.model_dump())
+        except (OSError, ValueError) as exc:
+            raise ConflictError("completed human review is invalid") from exc
+        masters = [a for a in seal.artifacts if a.kind == "master_video"]
+        if (
+            len(masters) != 1 or review.run_id != run_id
+            or review.master_sha256 != masters[0].sha256
+            or events[0].payload.get("output_seal_sha256") != seal.manifest_sha256
+            or events[0].payload.get("qa_report_sha256") != digest
+        ):
+            raise ConflictError("human review differs from completed QA decision")
 
     def complete_run(
         self, run_id: str, request: ProductionCompletionRequest

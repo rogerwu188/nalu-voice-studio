@@ -1193,6 +1193,23 @@ def test_verified_seal_and_human_qa_complete_atomically_and_retry_safely(
     completion_events = [event for event in events if event["event_type"] == "production_completed"]
     assert len(completion_events) == 1
 
+    api.app.state.production._verify_completed_human_review(run["id"])
+    if post_seal_review:
+        from nalu_runtime.repository import ConflictError
+
+        review_path = exports.parent.parent / "final-human-qa.json"
+        saved = review_path.read_bytes()
+        review_path.unlink()
+        with pytest.raises(ConflictError, match="missing"):
+            api.app.state.production._verify_completed_human_review(run["id"])
+        envelope = json.loads(saved)
+        envelope["submission"]["notes"] = "replacement decision"
+        envelope["sha256"] = api.app.state.production._canonical_sha256(envelope["submission"])
+        review_path.write_text(json.dumps(envelope))
+        with pytest.raises(ConflictError, match="differs"):
+            api.app.state.production._verify_completed_human_review(run["id"])
+        review_path.write_bytes(saved)
+
     revision = api.post(
         f"/v1/library-entities/{entity['id']}/revisions",
         json={
