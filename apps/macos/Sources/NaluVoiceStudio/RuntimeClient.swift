@@ -1647,11 +1647,19 @@ actor RuntimeClient {
     }
 
     func submitFinalHumanReview(runID: String, draft: FinalHumanReviewDraft) async throws -> FinalHumanReviewResult {
-        try await post("v1/production-runs/\(runID)/final-human-review", body: draft)
+        let expected = try decoder.decode(FinalHumanReviewResult.self, from: encoder.encode(draft))
+        try expected.validate(runID: runID)
+        let result: FinalHumanReviewResult = try await post(
+            "v1/production-runs/\(runID)/final-human-review", body: draft
+        )
+        try result.validate(runID: runID, submitted: draft)
+        return result
     }
 
     func storedFinalHumanReview(runID: String) async throws -> FinalHumanReviewResult {
-        try await get("v1/production-runs/\(runID)/final-human-review")
+        let result: FinalHumanReviewResult = try await get("v1/production-runs/\(runID)/final-human-review")
+        try result.validate(runID: runID)
+        return result
     }
 
     private func get<Response: Decodable>(_ path: String) async throws -> Response {

@@ -18,5 +18,25 @@ struct FinalHumanReviewTests {
         #expect(result.runID == "run_test")
         #expect(result.picturePassed == false)
         #expect(result.originalResolutionReviewed)
+        try result.validate(runID: "run_test")
+        #expect(throws: (any Error).self) { try result.validate(runID: "another-run") }
+
+        var submission = payload
+        submission["idempotency_key"] = "stable-review-key"
+        submission["output_seal_sha256"] = String(repeating: "b", count: 64)
+        let draft = try JSONDecoder().decode(FinalHumanReviewDraft.self,
+            from: JSONSerialization.data(withJSONObject: submission))
+        try result.validate(runID: "run_test", submitted: draft)
+
+        for field in ["master_sha256", "picture_passed", "reviewed_by", "reviewed_at", "notes"] {
+            var changed = payload
+            if field == "picture_passed" { changed[field] = true }
+            else { changed[field] = "changed" }
+            let mismatch = try JSONDecoder().decode(FinalHumanReviewResult.self,
+                from: JSONSerialization.data(withJSONObject: changed))
+            #expect(throws: (any Error).self) {
+                try mismatch.validate(runID: "run_test", submitted: draft)
+            }
+        }
     }
 }

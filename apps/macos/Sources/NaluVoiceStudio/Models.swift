@@ -400,6 +400,24 @@ struct FinalHumanReviewResult: Decodable, Equatable, Sendable {
     let reviewedAt: String
     let notes: String
 
+    func validate(runID expectedRunID: String, submitted: FinalHumanReviewDraft? = nil) throws {
+        guard runID == expectedRunID,
+              schemaVersion == "nalu.final-qa-evidence/v1",
+              reviewChannel == "human_original_resolution",
+              masterSHA256.count == 64,
+              masterSHA256.allSatisfy({ "0123456789abcdef".contains($0) }) else {
+            throw RuntimeError.requestFailed("审核记录与当前制作不一致，未确认提交成功。")
+        }
+        if let submitted {
+            let expected = try JSONDecoder().decode(
+                Self.self, from: JSONEncoder().encode(submitted)
+            )
+            guard self == expected else {
+                throw RuntimeError.requestFailed("返回的审核决定与您的提交不一致，请先恢复核对。")
+            }
+        }
+    }
+
     enum CodingKeys: String, CodingKey {
         case schemaVersion = "schema_version", runID = "run_id", masterSHA256 = "master_sha256"
         case originalResolutionReviewed = "original_resolution_reviewed"
