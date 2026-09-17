@@ -428,7 +428,7 @@ struct FinalHumanReviewResult: Decodable, Equatable, Sendable {
     }
 }
 
-struct FinalHumanReviewDraft: Codable, Sendable {
+struct FinalHumanReviewDraft: Codable, Equatable, Sendable {
     let schemaVersion: String
     let runID: String
     let masterSHA256: String

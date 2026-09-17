@@ -27,6 +27,20 @@ struct FinalHumanReviewTests {
         let draft = try JSONDecoder().decode(FinalHumanReviewDraft.self,
             from: JSONSerialization.data(withJSONObject: submission))
         try result.validate(runID: "run_test", submitted: draft)
+        var state = FinalHumanReviewState()
+        #expect(state.confirmed == nil)
+        #expect(try state.prepare(draft) == draft)
+        #expect(try state.prepare(draft) == draft)
+        var alteredSubmission = submission
+        alteredSubmission["idempotency_key"] = "new-key"
+        let altered = try JSONDecoder().decode(FinalHumanReviewDraft.self,
+            from: JSONSerialization.data(withJSONObject: alteredSubmission))
+        #expect(throws: (any Error).self) { try state.prepare(altered) }
+        #expect(state.pending == draft)
+        try state.confirm(result)
+        #expect(state.pending == nil)
+        #expect(state.confirmed?.picturePassed == false)
+        #expect(throws: (any Error).self) { try state.prepare(draft) }
 
         for field in ["master_sha256", "picture_passed", "reviewed_by", "reviewed_at", "notes"] {
             var changed = payload
