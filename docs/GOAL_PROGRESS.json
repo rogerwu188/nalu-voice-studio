@@ -11,7 +11,7 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "9173caf62b19d3aae438f896b0c66f2fb7a7438f",
+  "observed_head": "fe7436af94c67b6428dea7a7af7b0bfefd1b32b9",
   "last_advanced_at": "2026-09-15T05:00:00Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-09",
     "status": "IN_PROGRESS",
-    "summary": "Native final-human-review pending state now validates stable retry identity and safely serializes/restores only the same run/master/seal request; confirmed decisions are never inferred from recovery. Native UI lifecycle wiring and QA remain incomplete."
+    "summary": "Native final-human-review pending state validates stable retry identity and safely serializes/restores only the same run/master/seal request; CI 35299648867 passed all macOS/runtime jobs. Native UI lifecycle wiring and real human QA remain incomplete."
   },
   "next_action": {
     "immediate_action": "Implement independent final-human-QA ingestion endpoint backed by immutable run/master binding and idempotent replay; then connect native explicit original-resolution controls.",
