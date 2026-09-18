@@ -37,7 +37,10 @@ struct FinalHumanReviewTests {
             from: JSONSerialization.data(withJSONObject: alteredSubmission))
         #expect(throws: (any Error).self) { try state.prepare(altered) }
         #expect(state.pending == draft)
-        let checkpoint = try #require(state.pendingCheckpoint())
+        guard let checkpoint = try state.pendingCheckpoint() else {
+            Issue.record("pending review checkpoint was unexpectedly empty")
+            return
+        }
         var recovered = FinalHumanReviewState()
         try recovered.restorePending(checkpoint, runID: draft.runID,
             masterSHA256: draft.masterSHA256, outputSealSHA256: draft.outputSealSHA256)
