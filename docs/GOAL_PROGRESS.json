@@ -11,7 +11,7 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "d9f5ded4b37242552dfda490225b4705e403b019",
+  "observed_head": "3c5cc01f0a3bf3e9899a2d8589afffb81fb37547",
   "last_advanced_at": "2026-09-15T05:00:00Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-09",
     "status": "IN_PROGRESS",
-    "summary": "Native final-human-review pending state now has a write-once local journal with safe restart recovery; CI 35313900297 passed all macOS/runtime jobs. Actual UI lifecycle wiring and real human QA remain incomplete."
+    "summary": "Native final-human-review now journals before POST and recovers by GET without automatic resubmission; CI 35343578813 passed all macOS/runtime jobs. Actual UI lifecycle wiring and real human QA remain incomplete."
   },
   "next_action": {
     "immediate_action": "Implement independent final-human-QA ingestion endpoint backed by immutable run/master binding and idempotent replay; then connect native explicit original-resolution controls.",
