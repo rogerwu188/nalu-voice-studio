@@ -37,7 +37,24 @@ struct FinalHumanReviewTests {
             from: JSONSerialization.data(withJSONObject: alteredSubmission))
         #expect(throws: (any Error).self) { try state.prepare(altered) }
         #expect(state.pending == draft)
+        let checkpoint = try #require(state.pendingCheckpoint())
+        var recovered = FinalHumanReviewState()
+        try recovered.restorePending(checkpoint, runID: draft.runID,
+            masterSHA256: draft.masterSHA256, outputSealSHA256: draft.outputSealSHA256)
+        #expect(recovered.pending == draft)
+        #expect(recovered.confirmed == nil)
+        #expect(throws: (any Error).self) {
+            try recovered.restorePending(checkpoint, runID: "other",
+                masterSHA256: draft.masterSHA256, outputSealSHA256: draft.outputSealSHA256)
+        }
+        #expect(recovered.pending == draft)
+        #expect(throws: (any Error).self) {
+            try recovered.restorePending(Data("invalid".utf8), runID: draft.runID,
+                masterSHA256: draft.masterSHA256, outputSealSHA256: draft.outputSealSHA256)
+        }
+        #expect(recovered.pending == draft)
         try state.confirm(result)
+        #expect(try state.pendingCheckpoint() == nil)
         #expect(state.pending == nil)
         #expect(state.confirmed?.picturePassed == false)
         #expect(throws: (any Error).self) { try state.prepare(draft) }
