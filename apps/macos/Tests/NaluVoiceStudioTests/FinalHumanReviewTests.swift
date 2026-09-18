@@ -2,8 +2,23 @@ import Foundation
 import Testing
 @testable import NaluVoiceStudio
 
-struct FinalHumanReviewTests {
-    @Test func decodesServerResponseWithoutSubmissionOnlyFields() throws {
+private final class FinalReviewProtocol: URLProtocol, @unchecked Sendable {
+    static var body = Data()
+    static var requests: [URLRequest] = []
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override func startLoading() {
+        Self.requests.append(request)
+        client?.urlProtocol(self, didReceive: HTTPURLResponse(url: request.url!, statusCode: 200,
+            httpVersion: nil, headerFields: ["Content-Type": "application/json"])!, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: Self.body)
+        client?.urlProtocolDidFinishLoading(self)
+    }
+    override func stopLoading() {}
+}
+
+@Suite(.serialized) struct FinalHumanReviewTests {
+    @Test func decodesServerResponseWithoutSubmissionOnlyFields() async throws {
         let payload: [String: Any] = [
             "schema_version": "nalu.final-qa-evidence/v1", "run_id": "run_test",
             "master_sha256": String(repeating: "a", count: 64),
@@ -45,6 +60,23 @@ struct FinalHumanReviewTests {
         alteredSubmission["idempotency_key"] = "new-key"
         let altered = try JSONDecoder().decode(FinalHumanReviewDraft.self,
             from: JSONSerialization.data(withJSONObject: alteredSubmission))
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [FinalReviewProtocol.self]
+        let runtime = RuntimeClient(baseURL: URL(string: "http://127.0.0.1:8765")!,
+            session: URLSession(configuration: config), accessCheck: { true })
+        FinalReviewProtocol.body = bytes
+        FinalReviewProtocol.requests = []
+        let response = try await runtime.submitFinalHumanReview(runID: draft.runID, draft: draft, store: store)
+        #expect(response == result)
+        let recovery = try await runtime.recoverFinalHumanReview(runID: draft.runID,
+            masterSHA256: draft.masterSHA256, outputSealSHA256: draft.outputSealSHA256, store: reopened)
+        #expect(recovery == result)
+        #expect(FinalReviewProtocol.requests.map { $0.httpMethod } == ["POST", "GET"])
+        do {
+            _ = try await runtime.submitFinalHumanReview(runID: draft.runID, draft: altered, store: reopened)
+            Issue.record("conflicting local request was submitted")
+        } catch {}
+        #expect(FinalReviewProtocol.requests.count == 2)
         #expect(throws: (any Error).self) { try reopened.save(altered) }
         #expect(throws: (any Error).self) { try state.prepare(altered) }
         #expect(state.pending == draft)

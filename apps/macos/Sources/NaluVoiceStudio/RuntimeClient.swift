@@ -1646,13 +1646,27 @@ actor RuntimeClient {
         try await post("v1/production-runs/\(runID)/semantic-media-qa", body: draft)
     }
 
-    func submitFinalHumanReview(runID: String, draft: FinalHumanReviewDraft) async throws -> FinalHumanReviewResult {
+    func submitFinalHumanReview(runID: String, draft: FinalHumanReviewDraft,
+                               store: FinalHumanReviewStore) async throws -> FinalHumanReviewResult {
         let expected = try decoder.decode(FinalHumanReviewResult.self, from: encoder.encode(draft))
         try expected.validate(runID: runID)
+        // A caller cannot bypass durable retry identity when issuing the POST.
+        var state = try store.save(draft)
         let result: FinalHumanReviewResult = try await post(
             "v1/production-runs/\(runID)/final-human-review", body: draft
         )
-        try result.validate(runID: runID, submitted: draft)
+        try state.confirm(result)
+        return result
+    }
+
+    func recoverFinalHumanReview(runID: String, masterSHA256: String,
+                                 outputSealSHA256: String,
+                                 store: FinalHumanReviewStore) async throws -> FinalHumanReviewResult? {
+        guard var state = try store.load(runID: runID, masterSHA256: masterSHA256,
+                                         outputSealSHA256: outputSealSHA256) else { return nil }
+        // A missing/failed GET is not permission to POST again or invent a new key.
+        let result = try await storedFinalHumanReview(runID: runID)
+        try state.confirm(result)
         return result
     }
 
