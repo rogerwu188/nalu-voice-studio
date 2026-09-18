@@ -383,6 +383,9 @@ struct ContentView: View {
                     },
                     onVerifyFinalMedia: progress.runID.map { runID in
                         { Task { await model.verifyFinalMaster(runID: runID) } }
+                    },
+                    onReadHumanReview: progress.runID.map { runID in
+                        { Task { await model.readFinalHumanReview(runID: runID) } }
                     }
                 )
                 .padding(.horizontal, 24)

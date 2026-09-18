@@ -1342,6 +1342,15 @@ final class VoiceInterviewViewModel {
         }
     }
 
+    func readFinalHumanReview(runID: String) async {
+        do {
+            _ = try await runtime.storedFinalHumanReview(runID: runID)
+            messages.append(.init(speaker: .nalu, text: "已读取这集保存的人工验收记录；播放本身不会改变验收结果。"))
+        } catch {
+            messages.append(.init(speaker: .nalu, text: "这集还没有保存的人工验收记录；请先观看原尺寸成片并逐项确认。"))
+        }
+    }
+
     func selectEpisode(_ episodeID: String) {
         selectedEpisodeID = episodeID
         guard let episode = episodes.first(where: { $0.id == episodeID }) else { return }

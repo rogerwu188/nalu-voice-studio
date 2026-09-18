@@ -72,6 +72,13 @@ struct ProductionProgressStatusView: View {
     let onCancel: (() -> Void)?
     let onResume: (() -> Void)?
     let onVerifyFinalMedia: (() -> Void)?
+    let onReadHumanReview: (() -> Void)?
+    @State private var humanReviewExpanded = false
+    @State private var picturePassed = false
+    @State private var audioPassed = false
+    @State private var captionsPassed = false
+    @State private var continuityPassed = false
+    @State private var safetyPassed = false
 
     private var presentation: ProductionProgressPresentation {
         ProductionProgressPresentation(progress: progress)
@@ -156,6 +163,25 @@ struct ProductionProgressStatusView: View {
                                 ? "arrow.triangle.2.circlepath" : "checklist"
                         )
                         .foregroundStyle(mediaCheckInProgress ? .blue : .secondary)
+                    }
+                    if presentation.canVerifyFinalMedia {
+                        DisclosureGroup("人工观看验收（不会由播放自动通过）", isExpanded: $humanReviewExpanded) {
+                            VStack(alignment: .leading, spacing: 9) {
+                                Text("请先在原尺寸播放成片，再逐项明确确认。未全部确认时不能提交人工验收，也不会进入发行。")
+                                    .font(.callout)
+                                Toggle("画面清晰、无明显画面问题", isOn: $picturePassed)
+                                Toggle("声音与画面同步", isOn: $audioPassed)
+                                Toggle("字幕内容和时间正确", isOn: $captionsPassed)
+                                Toggle("镜头连续性符合预期", isOn: $continuityPassed)
+                                Toggle("内容适合目标观众", isOn: $safetyPassed)
+                                Button("读取人工验收状态", action: { onReadHumanReview?() })
+                                    .controlSize(.large)
+                                    .disabled(onReadHumanReview == nil)
+                                    .accessibilityIdentifier("nalu.final-human-review.read")
+                                Text("当前只记录您的逐项选择；实际提交需要当前成片摘要和服务器回执。")
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }.padding(.top, 8)
+                        }.accessibilityIdentifier("nalu.final-human-review.panel")
                     }
                     if progress.canCancel || progress.canResume {
                         HStack(spacing: 12) {
