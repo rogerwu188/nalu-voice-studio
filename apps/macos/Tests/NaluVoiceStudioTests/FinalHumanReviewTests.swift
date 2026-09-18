@@ -27,6 +27,16 @@ struct FinalHumanReviewTests {
         let draft = try JSONDecoder().decode(FinalHumanReviewDraft.self,
             from: JSONSerialization.data(withJSONObject: submission))
         try result.validate(runID: "run_test", submitted: draft)
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = FinalHumanReviewStore(directory: directory)
+        #expect(try store.save(draft).pending == draft)
+        #expect(try store.save(draft).pending == draft)
+        let reopened = FinalHumanReviewStore(directory: directory)
+        let loaded = try reopened.load(runID: draft.runID, masterSHA256: draft.masterSHA256,
+                                       outputSealSHA256: draft.outputSealSHA256)
+        #expect(loaded?.pending == draft)
+        #expect(loaded?.confirmed == nil)
         var state = FinalHumanReviewState()
         #expect(state.confirmed == nil)
         #expect(try state.prepare(draft) == draft)
@@ -35,6 +45,7 @@ struct FinalHumanReviewTests {
         alteredSubmission["idempotency_key"] = "new-key"
         let altered = try JSONDecoder().decode(FinalHumanReviewDraft.self,
             from: JSONSerialization.data(withJSONObject: alteredSubmission))
+        #expect(throws: (any Error).self) { try reopened.save(altered) }
         #expect(throws: (any Error).self) { try state.prepare(altered) }
         #expect(state.pending == draft)
         guard let checkpoint = try state.pendingCheckpoint() else {
