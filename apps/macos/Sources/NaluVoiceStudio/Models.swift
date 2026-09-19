@@ -431,17 +431,36 @@ struct FinalHumanReviewResult: Decodable, Equatable, Sendable {
 struct RenderedOutputIntegrityResult: Decodable, Sendable {
     let seal: Seal
     let integrityOK: Bool
+    let failures: [String]
     struct Seal: Decodable, Sendable {
+        let runID: String
+        let schemaVersion: String
         let manifestSHA256: String
         let artifacts: [Artifact]
         struct Artifact: Decodable, Sendable {
             let kind: String
             let sha256: String
         }
-        enum CodingKeys: String, CodingKey { case manifestSHA256 = "manifest_sha256", artifacts }
+        enum CodingKeys: String, CodingKey {
+            case manifestSHA256 = "manifest_sha256", artifacts
+            case runID = "run_id", schemaVersion = "schema_version"
+        }
     }
-    enum CodingKeys: String, CodingKey { case seal, integrityOK = "integrity_ok" }
+    enum CodingKeys: String, CodingKey { case seal, failures, integrityOK = "integrity_ok" }
     var masterSHA256: String? { seal.artifacts.first(where: { $0.kind == "master_video" })?.sha256 }
+
+    func validate(runID: String) throws {
+        let masters = seal.artifacts.filter { $0.kind == "master_video" }
+        func validDigest(_ value: String) -> Bool {
+            value.count == 64 && value.allSatisfy { "0123456789abcdef".contains($0) }
+        }
+        guard integrityOK, failures.isEmpty, seal.runID == runID,
+              seal.schemaVersion == "nalu.rendered-output-seal/v1",
+              validDigest(seal.manifestSHA256), masters.count == 1,
+              let master = masters.first, validDigest(master.sha256) else {
+            throw RuntimeError.requestFailed("当前成片的封存身份或完整性不一致，不能提交验收。")
+        }
+    }
 }
 
 struct FinalHumanReviewDraft: Codable, Equatable, Sendable {
