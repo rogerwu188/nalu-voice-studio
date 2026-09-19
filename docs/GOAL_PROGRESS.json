@@ -11,7 +11,7 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "8aec617e301c50a88a2742fdfad7876b6308ce87",
+  "observed_head": "2116f7efafa6dca660f08fe34d2fd81666c36d02",
   "last_advanced_at": "2026-09-15T05:00:00Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-09",
     "status": "IN_PROGRESS",
-    "summary": "Native human review submission now additionally requires an explicit current-original-resolution viewed action before all five checks can submit; CI 35425990849 passed all jobs. Durable journal and server receipt remain required; real human QA remains incomplete."
+    "summary": "Native human review retries preserve the original timestamp and idempotency key while rejecting changed decisions; CI 35428978869 passed all jobs. Real human QA remains incomplete."
   },
   "next_action": {
     "immediate_action": "Implement independent final-human-QA ingestion endpoint backed by immutable run/master binding and idempotent replay; then connect native explicit original-resolution controls.",
