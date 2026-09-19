@@ -6,6 +6,23 @@ import Foundation
 struct FinalHumanReviewStore {
     let directory: URL
 
+    /// A deliberate retry keeps the first timestamp and key, but never changes decisions.
+    func requestForRetry(_ proposed: FinalHumanReviewDraft) throws -> FinalHumanReviewDraft {
+        guard let saved = try load(runID: proposed.runID, masterSHA256: proposed.masterSHA256,
+                                   outputSealSHA256: proposed.outputSealSHA256)?.pending else {
+            return proposed
+        }
+        let encoder = JSONEncoder()
+        var original = try JSONSerialization.jsonObject(with: encoder.encode(saved)) as? [String: Any]
+        var candidate = try JSONSerialization.jsonObject(with: encoder.encode(proposed)) as? [String: Any]
+        original?.removeValue(forKey: "reviewed_at")
+        candidate?.removeValue(forKey: "reviewed_at")
+        guard let original, let candidate, NSDictionary(dictionary: original).isEqual(to: candidate) else {
+            throw RuntimeError.requestFailed("本次选择与已保存的审核不同，请先读取原审核结果。")
+        }
+        return saved
+    }
+
     private func path(runID: String) -> URL {
         let name = SHA256.hash(data: Data(runID.utf8)).map { String(format: "%02x", $0) }.joined()
         return directory.appendingPathComponent(name + ".json")

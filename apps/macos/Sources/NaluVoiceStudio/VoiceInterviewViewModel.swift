@@ -1367,7 +1367,9 @@ final class VoiceInterviewViewModel {
                 reviewedBy: "local-user", reviewChannel: "human_original_resolution",
                 reviewedAt: ISO8601DateFormatter().string(from: Date()), notes: "用户在原尺寸成片面板逐项确认",
                 idempotencyKey: "human-review-\(runID)-\(integrity.seal.manifestSHA256)")
-            let result = try await runtime.submitFinalHumanReview(runID: runID, draft: draft, store: FinalHumanReviewStore(directory: storeURL))
+            let store = FinalHumanReviewStore(directory: storeURL)
+            let stableDraft = try store.requestForRetry(draft)
+            let result = try await runtime.submitFinalHumanReview(runID: runID, draft: stableDraft, store: store)
             let status = result.picturePassed && result.audioSyncPassed && result.captionsPassed && result.continuityPassed && result.safetyPassed ? "已保存人工验收并收到服务器回执，可以进入后续发行门。" : "已保存失败的人工验收，制作保持阻断。"
             messages.append(.init(speaker: .nalu, text: status))
         } catch { errorMessage = error.localizedDescription }

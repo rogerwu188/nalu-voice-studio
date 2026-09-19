@@ -48,6 +48,15 @@ private final class FinalReviewProtocol: URLProtocol, @unchecked Sendable {
         #expect(try store.save(draft).pending == draft)
         #expect(try store.save(draft).pending == draft)
         let reopened = FinalHumanReviewStore(directory: directory)
+        var laterSubmission = submission
+        laterSubmission["reviewed_at"] = "2026-09-19T12:00:00Z"
+        let later = try JSONDecoder().decode(FinalHumanReviewDraft.self,
+            from: JSONSerialization.data(withJSONObject: laterSubmission))
+        #expect(try reopened.requestForRetry(later) == draft)
+        laterSubmission["picture_passed"] = true
+        let changedDecision = try JSONDecoder().decode(FinalHumanReviewDraft.self,
+            from: JSONSerialization.data(withJSONObject: laterSubmission))
+        #expect(throws: (any Error).self) { try reopened.requestForRetry(changedDecision) }
         let loaded = try reopened.load(runID: draft.runID, masterSHA256: draft.masterSHA256,
                                        outputSealSHA256: draft.outputSealSHA256)
         #expect(loaded?.pending == draft)
