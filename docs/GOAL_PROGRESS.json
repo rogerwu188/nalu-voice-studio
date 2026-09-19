@@ -11,7 +11,7 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "875bc95773f07dd86d2fba74ea46e29987fed380",
+  "observed_head": "3e29ce912397f61c608a4c35328a626d16077130",
   "last_advanced_at": "2026-09-15T05:00:00Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-09",
     "status": "IN_PROGRESS",
-    "summary": "Native production progress now exposes five explicit human checks and submits only after current seal/master integrity readback; durable journal and server receipt are required. CI and real human QA remain incomplete."
+    "summary": "Native human review submission now additionally requires an explicit current-original-resolution viewed action before all five checks can submit. Durable journal and server receipt remain required; real human QA remains incomplete."
   },
   "next_action": {
     "immediate_action": "Implement independent final-human-QA ingestion endpoint backed by immutable run/master binding and idempotent replay; then connect native explicit original-resolution controls.",
