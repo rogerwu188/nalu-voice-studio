@@ -35,6 +35,9 @@ import Testing
     for _ in 0..<100 where complete == nil { await Task.yield() }
     guard complete != nil else { operation.cancel(); Issue.record("speech operation did not start"); return }
     operation.cancel()
+    // Cancellation is delivered to the @MainActor waiter asynchronously; give
+    // that handler one turn before observing the task result.
+    await Task.yield()
     do { _ = try await operation.value; Issue.record("cancelled speech must not return words") }
     catch is CancellationError {} catch { Issue.record("wrong cancellation error") }
     complete?(.success(1))
