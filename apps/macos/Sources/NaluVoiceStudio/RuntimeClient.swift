@@ -1676,6 +1676,14 @@ actor RuntimeClient {
         return result
     }
 
+    func renderedOutputIntegrity(runID: String) async throws -> RenderedOutputIntegrityResult {
+        let result: RenderedOutputIntegrityResult = try await get("v1/production-runs/\(runID)/rendered-output-integrity")
+        guard result.integrityOK, let master = result.masterSHA256, master.count == 64 else {
+            throw RuntimeError.requestFailed("当前封存成片校验未通过，不能提交人工验收。")
+        }
+        return result
+    }
+
     private func get<Response: Decodable>(_ path: String) async throws -> Response {
         let (data, response) = try await authorizedData(from: baseURL.appending(path: path))
         try validate(response, data: data)

@@ -386,6 +386,11 @@ struct ContentView: View {
                     },
                     onReadHumanReview: progress.runID.map { runID in
                         { Task { await model.readFinalHumanReview(runID: runID) } }
+                    },
+                    onSubmitHumanReview: progress.runID.map { runID in
+                        { picture, audio, captions, continuity, safety in
+                            Task { await model.submitFinalHumanReview(runID: runID, picturePassed: picture, audioSyncPassed: audio, captionsPassed: captions, continuityPassed: continuity, safetyPassed: safety) }
+                        }
                     }
                 )
                 .padding(.horizontal, 24)

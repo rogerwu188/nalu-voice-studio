@@ -428,6 +428,22 @@ struct FinalHumanReviewResult: Decodable, Equatable, Sendable {
     }
 }
 
+struct RenderedOutputIntegrityResult: Decodable, Sendable {
+    let seal: Seal
+    let integrityOK: Bool
+    struct Seal: Decodable, Sendable {
+        let manifestSHA256: String
+        let artifacts: [Artifact]
+        struct Artifact: Decodable, Sendable {
+            let kind: String
+            let sha256: String
+        }
+        enum CodingKeys: String, CodingKey { case manifestSHA256 = "manifest_sha256", artifacts }
+    }
+    enum CodingKeys: String, CodingKey { case seal, integrityOK = "integrity_ok" }
+    var masterSHA256: String? { seal.artifacts.first(where: { $0.kind == "master_video" })?.sha256 }
+}
+
 struct FinalHumanReviewDraft: Codable, Equatable, Sendable {
     let schemaVersion: String
     let runID: String

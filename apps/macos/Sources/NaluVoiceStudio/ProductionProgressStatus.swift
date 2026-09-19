@@ -73,6 +73,7 @@ struct ProductionProgressStatusView: View {
     let onResume: (() -> Void)?
     let onVerifyFinalMedia: (() -> Void)?
     let onReadHumanReview: (() -> Void)?
+    let onSubmitHumanReview: ((Bool, Bool, Bool, Bool, Bool) -> Void)?
     @State private var humanReviewExpanded = false
     @State private var picturePassed = false
     @State private var audioPassed = false
@@ -178,6 +179,12 @@ struct ProductionProgressStatusView: View {
                                     .controlSize(.large)
                                     .disabled(onReadHumanReview == nil)
                                     .accessibilityIdentifier("nalu.final-human-review.read")
+                                Button("保存并提交人工验收", action: {
+                                    onSubmitHumanReview?(picturePassed, audioPassed, captionsPassed, continuityPassed, safetyPassed)
+                                })
+                                .buttonStyle(.borderedProminent).controlSize(.large)
+                                .disabled(onSubmitHumanReview == nil || !picturePassed || !audioPassed || !captionsPassed || !continuityPassed || !safetyPassed)
+                                .accessibilityIdentifier("nalu.final-human-review.submit")
                                 Text("当前只记录您的逐项选择；实际提交需要当前成片摘要和服务器回执。")
                                     .font(.caption).foregroundStyle(.secondary)
                             }.padding(.top, 8)

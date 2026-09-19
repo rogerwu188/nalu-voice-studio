@@ -1351,6 +1351,28 @@ final class VoiceInterviewViewModel {
         }
     }
 
+    func submitFinalHumanReview(runID: String, picturePassed: Bool, audioSyncPassed: Bool,
+                                captionsPassed: Bool, continuityPassed: Bool, safetyPassed: Bool) async {
+        do {
+            let integrity = try await runtime.renderedOutputIntegrity(runID: runID)
+            guard let master = integrity.masterSHA256 else { throw RuntimeError.requestFailed("当前成片缺少摘要。") }
+            let storeURL = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+                .appendingPathComponent("NaluVoiceStudio", isDirectory: true)
+                .appendingPathComponent("final-human-review", isDirectory: true)
+            let draft = FinalHumanReviewDraft(schemaVersion: "nalu.final-qa-evidence/v1", runID: runID,
+                masterSHA256: master, outputSealSHA256: integrity.seal.manifestSHA256,
+                originalResolutionReviewed: true, picturePassed: picturePassed,
+                audioSyncPassed: audioSyncPassed, captionsPassed: captionsPassed,
+                continuityPassed: continuityPassed, safetyPassed: safetyPassed,
+                reviewedBy: "local-user", reviewChannel: "human_original_resolution",
+                reviewedAt: ISO8601DateFormatter().string(from: Date()), notes: "用户在原尺寸成片面板逐项确认",
+                idempotencyKey: "human-review-\(runID)-\(integrity.seal.manifestSHA256)")
+            let result = try await runtime.submitFinalHumanReview(runID: runID, draft: draft, store: FinalHumanReviewStore(directory: storeURL))
+            let status = result.picturePassed && result.audioSyncPassed && result.captionsPassed && result.continuityPassed && result.safetyPassed ? "已保存人工验收并收到服务器回执，可以进入后续发行门。" : "已保存失败的人工验收，制作保持阻断。"
+            messages.append(.init(speaker: .nalu, text: status))
+        } catch { errorMessage = error.localizedDescription }
+    }
+
     func selectEpisode(_ episodeID: String) {
         selectedEpisodeID = episodeID
         guard let episode = episodes.first(where: { $0.id == episodeID }) else { return }
