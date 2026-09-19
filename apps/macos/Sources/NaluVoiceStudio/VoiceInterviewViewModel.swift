@@ -1344,10 +1344,10 @@ final class VoiceInterviewViewModel {
 
     func readFinalHumanReview(runID: String) async {
         do {
-            _ = try await runtime.storedFinalHumanReview(runID: runID)
-            messages.append(.init(speaker: .nalu, text: "已读取这集保存的人工验收记录；播放本身不会改变验收结果。"))
+            let review = try await runtime.storedFinalHumanReview(runID: runID)
+            messages.append(.init(speaker: .nalu, text: review.readback))
         } catch {
-            messages.append(.init(speaker: .nalu, text: "这集还没有保存的人工验收记录；请先观看原尺寸成片并逐项确认。"))
+            messages.append(.init(speaker: .nalu, text: "暂时无法核实人工验收记录：\(error.localizedDescription)。请重试读取；没有重新提交或改变原决定。"))
         }
     }
 
@@ -1370,7 +1370,7 @@ final class VoiceInterviewViewModel {
             let store = FinalHumanReviewStore(directory: storeURL)
             let stableDraft = try store.requestForRetry(draft)
             let result = try await runtime.submitFinalHumanReview(runID: runID, draft: stableDraft, store: store)
-            let status = result.picturePassed && result.audioSyncPassed && result.captionsPassed && result.continuityPassed && result.safetyPassed ? "已保存人工验收并收到服务器回执，可以进入后续发行门。" : "已保存失败的人工验收，制作保持阻断。"
+            let status = "已收到服务器回执。" + result.readback
             messages.append(.init(speaker: .nalu, text: status))
         } catch { errorMessage = error.localizedDescription }
     }

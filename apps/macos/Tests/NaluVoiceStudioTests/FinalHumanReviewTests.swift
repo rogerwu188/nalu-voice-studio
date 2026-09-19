@@ -32,6 +32,8 @@ private final class FinalReviewProtocol: URLProtocol, @unchecked Sendable {
         let result = try JSONDecoder().decode(FinalHumanReviewResult.self, from: bytes)
         #expect(result.runID == "run_test")
         #expect(result.picturePassed == false)
+        #expect(result.failedCheckNames == ["画面"])
+        #expect(result.readback.contains("未通过"))
         #expect(result.originalResolutionReviewed)
         try result.validate(runID: "run_test")
         #expect(throws: (any Error).self) { try result.validate(runID: "another-run") }

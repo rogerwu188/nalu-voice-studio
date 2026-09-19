@@ -400,6 +400,21 @@ struct FinalHumanReviewResult: Decodable, Equatable, Sendable {
     let reviewedAt: String
     let notes: String
 
+    var failedCheckNames: [String] {
+        [(originalResolutionReviewed, "原尺寸观看确认"), (picturePassed, "画面"),
+         (audioSyncPassed, "声音同步"), (captionsPassed, "字幕"),
+         (continuityPassed, "镜头连续性"), (safetyPassed, "内容适配")]
+            .compactMap { $0.0 ? nil : $0.1 }
+    }
+
+    var readback: String {
+        if failedCheckNames.isEmpty {
+            return "已读取人工验收通过记录。这不代表自动检查、制作完成或发行已通过。"
+        }
+        return "已读取人工验收未通过记录：" + failedCheckNames.joined(separator: "、")
+            + "。需要修订，不能据此完成制作或发行。"
+    }
+
     func validate(runID expectedRunID: String, submitted: FinalHumanReviewDraft? = nil) throws {
         guard runID == expectedRunID,
               schemaVersion == "nalu.final-qa-evidence/v1",
