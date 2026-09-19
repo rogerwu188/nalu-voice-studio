@@ -11,7 +11,7 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "54f5297273a9357b0f06c99dd5f4032d913f2ecc",
+  "observed_head": "4399e224fd25c3e1fa4e4038def02e4ee5200240",
   "last_advanced_at": "2026-09-15T05:00:00Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-09",
     "status": "IN_PROGRESS",
-    "summary": "Native human review now permits explicit failed decisions after viewing; failed checks remain release-blocking instead of being forced to pass. Real human QA remains incomplete."
+    "summary": "Native human review permits explicit failed decisions after viewing; CI 35439535687 passed all jobs. Failed checks remain release-blocking and real human QA remains incomplete."
   },
   "next_action": {
     "immediate_action": "Implement independent final-human-QA ingestion endpoint backed by immutable run/master binding and idempotent replay; then connect native explicit original-resolution controls.",
