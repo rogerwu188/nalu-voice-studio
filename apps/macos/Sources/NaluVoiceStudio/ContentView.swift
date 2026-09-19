@@ -391,7 +391,8 @@ struct ContentView: View {
                         { picture, audio, captions, continuity, safety in
                             Task { await model.submitFinalHumanReview(runID: runID, picturePassed: picture, audioSyncPassed: audio, captionsPassed: captions, continuityPassed: continuity, safetyPassed: safety) }
                         }
-                    }
+                    },
+                    onMarkHumanReviewViewed: { }
                 )
                 .padding(.horizontal, 24)
                 .padding(.vertical, 12)

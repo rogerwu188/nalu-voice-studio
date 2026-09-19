@@ -74,6 +74,8 @@ struct ProductionProgressStatusView: View {
     let onVerifyFinalMedia: (() -> Void)?
     let onReadHumanReview: (() -> Void)?
     let onSubmitHumanReview: ((Bool, Bool, Bool, Bool, Bool) -> Void)?
+    let onMarkHumanReviewViewed: (() -> Void)?
+    @State private var viewedCurrentMaster = false
     @State private var humanReviewExpanded = false
     @State private var picturePassed = false
     @State private var audioPassed = false
@@ -175,6 +177,13 @@ struct ProductionProgressStatusView: View {
                                 Toggle("字幕内容和时间正确", isOn: $captionsPassed)
                                 Toggle("镜头连续性符合预期", isOn: $continuityPassed)
                                 Toggle("内容适合目标观众", isOn: $safetyPassed)
+                                Button(viewedCurrentMaster ? "已明确观看当前原尺寸成片" : "我已观看当前原尺寸成片", systemImage: viewedCurrentMaster ? "checkmark.circle.fill" : "eye") {
+                                    onMarkHumanReviewViewed?()
+                                    viewedCurrentMaster = true
+                                }
+                                .buttonStyle(.bordered).controlSize(.large)
+                                .disabled(onMarkHumanReviewViewed == nil)
+                                .accessibilityIdentifier("nalu.final-human-review.viewed")
                                 Button("读取人工验收状态", action: { onReadHumanReview?() })
                                     .controlSize(.large)
                                     .disabled(onReadHumanReview == nil)
@@ -183,7 +192,7 @@ struct ProductionProgressStatusView: View {
                                     onSubmitHumanReview?(picturePassed, audioPassed, captionsPassed, continuityPassed, safetyPassed)
                                 })
                                 .buttonStyle(.borderedProminent).controlSize(.large)
-                                .disabled(onSubmitHumanReview == nil || !picturePassed || !audioPassed || !captionsPassed || !continuityPassed || !safetyPassed)
+                                .disabled(onSubmitHumanReview == nil || !viewedCurrentMaster || !picturePassed || !audioPassed || !captionsPassed || !continuityPassed || !safetyPassed)
                                 .accessibilityIdentifier("nalu.final-human-review.submit")
                                 Text("当前只记录您的逐项选择；实际提交需要当前成片摘要和服务器回执。")
                                     .font(.caption).foregroundStyle(.secondary)
