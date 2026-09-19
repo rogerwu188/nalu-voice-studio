@@ -170,7 +170,7 @@ struct ProductionProgressStatusView: View {
                     if presentation.canVerifyFinalMedia {
                         DisclosureGroup("人工观看验收（不会由播放自动通过）", isExpanded: $humanReviewExpanded) {
                             VStack(alignment: .leading, spacing: 9) {
-                                Text("请先在原尺寸播放成片，再逐项明确确认。未全部确认时不能提交人工验收，也不会进入发行。")
+                                Text("请先在原尺寸播放成片，再逐项明确选择。任一项关闭会记录为未通过，并继续阻断发行。")
                                     .font(.callout)
                                 Toggle("画面清晰、无明显画面问题", isOn: $picturePassed)
                                 Toggle("声音与画面同步", isOn: $audioPassed)
@@ -188,11 +188,12 @@ struct ProductionProgressStatusView: View {
                                     .controlSize(.large)
                                     .disabled(onReadHumanReview == nil)
                                     .accessibilityIdentifier("nalu.final-human-review.read")
-                                Button("保存并提交人工验收", action: {
+                                Button(picturePassed && audioPassed && captionsPassed && continuityPassed && safetyPassed
+                                       ? "保存并提交通过验收" : "保存并提交未通过验收", action: {
                                     onSubmitHumanReview?(picturePassed, audioPassed, captionsPassed, continuityPassed, safetyPassed)
                                 })
                                 .buttonStyle(.borderedProminent).controlSize(.large)
-                                .disabled(onSubmitHumanReview == nil || !viewedCurrentMaster || !picturePassed || !audioPassed || !captionsPassed || !continuityPassed || !safetyPassed)
+                                .disabled(onSubmitHumanReview == nil || !viewedCurrentMaster)
                                 .accessibilityIdentifier("nalu.final-human-review.submit")
                                 Text("当前只记录您的逐项选择；实际提交需要当前成片摘要和服务器回执。")
                                     .font(.caption).foregroundStyle(.secondary)
