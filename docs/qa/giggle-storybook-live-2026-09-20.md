@@ -29,3 +29,18 @@ reported `net::ERR_BLOCKED_BY_CLIENT`; no frames or audio were observed. Do not
 record this as playback or quality acceptance, and do not download media to
 bypass that display restriction. CI 35534653123 for 2624bbf was pending at this
 inspection, not passed.
+
+## Import boundary inspection
+
+`AssetService.import_bytes` already accepts `generation_provenance` and optional
+episode scope. Import requires actual media bytes. The production-video
+materialization endpoint instead requires an existing run observation and an
+exact matching provider-task binding. This standalone campaign has no approved
+episode shot binding, so it must not be inserted as that run's generated shot.
+No binding was fabricated and no import or review was performed.
+
+Separately verified CI 35533755125 (7721e44, native approval snapshot guards):
+runtime, arm64, x86_64 and universal all succeeded. This is older than the live
+campaign implementation and is not evidence for its latest CI. Current local
+`tests/test_story_to_review_journey.py`: 3 passed, two dependency deprecation
+warnings, 4.95 seconds; fixture-backed story/review flow, not paid writer E2E.
