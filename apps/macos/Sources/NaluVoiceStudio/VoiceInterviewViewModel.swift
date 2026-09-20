@@ -57,6 +57,14 @@ final class VoiceInterviewViewModel {
     var productionRunActionInProgress: String?
     var semanticMediaQARunInProgress: String?
     var semanticMediaQAStatusByRunID: [String: String] = [:]
+    /// Explicitly records the run for which the user acknowledged watching the
+    /// original-resolution master. This is deliberately run-scoped so a new
+    /// render cannot inherit the previous acknowledgement.
+    private(set) var viewedFinalHumanReviewRunIDs: Set<String> = []
+
+    func markFinalHumanReviewViewed(runID: String) {
+        viewedFinalHumanReviewRunIDs.insert(runID)
+    }
     var publicationLearning: [PublicationLearningPresentation] = []
     var publicationLearningIsLoading = false
     var publicationLearningWarning: String?

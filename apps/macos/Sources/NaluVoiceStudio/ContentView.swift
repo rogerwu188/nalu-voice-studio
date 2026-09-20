@@ -392,7 +392,9 @@ struct ContentView: View {
                             Task { await model.submitFinalHumanReview(runID: runID, picturePassed: picture, audioSyncPassed: audio, captionsPassed: captions, continuityPassed: continuity, safetyPassed: safety) }
                         }
                     },
-                    onMarkHumanReviewViewed: { }
+                    onMarkHumanReviewViewed: progress.runID.map { runID in
+                        { model.markFinalHumanReviewViewed(runID: runID) }
+                    }
                 )
                 .padding(.horizontal, 24)
                 .padding(.vertical, 12)
