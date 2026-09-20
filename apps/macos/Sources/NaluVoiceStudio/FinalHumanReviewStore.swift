@@ -6,6 +6,16 @@ import Foundation
 struct FinalHumanReviewStore {
     let directory: URL
 
+    static func resolvedDirectory(applicationSupport: URL,
+                                  environment: [String: String]) throws -> URL {
+        // Preserve the shipped journal location for normal runs: relocating it
+        // would lose retry identity. QA must use its explicitly isolated root.
+        let root = try RuntimeApplicationSupportResolver.resolve(
+            inherited: environment,
+            defaultURL: applicationSupport.appendingPathComponent("NaluVoiceStudio", isDirectory: true))
+        return root.appendingPathComponent("final-human-review", isDirectory: true)
+    }
+
     /// A deliberate retry keeps the first timestamp and key, but never changes decisions.
     func requestForRetry(_ proposed: FinalHumanReviewDraft) throws -> FinalHumanReviewDraft {
         guard let saved = try load(runID: proposed.runID, masterSHA256: proposed.masterSHA256,

@@ -1356,9 +1356,10 @@ final class VoiceInterviewViewModel {
         do {
             let integrity = try await runtime.renderedOutputIntegrity(runID: runID)
             guard let master = integrity.masterSHA256 else { throw RuntimeError.requestFailed("当前成片缺少摘要。") }
-            let storeURL = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
-                .appendingPathComponent("NaluVoiceStudio", isDirectory: true)
-                .appendingPathComponent("final-human-review", isDirectory: true)
+            let support = try FileManager.default.url(for: .applicationSupportDirectory,
+                in: .userDomainMask, appropriateFor: nil, create: true)
+            let storeURL = try FinalHumanReviewStore.resolvedDirectory(applicationSupport: support,
+                environment: ProcessInfo.processInfo.environment)
             let draft = FinalHumanReviewDraft(schemaVersion: "nalu.final-qa-evidence/v1", runID: runID,
                 masterSHA256: master, outputSealSHA256: integrity.seal.manifestSHA256,
                 originalResolutionReviewed: true, picturePassed: picturePassed,
