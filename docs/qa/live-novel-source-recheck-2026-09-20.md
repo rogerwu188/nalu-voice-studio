@@ -20,3 +20,13 @@ This is actual network/import/restart/context evidence, not native UI acceptance
 AI adaptation, complete-book import, video generation or overall SOP completion.
 The complete backend regression remains live in execution session99274;
 do not launch another copy solely because this checkpoint finished.
+
+## Installed application recovery observation
+
+Opened the existing 7721e44 arm64 QA app against this isolated support directory,
+port18773, with launch-only writer endpoint `invalid-local-qa` (no paid dispatch).
+Native screenshot verified `Isolated live novel QA`, local runtime online, and
+the persisted instruction `请改编第二回，先写成一集草稿`. The application correctly
+reported that the prior request had no complete result and was not automatically
+repeated. This confirms installed conversation recovery from the real-source
+database, not a generated script or visible full-chapter reader acceptance.
