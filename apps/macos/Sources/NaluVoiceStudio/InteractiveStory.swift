@@ -56,6 +56,9 @@ struct InteractiveStoryState: Codable, Sendable {
         if ["不用小说", "不按小说", "讲我自己的故事", "听我讲", "切回自己讲故事"].contains(where: cleaned.contains) {
             return "narrated_story"
         }
+        if AssistantActionRouter.reusesImportedNovel(text, hasSource: true) {
+            return "web_source"
+        }
         if ["继续改编小说", "接着改编小说", "切回小说"].contains(where: cleaned.contains) {
             return "web_source"
         }

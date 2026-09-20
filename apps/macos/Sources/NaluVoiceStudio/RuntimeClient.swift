@@ -103,6 +103,10 @@ actor RuntimeClient {
         return plan
     }
 
+    func savedNovelImport(projectID: String) async throws -> NovelImportStatus? {
+        try await get("v1/projects/\(projectID)/novel-import")
+    }
+
     func startNovelImport(projectID: String, sourceURL: String) async throws -> NovelImportStatus {
         var request = URLRequest(url: baseURL.appending(path: "v1/projects/\(projectID)/novel-import"))
         request.httpMethod = "POST"

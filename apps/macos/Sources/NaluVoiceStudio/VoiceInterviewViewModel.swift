@@ -2942,7 +2942,10 @@ final class VoiceInterviewViewModel {
                     }
                     if let projectID {
                         let state = try await runtime.interactiveStory(projectID: projectID)
-                        if AssistantActionRouter.reusesImportedNovel(query, hasSource: state.novel_source != nil) {
+                        // The first import can finish before a writing turn has captured its source.
+                        let reuseRequested = AssistantActionRouter.reusesImportedNovel(query, hasSource: true)
+                        let savedImport = reuseRequested ? try await runtime.savedNovelImport(projectID: projectID) : nil
+                        if reuseRequested, (savedImport?.completed_chapters ?? 0) > 0 {
                             guard projectSelectionGeneration == generation else { return }
                             assistantActionStatus = nil
                             handleInteractiveStoryInput(query, turnID: turnID)
