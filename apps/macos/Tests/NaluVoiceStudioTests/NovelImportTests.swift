@@ -2,6 +2,16 @@ import XCTest
 @testable import NaluVoiceStudio
 
 final class NovelImportTests: XCTestCase {
+    func testBookLookupRequiresSourceChoiceBeforeImportOrWriting() {
+        for text in ["帮我找西游记小说，改编成短剧", "去网上下载这本小说"] {
+            XCTAssertTrue(AssistantActionRouter.needsNovelSourceChoice(text), text)
+        }
+        for text in ["下载小说 https://example.org/book，然后生成分集剧本草稿",
+                     "只查这本小说", "不要下载小说"] {
+            XCTAssertFalse(AssistantActionRouter.needsNovelSourceChoice(text), text)
+        }
+    }
+
     func testExplicitNovelDownloadReachesImportInsteadOfGenericConfirmation() {
         for text in ["下载整本书", "导入这些章节", "下载小说 https://example.org/book，然后生成分集剧本草稿",
                      "去网上下载这本小说"] {

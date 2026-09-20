@@ -3003,7 +3003,7 @@ final class VoiceInterviewViewModel {
                     } else {
                         result = try await webResearch.research(query)
                     }
-                    let needsNovelChoice = novelImportRequested && AssistantActionRouter.sourceURL(in: query) == nil
+                    let needsNovelChoice = AssistantActionRouter.needsNovelSourceChoice(query)
                     let choice = NovelSourceChoice(sources: Array(result.sources.prefix(5)),
                         writingRequested: AssistantActionRouter.requestsSourceWriting(query))
                     let response = needsNovelChoice

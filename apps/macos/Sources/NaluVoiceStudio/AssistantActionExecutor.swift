@@ -16,6 +16,10 @@ enum AssistantActionRouter {
             && ["这本", "这部", "刚才", "已下载", "已保存", "当前"].contains(where: text.contains)
     }
 
+    static func needsNovelSourceChoice(_ text: String) -> Bool {
+        requestsNovelImport(text) && sourceURL(in: text) == nil
+    }
+
     static func requestsNovelImport(_ text: String) -> Bool {
         let cleaned = text.filter { !$0.isWhitespace }
         guard !["不要", "先别", "暂不", "只查", "只找", "登录", "购买", "付款", "发布",
