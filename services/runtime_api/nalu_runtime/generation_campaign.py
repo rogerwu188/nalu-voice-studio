@@ -88,3 +88,13 @@ class GenerationCampaign:
             authorize=lambda intent, request: self.claim_dispatch(
                 campaign_id, intent, request, media="image"),
         )
+
+    def video_transport(self, campaign_id, secret, *, transport=None):
+        """Use this factory for campaign-funded SD2 requests, not a bare adapter."""
+        from .giggle_video_transport import GiggleSeedanceImageTransport
+
+        return GiggleSeedanceImageTransport(
+            secret, transport=transport,
+            authorize=lambda intent, request: self.claim_dispatch(
+                campaign_id, intent, request, media="video"),
+        )

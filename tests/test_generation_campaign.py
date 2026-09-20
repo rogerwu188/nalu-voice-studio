@@ -101,3 +101,31 @@ def test_image_network_boundary_consumes_exact_reservation_once(tmp_path, outcom
     with pytest.raises(ConflictError):
         restarted.submit(request, intent_id="1" * 64)
     assert len(posts) == 1
+
+
+def test_video_campaign_claim_matches_wire_bytes_and_prevents_replay(tmp_path):
+    from nalu_runtime.giggle_video_transport import (
+        GiggleSeedanceImageTransport,
+        seedance_image_payload,
+    )
+    from test_giggle_video_transport import request_fixture
+
+    campaign = ledger(tmp_path)
+    request = request_fixture()
+    payload = seedance_image_payload(request)
+    raw = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
+    digest = hashlib.sha256(GiggleSeedanceImageTransport.endpoint.encode() + b"\0" + raw).hexdigest()
+    campaign.reserve("test", "5" * 64, digest, "video", 130, "b" * 64)
+    posts = []
+
+    def provider(incoming):
+        assert incoming.content == raw
+        posts.append(incoming)
+        return httpx.Response(200, json={"code": 200, "data": {"task_id": "video-test"}})
+
+    adapter = campaign.video_transport("test", lambda: "fixture-secret",
+                                       transport=httpx.MockTransport(provider))
+    assert adapter.post_paid_task(request=request, idempotency_key="5" * 64).provider_task_id == "video-test"
+    with pytest.raises(ConflictError):
+        adapter.post_paid_task(request=request, idempotency_key="5" * 64)
+    assert len(posts) == 1

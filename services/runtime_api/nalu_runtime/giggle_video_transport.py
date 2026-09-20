@@ -64,10 +64,12 @@ class GiggleSeedanceImageTransport:
     endpoint = "https://giggle.pro/api/v1/generation/image-to-video"
 
     def __init__(self, secret: Callable[[], str], *, transport: httpx.BaseTransport | None = None,
-                 before_submit: Callable[[], None] | None = None):
+                 before_submit: Callable[[], None] | None = None,
+                 authorize: Callable[[str, str], None] | None = None):
         self.secret = secret
         self.transport = transport
         self.before_submit = before_submit
+        self.authorize = authorize
 
     def post_paid_task(self, *, request: dict, idempotency_key: str) -> PaidProviderAcceptance:
         payload = seedance_image_payload(request)
@@ -75,6 +77,11 @@ class GiggleSeedanceImageTransport:
             raise ConflictError("missing durable SD2 submission identity")
         if self.before_submit is not None:
             self.before_submit()
+        raw_request = json.dumps(payload, ensure_ascii=False, sort_keys=True,
+                                 separators=(",", ":")).encode()
+        if self.authorize is not None:
+            self.authorize(idempotency_key,
+                           hashlib.sha256(self.endpoint.encode() + b"\0" + raw_request).hexdigest())
         try:
             key = self.secret()
             if not isinstance(key, str) or not key.strip() or len(key) > 1024 or "\n" in key or "\r" in key:
@@ -82,8 +89,9 @@ class GiggleSeedanceImageTransport:
             with (
                 httpx.Client(transport=self.transport, timeout=90, follow_redirects=False,
                              trust_env=False, verify=ssl.create_default_context(cafile=certifi.where())) as client,
-                client.stream("POST", self.endpoint, json=payload,
-                              headers={"x-auth": key, "Idempotency-Key": idempotency_key}) as response,
+                client.stream("POST", self.endpoint, content=raw_request,
+                              headers={"Content-Type": "application/json", "x-auth": key,
+                                       "Idempotency-Key": idempotency_key}) as response,
             ):
                 if response.status_code != 200:
                     raise ValueError("provider rejected response")
