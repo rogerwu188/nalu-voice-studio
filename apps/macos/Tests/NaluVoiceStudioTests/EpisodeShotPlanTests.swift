@@ -35,6 +35,25 @@ private final class ShotReviewProtocol: URLProtocol, @unchecked Sendable {
 
 @Suite(.serialized)
 struct EpisodeShotPlanTests {
+    @MainActor @Test func initialGenerationUsesSharedWriterConfigurationOnce() async throws {
+        ShotReviewProtocol.requests = []
+        ShotReviewProtocol.queued = [(200, Data("null".utf8)), (200, Data("null".utf8)),
+                                    (200, try fixture())]
+        var configurationReads = 0
+        let model = EpisodeShotPlanModel(runID: "run-one", runtime: runtime(), writerConfiguration: {
+            configurationReads += 1
+            return ("fixture-model", "synthetic-writer-key")
+        })
+        await model.load()
+        await model.generate()
+        #expect(model.event != nil)
+        #expect(configurationReads == 1)
+        #expect(ShotReviewProtocol.requests.map(\.httpMethod) == ["GET", "GET", "POST"])
+        await model.generate()
+        #expect(configurationReads == 1)
+        #expect(ShotReviewProtocol.requests.count == 3)
+    }
+
     @MainActor @Test func repairLoadRecoversDraftAndFailureNeverEnablesRegeneration() async throws {
         let sha = String(repeating: "a", count: 64)
         let context = try JSONSerialization.data(withJSONObject: ["source_run_id": "parent",

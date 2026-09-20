@@ -242,15 +242,13 @@ final class EpisodeShotPlanModel {
         busy = true
         defer { busy = false }
         do {
-            let endpoint = try AIServiceEndpoint.current()
-            guard endpoint.baseURL.absoluteString.trimmingCharacters(in: CharacterSet(charactersIn: "/")) == "https://hopsapi.com/v1",
-                  let key = try KeychainSecretStore().secret(for: .openAIRealtime), !key.isEmpty else {
+            guard let configuration = try await writerConfiguration() else {
                 notice = "分镜生成需要已配置的 Hops 模型服务。现有剧本仍然保留。"
                 return
             }
-            let model = try AIServiceModels.load(for: endpoint).research
             generationAttempted = true
-            let saved = try await runtime.generateShotPlan(runID: runID, model: model, apiKey: key)
+            let saved = try await runtime.generateShotPlan(runID: runID,
+                model: configuration.model, apiKey: configuration.key)
             event = saved
             editedPlan = saved.payload.plan
             notice = "分镜已保存，请听一听或看一看，再确认。还没有生成视频。"
