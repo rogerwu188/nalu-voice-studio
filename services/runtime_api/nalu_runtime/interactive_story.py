@@ -96,11 +96,16 @@ class InteractiveStory:
             season["season_arc"] = json.loads(season.pop("season_arc_json"))
             season["episodes"] = []
             for episode_row in connection.execute(
-                "SELECT id, title, episode_number, logline, outline_json, target_seconds, status "
+                "SELECT id, title, episode_number, logline, outline_json, target_seconds, status, approved_script_revision "
                 "FROM episodes WHERE season_id=? ORDER BY episode_number", (season["id"],),
             ):
                 episode = dict(episode_row)
                 episode["outline"] = json.loads(episode.pop("outline_json"))
+                script = connection.execute(
+                    "SELECT revision, content, summary_for_voice_review FROM script_revisions "
+                    "WHERE episode_id=? ORDER BY revision DESC LIMIT 1", (episode["id"],),
+                ).fetchone()
+                episode["latest_review_script"] = dict(script) if script else None
                 season["episodes"].append(episode)
             seasons.append(season)
         return {"project": dict(project), "seasons": seasons}

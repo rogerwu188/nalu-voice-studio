@@ -37,8 +37,13 @@ def test_writer_receives_scoped_season_and_episode_plan_snapshot(tmp_path):
             "title": "海边两集", "planned_episode_count": 2}, "episode_titles": ["相遇", "归来"]}).json()
         client.post("/v1/project-plans", json={"project": {"title": "无关项目", "planned_episode_count": 1}})
         episode_id = plan["episodes"][1]["id"]
+        scripts_path = f"/v1/episodes/{episode_id}/scripts"
+        draft = {"content": "爷爷乘船归来。", "summary_for_voice_review": "归来",
+                 "authoring": {"origin": "user_text"}}
+        assert client.post(scripts_path, json=draft).status_code == 201
         update = client.patch(f"/v1/episodes/{episode_id}", json={"logline": "爷爷归来", "outline": {"ending": "团聚"}})
         assert update.status_code == 200, update.text
+        assert client.post(scripts_path + "/1/approve", json={"approved_by": "synthetic QA"}).status_code == 200
         path = f"/v1/projects/{plan['project']['id']}/interactive-story"
         request = {"turn_id": "next", "expected_revision": 0, "text": "继续下一集", "source_mode": "narrated_story"}
         state = client.post(path + "/turns", json=request).json()
@@ -48,12 +53,19 @@ def test_writer_receives_scoped_season_and_episode_plan_snapshot(tmp_path):
         episodes = planning["seasons"][0]["episodes"]
         assert [episode["title"] for episode in episodes] == ["相遇", "归来"]
         assert episodes[1]["outline"] == {"ending": "团聚"}
+        assert episodes[1]["latest_review_script"]["content"] == draft["content"]
+        assert episodes[1]["approved_script_revision"] == 1
         body = writer_request(state, "fixture-model")
         assert "无关项目" not in body.decode()
+        assert client.post(scripts_path, json={**draft, "content": "用户改稿：爷爷坐火车归来。"}).status_code == 201
         assert client.patch(f"/v1/episodes/{episode_id}", json={"logline": "新的结尾"}).status_code == 200
         assert writer_request(client.post(path + "/turns", json=request).json(), "fixture-model") == body
         fresh = client.post(path + "/turns", json={**request, "turn_id": "fresh", "expected_revision": 1}).json()
         assert fresh["planning_context"]["seasons"][0]["episodes"][1]["logline"] == "新的结尾"
+        updated = fresh["planning_context"]["seasons"][0]["episodes"][1]
+        assert updated["latest_review_script"]["content"] == "用户改稿：爷爷坐火车归来。"
+        assert updated["latest_review_script"]["revision"] == 2
+        assert updated["approved_script_revision"] is None
 
 
 @pytest.mark.parametrize("source_mode", ["narrated_story", "web_source"])
