@@ -31,7 +31,7 @@ final class InteractiveStoryTests: XCTestCase {
     }
 
     func testSeasonPlanSurvivesNativeWriterContextEncoding() throws {
-        let data = Data(#"{"revision":1,"turns":[],"summary":"","episode_drafts":[],"planning_context":{"project":{"planned_episode_count":2},"seasons":[{"title":"第一季","episodes":[{"title":"归来","logline":"爷爷归来"}]}]}}"#.utf8)
+        let data = Data(#"{"revision":1,"turns":[],"summary":"","episode_drafts":[],"planning_context":{"project":{"planned_episode_count":2},"seasons":[{"title":"第一季","episodes":[{"title":"归来","logline":"爷爷归来","approved_script_revision":null,"latest_review_script":{"revision":2,"content":"用户改稿：爷爷坐火车归来。","summary_for_voice_review":"乘火车，不乘船"}},{"title":"团聚","approved_script_revision":1,"latest_review_script":{"revision":1,"content":"爷爷回家。","summary_for_voice_review":"回家"}}]}]}}"#.utf8)
         let state = try JSONDecoder().decode(InteractiveStoryState.self, from: data)
         let request = try InteractiveStoryWriter.makeRequest(state: state, apiKey: "fixture-key",
             endpoint: AIServiceEndpoint("https://example.com/v1"), model: "fixture-model")
@@ -44,6 +44,12 @@ final class InteractiveStoryTests: XCTestCase {
         let seasons = try XCTUnwrap(planning["seasons"] as? [[String: Any]])
         let episodes = try XCTUnwrap(seasons.first?["episodes"] as? [[String: Any]])
         XCTAssertEqual(episodes.first?["logline"] as? String, "爷爷归来")
+        let reviewed = try XCTUnwrap(episodes.first?["latest_review_script"] as? [String: Any])
+        XCTAssertEqual(reviewed["content"] as? String, "用户改稿：爷爷坐火车归来。")
+        XCTAssertEqual(reviewed["revision"] as? Int, 2)
+        XCTAssertEqual(reviewed["summary_for_voice_review"] as? String, "乘火车，不乘船")
+        XCTAssertTrue(episodes.first?["approved_script_revision"] is NSNull)
+        XCTAssertEqual(episodes[1]["approved_script_revision"] as? Int, 1)
     }
 
     func testQueuedWritingUsesItsSavedSourceNotLaterQueueEntries() {
