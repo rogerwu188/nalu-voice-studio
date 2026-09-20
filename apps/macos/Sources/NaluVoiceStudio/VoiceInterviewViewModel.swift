@@ -2068,6 +2068,13 @@ final class VoiceInterviewViewModel {
 
     private func approveCurrentScript(confirmation: String) async {
         guard let episodeID = selectedEpisodeID, let latest = scriptRevisions.last else { return }
+        guard latest.episodeID == episodeID,
+              viewedScriptRevision == latest.revision,
+              scriptContent == latest.content,
+              scriptSummary == latest.summaryForVoiceReview else {
+            errorMessage = "请先保存修改，并查看最新保存的剧本和摘要，再确认批准。您的修改仍然保留。"
+            return
+        }
         do {
             _ = try await runtime.approveScript(
                 episodeID: episodeID,

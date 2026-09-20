@@ -188,3 +188,12 @@ before reading the key and calls the model only through the explicit generation
 action. No generation action was taken in this check: paid writer authorization
 is unanswered and the historical Hops401 has not been retried. Successful real
 storyboard generation is still missing, as are actual video and release acceptance.
+
+### Unsaved approval protection (not yet installed)
+
+Inspection found approval selected the latest saved revision without checking
+the editor's current text/summary. Added a pre-transport guard for matching
+episode, viewed revision, content and summary; mismatches preserve edits and
+ask the user to save/view the latest version. Native regression covers each
+mismatch and rejects any runtime transport access. This new change awaits native
+CI and installed validation; the successful263443a evidence above does not cover it.
