@@ -68,12 +68,24 @@ private final class SavedNovelReadProtocol: URLProtocol, @unchecked Sendable {
                                     session: session, accessCheck: { true })
 
         let chapter = try await runtime.importedNovelChapter(projectID: "project", chapterNumber: 1)
-        try chapter.validate(expectedNumber: 1, expectedURL: "https://example.com/chapter-1")
+        try chapter.validate(expectedNumber: 1, expectedURL: "https://example.com/chapter-1",
+                             expectedSHA256: digest)
         #expect(chapter.text == text)
         var wrongSourceRejected = false
-        do { try chapter.validate(expectedNumber: 1, expectedURL: "https://example.com/other") }
+        do {
+            try chapter.validate(expectedNumber: 1, expectedURL: "https://example.com/other",
+                                 expectedSHA256: digest)
+        }
         catch { wrongSourceRejected = true }
         #expect(wrongSourceRejected)
+        var corruptedContentRejected = false
+        let corrupted = NovelImportedChapter(chapter_number: 1, url: chapter.url,
+            title: chapter.title, status: "complete", text: "被改写的正文", sha256: digest)
+        do {
+            try corrupted.validate(expectedNumber: 1, expectedURL: chapter.url,
+                                   expectedSHA256: digest)
+        } catch { corruptedContentRejected = true }
+        #expect(corruptedContentRejected)
         #expect(SavedNovelReadProtocol.requests.count == 1)
         #expect(SavedNovelReadProtocol.requests[0].httpMethod == "GET")
         #expect(SavedNovelReadProtocol.requests[0].url?.path == "/v1/projects/project/novel-import/chapters/1")

@@ -46,6 +46,7 @@ struct NovelImportStatus: Decodable, Sendable {
         let url: String
         let title: String
         let status: String
+        let sha256: String?
     }
     let status: String
     let source_url: String
@@ -65,11 +66,13 @@ struct NovelImportedChapter: Decodable, Sendable {
     let text: String
     let sha256: String
 
-    func validate(expectedNumber: Int, expectedURL: String) throws {
+    func validate(expectedNumber: Int, expectedURL: String, expectedSHA256: String) throws {
         let digest = SHA256.hash(data: Data(text.utf8))
             .map { String(format: "%02x", $0) }.joined()
         guard chapter_number == expectedNumber, url == expectedURL,
-              status == "complete", digest == sha256 else {
+              status == "complete", sha256 == expectedSHA256,
+              expectedSHA256.count == 64,
+              expectedSHA256.allSatisfy(\.isHexDigit), digest == expectedSHA256 else {
             throw RuntimeError.requestFailed("章节内容或校验摘要不一致，已停止显示。")
         }
     }

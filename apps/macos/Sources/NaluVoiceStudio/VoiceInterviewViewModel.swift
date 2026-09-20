@@ -453,6 +453,11 @@ final class VoiceInterviewViewModel {
             novelImportedChapter = nil
             return
         }
+        guard let expectedSHA256 = expected.sha256 else {
+            novelChapterReadError = "目录没有保存这一章的校验摘要，已停止显示不完整正文。"
+            novelImportedChapter = nil
+            return
+        }
         novelChapterNumber = number
         novelImportedChapter = nil
         novelChapterReadError = nil
@@ -467,7 +472,8 @@ final class VoiceInterviewViewModel {
             let chapter = try await runtime.importedNovelChapter(projectID: projectID, chapterNumber: number)
             guard projectSelectionGeneration == projectGeneration,
                   novelChapterReadGeneration == requestID else { return }
-            try chapter.validate(expectedNumber: number, expectedURL: expected.url)
+            try chapter.validate(expectedNumber: number, expectedURL: expected.url,
+                                 expectedSHA256: expectedSHA256)
             novelImportedChapter = chapter
         } catch {
             guard projectSelectionGeneration == projectGeneration,
