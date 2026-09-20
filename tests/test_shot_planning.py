@@ -10,7 +10,7 @@ from nalu_runtime.video_preparation import VideoPreparationRequest, VideoPrepara
 from test_director_draft import director_fixture
 
 
-@pytest.mark.parametrize("case", ["ok", "duration", "source", "asset", "authority", "http_failure", "continuity",
+@pytest.mark.parametrize("case", ["ok", "event_write_failure", "duration", "source", "asset", "authority", "http_failure", "continuity",
                                   "continuous_ok", "blank", "package_changed", "missing_designs", "missing_director", "director_scope",
                                   "refresh", "refresh_rewrite", "refresh_failure", "refresh_race", "refresh_recover"])
 def test_approved_script_to_durable_shot_plan(tmp_path, monkeypatch, case):
@@ -101,6 +101,28 @@ def test_approved_script_to_durable_shot_plan(tmp_path, monkeypatch, case):
     endpoint = f"/v1/production-runs/{run.id}/shot-plans"
     headers = {"X-Nalu-Writer-Key": "synthetic-key"}
     assert api.post(endpoint, json={"model": "fixture-model"}).status_code == 403
+    if case == "event_write_failure":
+        # Provider response is durable, but the user-visible draft event has
+        # not committed. Restart must recover that response without paying again.
+        repository = api.app.state.repository
+        original_append = repository.append_run_event_once
+
+        def fail_draft_event(*args, **kwargs):
+            if args[1] == "shot_plan_drafted":
+                raise OSError("synthetic interrupted draft event write")
+            return original_append(*args, **kwargs)
+
+        with monkeypatch.context() as patch:
+            patch.setattr(repository, "append_run_event_once", fail_draft_event)
+            with pytest.raises(OSError, match="interrupted draft event"):
+                api.post(endpoint, json={"model": "fixture-model"}, headers=headers)
+        assert len(calls) == 1
+        with repository.db.connect() as connection:
+            saved = connection.execute("SELECT state, response_json FROM writer_executions").fetchone()
+            assert saved["state"] == "completed"
+            assert "synthetic-planner-task" in saved["response_json"]
+        api = TestClient(create_app(db_path, tmp_path / "data", writer_http_transport=httpx.MockTransport(serve)))
+        case = "ok"  # Exercise the complete review/preparation flow on recovery.
     first = api.post(endpoint, json={"model": "fixture-model"}, headers=headers)
     if case in {"ok", "continuous_ok"} or case.startswith("refresh"):
         assert first.status_code == 200, first.text
