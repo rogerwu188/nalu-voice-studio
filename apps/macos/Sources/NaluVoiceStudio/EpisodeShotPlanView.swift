@@ -20,7 +20,8 @@ import SwiftUI
     init(runID: String, guardianRequired: Bool = false, refreshRevision: Int = 0, onRead: @escaping (String) -> Void,
          onCharactersPrepared: @escaping ([String]) async -> Void = { _ in }, authorizationBusy: Bool = false,
          onAuthorizeProduction: @escaping (String, String) async -> Void = { _, _ in }) {
-        _model = State(initialValue: EpisodeShotPlanModel(runID: runID))
+        _model = State(initialValue: EpisodeShotPlanModel(runID: runID,
+            recoveryModel: { try EpisodeShotPlanModel.configuredRecoveryModel() }))
         self.onRead = onRead
         self.guardianRequired = guardianRequired
         self.refreshRevision = refreshRevision

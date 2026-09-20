@@ -153,6 +153,7 @@ struct ShotCharacterCards: Decodable {
 final class EpisodeShotPlanModel {
     private let runtime: RuntimeClient
     private let writerConfiguration: () async throws -> (model: String, key: String)?
+    private let recoveryModel: () throws -> String?
     let runID: String
     var event: EpisodeShotPlanEvent?
     var editedPlan: EpisodeShotPlan?
@@ -180,7 +181,14 @@ final class EpisodeShotPlanModel {
         }
     }
 
+    static func configuredRecoveryModel() throws -> String? {
+        let endpoint = try AIServiceEndpoint.current()
+        guard endpoint.baseURL.absoluteString.trimmingCharacters(in: CharacterSet(charactersIn: "/")) == "https://hopsapi.com/v1" else { return nil }
+        return try AIServiceModels.load(for: endpoint).research
+    }
+
     init(runID: String, runtime: RuntimeClient = RuntimeClient(),
+         recoveryModel: @escaping () throws -> String? = { nil },
          writerConfiguration: @escaping () async throws -> (model: String, key: String)? = {
              let endpoint = try AIServiceEndpoint.current()
              guard endpoint.baseURL.absoluteString.trimmingCharacters(in: CharacterSet(charactersIn: "/")) == "https://hopsapi.com/v1" else { return nil }
@@ -194,6 +202,7 @@ final class EpisodeShotPlanModel {
         self.runID = runID
         self.runtime = runtime
         self.writerConfiguration = writerConfiguration
+        self.recoveryModel = recoveryModel
     }
 
     var hasEdits: Bool { editedPlan != event?.payload.plan }
@@ -210,11 +219,16 @@ final class EpisodeShotPlanModel {
         do {
             var saved = try await runtime.currentShotPlan(runID: runID)
             var recoveredRepair = false
+            var recoveredResponse = false
             if saved == nil {
                 // Only explicit repair lineage can create this local draft.
                 // A read failure must not fall through to paid regeneration.
                 saved = try await runtime.recoverRepairShotDraft(runID: runID)
                 recoveredRepair = saved != nil
+            }
+            if saved == nil, let model = try recoveryModel() {
+                saved = try await runtime.recoverSavedShotPlan(runID: runID, model: model)
+                recoveredResponse = saved != nil
             }
             guard !Task.isCancelled else { return }
             event = saved
@@ -222,6 +236,9 @@ final class EpisodeShotPlanModel {
             loaded = true
             snapshotRefreshPending = false
             notice = recoveredRepair ? "已接回原分镜作为修订草稿。请修改需要修复的镜头，再确认；没有重新生成视频或扣费。" : nil
+            if recoveredResponse {
+                notice = "已找回之前生成的分镜，请查看后确认；没有重新调用模型或扣费。"
+            }
         } catch {
             loaded = false
             notice = "暂时无法读取本集分镜。请稍后点“读取已保存方案”；没有重新生成。"

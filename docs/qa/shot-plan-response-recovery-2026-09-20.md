@@ -19,7 +19,18 @@ unresolved attempts reject; completed attempts replay only after exact request
 and response digest checks. A local-only transport prohibits any network call,
 including if the ledger row disappears. Regression coverage verifies absent,
 wrong-model, interrupted-event and failed-provider cases without extra calls.
-The same 22 tests passed in 8.56s. Native read-button wiring remains pending.
+The same 22 tests passed in 8.56s.
+
+Native read-button wiring now attempts credential-free response recovery after
+both the saved-plan read and repair-lineage read return null. The production
+view supplies only the configured model name, never the writer key. Recovered
+run identity, approval state, authorization absence and digest shape are checked.
+An unresolved recovery leaves `loaded=false`, preventing generation fallback.
+Two native tests cover successful recovery without credential reads and a409
+recovery without generation. Local Swift tests could not start: the installed
+CommandLineTools PackageDescription manifest linker reports an undefined
+Package initializer. Native CI and installed UI acceptance remain pending;
+these tests are not yet claimed as passed.
 
 Hops remains authorized for one shot-plan request up to USD50, with no automatic
 retry and no publication. Saved configuration resolves to hopsapi.com/v1 and

@@ -485,6 +485,19 @@ actor RuntimeClient {
         try await get("v1/production-runs/\(runID)/shot-plans/current")
     }
 
+    func recoverSavedShotPlan(runID: String, model: String) async throws -> EpisodeShotPlanEvent? {
+        let saved: EpisodeShotPlanEvent? = try await post(
+            "v1/production-runs/\(runID)/shot-plans/recover", body: ["model": model])
+        if let saved {
+            guard saved.run_id == runID, !saved.payload.approved,
+                  saved.payload.production_authorization == nil,
+                  EpisodeDialogueStageReceipt.validSHA(saved.payload.plan_sha256) else {
+                throw LibrarySnapshotRefreshError.contextChanged
+            }
+        }
+        return saved
+    }
+
     func recoverRepairShotDraft(runID: String, sourceRunID: String? = nil) async throws -> EpisodeShotPlanEvent? {
         struct Context: Codable {
             let source_run_id: String

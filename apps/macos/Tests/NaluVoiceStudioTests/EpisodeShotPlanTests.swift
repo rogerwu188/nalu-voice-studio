@@ -35,6 +35,43 @@ private final class ShotReviewProtocol: URLProtocol, @unchecked Sendable {
 
 @Suite(.serialized)
 struct EpisodeShotPlanTests {
+    @MainActor @Test func savedResponseRecoveryNeverReadsCredentialOrGenerates() async throws {
+        ShotReviewProtocol.requests = []
+        ShotReviewProtocol.queued = [(200, Data("null".utf8)), (200, Data("null".utf8)),
+                                    (200, try fixture())]
+        var credentialReads = 0
+        let model = EpisodeShotPlanModel(runID: "run-one", runtime: runtime(),
+            recoveryModel: { "fixture-model" }, writerConfiguration: {
+                credentialReads += 1
+                return nil
+            })
+        await model.load()
+        #expect(model.loaded && model.event?.id == "saved-plan")
+        #expect(model.notice?.contains("没有重新调用") == true)
+        #expect(credentialReads == 0)
+        #expect(ShotReviewProtocol.requests.map(\.httpMethod) == ["GET", "GET", "POST"])
+        #expect(ShotReviewProtocol.requests.last?.url?.path.hasSuffix("shot-plans/recover") == true)
+        #expect(ShotReviewProtocol.requests.last?.value(forHTTPHeaderField: "X-Nalu-Writer-Key") == nil)
+    }
+
+    @MainActor @Test func unresolvedResponseRecoveryCannotFallThroughToGeneration() async throws {
+        ShotReviewProtocol.requests = []
+        ShotReviewProtocol.queued = [(200, Data("null".utf8)), (200, Data("null".utf8)),
+                                    (409, Data("{}".utf8))]
+        var credentialReads = 0
+        let model = EpisodeShotPlanModel(runID: "run-one", runtime: runtime(),
+            recoveryModel: { "fixture-model" }, writerConfiguration: {
+                credentialReads += 1
+                return ("fixture-model", "synthetic-key")
+            })
+        await model.load()
+        await model.generate()
+        #expect(!model.loaded && model.event == nil)
+        #expect(credentialReads == 0)
+        #expect(ShotReviewProtocol.requests.count == 3)
+        #expect(model.notice?.contains("没有重新生成") == true)
+    }
+
     @MainActor @Test func initialGenerationWithoutConfigurationMakesNoPost() async throws {
         ShotReviewProtocol.requests = []
         ShotReviewProtocol.queued = [(200, Data("null".utf8)), (200, Data("null".utf8))]
