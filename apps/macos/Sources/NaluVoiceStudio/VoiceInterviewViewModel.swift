@@ -2945,8 +2945,8 @@ final class VoiceInterviewViewModel {
                         // The first import can finish before a writing turn has captured its source.
                         let reuseRequested = AssistantActionRouter.reusesImportedNovel(query, hasSource: true)
                         let savedImport = reuseRequested ? try await runtime.savedNovelImport(projectID: projectID) : nil
+                        guard projectSelectionGeneration == generation else { return }
                         if reuseRequested, (savedImport?.completed_chapters ?? 0) > 0 {
-                            guard projectSelectionGeneration == generation else { return }
                             assistantActionStatus = nil
                             handleInteractiveStoryInput(query, turnID: turnID)
                             return
@@ -3048,8 +3048,8 @@ final class VoiceInterviewViewModel {
                             )
                         )
                     }
-                    assistantActionStatus = nil
                     guard projectSelectionGeneration == generation else { return }
+                    assistantActionStatus = nil
                     let response = "这次查找尚未完成，您的故事没有清空。您可以把网址或资料文字给我，也可以继续讲述；不需要新建项目。"
                     messages.append(.init(speaker: .nalu, text: response))
                     speechPlayback.speak(response, rate: comfortPreferences.speechRate)
