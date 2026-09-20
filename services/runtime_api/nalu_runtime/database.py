@@ -30,6 +30,12 @@ CREATE TABLE IF NOT EXISTS generation_campaign_receipts (
   provider_task_id TEXT NOT NULL UNIQUE,
   response_sha256 TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS generation_campaign_observations (
+  intent_id TEXT NOT NULL REFERENCES generation_campaign_intents(id),
+  response_sha256 TEXT NOT NULL,
+  observation_json TEXT NOT NULL,
+  PRIMARY KEY(intent_id, response_sha256)
+);
 
 CREATE TABLE IF NOT EXISTS projects (
   id TEXT PRIMARY KEY,

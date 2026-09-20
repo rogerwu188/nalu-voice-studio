@@ -5,7 +5,9 @@ A dispatch claim is consumed before network I/O: a crash requires reconciliation
 not another submission. Callers must verify the price evidence before reservation.
 """
 
+import json
 import re
+from dataclasses import asdict
 
 from .database import Database
 from .repository import ConflictError
@@ -118,6 +120,20 @@ class GenerationCampaign:
                 "ON i.id=r.intent_id WHERE i.campaign_id=? AND i.id=?",
                 (campaign_id, intent_id)).fetchone()
             return dict(row) if row else None
+
+    def refresh(self, campaign_id, intent_id, query):
+        saved = self.accepted_task(campaign_id, intent_id)
+        if saved is None:
+            raise ConflictError("cannot query an unconfirmed campaign task")
+        observed = query.query(saved["provider_task_id"])
+        if observed.task_id != saved["provider_task_id"]:
+            raise ConflictError("observation belongs to another task")
+        encoded = json.dumps(asdict(observed), sort_keys=True)
+        with self.db.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            db.execute("INSERT OR IGNORE INTO generation_campaign_observations VALUES (?,?,?)",
+                       (intent_id, observed.response_sha256, encoded))
+        return observed
 
     def submit_image(self, campaign_id, secret, request, intent_id, *, transport=None):
         result = self.image_transport(campaign_id, secret, transport=transport).submit(

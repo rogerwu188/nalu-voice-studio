@@ -30,7 +30,7 @@ def main():
     ledger.authorize(CAMPAIGN, hashlib.sha256(authority).hexdigest(), 10000)
     saved = ledger.accepted_task(CAMPAIGN, INTENT)
     if saved:
-        print(json.dumps(asdict(GiggleTaskQuery(lambda: key).query(saved["provider_task_id"]))))
+        print(json.dumps(asdict(ledger.refresh(CAMPAIGN, INTENT, GiggleTaskQuery(lambda: key)))))
         return
     with httpx.Client(timeout=20, follow_redirects=False, trust_env=False) as client:
         price = client.get(PRICING_URL)

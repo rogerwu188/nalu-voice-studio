@@ -120,6 +120,25 @@ def test_acceptance_is_write_once_and_campaign_scoped(tmp_path):
         campaign.record_acceptance("test", "1" * 64, "task", "d" * 64)
 
 
+def test_refresh_persists_result_without_promoting_review(tmp_path):
+    from nalu_runtime.giggle_task_query import GiggleTaskQuery
+
+    campaign = ledger(tmp_path)
+    campaign.reserve("test", "1" * 64, "2" * 64, "video", 130, "b" * 64)
+    campaign.claim_dispatch("test", "1" * 64, "2" * 64)
+    campaign.record_acceptance("test", "1" * 64, "task", "c" * 64)
+    query = GiggleTaskQuery(lambda: "fixture-key", transport=httpx.MockTransport(
+        lambda _: httpx.Response(200, json={"code": 200, "data": {
+            "status": "completed", "urls": ["https://example.org/test.mp4"]}})))
+    for _ in range(2):
+        assert not campaign.refresh("test", "1" * 64, query).billing_verified
+    with ledger(tmp_path).db.connect() as db:
+        rows = db.execute("SELECT observation_json FROM generation_campaign_observations").fetchall()
+        assert len(rows) == 1
+        assert json.loads(rows[0][0])["status"] == "completed"
+        assert "master_accepted" not in rows[0][0]
+
+
 def test_video_campaign_claim_matches_wire_bytes_and_prevents_replay(tmp_path):
     from nalu_runtime.giggle_video_transport import (
         GiggleSeedanceImageTransport,
