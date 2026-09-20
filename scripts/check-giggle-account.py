@@ -30,7 +30,7 @@ def main():
                           "http_status": status, "generation_submitted": False,
                           "billing_reconciled": False}))
         return 0 if valid else 1
-    except Exception:
+    except Exception:  # noqa: BLE001 -- raw HTTP/JSON failures may expose account data
         print(json.dumps({"status": "read_failed", "generation_submitted": False,
                           "automatic_retry": False}))
         return 1
