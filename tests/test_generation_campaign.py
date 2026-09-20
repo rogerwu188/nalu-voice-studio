@@ -1,5 +1,8 @@
+import hashlib
+import json
 from concurrent.futures import ThreadPoolExecutor
 
+import httpx
 import pytest
 from nalu_runtime.database import Database
 from nalu_runtime.generation_campaign import GenerationCampaign
@@ -57,3 +60,44 @@ def test_parallel_reservations_cannot_overspend(tmp_path):
 def test_invalid_cost_rejected(tmp_path, cost):
     with pytest.raises(ConflictError):
         ledger(tmp_path).reserve("test", "1" * 64, "2" * 64, "audio", cost, "b" * 64)
+
+
+@pytest.mark.parametrize("outcome", ["success", "timeout", "wrong_media", "changed_request"])
+def test_image_network_boundary_consumes_exact_reservation_once(tmp_path, outcome):
+    from nalu_runtime.giggle_image_transport import ImageAcceptanceUnconfirmed, image_payload
+
+    campaign = ledger(tmp_path)
+    request = {"prompt": "A quiet garden", "model": "gpt-image-2-pro", "resolution": "1K",
+               "aspect_ratio": "1:1", "generate_count": 1, "watermark": False}
+    endpoint, payload = image_payload(request)
+    raw = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
+    digest = hashlib.sha256(endpoint.encode() + b"\0" + raw).hexdigest()
+    campaign.reserve("test", "1" * 64, digest,
+                     "audio" if outcome == "wrong_media" else "image", 100, "b" * 64)
+    posts = []
+
+    def provider(incoming):
+        posts.append(incoming)
+        if outcome == "timeout":
+            raise httpx.ReadTimeout("ambiguous")
+        return httpx.Response(200, json={"code": 200, "data": {"task_id": "test-task"}})
+
+    adapter = campaign.image_transport("test", lambda: "fixture-secret",
+                                       transport=httpx.MockTransport(provider))
+    if outcome == "changed_request":
+        request["prompt"] = "A different garden"
+    if outcome in {"wrong_media", "changed_request"}:
+        with pytest.raises(ConflictError):
+            adapter.submit(request, intent_id="1" * 64)
+        assert not posts
+        return
+    if outcome == "timeout":
+        with pytest.raises(ImageAcceptanceUnconfirmed):
+            adapter.submit(request, intent_id="1" * 64)
+    else:
+        assert adapter.submit(request, intent_id="1" * 64)["provider_task_id"] == "test-task"
+    restarted = ledger(tmp_path).image_transport("test", lambda: "fixture-secret",
+                                                transport=httpx.MockTransport(provider))
+    with pytest.raises(ConflictError):
+        restarted.submit(request, intent_id="1" * 64)
+    assert len(posts) == 1

@@ -67,13 +67,24 @@ class GenerationCampaign:
                 raise ConflictError("aggregate audio/image/video campaign allowance exceeded")
             db.execute("INSERT INTO generation_campaign_intents VALUES (?,?,?,?,?,?,0)", expected)
 
-    def claim_dispatch(self, campaign_id, intent_id, request_sha256):
+    def claim_dispatch(self, campaign_id, intent_id, request_sha256, *, media=None):
         """Exactly one caller may proceed to network submission after this returns."""
         with self.db.connect() as db:
             db.execute("BEGIN IMMEDIATE")
             changed = db.execute(
                 "UPDATE generation_campaign_intents SET dispatched=1 "
-                "WHERE campaign_id=? AND id=? AND request_sha256=? AND dispatched=0",
-                (campaign_id, intent_id, request_sha256)).rowcount
+                "WHERE campaign_id=? AND id=? AND request_sha256=? AND dispatched=0 "
+                "AND (? IS NULL OR media=?)",
+                (campaign_id, intent_id, request_sha256, media, media)).rowcount
             if changed != 1:
                 raise ConflictError("unreserved or previously dispatched request; reconcile first")
+
+    def image_transport(self, campaign_id, secret, *, transport=None):
+        """Bind the real serialized image request to a reserved one-shot claim."""
+        from .giggle_image_transport import GiggleImageTransport
+
+        return GiggleImageTransport(
+            secret, transport=transport,
+            authorize=lambda intent, request: self.claim_dispatch(
+                campaign_id, intent, request, media="image"),
+        )
