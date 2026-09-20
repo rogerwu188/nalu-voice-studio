@@ -30,3 +30,26 @@ acceptance. CI35528372766 subsequently started runtime, arm64 and x86_64 jobs.
 Direct local Swift typecheck session49181 was still running at this checkpoint;
 SwiftPM failed before tests with a PackageDescription linker error. Neither is
 recorded as native test success.
+
+## Installed native source switching
+
+CI35528372766 arm64 artifact10610676702, implementation839b5f4. Downloaded ZIP
+SHA256 `4f7850be45e04dde125dac2276e39d0e72b03b2d288171d1eeb5a2a4f362773e`
+matches its supplied checksum. Installed under `/tmp/nalu-source-flow-Bg9DVp/app`.
+Fixture `/var/folders/y4/k84st0yj7fz043tnxkfrjn1w0000gn/T/nalu-native-story-9mlufxnv`,
+project `prj_85da080ce9b943ef82d90bf17251749f`, isolated runtime18768.
+Launch-only UserDefaults argument `-nalu.ai-service-base-url invalid-local-qa`
+deliberately fails endpoint validation before credentials/provider calls.
+
+Using the native text input and Send button:
+
+- `继续下一集`: displayed a writer failure (not search); GET showed revision4,
+  web_source, writer_failed, original synthetic novel passage and two drafts.
+- `不用小说，听我讲自己的故事`: GET showed revision6, narrated_story,
+  writer_failed, no novel_source and the same two retained drafts.
+
+This proves installed input routing/source isolation and failure preservation,
+not successful generation, queue concurrency, speech recognition or real user QA.
+Both architecture Swift test steps passed in this CI; full CI was still running.
+Redundant local typecheck49181 was intentionally terminated after those native
+CI results, exit143, and must not be presented as a successful local typecheck.
