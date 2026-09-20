@@ -63,6 +63,7 @@ final class VoiceInterviewViewModel {
     private(set) var viewedFinalHumanReviewRunIDs: Set<String> = []
 
     func markFinalHumanReviewViewed(runID: String) {
+        guard !runID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         viewedFinalHumanReviewRunIDs.insert(runID)
     }
     var publicationLearning: [PublicationLearningPresentation] = []
@@ -1361,6 +1362,10 @@ final class VoiceInterviewViewModel {
 
     func submitFinalHumanReview(runID: String, picturePassed: Bool, audioSyncPassed: Bool,
                                 captionsPassed: Bool, continuityPassed: Bool, safetyPassed: Bool) async {
+        guard viewedFinalHumanReviewRunIDs.contains(runID) else {
+            errorMessage = "请先观看并明确确认当前版本的原尺寸成片，再提交人工验收。"
+            return
+        }
         do {
             let integrity = try await runtime.renderedOutputIntegrity(runID: runID)
             guard let master = integrity.masterSHA256 else { throw RuntimeError.requestFailed("当前成片缺少摘要。") }
