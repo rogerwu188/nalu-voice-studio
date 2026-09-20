@@ -7,17 +7,22 @@ from fastapi.testclient import TestClient
 from nalu_runtime.app import create_app
 
 
-@pytest.mark.parametrize("mode", ["narrated_story", "web_source"])
+@pytest.mark.parametrize("mode", ["narrated_story", "web_source", "novel_import"])
 def test_input_revision_and_two_episode_review_survive_restart(tmp_path, monkeypatch, mode):
     calls = []
     source = "自有合成回忆：外婆在海边教我补渔网。"
     monkeypatch.setattr("nalu_runtime.app.read_public_source", lambda url: {
         "url": url, "text": source, "truncated": False, "scope": "synthetic fixture"})
+    monkeypatch.setattr("nalu_runtime.novel_import.read_public_chapter", lambda url: {
+        "url": url, "text": source, "truncated": False})
 
     def writer(request):
         context = json.loads(json.loads(request.content)["messages"][1]["content"])
         calls.append(context)
         assert source in json.dumps(context, ensure_ascii=False)
+        if mode == "novel_import":
+            assert context["novel_source"]["passages"][0]["text"] == source
+            assert context["novel_source"]["passages"][0]["source_url"] == "https://example.com/book/1"
         if len(calls) == 1:
             drafts = [{"episode_number": n, "title": f"合成第{n}集", "outline": "海边回忆",
                        "script": f"第{n}集：外婆教我补渔网。"} for n in (1, 2)]
@@ -38,6 +43,11 @@ def test_input_revision_and_two_episode_review_survive_restart(tmp_path, monkeyp
         project = plan["project"]["id"]
         path = f"/v1/projects/{project}/interactive-story"
         revision = 0
+        if mode == "novel_import":
+            import_path = f"/v1/projects/{project}/novel-import"
+            assert client.post(import_path, json={"source_url": "https://example.com/book", "chapters": [
+                {"url": "https://example.com/book/1", "title": "第一章"}]}).status_code == 201
+            assert client.post(import_path + "/fetch-next").json()["status"] == "complete"
         if mode == "web_source":
             response = client.get(f"/v1/projects/{project}/source-text", params={"url": "https://example.com/memoir"})
             assert response.status_code == 200
@@ -50,7 +60,7 @@ def test_input_revision_and_two_episode_review_survive_restart(tmp_path, monkeyp
         for turn, text in [("write", source + "请写两集草稿" if mode == "narrated_story" else "请根据刚才来源写两集草稿"),
                            ("correct", "只改第一集：是爷爷教我，不是外婆。")]:
             pending = client.post(path + "/turns", json={"turn_id": turn, "expected_revision": revision,
-                "text": text, "source_mode": "narrated_story"})
+                "text": text, "source_mode": "narrated_story" if mode == "narrated_story" else "web_source"})
             assert pending.status_code == 200, pending.text
             generated = client.post(path + f"/turns/{turn}/generate",
                 json={"expected_revision": pending.json()["revision"], "model": "fixture-model"},
