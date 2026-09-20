@@ -147,3 +147,20 @@ an empty list. No duplicate revision, approval or production job was created.
 CI35532371231 universal also passed; runtime and local full test session20560
 were still running (local progress exceeded80%). Real provider/human acceptance
 remains outstanding; this closes only the synthetic native restart/replay check.
+
+### Native manual revision reaches subsequent writing context
+
+In the same263443a installed UI, expanded script review and saved revision2:
+`【合成 QA 手动修订】小夏收起红桶，和爷爷一起回家。` with summary
+`修改同行人物为爷爷，结尾回家`. UI retained revision1 and showed revision2.
+Submitted `按照刚才修改的爷爷回家结尾，继续下一集`. With the deliberately invalid
+launch-only endpoint, UI reported writer failure and preserved prior content.
+GET interactive-story returned revision4 and the same input, web_source,
+writer_failed. Its planning_context contains latest_review_script revision2 with
+the exact corrected content and summary; approved_script_revision remains null.
+This proves native editing-to-persisted-context handoff, not successful model
+execution or generated-content quality.
+
+Local full test session20560 completed exit0:895 passed,2 dependency warnings,
+708.72seconds. It ran on263443a product/test code (subsequent changes were only
+evidence documentation). Do not restart or poll this completed session.
