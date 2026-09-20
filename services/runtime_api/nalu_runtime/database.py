@@ -10,6 +10,22 @@ from .secure_files import secure_directory, secure_file
 SCHEMA = """
 PRAGMA foreign_keys = ON;
 
+CREATE TABLE IF NOT EXISTS generation_campaigns (
+  id TEXT PRIMARY KEY,
+  authorization_sha256 TEXT NOT NULL,
+  limit_credits INTEGER NOT NULL CHECK(limit_credits > 0)
+);
+CREATE TABLE IF NOT EXISTS generation_campaign_intents (
+  id TEXT PRIMARY KEY,
+  campaign_id TEXT NOT NULL REFERENCES generation_campaigns(id),
+  request_sha256 TEXT NOT NULL,
+  media TEXT NOT NULL CHECK(media IN ('audio','image','video')),
+  reserved_credits INTEGER NOT NULL CHECK(reserved_credits > 0),
+  price_evidence_sha256 TEXT NOT NULL,
+  dispatched INTEGER NOT NULL DEFAULT 0 CHECK(dispatched IN (0,1)),
+  UNIQUE(campaign_id, request_sha256)
+);
+
 CREATE TABLE IF NOT EXISTS projects (
   id TEXT PRIMARY KEY,
   title TEXT NOT NULL,
