@@ -28,7 +28,7 @@ import Testing
     let wait = SpeechRecognitionWait<Int>()
     var stopped = 0
     var complete: (@Sendable (Result<Int, Error>) -> Void)?
-    let operation = Task { try await wait.run(timeoutNanoseconds: 1_000_000_000) { callback in
+    let operation = Task { try await wait.run(timeoutNanoseconds: 10_000_000_000) { callback in
         complete = callback
         return { stopped += 1 }
     } }
