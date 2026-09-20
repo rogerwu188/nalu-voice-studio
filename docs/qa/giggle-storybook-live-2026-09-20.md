@@ -23,3 +23,9 @@ No failed query triggered another generation POST.
 
 The video has NOT been visually/aurally accepted, imported into an episode,
 signed, notarized or released. A provider result is not full SOP acceptance.
+
+Attempted native in-app browser preview of the exact returned URL. Browser
+reported `net::ERR_BLOCKED_BY_CLIENT`; no frames or audio were observed. Do not
+record this as playback or quality acceptance, and do not download media to
+bypass that display restriction. CI 35534653123 for 2624bbf was pending at this
+inspection, not passed.
