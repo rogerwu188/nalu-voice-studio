@@ -11,8 +11,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "a6a4709fa039b4c1b2db85df62a630a8aa078d59",
-  "last_advanced_at": "2026-09-15T05:00:00Z",
+  "observed_head": "bff6c4a28063d1c06464f12c7f19d213b0b09999",
+  "last_advanced_at": "2026-09-20T00:00:00Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -28,7 +28,8 @@
     "summary": "Native human review journal rejects dangling/symlink paths instead of treating them as absent; CI 35491547288 passed all jobs. Native UI has explicit review controls, but actual installed-app human QA remains incomplete."
   },
   "next_action": {
-    "immediate_action": "Implement independent final-human-QA ingestion endpoint backed by immutable run/master binding and idempotent replay; then connect native explicit original-resolution controls.",
+    "immediate_action": "Verify macOS CI for bff6c4a and perform isolated native QA of original-resolution viewing, version reset, and final-human-review submission; keep SOP-09 IN_PROGRESS until real human evidence exists.",
+    "viewing_binding_checkpoint": "bff6c4a binds the explicit final-review viewed acknowledgement to the production run in the native view model; backend final-human-review tests passed 73. This is implementation evidence only; playback and same-candidate human QA remain required.",
     "repair_guard_regression": "Added test_repair_mix_qa_guard.py: rejected/stale edit exits before AssetService or any POST, even with synthetic-sound/render flags. One test passed1.12s; ruff and diff checks passed. This is a mocked QA-helper regression, not production or release acceptance. Sealed qv1poe20 result remains valid technical-only evidence; do not rerender it. Next continue real content/semantic and same-candidate native acceptance with existing authorization boundaries.",
     "repair_sealed_qa_current": "qv1poe20 revised14s master sealed a1270ab6800fb561b7cb14629f59ebdebacdb3c24a957d3a8e3c02f337965f66. Structure PASS report7767bbabd7c9f4909575525d3f40abbd2cf799be7b6b3b913eb74e99d9440fe8; decoded PASS report62ba54b061ebdb7dc14ed8609768a2c7df6244cf80b12f8af8b2ead8b8ba0949,336frames,2captions,semantic_asr_verified=false. Synthetic tones and64x64 footage: technical QA only, not narrative/voice/visual quality or real user acceptance. Exec17824 exit0. Do not rematerialize sealed child. Next real-provider and semantic/human QA plus native same-candidate coverage; full SOP remains incomplete.",
     "repair_render_result": "Exec30885 completed exit0 HTTP201: qv1poe20 master365433bytes SHA c2546ed0ae1d5dbd49dad6bb4d3640e0b073399027dcad70306e666493c64526, plan90a2e7e1c76ebd131cf31598379b866ba13c9128820b235acb3c3ed46657dd42, result1eab68fff5766bed883aa5a8be096c7e936343352fd320ef60638412d99fed8e. Render no longer running. Synthetic audio/visual fixture only; next seal and decoded QA, not film acceptance. Do not repeat render as if missing.",
