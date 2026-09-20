@@ -12,7 +12,7 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "2624bbf5cf1f4e8df32dcc9847fb37820112dd14",
+  "observed_head": "e414b5a616a55b989786661951141898575b82ec",
   "last_audit_at": "2026-09-20T21:45:00Z",
   "last_advanced_at": "2026-09-20T00:00:00Z",
   "last_closed_checkpoint": {
