@@ -74,3 +74,20 @@ implementation or test edits during the run), completed session87056 with exit0:
 895 passed, two dependency deprecation warnings,1372.71 seconds. Do not restart
 this completed run as pending. These technical checks do not establish successful
 real-provider generation, human content acceptance or signed/notarized release.
+
+## Reviewed script to subsequent writing regression
+
+Extended `test_story_to_review_journey.py` across narrated story, web source and
+novel import: generate drafts, manually revise/approve episode one, prepare a
+dry-run production package, restart, then request a changed episode-three opening.
+The intercepted writer HTTP request contains the latest approved revision two
+and its exact corrected ending, while episode two retains revision one. The
+mocked answer updates the third draft without changing either saved script or
+the frozen production package bytes. Approving revision two intentionally clears
+revision one's approval timestamp; the test snapshots that superseded state.
+
+Targeted story journey, story context and writer service suites: 14 passed,
+two dependency warnings, 6.71 seconds. Ruff and diff checks passed. This is
+mock-provider request/response and persistence coverage, not proof of real model
+obedience, real video generation or native UI acceptance. CI35532010023 on
+ed9c693 was pending when checked; no SOP status was promoted.

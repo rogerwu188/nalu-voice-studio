@@ -35,7 +35,7 @@ def test_input_revision_and_two_episode_review_survive_restart(tmp_path, monkeyp
             assert context["turns"][-1]["text"] == "只改第一集：是爷爷教我，不是外婆。"
             drafts = [{"episode_number": 1, "title": "合成第一集", "outline": "爷爷教我",
                        "script": "第一集：爷爷在海边教我补渔网。"}]
-        else:
+        elif len(calls) == 3:
             assert context["turns"][-1]["text"] == "继续下一集"
             assert context["summary"] == source + "用户修订：第一集由爷爷教我补网；第二集保持原稿。"
             assert context["turns"][-2]["text"] == "只改第一集：是爷爷教我，不是外婆。"
@@ -43,6 +43,17 @@ def test_input_revision_and_two_episode_review_survive_restart(tmp_path, monkeyp
             assert [draft["episode_number"] for draft in context["episode_drafts"]] == [1, 2]
             drafts = [{"episode_number": 3, "title": "合成第三集", "outline": "修补后的渔网",
                        "script": "第三集：爷爷带我收起修补好的渔网。"}]
+        else:
+            assert len(calls) == 4
+            assert context["turns"][-1]["text"] == "按照我确认的新结尾，修改第三集开头"
+            episodes = planning["seasons"][0]["episodes"]
+            assert episodes[0]["approved_script_revision"] == 2
+            assert episodes[0]["latest_review_script"]["revision"] == 2
+            assert episodes[0]["latest_review_script"]["content"] == "【用户补充】爷爷收起渔网后，带我回家。"
+            assert episodes[1]["approved_script_revision"] == 1
+            assert episodes[1]["latest_review_script"]["content"] == "第2集：外婆教我补渔网。"
+            drafts = [{"episode_number": 3, "title": "合成第三集", "outline": "沿用确认后的结尾",
+                       "script": "第三集：爷爷和我回到家，挂起渔网。"}]
         return httpx.Response(200, json={"id": f"fixture-writer-{len(calls)}", "model": "fixture-model",
             "choices": [{"finish_reason": "stop", "message": {"content": json.dumps({
                 "reply": "请审阅草稿",
@@ -137,6 +148,8 @@ def test_input_revision_and_two_episode_review_survive_restart(tmp_path, monkeyp
         assert len(calls) == 3  # Restart and manual correction never regenerate with a provider.
         approved = client.post(script_path + "/2/approve", json={"approved_by": "synthetic QA"})
         assert approved.status_code == 200, approved.text
+        superseded = read_revision(client, 1)
+        assert superseded == {**original, "approved_at": None}
         prepared = client.post(f"/v1/episodes/{first}/production-runs", json={"dry_run": True})
         assert prepared.status_code == 201, prepared.text
         package = json.loads(Path(prepared.json()["package_path"]).read_text())
@@ -145,3 +158,21 @@ def test_input_revision_and_two_episode_review_survive_restart(tmp_path, monkeyp
         assert package["approved_script"]["content"] != original["content"]
         assert package["project"]["project_bible"] == {"setting": "海边渔村"}
         assert len(calls) == 3
+        package_bytes = Path(prepared.json()["package_path"]).read_bytes()
+    with TestClient(app()) as client:
+        state = client.get(path).json()
+        pending = client.post(path + "/turns", json={
+            "turn_id": "continue-reviewed", "expected_revision": state["revision"],
+            "text": "按照我确认的新结尾，修改第三集开头",
+            "source_mode": "narrated_story" if mode == "narrated_story" else "web_source"})
+        assert pending.status_code == 200, pending.text
+        generated = client.post(path + "/turns/continue-reviewed/generate", json={
+            "expected_revision": pending.json()["revision"], "model": "fixture-model"},
+            headers={"X-Nalu-Writer-Key": "synthetic-key"})
+        assert generated.status_code == 200, generated.text
+        assert len(calls) == 4
+        assert generated.json()["episode_drafts"][2]["script"] == "第三集：爷爷和我回到家，挂起渔网。"
+        # Continuing the conversation cannot rewrite approved scripts or a frozen production package.
+        assert read_revision(client, 1) == superseded
+        assert read_revision(client, 2) == approved.json()
+        assert Path(prepared.json()["package_path"]).read_bytes() == package_bytes
