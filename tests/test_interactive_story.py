@@ -73,6 +73,19 @@ def test_writer_receives_scoped_season_and_episode_plan_snapshot(tmp_path):
         assert updated["latest_review_script"]["revision"] == 2
         assert updated["approved_script_revision"] is None
         assert foreign_script not in writer_request(fresh, "fixture-model").decode()
+        frozen_request = writer_request(fresh, "fixture-model")
+    with TestClient(create_app(tmp_path / "db", tmp_path / "data")) as restored:
+        recovered = restored.get(path)
+        assert recovered.status_code == 200, recovered.text
+        assert writer_request(recovered.json(), "fixture-model") == frozen_request
+        assert restored.post(scripts_path + "/2/approve", json={"approved_by": "synthetic QA"}).status_code == 200
+        # Approval after an interrupted request must not rewrite the frozen body.
+        assert writer_request(restored.get(path).json(), "fixture-model") == frozen_request
+        next_turn = restored.post(path + "/turns", json={
+            **request, "turn_id": "after-approval", "expected_revision": fresh["revision"]})
+        assert next_turn.status_code == 200, next_turn.text
+        reviewed = next_turn.json()["planning_context"]["seasons"][0]["episodes"][1]
+        assert reviewed["approved_script_revision"] == reviewed["latest_review_script"]["revision"] == 2
 
 
 @pytest.mark.parametrize("source_mode", ["narrated_story", "web_source"])
