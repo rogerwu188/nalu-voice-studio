@@ -26,10 +26,16 @@ def test_input_revision_and_two_episode_review_survive_restart(tmp_path, monkeyp
         if len(calls) == 1:
             drafts = [{"episode_number": n, "title": f"合成第{n}集", "outline": "海边回忆",
                        "script": f"第{n}集：外婆教我补渔网。"} for n in (1, 2)]
-        else:
+        elif len(calls) == 2:
             assert context["turns"][-1]["text"] == "只改第一集：是爷爷教我，不是外婆。"
             drafts = [{"episode_number": 1, "title": "合成第一集", "outline": "爷爷教我",
                        "script": "第一集：爷爷在海边教我补渔网。"}]
+        else:
+            assert context["turns"][-1]["text"] == "继续下一集"
+            assert context["episode_drafts"][0]["script"] == "第一集：爷爷在海边教我补渔网。"
+            assert [draft["episode_number"] for draft in context["episode_drafts"]] == [1, 2]
+            drafts = [{"episode_number": 3, "title": "合成第三集", "outline": "修补后的渔网",
+                       "script": "第三集：爷爷带我收起修补好的渔网。"}]
         return httpx.Response(200, json={"id": f"fixture-writer-{len(calls)}", "model": "fixture-model",
             "choices": [{"finish_reason": "stop", "message": {"content": json.dumps({
                 "reply": "请审阅草稿", "summary": source, "outcome": "answered", "episode_drafts": drafts})}}]})
@@ -39,7 +45,7 @@ def test_input_revision_and_two_episode_review_survive_restart(tmp_path, monkeyp
         return create_app(db, data, writer_http_transport=httpx.MockTransport(writer))
     with TestClient(app()) as client:
         plan = client.post("/v1/project-plans", json={"project": {
-            "title": "合成入口验收", "planned_episode_count": 2}}).json()
+            "title": "合成入口验收", "planned_episode_count": 3}}).json()
         project = plan["project"]["id"]
         path = f"/v1/projects/{project}/interactive-story"
         revision = 0
@@ -70,6 +76,15 @@ def test_input_revision_and_two_episode_review_survive_restart(tmp_path, monkeyp
     with TestClient(app()) as client:
         state = client.get(path).json()
         assert len(calls) == 2  # Restart never calls the writer automatically.
+        pending = client.post(path + "/turns", json={"turn_id": "next", "expected_revision": state["revision"],
+            "text": "继续下一集", "source_mode": "narrated_story" if mode == "narrated_story" else "web_source"})
+        assert pending.status_code == 200, pending.text
+        generated = client.post(path + "/turns/next/generate",
+            json={"expected_revision": pending.json()["revision"], "model": "fixture-model"},
+            headers={"X-Nalu-Writer-Key": "synthetic-key"})
+        assert generated.status_code == 200, generated.text
+        state = generated.json()
+        assert [draft["episode_number"] for draft in state["episode_drafts"]] == [1, 2, 3]
         assert state["episode_drafts"][0]["script"].startswith("第一集：爷爷")
         assert state["episode_drafts"][1]["script"] == "第2集：外婆教我补渔网。"
         for episode, draft in zip(plan["episodes"], state["episode_drafts"], strict=True):
@@ -85,4 +100,4 @@ def test_input_revision_and_two_episode_review_survive_restart(tmp_path, monkeyp
                 headers={"Content-Type": "application/octet-stream"}, params={"reconciled_by": "synthetic QA"})
             assert bound.status_code == 201, bound.text
             assert client.post(base + "/approve", json={"approved_by": "synthetic QA"}).status_code == 200
-        assert len(calls) == 2
+        assert len(calls) == 3

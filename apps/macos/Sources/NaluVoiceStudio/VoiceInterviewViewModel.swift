@@ -365,7 +365,7 @@ final class VoiceInterviewViewModel {
         }
     }
 
-    private func queueStorySupplement(_ spoken: String, turnID: String, sourceMode: String = "narrated_story") {
+    private func queueStorySupplement(_ spoken: String, turnID: String, sourceMode: String? = nil) {
         guard let projectID = selectedProjectID else {
             transcript = spoken
             messages.append(.init(speaker: .nalu, text: "项目正在建立，这句补充留在输入区，还没有发送。"))
@@ -374,8 +374,9 @@ final class VoiceInterviewViewModel {
         let generation = projectSelectionGeneration
         Task {
             do {
+                let existing = try await runtime.interactiveStory(projectID: projectID)
                 var input = InteractiveStoryInput(turn_id: turnID, expected_revision: 0,
-                    text: spoken, source_mode: sourceMode)
+                    text: spoken, source_mode: sourceMode ?? existing.sourceMode(for: spoken))
                 input.queue_only = true
                 _ = try await runtime.appendStoryInput(projectID: projectID, input: input)
                 guard projectSelectionGeneration == generation else { return }
@@ -483,7 +484,7 @@ final class VoiceInterviewViewModel {
                 if let waiting = existing.queued_inputs, !waiting.isEmpty,
                    !waiting.contains(where: { $0.turn_id == turnID }) {
                     var input = InteractiveStoryInput(turn_id: turnID, expected_revision: existing.revision,
-                        text: spoken, source_mode: "narrated_story")
+                        text: spoken, source_mode: existing.sourceMode(for: spoken))
                     input.queue_only = true
                     _ = try await runtime.appendStoryInput(projectID: projectID, input: input)
                     assistantActionStatus = nil
@@ -491,7 +492,7 @@ final class VoiceInterviewViewModel {
                 }
                 let state = try await runtime.appendStoryInput(projectID: projectID,
                     input: .init(turn_id: turnID, expected_revision: existing.revision,
-                                 text: spoken, source_mode: "narrated_story"))
+                                 text: spoken, source_mode: existing.sourceMode(for: spoken)))
                 revision = state.revision
                 let endpoint = try AIServiceEndpoint.current()
                 let answer: InteractiveStoryAnswer

@@ -2,6 +2,18 @@ import XCTest
 @testable import NaluVoiceStudio
 
 final class InteractiveStoryTests: XCTestCase {
+    func testFollowupKeepsSourceUnlessExplicitlySwitched() {
+        let state = InteractiveStoryState(revision: 1, turns: [
+            .init(turn_id: "novel", text: "改编小说", source_mode: "web_source", status: "answered", answer: nil)
+        ], summary: "", episode_drafts: [])
+        XCTAssertEqual(state.sourceMode(for: "继续下一集"), "web_source")
+        XCTAssertEqual(state.sourceMode(for: "把人物改成爷爷"), "web_source")
+        XCTAssertEqual(state.sourceMode(for: "不用小说，听我讲自己的故事"), "narrated_story")
+        let empty = InteractiveStoryState(revision: 0, turns: [], summary: "", episode_drafts: [])
+        XCTAssertEqual(empty.sourceMode(for: "小时候住在海边"), "narrated_story")
+        XCTAssertEqual(empty.sourceMode(for: "继续改编小说下一段"), "web_source")
+    }
+
     func testEpisodeRetainsRuntimeSeasonIdentifier() throws {
         let data = Data(#"{"id":"episode","season_id":"season-two","title":"第二季开篇","episode_number":1,"logline":"","outline":{},"target_seconds":60,"status":"draft"}"#.utf8)
         XCTAssertEqual(try JSONDecoder().decode(NaluEpisode.self, from: data).seasonID, "season-two")
