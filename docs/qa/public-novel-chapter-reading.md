@@ -37,3 +37,9 @@ manifest SHA256: facb4b86a7cc8f4b4bf2c7ee819a43a95af0911ceb0a995b403b991f1395068
 This proves this catalog's 100 chapters were imported and recovered. It does not
 establish every site's compatibility, textual edition completeness, automated
 search quality, successful model adaptation, video production or release.
+
+The saved 741,632 characters were subsequently traversed with the actual
+60,000-character writing-context budget and continuation cursors: 13 nonempty
+windows. Concatenating all supplied passages equals the full stored text exactly;
+SHA256 01c1c00ff302f4e02c7ffacc59eef4f47d1bdb7640159d2d41201d2390accfff.
+No provider call or new network fetch was made for this coverage check.

@@ -171,6 +171,34 @@ def test_long_chapter_continuation_is_bounded_and_does_not_restart(tmp_path):
     assert writing_context(state, "修改刚才剧本", character_budget=6, previous=first)["passages"][0]["text"] == "abcdef"
 
 
+@pytest.mark.parametrize("budget", [1, 6, 12, 30])
+def test_continuation_windows_cover_all_chapters_exactly_once(tmp_path, budget):
+    service, project, _ = setup_import(tmp_path, lambda url: {
+        "url": url, "text": url[-1] + "甲乙丙丁戊己庚辛壬癸", "truncated": False})
+    service.fetch_next(project)
+    service.fetch_next(project)
+    state = service.read(project)
+    previous = None
+    reconstructed = []
+    offsets = {1: 0, 2: 0}
+    for _ in range(30):
+        context = writing_context(state, "从第一章开始" if previous is None else "继续改编小说下一段",
+                                  character_budget=budget, previous=previous)
+        if not context["passages"]:
+            break
+        assert sum(len(p["text"]) for p in context["passages"]) <= budget
+        for passage in context["passages"]:
+            number = passage["chapter_number"]
+            assert passage["start_character"] == offsets[number]
+            offsets[number] = passage["end_character"]
+            reconstructed.append(passage["text"])
+        # Simulate a persisted/reloaded cursor, not a live shared object.
+        previous = json.loads(json.dumps(context))
+    assert "".join(reconstructed) == "".join(chapter["text"] for chapter in state["chapters"])
+    assert offsets == {1: 11, 2: 11}
+    assert writing_context(state, "继续改编小说下一段", previous=context)["passages"] == []
+
+
 def test_narrated_story_does_not_inherit_imported_novel_passages(tmp_path):
     service, project, _ = setup_import(tmp_path, lambda url: {
         "url": url, "text": "小说独有正文", "truncated": False})
