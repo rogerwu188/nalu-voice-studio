@@ -1,5 +1,24 @@
 # Final review playback QA preparation — incomplete
 
+## Installed arm64 review transport exercised
+
+Standard LaunchServices launch loaded the isolated project. Named secondary
+action expanded the final-review panel. A viewing acknowledgement before
+playback was rejected with the visible instruction to play the current master.
+Version history listed one current run; downloading the sealed master displayed
+the verified-file message but left acknowledgement unchanged. Invoking the
+explicit play button and then acknowledgement changed the action label to
+`已明确观看当前原尺寸成片`.
+
+With all five quality toggles left off, submitted `保存并提交未通过验收`.
+The native conversation displayed a server receipt listing picture, audio sync,
+captions, continuity and suitability as failed. A separate read action displayed
+the same failed decision and explicitly said production/release cannot complete.
+These are agent-operated synthetic-fixture transport checks, NOT real human
+watching or quality acceptance. No successful quality review was submitted.
+Restart recovery, another-version isolation, full-resolution visual inspection
+and the speech privacy crash remain outstanding.
+
 ## Native attempt and unresolved privacy crash
 
 Downloaded arm64 artifact 10610112029 from CI 35526471420. ZIP SHA-256
