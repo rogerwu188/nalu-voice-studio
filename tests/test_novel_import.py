@@ -171,6 +171,26 @@ def test_long_chapter_continuation_is_bounded_and_does_not_restart(tmp_path):
     assert writing_context(state, "修改刚才剧本", character_budget=6, previous=first)["passages"][0]["text"] == "abcdef"
 
 
+def test_narrated_story_does_not_inherit_imported_novel_passages(tmp_path):
+    service, project, _ = setup_import(tmp_path, lambda url: {
+        "url": url, "text": "小说独有正文", "truncated": False})
+    service.fetch_next(project)
+    story = InteractiveStory(service.database)
+    story.append(project, StoryInput(turn_id="novel", expected_revision=0,
+                 text="第一章", source_mode="web_source"))
+    narrated = story.append(project, StoryInput(turn_id="own", expected_revision=1,
+                           text="不用小说，听我讲小时候的事", source_mode="narrated_story"))
+    assert "novel_source" not in narrated
+    context = json.loads(json.loads(writer_request(narrated, "fixture-model"))["messages"][1]["content"])
+    assert not context.get("novel_source")
+    restarted = InteractiveStory(service.database)
+    assert "novel_source" not in restarted.read(project)
+    resumed = restarted.append(project, StoryInput(turn_id="back", expected_revision=2,
+                               text="第一章", source_mode="web_source"))
+    assert resumed["novel_source"]["passages"][0]["text"] == "小说独有正文"
+    assert service.read(project)["chapters"][0]["status"] == "complete"
+
+
 def test_imported_chapters_reach_frozen_writer_context(tmp_path):
     service, project, _ = setup_import(tmp_path, lambda url: {
         "url": url, "text": "小说正文：" + url, "truncated": False})

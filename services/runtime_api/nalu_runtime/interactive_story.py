@@ -122,8 +122,9 @@ class InteractiveStory:
             state["revision"] += 1
             # Freeze source evidence with this input. Background import progress
             # must not mutate the body of an already charged/recoverable request.
-            context = writing_context(bible.get(NovelImport.key), request.text,
-                                      previous=state.get("novel_source"))
+            context = (writing_context(bible.get(NovelImport.key), request.text,
+                                       previous=state.get("novel_source"))
+                       if request.source_mode == "web_source" else None)
             if context is not None:
                 state["novel_source"] = context
             else:
