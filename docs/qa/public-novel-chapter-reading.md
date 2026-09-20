@@ -18,3 +18,22 @@ https://zh.wikisource.org/wiki/西遊記/第001回
 The request was not sent to a provider. This proves one real, explicitly selected
 chapter can be read, persisted and handed to writing context, not automatic book
 discovery, entire-novel completeness, generated script quality or E2E release.
+
+## Real catalog and all discovered chapters
+
+Subsequent real discovery on `https://zh.wikisource.org/wiki/西遊記` found 100
+ordered chapter links, 第一回 through 第一百回, without a manually supplied list.
+Project prj_a69af7789be04f959430db49eb4d8044, database:
+/var/folders/y4/k84st0yj7fz043tnxkfrjn1w0000gn/T/nalu-public-catalog-0lh1vku2/db.
+
+Session74182 fetched at most one new chapter per second, without automatic error
+retries, and exited0: 100/100 complete, 741,632 extracted characters, no errors.
+Recreated runtime over the saved database, with a reader that fails on any network
+call: rediscovery and fetch-next reused the completed state without refetching.
+Verified all 100 stored text SHA256 values. Sorted-key UTF-8 JSON URL/digest-list
+manifest SHA256: facb4b86a7cc8f4b4bf2c7ee819a43a95af0911ceb0a995b403b991f1395068d.
+`只改编第一百回` selected only the final chapter, 6,325 characters.
+
+This proves this catalog's 100 chapters were imported and recovered. It does not
+establish every site's compatibility, textual edition completeness, automated
+search quality, successful model adaptation, video production or release.
