@@ -107,3 +107,29 @@ Local `swiftc -frontend -parse` could not validate the change: the installed
 CommandLineTools report duplicate `SwiftBridging` module definitions. Native
 compilation/tests and installed QA remain pending on GitHub CI. Diff checks pass;
 no native test or SOP PASS is claimed for this follow-up.
+
+## Installed adoption follow-up (263443a)
+
+CI35532371231 arm64 and Intel jobs passed; runtime/universal were still running.
+Installed arm64 artifact10611304583 in `/tmp/nalu-adoption-qa-6TsVDR/app`.
+ZIP SHA256 `e5ff00004d331e818c9042729347c9601edeb25d3132bce3a33299c584766bd1`
+matches the CI checksum. Runtime18771 uses only temporary fixture directory
+`/var/folders/y4/k84st0yj7fz043tnxkfrjn1w0000gn/T/nalu-native-story-vzy6orpu`;
+launch-only invalid model endpoint prevents paid writer requests.
+
+In native UI, submitted `采用第一集草稿`: episode one reached script review15%,
+with explicit not-approved/not-producing confirmation. Selected the independent
+second project and observed its blank story and planned0% state. Returned to the
+first project, which restored episode-one review and both synthetic drafts.
+Submitted `采用第二集草稿`: episode two reached script review15%, proving the
+first adoption did not leave a blocking busy state. AX row clicks did not select
+reliably; screenshot-grounded clicks and list keyboard selection did.
+
+Read-only runtime checks found exactly revision one, approved_at=null, for both
+`ep_0925e0367e154662a4c2d7c926438d4b` and
+`ep_2aa6ef0a8437434581aee4f8bc32ec74`. The independent project's episode
+`ep_cab2171fcf534276b6af6366babc9f71` still has no scripts.
+This verifies sequential adoption and project-switch recovery with synthetic
+drafts. Deliberately delayed mid-request switching is covered by native tests,
+not this manual run; app-restart recovery and actual model generation remain
+separate checks. No SOP completion or real film acceptance is claimed.
