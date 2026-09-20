@@ -4,6 +4,7 @@ Only allowlisted metadata is printed. No credentials or raw account rows leave
 the process. One request, no redirects, proxies or automatic retries.
 """
 
+import argparse
 import json
 import os
 from decimal import Decimal, InvalidOperation
@@ -12,6 +13,9 @@ import httpx
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--task-id", default="")
+    args = parser.parse_args()
     key = os.environ.get("GIGGLE_API_KEY", "").strip()
     if not key or "\n" in key or "\r" in key:
         print(json.dumps({"status": "credential_unavailable", "generation_submitted": False}))
@@ -20,7 +24,7 @@ def main():
         with httpx.Client(timeout=20, follow_redirects=False, trust_env=False) as client:
             response = client.get(
                 "https://giggle.pro/api/v1/payment/credit-statements",
-                params={"page": 1, "page_size": 100, "project_id": ""},
+                params={"page": 1, "page_size": 100, "project_id": args.task_id},
                 headers={"x-auth": key},
             )
         status = response.status_code
@@ -30,6 +34,8 @@ def main():
         observations = []
         if valid:
             for row in data["data"]["list"]:
+                if args.task_id and (not isinstance(row, dict) or row.get("project_id") != args.task_id):
+                    continue
                 if not isinstance(row, dict) or row.get("event_type") != "Pay":
                     continue
                 if row.get("event_description") not in {

@@ -3,7 +3,7 @@ import pytest
 from nalu_runtime.giggle_task_query import GiggleTaskQuery, GiggleTaskQueryError
 
 
-@pytest.mark.parametrize("status", ["pending", "processing", "completed", "failed", "error"])
+@pytest.mark.parametrize("status", ["pending", "processing", "running", "completed", "failed", "error"])
 def test_query_is_read_only_and_does_not_infer_billing(status):
     calls = []
     def serve(request):
@@ -14,7 +14,7 @@ def test_query_is_read_only_and_does_not_infer_billing(status):
         return httpx.Response(200, json={"code": 200, "data": {"status": status,
             "urls": ["https://example.org/fixture.mp4"], "err_msg": "synthetic-secret"}})
     result = GiggleTaskQuery(lambda: "synthetic-secret", transport=httpx.MockTransport(serve)).query("task-fixture")
-    assert result.status == status
+    assert result.status == ("processing" if status == "running" else status)
     assert not result.billing_verified
     assert len(result.result_urls) == (1 if status == "completed" else 0)
     assert "synthetic-secret" not in repr(result)

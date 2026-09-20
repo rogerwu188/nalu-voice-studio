@@ -1,0 +1,25 @@
+# First authorized live video
+
+User selected option 1: a storybook opens and a miniature village rises from its
+pages. Submitted once through the installed Seedance skill's text-to-video client,
+using the existing environment credential. No publication.
+
+- Model: seedance-2.0-pro; 5 seconds; 16:9; 720p; count 1.
+- Campaign: giggle-live-test-2026-09-20; aggregate allowance 10,000 credits.
+- Reservation: 130 credits based on freshly fetched public 26 credits/sec rate.
+- Task: 807de96b-f261-4ebc-9c73-ef14f47d8fd9.
+- Terminal query: completed; result https://gigg.cc/377un5.
+- Query response SHA-256: 71bc34ca01a3cda6c52eac39c2f463e35b48796beab602876fbef9aeeff4183f.
+- Exact task-ID-filtered statement read observed SingleGenerateVideo Pay: 100 credits.
+  This is an observed charge, not a reconciled full campaign balance. Preserve
+  the 130-credit reservation conservatively; 9,870 credits remain unreserved.
+- Private durable database: ~/Library/Application Support/NaluLiveTests/campaign.sqlite.
+- Resume: scripts/run-giggle-storybook-test.py queries the saved task. It cannot
+  submit again after the dispatch claim, even if acceptance recording fails.
+
+Live API returned `running`, previously rejected by the runtime query parser.
+Normalize it to `processing`; all 12 task-query tests pass including that case.
+No failed query triggered another generation POST.
+
+The video has NOT been visually/aurally accepted, imported into an episode,
+signed, notarized or released. A provider result is not full SOP acceptance.

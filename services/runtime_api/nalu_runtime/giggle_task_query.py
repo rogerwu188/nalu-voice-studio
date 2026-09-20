@@ -68,6 +68,8 @@ class GiggleTaskQuery:
             if data.get("task_id", task_id) != task_id:
                 raise ValueError("query returned another task")
             status = data["status"]
+            if status == "running":
+                status = "processing"
             if status not in {"pending", "processing", "completed", "failed", "error"}:
                 raise ValueError("unknown task status")
             urls = data.get("urls", [])
