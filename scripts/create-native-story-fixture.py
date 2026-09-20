@@ -15,7 +15,11 @@ from nalu_runtime.novel_import import NovelImport
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source-mode", choices=["narrated_story", "web_source"], default="narrated_story")
+    parser.add_argument("--import-only", action="store_true",
+                        help="Save synthetic novel chapters without any prior writing turn")
     args = parser.parse_args()
+    if args.import_only and args.source_mode != "web_source":
+        parser.error("--import-only requires --source-mode web_source")
     root = Path(tempfile.mkdtemp(prefix="nalu-native-story-"))
     with TestClient(create_app(root / "nalu.sqlite3", root / "data")) as api:
         plan = api.post("/v1/project-plans", json={"project": {
@@ -28,6 +32,13 @@ def main():
                 {"url": "https://example.com/qa-novel/1", "title": "第一章 码头"}])
             importer.fetch_next(project)
         route = f"/v1/projects/{project}/interactive-story"
+        if args.import_only:
+            state = api.get(route).json()
+            assert state["turns"] == [] and state.get("novel_source") is None
+            print(json.dumps({"application_support": str(root), "project_id": project,
+                "source_mode": args.source_mode, "import_only": True,
+                "provider_execution_verified": False, "approved": False}))
+            return
         turn = api.post(route + "/turns", json={"turn_id": "synthetic-review",
             "expected_revision": 0, "text": "【合成 QA】不是模型生成，请检查两集审阅。",
             "source_mode": args.source_mode})
