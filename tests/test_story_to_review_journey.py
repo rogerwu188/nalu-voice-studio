@@ -110,3 +110,27 @@ def test_input_revision_and_two_episode_review_survive_restart(tmp_path, monkeyp
             assert bound.status_code == 201, bound.text
             assert client.post(base + "/approve", json={"approved_by": "synthetic QA"}).status_code == 200
         assert len(calls) == 3
+        first = plan["episodes"][0]["id"]
+        script_path = f"/v1/episodes/{first}/scripts"
+        def read_revision(client, revision):
+            response = client.get(script_path)
+            assert response.status_code == 200, response.text
+            return next(item for item in response.json() if item["revision"] == revision)
+        original = read_revision(client, 1)
+        revised = client.post(script_path, json={
+            "content": "【用户补充】爷爷收起渔网后，带我回家。",
+            "summary_for_voice_review": "修改第一集结尾，其他分集不变",
+            "authoring": {"origin": "user_text"}, "idempotency_key": "correct-approved-first"})
+        assert revised.status_code == 201, revised.text
+        assert revised.json()["revision"] == 2
+        assert revised.json()["approved_at"] is None
+        assert read_revision(client, 1) == original
+        assert client.get(f"/v1/episodes/{first}").json()["approved_script_revision"] is None
+        blocked = client.post(f"/v1/episodes/{first}/production-runs", json={"dry_run": True})
+        assert blocked.status_code == 409, blocked.text
+        assert client.get(f"/v1/episodes/{first}/production-runs").json() == []
+        assert client.get(f"/v1/episodes/{plan['episodes'][1]['id']}").json()["approved_script_revision"] == 1
+    with TestClient(app()) as client:
+        assert read_revision(client, 1) == original
+        assert read_revision(client, 2)["approved_at"] is None
+        assert len(calls) == 3  # Restart and manual correction never regenerate with a provider.
