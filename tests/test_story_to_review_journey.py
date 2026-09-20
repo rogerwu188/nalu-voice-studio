@@ -20,6 +20,10 @@ def test_input_revision_and_two_episode_review_survive_restart(tmp_path, monkeyp
         context = json.loads(json.loads(request.content)["messages"][1]["content"])
         calls.append(context)
         assert source in json.dumps(context, ensure_ascii=False)
+        planning = context["planning_context"]
+        assert planning["project"]["planned_episode_count"] == 3
+        assert [episode["episode_number"] for episode in planning["seasons"][0]["episodes"]] == [1, 2, 3]
+        assert context["project_bible"] == {"setting": "海边渔村"}
         if mode == "novel_import":
             assert context["novel_source"]["passages"][0]["text"] == source
             assert context["novel_source"]["passages"][0]["source_url"] == "https://example.com/book/1"
@@ -45,7 +49,8 @@ def test_input_revision_and_two_episode_review_survive_restart(tmp_path, monkeyp
         return create_app(db, data, writer_http_transport=httpx.MockTransport(writer))
     with TestClient(app()) as client:
         plan = client.post("/v1/project-plans", json={"project": {
-            "title": "合成入口验收", "planned_episode_count": 3}}).json()
+            "title": "合成入口验收", "planned_episode_count": 3,
+            "project_bible": {"setting": "海边渔村"}}}).json()
         project = plan["project"]["id"]
         path = f"/v1/projects/{project}/interactive-story"
         revision = 0

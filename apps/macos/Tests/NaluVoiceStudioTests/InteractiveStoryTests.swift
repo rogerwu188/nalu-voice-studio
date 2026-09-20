@@ -15,7 +15,13 @@ final class InteractiveStoryTests: XCTestCase {
     func testSeasonPlanSurvivesNativeWriterContextEncoding() throws {
         let data = Data(#"{"revision":1,"turns":[],"summary":"","episode_drafts":[],"planning_context":{"project":{"planned_episode_count":2},"seasons":[{"title":"第一季","episodes":[{"title":"归来","logline":"爷爷归来"}]}]}}"#.utf8)
         let state = try JSONDecoder().decode(InteractiveStoryState.self, from: data)
-        let body = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(state)) as? [String: Any])
+        let request = try InteractiveStoryWriter.makeRequest(state: state, apiKey: "fixture-key",
+            endpoint: AIServiceEndpoint("https://example.com/v1"), model: "fixture-model")
+        let requestBody = try XCTUnwrap(request.httpBody)
+        let envelope = try XCTUnwrap(JSONSerialization.jsonObject(with: requestBody) as? [String: Any])
+        let messages = try XCTUnwrap(envelope["messages"] as? [[String: String]])
+        let content = try XCTUnwrap(messages.last?["content"])
+        let body = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(content.utf8)) as? [String: Any])
         let planning = try XCTUnwrap(body["planning_context"] as? [String: Any])
         let seasons = try XCTUnwrap(planning["seasons"] as? [[String: Any]])
         let episodes = try XCTUnwrap(seasons.first?["episodes"] as? [[String: Any]])
