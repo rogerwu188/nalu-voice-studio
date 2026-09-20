@@ -1,0 +1,16 @@
+{
+  "schema_version": "nalu.live-test-authorization/v1",
+  "authorization_id": "hops-shot-plan-2026-09-20",
+  "source": "user confirmed Hops authorization, then specified 50美元以内",
+  "provider": "Hops",
+  "endpoint": "https://hopsapi.com/v1",
+  "purpose": "one real shot-plan request using existing Nalu configuration",
+  "maximum_requests": 1,
+  "aggregate_limit": 50,
+  "currency": "USD",
+  "publication_authorized": false,
+  "automatic_retry_authorized": false,
+  "giggle_budget_is_separate": true,
+  "credential_included": false,
+  "status": "authorized_pending_configured_model_price_verification"
+}
