@@ -30,3 +30,25 @@ the persisted instruction `请改编第二回，先写成一集草稿`. The appl
 reported that the prior request had no complete result and was not automatically
 repeated. This confirms installed conversation recovery from the real-source
 database, not a generated script or visible full-chapter reader acceptance.
+
+## Full catalog import and resumable source timeout
+
+The first 100-chapter attempt saved five chapters and stopped at chapter six
+with the durable `source_timeout` classification. The existing failed state
+retained all five completed chapters. Extended the opt-in QA runner with
+`--resume-database` to reopen only an existing isolated failed/ready import;
+it does not rediscover the catalog or refetch complete chapters. It retries
+only explicitly recorded `source_timeout`, at most three attempts per chapter.
+All other failures abort with their durable progress preserved.
+
+Resumed the same SQLite database and completed all 100 chapters from chapter
+6 onward, with chapter6 fetched successfully during recovery. Final state:
+100/100 complete, 741,632 characters. All chapters reconstructed through 13
+bounded writer-context windows; concatenation exactly matched the saved source
+and SHA256 was `01c1c00ff302f4e02c7ffacc59eef4f47d1bdb7640159d2d41201d2390accfff`.
+No skipped or duplicate text; final chapter was readable. No model was called.
+The live source and isolated database remain recorded above.
+
+This proves actual public 100-chapter import, persisted recovery and complete
+source-window continuity. It does not prove a full-book AI adaptation, media
+generation, copyright permission or complete product acceptance.
