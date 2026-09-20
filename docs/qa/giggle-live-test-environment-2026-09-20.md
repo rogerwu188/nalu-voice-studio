@@ -22,3 +22,18 @@ The speech skill also requires an explicit voice selection before synthesis.
 
 This environment repair is not API authentication, real media, billing or
 product acceptance evidence. No SOP status is promoted.
+
+## Subsequent read-only account verification
+
+`scripts/check-giggle-account.py` made one authenticated GET to the fixed Giggle
+credit-statements endpoint using the existing environment credential. It returned
+HTTP 200 and validated the successful statement-list response envelope. No key,
+account rows or raw response were printed; no generation POST was made. This
+proves account statement access, not complete billing reconciliation or sufficient
+account balance. The script intentionally requests only one row.
+
+Campaign reservation and image/SD2 request binding are now implemented through
+`GenerationCampaign` factories (43 targeted tests passed at `2c96eb4`). They are
+not yet a complete live-test runner or an audio submission integration. Price
+evidence must still be verified by the caller; a stored digest alone does not
+prove an upper-bound quote. No real-generation result exists for this campaign.
