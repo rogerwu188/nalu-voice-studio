@@ -6,6 +6,7 @@ the process. One request, no redirects, proxies or automatic retries.
 
 import json
 import os
+from decimal import Decimal, InvalidOperation
 
 import httpx
 
@@ -19,15 +20,34 @@ def main():
         with httpx.Client(timeout=20, follow_redirects=False, trust_env=False) as client:
             response = client.get(
                 "https://giggle.pro/api/v1/payment/credit-statements",
-                params={"page": 1, "page_size": 1, "project_id": ""},
+                params={"page": 1, "page_size": 100, "project_id": ""},
                 headers={"x-auth": key},
             )
         status = response.status_code
         data = response.json() if status == 200 else {}
         valid = (data.get("code") == 200 and isinstance(data.get("data"), dict)
                  and isinstance(data["data"].get("list"), list))
+        observations = []
+        if valid:
+            for row in data["data"]["list"]:
+                if not isinstance(row, dict) or row.get("event_type") != "Pay":
+                    continue
+                if row.get("event_description") not in {
+                    "SingleGenerateImage", "SingleGenerateAudio", "SingleGenerateVideo"
+                }:
+                    continue
+                try:
+                    amount = Decimal(str(row.get("credit")))
+                except InvalidOperation:
+                    continue
+                if not amount.is_finite():
+                    continue
+                item = {"media_event": row["event_description"], "charged_credits": str(abs(amount))}
+                if item not in observations:
+                    observations.append(item)
         print(json.dumps({"status": "statement_access_verified" if valid else "statement_access_failed",
                           "http_status": status, "generation_submitted": False,
+                          "recent_historical_charges_not_quotes": observations,
                           "billing_reconciled": False}))
         return 0 if valid else 1
     except Exception:  # noqa: BLE001 -- raw HTTP/JSON failures may expose account data
