@@ -1,5 +1,17 @@
 # Final review playback QA preparation — incomplete
 
+## Failed output to repair draft (native isolated workflow)
+
+After recovering the failed review, opened shot planning, restored saved editing
+inputs (0.5–7.5s and 0.5–6.5s), and opened the picture preview. The saved edit
+approval reappeared. Expanding existing sound sources recovered the decoded-QA
+frame-repeat repair message and `保留原片，准备修订版`. Explicit confirmation
+returned `修订版本已准备。原成片保留；尚未重新生成视频、扣费或发行。`.
+This establishes the native path to a local repair draft, not repaired quality.
+Next verify the active child is selected and original sealed master and failed
+review remain intact. Ordinary original-shot/frame reads displayed read errors;
+their causes remain to be inspected, not silently counted as passing.
+
 ## Restart recovery verified on isolated arm64 app
 
 Quit via Command-Q and verified the owned app/runtime PIDs and port 18767 were
