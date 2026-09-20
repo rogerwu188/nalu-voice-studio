@@ -1349,6 +1349,16 @@ def create_app(
     def review_shot_plan(run_id: str, source_id: str, request: ShotReviewRequest):
         return ShotReviewService(repository).review(run_id, source_id, request)
 
+    @app.post("/v1/production-runs/{run_id}/shot-plans/recover", response_model=RunEvent | None)
+    def recover_shot_plan(run_id: str, request: ShotPlanningRequest,
+                          origin: str | None = Header(default=None)):
+        if origin is not None:
+            raise HTTPException(403, "native snapshot reconciliation required")
+        try:
+            return ShotPlanningService(repository).recover(run_id, model=request.model)
+        except WriterTransportError as exc:
+            raise HTTPException(502, str(exc)) from None
+
     @app.post("/v1/production-runs/{run_id}/shot-plans", response_model=RunEvent)
     def generate_shot_plan(run_id: str, request: ShotPlanningRequest,
                            writer_key: str | None = Header(default=None, alias="X-Nalu-Writer-Key"),

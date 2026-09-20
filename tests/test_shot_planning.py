@@ -101,6 +101,8 @@ def test_approved_script_to_durable_shot_plan(tmp_path, monkeypatch, case):
     endpoint = f"/v1/production-runs/{run.id}/shot-plans"
     headers = {"X-Nalu-Writer-Key": "synthetic-key"}
     assert api.post(endpoint, json={"model": "fixture-model"}).status_code == 403
+    assert api.post(endpoint + "/recover", json={"model": "fixture-model"}).json() is None
+    assert calls == []
     if case == "event_write_failure":
         # Provider response is durable, but the user-visible draft event has
         # not committed. Restart must recover that response without paying again.
@@ -122,6 +124,11 @@ def test_approved_script_to_durable_shot_plan(tmp_path, monkeypatch, case):
             assert saved["state"] == "completed"
             assert "synthetic-planner-task" in saved["response_json"]
         api = TestClient(create_app(db_path, tmp_path / "data", writer_http_transport=httpx.MockTransport(serve)))
+        assert api.post(endpoint + "/recover", json={"model": "wrong-model"}).status_code == 409
+        recovered = api.post(endpoint + "/recover", json={"model": "fixture-model"})
+        assert recovered.status_code == 200, recovered.text
+        assert recovered.json()["payload"]["approved"] is False
+        assert len(calls) == 1
         case = "ok"  # Exercise the complete review/preparation flow on recovery.
     first = api.post(endpoint, json={"model": "fixture-model"}, headers=headers)
     if case in {"ok", "continuous_ok"} or case.startswith("refresh"):
@@ -287,3 +294,5 @@ def test_approved_script_to_durable_shot_plan(tmp_path, monkeypatch, case):
         assert len(calls) == 1  # All local review/edit/confirmation operations are model-free.
     else:
         assert second.status_code in {409, 502}
+        assert restarted.post(endpoint + "/recover", json={"model": "fixture-model"}).status_code in {409, 502}
+        assert len(calls) == 1

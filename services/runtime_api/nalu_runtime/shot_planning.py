@@ -104,6 +104,31 @@ class ShotPlanningService:
     def __init__(self, repository: Repository):
         self.repository = repository
 
+    def recover(self, run_id: str, *, model: str):
+        """Adopt an already durable response only; never dispatch or retry."""
+        run = self.repository.get_run(run_id)
+        execution_id = "shot-plan-" + hashlib.sha256(run_id.encode()).hexdigest()
+        with self.repository.db.connect() as connection:
+            saved = connection.execute(
+                "SELECT state FROM writer_executions WHERE project_id=? AND turn_id=?",
+                (run.project_id, execution_id),
+            ).fetchone()
+        if saved is None:
+            return None
+        if saved["state"] != "completed":
+            raise ConflictError("writer outcome unresolved; recovery cannot retry")
+
+        class LocalReplayOnly:
+            endpoint = HopsWriterTransport.endpoint
+
+            def __call__(self, body):
+                raise ConflictError("stored writer response unavailable; network prohibited")
+
+        # The normal execution ledger verifies the exact model/context digest
+        # and stored response digest before returning it. The fallback cannot
+        # access credentials or the network, even if the row disappears.
+        return self.generate(run_id, model=model, transport=LocalReplayOnly())
+
     def _package(self, run, *, _read_saved=False):
         latest = self.repository.latest_run_for_episode(run.episode_id)
         allowed = {"preflight", "waiting_for_approval"}

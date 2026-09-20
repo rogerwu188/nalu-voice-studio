@@ -17848,6 +17848,79 @@
         "summary": "Current Shot Plan"
       }
     },
+    "/v1/production-runs/{run_id}/shot-plans/recover": {
+      "post": {
+        "operationId": "recover_shot_plan_v1_production_runs__run_id__shot_plans_recover_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "origin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Origin"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShotPlanningRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/RunEvent"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Recover Shot Plan V1 Production Runs  Run Id  Shot Plans Recover Post"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Recover Shot Plan"
+      }
+    },
     "/v1/production-runs/{run_id}/shot-plans/{plan_id}/continuation-preparations": {
       "post": {
         "operationId": "prepare_continuation_video_v1_production_runs__run_id__shot_plans__plan_id__continuation_preparations_post",
