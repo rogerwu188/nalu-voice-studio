@@ -2068,6 +2068,8 @@ final class VoiceInterviewViewModel {
 
     private func approveCurrentScript(confirmation: String) async {
         guard let episodeID = selectedEpisodeID, let latest = scriptRevisions.last else { return }
+        let generation = projectSelectionGeneration
+        let projectID = selectedProjectID
         guard latest.episodeID == episodeID,
               viewedScriptRevision == latest.revision,
               scriptContent == latest.content,
@@ -2082,11 +2084,18 @@ final class VoiceInterviewViewModel {
                 confirmation: confirmation,
                 guardianApproval: guardianConfirmedForScript
             )
+            guard projectSelectionGeneration == generation, selectedEpisodeID == episodeID else { return }
             await loadScripts(episodeID: episodeID)
-            if let projectID = selectedProjectID { await selectProject(projectID) }
+            guard projectSelectionGeneration == generation, selectedEpisodeID == episodeID else { return }
+            if let projectID {
+                let reloadGeneration = UUID()
+                await selectProject(projectID, selectionGeneration: reloadGeneration)
+                guard projectSelectionGeneration == reloadGeneration else { return }
+            }
             if episodes.contains(where: { $0.id == episodeID }) { selectEpisode(episodeID) }
             messages.append(.init(speaker: .nalu, text: "当前剧本版本已经确认，可以进入制作准备。"))
         } catch {
+            guard projectSelectionGeneration == generation, selectedEpisodeID == episodeID else { return }
             errorMessage = error.localizedDescription
         }
     }

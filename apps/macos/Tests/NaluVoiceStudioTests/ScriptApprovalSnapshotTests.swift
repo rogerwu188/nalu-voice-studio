@@ -3,6 +3,39 @@ import XCTest
 @testable import NaluVoiceStudio
 
 final class ScriptApprovalSnapshotTests: XCTestCase {
+    @MainActor func testLateApprovalFailureDoesNotReplaceNewProjectState() async {
+        let started = expectation(description: "approval started")
+        let gate = AsyncStream<Void>.makeStream()
+        let model = VoiceInterviewViewModel(runtime: RuntimeClient(
+            baseURL: URL(string: "http://127.0.0.1:8765")!, accessCheck: {
+                started.fulfill()
+                for await _ in gate.stream {}
+                return false
+            }))
+        model.selectedProjectID = "project-A"
+        model.selectedEpisodeID = "episode-A"
+        model.scriptRevisions = [ScriptRevision(
+            episodeID: "episode-A", revision: 2, content: "已保存正文",
+            summaryForVoiceReview: "已保存摘要", sourceTranscript: "",
+            narrativeMetadata: [:], authoringProvenance: nil,
+            approvedAt: nil, createdAt: "2026-09-20T00:00:00Z")]
+        model.viewedScriptRevision = 2
+        model.scriptContent = "已保存正文"
+        model.scriptSummary = "已保存摘要"
+        let task = Task { await model.approveScriptVisually() }
+        await fulfillment(of: [started], timeout: 10)
+        model.selectedProjectID = "project-B"
+        model.selectedEpisodeID = "episode-B"
+        model.scriptContent = "新项目未保存内容"
+        model.errorMessage = "新项目自己的提示"
+        let messages = model.messages.map(\.text)
+        gate.continuation.finish()
+        await task.value
+        XCTAssertEqual(model.scriptContent, "新项目未保存内容")
+        XCTAssertEqual(model.errorMessage, "新项目自己的提示")
+        XCTAssertEqual(model.messages.map(\.text), messages)
+    }
+
     @MainActor func testSavedLatestSnapshotCanReachRuntimeAuthorization() async {
         let reached = expectation(description: "matching snapshot reaches runtime authorization")
         let model = VoiceInterviewViewModel(runtime: RuntimeClient(
