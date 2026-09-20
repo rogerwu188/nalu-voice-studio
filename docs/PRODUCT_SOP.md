@@ -1,5 +1,8 @@
 # Nalu Voice Studio product completion SOP
 
+The full user-confirmed scope and execution priority are defined in
+[PROJECT_GOAL.md](PROJECT_GOAL.md). All SOP acceptance must preserve that scope.
+
 This file is the completion authority for the product. A milestone is not the
 product. An item becomes `PASS` only when implementation, tests, documentation,
 and required QA evidence all exist. Every heartbeat revalidates completed items

@@ -1,6 +1,7 @@
 {
   "schema_version": "nalu.goal-progress/v1",
   "objective_id": "nalu-voice-studio-product-completion",
+  "objective_scope": "docs/PROJECT_GOAL.md",
   "objective": "Complete SOP-00 through SOP-13 on one signed, notarized, end-to-end validated release candidate.",
   "project_complete": false,
   "sop_source": "docs/PRODUCT_SOP.md",
