@@ -133,3 +133,17 @@ This verifies sequential adoption and project-switch recovery with synthetic
 drafts. Deliberately delayed mid-request switching is covered by native tests,
 not this manual run; app-restart recovery and actual model generation remain
 separate checks. No SOP completion or real film acceptance is claimed.
+
+### Same installed candidate: restart and adoption replay
+
+Normal Cmd-Q removed the tested app PID5717 and owned runtime PIDs5789/5790;
+port18771 no longer listened. Relaunched the same263443a bundle with the same
+temporary support directory and invalid model endpoint. Native UI restored both
+episodes at script_review15% and the two saved synthetic drafts. Sent
+`采用第一集草稿` again: success returned, without a stuck busy indicator.
+GET scripts still returned only revision1 with original creation timestamp
+2026-09-20T19:36:53.096702+00:00 and approved_at=null. GET production-runs returned
+an empty list. No duplicate revision, approval or production job was created.
+CI35532371231 universal also passed; runtime and local full test session20560
+were still running (local progress exceeded80%). Real provider/human acceptance
+remains outstanding; this closes only the synthetic native restart/replay check.
