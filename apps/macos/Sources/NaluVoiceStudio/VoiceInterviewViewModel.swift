@@ -2913,8 +2913,6 @@ final class VoiceInterviewViewModel {
             let startMessage = novelImportRequested
                 ? "好的，我按您提供的网址识别小说目录，把可访问的章节保存到这台 Mac。不会购买或发布。"
                 : "好的，我现在替您上网查找。查找期间不会改变您的故事，也不会自动下载或发布任何内容。"
-            messages.append(.init(speaker: .nalu, text: startMessage))
-            speechPlayback.speak(startMessage, rate: comfortPreferences.speechRate)
             let resumePrompt = selectedProjectID == nil
                 ? "您想采用哪份来源？也可以继续讲故事，我们把内容整理成分集剧本。"
                 : currentInterviewPrompt
@@ -2944,6 +2942,12 @@ final class VoiceInterviewViewModel {
                     }
                     if let projectID {
                         let state = try await runtime.interactiveStory(projectID: projectID)
+                        if AssistantActionRouter.reusesImportedNovel(query, hasSource: state.novel_source != nil) {
+                            guard projectSelectionGeneration == generation else { return }
+                            assistantActionStatus = nil
+                            handleInteractiveStoryInput(query, turnID: turnID)
+                            return
+                        }
                         if let waiting = state.queued_inputs, !waiting.isEmpty,
                            !waiting.contains(where: { $0.turn_id == turnID }) {
                             var input = InteractiveStoryInput(turn_id: turnID, expected_revision: state.revision,
@@ -2962,6 +2966,9 @@ final class VoiceInterviewViewModel {
                         )
                         savedRevision = saved.revision
                     }
+                    guard projectSelectionGeneration == generation else { return }
+                    messages.append(.init(speaker: .nalu, text: startMessage))
+                    speechPlayback.speak(startMessage, rate: comfortPreferences.speechRate)
                     let result: WebResearchResult
                     var sourceWritingReady = !novelImportRequested
                     if novelImportRequested, let sourceURL = AssistantActionRouter.sourceURL(in: query), let projectID {

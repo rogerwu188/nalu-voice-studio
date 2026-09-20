@@ -2,6 +2,17 @@ import XCTest
 @testable import NaluVoiceStudio
 
 final class InteractiveStoryTests: XCTestCase {
+    func testAdaptCurrentNovelDoesNotRequireAnotherSearch() {
+        for text in ["把这本小说改编成短剧", "用刚才的小说生成剧本", "把当前小说写成剧本"] {
+            XCTAssertTrue(AssistantActionRouter.reusesImportedNovel(text, hasSource: true), text)
+            XCTAssertFalse(AssistantActionRouter.reusesImportedNovel(text, hasSource: false), text)
+        }
+        for text in ["帮我找另一本小说改编成短剧", "上网搜索这本小说生成剧本",
+                     "把这本小说 https://example.com/book 改编成短剧", "不要把这本小说改编成短剧"] {
+            XCTAssertFalse(AssistantActionRouter.reusesImportedNovel(text, hasSource: true), text)
+        }
+    }
+
     func testProjectSettingsSurviveNativeWriterContextEncoding() throws {
         let data = Data(#"{"revision":1,"turns":[],"summary":"","episode_drafts":[],"project_bible":{"setting":"海边","characters":{"爷爷":"修船匠"}}}"#.utf8)
         let state = try JSONDecoder().decode(InteractiveStoryState.self, from: data)
