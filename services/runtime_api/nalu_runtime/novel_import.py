@@ -134,6 +134,8 @@ def writing_context(state, user_text, *, character_budget=60000, previous=None):
         chapter_end = chapter_number(chapter_range[2])
     if match:
         chapter_start = chapter_number(match[1])
+        if not chapter_range and re.search(r"(?<!不)(?:只|仅)(?:要|把|将|改编|读取|写|用|处理|使用|限于|取材于|\s)*$", user_text[:match.start()]):
+            chapter_end = chapter_start
     if chapter_end is not None and chapter_end < chapter_start:
         raise ConflictError("novel chapter range is reversed")
     if chapter_range:

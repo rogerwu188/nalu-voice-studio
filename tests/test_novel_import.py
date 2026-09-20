@@ -189,7 +189,10 @@ def test_imported_chapters_reach_frozen_writer_context(tmp_path):
     assert updated["novel_source"]["passages"][0]["source_url"] == "https://example.com/2"
 
 
-@pytest.mark.parametrize("spoken_range", ["改编第一章到第一章", "请写第1至1章", "第一回—第一回"])
+@pytest.mark.parametrize("spoken_range", [
+    "改编第一章到第一章", "请写第1至1章", "第一回—第一回",
+    "只改编第一章", "请仅用第一章", "只把第一章写成第一集",
+])
 def test_explicit_range_does_not_spill_into_later_chapters(tmp_path, spoken_range):
     service, project, _ = setup_import(tmp_path, lambda url: {
         "url": url, "text": "abcdef", "truncated": False})
