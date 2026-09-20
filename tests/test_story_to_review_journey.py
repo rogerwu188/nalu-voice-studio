@@ -1,5 +1,6 @@
 """Both input journeys via public APIs; provider/source responses are synthetic."""
 import json
+from pathlib import Path
 
 import httpx
 import pytest
@@ -134,3 +135,13 @@ def test_input_revision_and_two_episode_review_survive_restart(tmp_path, monkeyp
         assert read_revision(client, 1) == original
         assert read_revision(client, 2)["approved_at"] is None
         assert len(calls) == 3  # Restart and manual correction never regenerate with a provider.
+        approved = client.post(script_path + "/2/approve", json={"approved_by": "synthetic QA"})
+        assert approved.status_code == 200, approved.text
+        prepared = client.post(f"/v1/episodes/{first}/production-runs", json={"dry_run": True})
+        assert prepared.status_code == 201, prepared.text
+        package = json.loads(Path(prepared.json()["package_path"]).read_text())
+        assert package["approved_script"]["revision"] == 2
+        assert package["approved_script"]["content"] == revised.json()["content"]
+        assert package["approved_script"]["content"] != original["content"]
+        assert package["project"]["project_bible"] == {"setting": "海边渔村"}
+        assert len(calls) == 3
