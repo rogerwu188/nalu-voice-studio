@@ -11,7 +11,7 @@ def repair_shot_draft_context(production, run_id):
     """Resolve immutable identifiers for the native client, never raw local paths."""
     repo = production.repository
     target = repo.get_run(run_id)
-    package = ShotPlanningService(repo)._package(target)
+    package = ShotPlanningService(repo)._package(target, _read_saved=True)
     source_id = package.get("production_policy", {}).get("repair_lineage", {}).get("source_run_id")
     if not source_id:
         return None

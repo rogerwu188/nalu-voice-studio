@@ -42,6 +42,11 @@ def test_local_repair_version_preserves_parent_and_replays_after_restart(
     original_event = api.app.state.repository.append_run_event(parent["id"], "shot_plan_approved", payload=original_plan)
     advance_episode_to_qa(api, episode["id"])
     api.app.state.repository.update_run_status(parent["id"], RunStatus.QA_REVIEW)
+    # The native client probes for repair lineage while reopening a finished
+    # ordinary run. Reading it must not require a production-preflight state.
+    ordinary_context = api.get(f"/v1/production-runs/{parent['id']}/repair-shot-draft/context")
+    assert ordinary_context.status_code == 200, ordinary_context.text
+    assert ordinary_context.json() is None
     directory = Path(parent["package_path"]).parent
     exports = directory / "qingshan-workspace" / "exports"
     (exports / "bad.mp4").write_bytes(b"invalid test master")
