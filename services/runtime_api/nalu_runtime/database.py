@@ -25,6 +25,11 @@ CREATE TABLE IF NOT EXISTS generation_campaign_intents (
   dispatched INTEGER NOT NULL DEFAULT 0 CHECK(dispatched IN (0,1)),
   UNIQUE(campaign_id, request_sha256)
 );
+CREATE TABLE IF NOT EXISTS generation_campaign_receipts (
+  intent_id TEXT PRIMARY KEY REFERENCES generation_campaign_intents(id),
+  provider_task_id TEXT NOT NULL UNIQUE,
+  response_sha256 TEXT NOT NULL
+);
 
 CREATE TABLE IF NOT EXISTS projects (
   id TEXT PRIMARY KEY,

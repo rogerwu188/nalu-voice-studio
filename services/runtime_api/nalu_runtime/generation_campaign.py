@@ -89,6 +89,50 @@ class GenerationCampaign:
                 campaign_id, intent, request, media="image"),
         )
 
+    def record_acceptance(self, campaign_id, intent_id, task_id, response_sha256):
+        """Persist only safe receipt fields; never infer completion or billing."""
+        _sha(response_sha256)
+        if not isinstance(task_id, str) or not re.fullmatch(r"[A-Za-z0-9_.:-]{1,240}", task_id):
+            raise ConflictError("invalid provider task identity")
+        with self.db.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            intent = db.execute(
+                "SELECT dispatched FROM generation_campaign_intents WHERE id=? AND campaign_id=?",
+                (intent_id, campaign_id)).fetchone()
+            if not intent or not intent["dispatched"]:
+                raise ConflictError("acceptance requires a dispatched campaign intent")
+            prior = db.execute(
+                "SELECT * FROM generation_campaign_receipts WHERE intent_id=? OR provider_task_id=?",
+                (intent_id, task_id)).fetchone()
+            if prior:
+                if tuple(prior) != (intent_id, task_id, response_sha256):
+                    raise ConflictError("conflicting provider acceptance; reconcile first")
+                return
+            db.execute("INSERT INTO generation_campaign_receipts VALUES (?,?,?)",
+                       (intent_id, task_id, response_sha256))
+
+    def accepted_task(self, campaign_id, intent_id):
+        with self.db.connect() as db:
+            row = db.execute(
+                "SELECT r.* FROM generation_campaign_receipts r JOIN generation_campaign_intents i "
+                "ON i.id=r.intent_id WHERE i.campaign_id=? AND i.id=?",
+                (campaign_id, intent_id)).fetchone()
+            return dict(row) if row else None
+
+    def submit_image(self, campaign_id, secret, request, intent_id, *, transport=None):
+        result = self.image_transport(campaign_id, secret, transport=transport).submit(
+            request, intent_id=intent_id)
+        self.record_acceptance(campaign_id, intent_id, result["provider_task_id"],
+                               result["response_sha256"])
+        return result
+
+    def submit_video(self, campaign_id, secret, request, intent_id, *, transport=None):
+        result = self.video_transport(campaign_id, secret, transport=transport).post_paid_task(
+            request=request, idempotency_key=intent_id)
+        self.record_acceptance(campaign_id, intent_id, result.provider_task_id,
+                               result.receipt["response_sha256"])
+        return result
+
     def video_transport(self, campaign_id, secret, *, transport=None):
         """Use this factory for campaign-funded SD2 requests, not a bare adapter."""
         from .giggle_video_transport import GiggleSeedanceImageTransport

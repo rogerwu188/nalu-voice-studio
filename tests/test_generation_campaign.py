@@ -95,12 +95,29 @@ def test_image_network_boundary_consumes_exact_reservation_once(tmp_path, outcom
         with pytest.raises(ImageAcceptanceUnconfirmed):
             adapter.submit(request, intent_id="1" * 64)
     else:
-        assert adapter.submit(request, intent_id="1" * 64)["provider_task_id"] == "test-task"
+        assert campaign.submit_image("test", lambda: "fixture-secret", request, "1" * 64,
+            transport=httpx.MockTransport(provider))["provider_task_id"] == "test-task"
+        assert ledger(tmp_path).accepted_task("test", "1" * 64)["provider_task_id"] == "test-task"
     restarted = ledger(tmp_path).image_transport("test", lambda: "fixture-secret",
                                                 transport=httpx.MockTransport(provider))
     with pytest.raises(ConflictError):
         restarted.submit(request, intent_id="1" * 64)
     assert len(posts) == 1
+
+
+def test_acceptance_is_write_once_and_campaign_scoped(tmp_path):
+    campaign = ledger(tmp_path)
+    campaign.reserve("test", "1" * 64, "2" * 64, "audio", 100, "b" * 64)
+    with pytest.raises(ConflictError):
+        campaign.record_acceptance("test", "1" * 64, "task", "c" * 64)
+    campaign.claim_dispatch("test", "1" * 64, "2" * 64)
+    campaign.record_acceptance("test", "1" * 64, "task", "c" * 64)
+    campaign.record_acceptance("test", "1" * 64, "task", "c" * 64)
+    assert campaign.accepted_task("other", "1" * 64) is None
+    with pytest.raises(ConflictError):
+        campaign.record_acceptance("test", "1" * 64, "different-task", "c" * 64)
+    with pytest.raises(ConflictError):
+        campaign.record_acceptance("test", "1" * 64, "task", "d" * 64)
 
 
 def test_video_campaign_claim_matches_wire_bytes_and_prevents_replay(tmp_path):
