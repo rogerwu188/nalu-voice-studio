@@ -35,6 +35,32 @@ private final class ShotReviewProtocol: URLProtocol, @unchecked Sendable {
 
 @Suite(.serialized)
 struct EpisodeShotPlanTests {
+    @MainActor @Test func initialGenerationWithoutConfigurationMakesNoPost() async throws {
+        ShotReviewProtocol.requests = []
+        ShotReviewProtocol.queued = [(200, Data("null".utf8)), (200, Data("null".utf8))]
+        let model = EpisodeShotPlanModel(runID: "run-one", runtime: runtime(),
+                                        writerConfiguration: { nil })
+        await model.load()
+        await model.generate()
+        #expect(model.loaded && model.event == nil)
+        #expect(model.notice?.contains("现有剧本仍然保留") == true)
+        #expect(ShotReviewProtocol.requests.map(\.httpMethod) == ["GET", "GET"])
+    }
+
+    @MainActor @Test func cancelledConfigurationDoesNotDispatchGeneration() async throws {
+        ShotReviewProtocol.requests = []
+        ShotReviewProtocol.queued = [(200, Data("null".utf8)), (200, Data("null".utf8))]
+        let model = EpisodeShotPlanModel(runID: "run-one", runtime: runtime(), writerConfiguration: {
+            withUnsafeCurrentTask { $0?.cancel() }
+            return ("fixture-model", "synthetic-writer-key")
+        })
+        await model.load()
+        let generation = Task { await model.generate() }
+        await generation.value
+        #expect(model.event == nil)
+        #expect(ShotReviewProtocol.requests.map(\.httpMethod) == ["GET", "GET"])
+    }
+
     @MainActor @Test func initialGenerationUsesSharedWriterConfigurationOnce() async throws {
         ShotReviewProtocol.requests = []
         ShotReviewProtocol.queued = [(200, Data("null".utf8)), (200, Data("null".utf8)),

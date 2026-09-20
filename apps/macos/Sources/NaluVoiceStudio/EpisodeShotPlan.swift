@@ -246,6 +246,7 @@ final class EpisodeShotPlanModel {
                 notice = "分镜生成需要已配置的 Hops 模型服务。现有剧本仍然保留。"
                 return
             }
+            guard !Task.isCancelled else { return }
             generationAttempted = true
             let saved = try await runtime.generateShotPlan(runID: runID,
                 model: configuration.model, apiKey: configuration.key)
