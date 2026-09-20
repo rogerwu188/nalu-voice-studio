@@ -143,11 +143,10 @@ class GenerationCampaign:
         return result
 
     def submit_video(self, campaign_id, secret, request, intent_id, *, transport=None):
-        result = self.video_transport(campaign_id, secret, transport=transport).post_paid_task(
-            request=request, idempotency_key=intent_id)
-        self.record_acceptance(campaign_id, intent_id, result.provider_task_id,
-                               result.receipt["response_sha256"])
-        return result
+        from .remote_submitter import submit_campaign_video
+
+        return submit_campaign_video(self, campaign_id, secret, request, intent_id,
+                                     transport=transport)
 
     def video_transport(self, campaign_id, secret, *, transport=None):
         """Use this factory for campaign-funded SD2 requests, not a bare adapter."""

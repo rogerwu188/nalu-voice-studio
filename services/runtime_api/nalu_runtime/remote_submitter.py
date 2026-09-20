@@ -42,6 +42,20 @@ class PaidProviderTransport(Protocol):
     ) -> PaidProviderAcceptance: ...
 
 
+def submit_campaign_video(campaign, campaign_id, secret, request, intent_id, *, transport=None):
+    """Central paid I/O for isolated test campaigns, never production bindings.
+
+    The campaign adapter claims the immutable, budget-reserved intent before
+    network I/O. Acceptance is persisted before returning to its caller; an
+    uncertain response or persistence failure never releases the dispatch claim.
+    """
+    result = campaign.video_transport(campaign_id, secret, transport=transport).post_paid_task(
+        request=request, idempotency_key=intent_id)
+    campaign.record_acceptance(campaign_id, intent_id, result.provider_task_id,
+                               result.receipt["response_sha256"])
+    return result
+
+
 class DurableRemoteTaskSubmitter:
     """The runtime's single authority for durable paid-provider task writes.
 
