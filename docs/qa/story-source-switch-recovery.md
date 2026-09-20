@@ -31,6 +31,16 @@ Direct local Swift typecheck session49181 was still running at this checkpoint;
 SwiftPM failed before tests with a PackageDescription linker error. Neither is
 recorded as native test success.
 
+## Installed episode draft adoption
+
+On the same isolated installed fixture below, entered and sent `采用第一集草稿`,
+then `采用第二集草稿`, then repeated `采用第二集草稿`. Native UI displayed both
+episodes at script_review/15% and explicitly said no approval or paid production.
+Read-only script GETs confirmed each episode has exactly revision1 with its own
+distinct fixture content and approved_at=null; second-episode production-runs
+GET returned an empty list. This verifies two-episode adoption and replay, not
+script approval, production or quality acceptance.
+
 ## Installed native source switching
 
 CI35528372766 arm64 artifact10610676702, implementation839b5f4. Downloaded ZIP
