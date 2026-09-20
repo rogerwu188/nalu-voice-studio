@@ -25,7 +25,7 @@ Observed via native accessibility UI:
 
 This closes this installed editor-guard scenario only, not SOP04 or the full
 release candidate. Current source HEAD includes later campaign changes absent
-from this artifact. Native restart after this approval remains untested here.
+from this artifact. Native restart evidence is recorded below.
 
 ## Approved revision to production preparation
 
@@ -40,3 +40,16 @@ saved grandfather/home revision above; old grandmother/dock text is not the
 approved input. Origin is user_text, external_writer null, and runtime network
 writer flag false. This verifies the installed local handoff only, not AI writing
 or video production. Second episode remained planned0% in the UI.
+
+## Normal restart recovery
+
+After normal Cmd-Q, the application and runtime stopped. Relaunched the same
+7721e44 artifact with the same isolated support directory and port18772.
+The runtime listener recovered. Native accessibility inspection then showed
+the original project selected, episode1 preflight30%, episode2 planned0%,
+and the explicit message that video was not being generated.
+Expanded `剧本创作与确认`: both version1 and `第 2 版 · 已批准` remained;
+the editor contained exactly `【合成 QA 未保存修改】小夏和爷爷一起回家。`
+and summary `【合成 QA】小夏与爷爷回家。`. Approval/save controls were disabled
+while revoke remained available. This verifies installed recovery of the
+saved approved revision and production-stage display, not real-provider QA.
