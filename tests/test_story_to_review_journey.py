@@ -36,13 +36,17 @@ def test_input_revision_and_two_episode_review_survive_restart(tmp_path, monkeyp
                        "script": "第一集：爷爷在海边教我补渔网。"}]
         else:
             assert context["turns"][-1]["text"] == "继续下一集"
+            assert context["summary"] == source + "用户修订：第一集由爷爷教我补网；第二集保持原稿。"
+            assert context["turns"][-2]["text"] == "只改第一集：是爷爷教我，不是外婆。"
             assert context["episode_drafts"][0]["script"] == "第一集：爷爷在海边教我补渔网。"
             assert [draft["episode_number"] for draft in context["episode_drafts"]] == [1, 2]
             drafts = [{"episode_number": 3, "title": "合成第三集", "outline": "修补后的渔网",
                        "script": "第三集：爷爷带我收起修补好的渔网。"}]
         return httpx.Response(200, json={"id": f"fixture-writer-{len(calls)}", "model": "fixture-model",
             "choices": [{"finish_reason": "stop", "message": {"content": json.dumps({
-                "reply": "请审阅草稿", "summary": source, "outcome": "answered", "episode_drafts": drafts})}}]})
+                "reply": "请审阅草稿",
+                "summary": source if len(calls) == 1 else source + "用户修订：第一集由爷爷教我补网；第二集保持原稿。",
+                "outcome": "answered", "episode_drafts": drafts})}}]})
 
     db, data = tmp_path / "nalu.sqlite3", tmp_path / "data"
     def app():
