@@ -75,7 +75,7 @@ struct ProductionProgressStatusView: View {
     let onReadHumanReview: (() -> Void)?
     let onSubmitHumanReview: ((Bool, Bool, Bool, Bool, Bool) -> Void)?
     let onMarkHumanReviewViewed: (() -> Void)?
-    @State private var viewedCurrentMaster = false
+    var viewedCurrentMaster = false
     @State private var humanReviewExpanded = false
     @State private var picturePassed = false
     @State private var audioPassed = false
@@ -179,7 +179,6 @@ struct ProductionProgressStatusView: View {
                                 Toggle("内容适合目标观众", isOn: $safetyPassed)
                                 Button(viewedCurrentMaster ? "已明确观看当前原尺寸成片" : "我已观看当前原尺寸成片", systemImage: viewedCurrentMaster ? "checkmark.circle.fill" : "eye") {
                                     onMarkHumanReviewViewed?()
-                                    viewedCurrentMaster = true
                                 }
                                 .buttonStyle(.bordered).controlSize(.large)
                                 .disabled(onMarkHumanReviewViewed == nil)

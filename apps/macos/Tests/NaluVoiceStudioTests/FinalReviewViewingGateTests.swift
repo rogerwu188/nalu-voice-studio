@@ -13,6 +13,7 @@ struct FinalReviewViewingGateTests {
 
     @Test func viewingAnotherRunDoesNotAuthorizeSubmission() async {
         let model = VoiceInterviewViewModel()
+        model.recordFinalMasterPlayback(runID: "version-a", master: "a", seal: "s")
         model.markFinalHumanReviewViewed(runID: "version-a")
         await model.submitFinalHumanReview(runID: "version-b", picturePassed: true,
             audioSyncPassed: true, captionsPassed: true, continuityPassed: true, safetyPassed: true)
@@ -23,6 +24,18 @@ struct FinalReviewViewingGateTests {
     @Test func emptyRunCannotBeAcknowledged() {
         let model = VoiceInterviewViewModel()
         model.markFinalHumanReviewViewed(runID: "  ")
+        #expect(model.viewedFinalHumanReviewRunIDs.isEmpty)
+    }
+
+    @Test func playbackDoesNotAutomaticallyApproveAndChangedMasterInvalidatesAcknowledgement() {
+        let model = VoiceInterviewViewModel()
+        model.markFinalHumanReviewViewed(runID: "run")
+        #expect(model.viewedFinalHumanReviewRunIDs.isEmpty)
+        model.recordFinalMasterPlayback(runID: "run", master: "a", seal: "s")
+        #expect(model.viewedFinalHumanReviewRunIDs.isEmpty)
+        model.markFinalHumanReviewViewed(runID: "run")
+        #expect(model.viewedFinalHumanReviewRunIDs.contains("run"))
+        model.recordFinalMasterPlayback(runID: "run", master: "b", seal: "t")
         #expect(model.viewedFinalHumanReviewRunIDs.isEmpty)
     }
 }

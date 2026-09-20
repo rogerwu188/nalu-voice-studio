@@ -394,7 +394,10 @@ struct ContentView: View {
                     },
                     onMarkHumanReviewViewed: progress.runID.map { runID in
                         { model.markFinalHumanReviewViewed(runID: runID) }
-                    }
+                    },
+                    viewedCurrentMaster: progress.runID.map {
+                        model.viewedFinalHumanReviewRunIDs.contains($0)
+                    } ?? false
                 )
                 .padding(.horizontal, 24)
                 .padding(.vertical, 12)
@@ -403,7 +406,10 @@ struct ContentView: View {
                         if let runID = selectedEpisodeProgress?.runID {
                             if let project = selectedProject, let season = selectedSeason, let episode = selectedEpisode {
                                 ProductionVersionHistoryView(projectID: project.id, seasonID: season.id,
-                                    episodeID: episode.id, currentRunID: runID, onRead: model.readShotPlanText)
+                                    episodeID: episode.id, currentRunID: runID, onRead: model.readShotPlanText,
+                                    onMasterPlayback: { id, master, seal in
+                                        model.recordFinalMasterPlayback(runID: id, master: master, seal: seal)
+                                    })
                                     .id("history-" + runID)
                                     .padding(.horizontal, 24)
                                     .padding(.vertical, 12)

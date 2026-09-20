@@ -9,6 +9,7 @@ import SwiftUI
     let episodeID: String
     let currentRunID: String
     let onRead: (String) -> Void
+    var onMasterPlayback: ((String, String, String) -> Void)? = nil
     private let runtime = RuntimeClient()
     @State private var expanded = false
     @State private var versions: [ProductionRun] = []
@@ -18,6 +19,9 @@ import SwiftUI
     @State private var player: AVPlayer?
     @State private var localFile: URL?
     @State private var generation = 0
+    @State private var previewMasterSHA: String?
+    @State private var previewSealSHA: String?
+    @State private var playbackReported = false
 
     var body: some View {
         DisclosureGroup("查看本集以前的版本", isExpanded: $expanded) {
@@ -58,10 +62,19 @@ import SwiftUI
         .naluFont(.body)
         .accessibilityIdentifier("nalu.episode.version-history")
         .onChange(of: selectedID) { _, _ in clearPreview() }
+        .onReceive(Timer.publish(every: 0.5, on: .main, in: .common).autoconnect()) { _ in
+            guard !playbackReported, let player, player.rate > 0,
+                  player.currentItem?.status == .readyToPlay,
+                  player.currentTime().seconds > 0,
+                  let master = previewMasterSHA, let seal = previewSealSHA else { return }
+            playbackReported = true
+            onMasterPlayback?(selectedID, master, seal)
+        }
         .onDisappear { generation += 1; clearPreview() }
     }
 
     private func clearPreview() {
+        previewMasterSHA = nil; previewSealSHA = nil; playbackReported = false
         player?.pause(); player = nil
         if let localFile { try? FileManager.default.removeItem(at: localFile) }
         localFile = nil
@@ -91,10 +104,14 @@ import SwiftUI
         let runID = selectedID
         defer { busy = false }
         do {
+            let integrity = try await runtime.renderedOutputIntegrity(runID: runID)
             let file = try await runtime.downloadSealedMaster(runID: runID)
-            guard token == generation, selectedID == runID else {
+            guard token == generation, selectedID == runID,
+                  file.sha256 == integrity.masterSHA256 else {
                 try? FileManager.default.removeItem(at: file.fileURL); return
             }
+            previewMasterSHA = file.sha256
+            previewSealSHA = integrity.seal.manifestSHA256
             localFile = file.fileURL
             player = AVPlayer(url: file.fileURL)
             notice = "这版保存的视频已核对文件并打开。请按播放查看；没有更改当前制作，也没有通过验收或发行。"

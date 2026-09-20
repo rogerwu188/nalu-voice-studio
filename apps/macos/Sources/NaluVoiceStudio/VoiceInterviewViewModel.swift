@@ -61,9 +61,21 @@ final class VoiceInterviewViewModel {
     /// original-resolution master. This is deliberately run-scoped so a new
     /// render cannot inherit the previous acknowledgement.
     private(set) var viewedFinalHumanReviewRunIDs: Set<String> = []
+    private var playedFinalMasters: [String: (master: String, seal: String)] = [:]
+
+    func recordFinalMasterPlayback(runID: String, master: String, seal: String) {
+        if let previous = playedFinalMasters[runID], previous.master != master || previous.seal != seal {
+            viewedFinalHumanReviewRunIDs.remove(runID)
+        }
+        playedFinalMasters[runID] = (master, seal)
+    }
 
     func markFinalHumanReviewViewed(runID: String) {
         guard !runID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        guard playedFinalMasters[runID] != nil else {
+            errorMessage = "请先在本集版本播放器中播放当前成片，再确认已观看。"
+            return
+        }
         viewedFinalHumanReviewRunIDs.insert(runID)
     }
     var publicationLearning: [PublicationLearningPresentation] = []
@@ -1369,6 +1381,11 @@ final class VoiceInterviewViewModel {
         do {
             let integrity = try await runtime.renderedOutputIntegrity(runID: runID)
             guard let master = integrity.masterSHA256 else { throw RuntimeError.requestFailed("当前成片缺少摘要。") }
+            guard let played = playedFinalMasters[runID], played.master == master,
+                  played.seal == integrity.seal.manifestSHA256 else {
+                viewedFinalHumanReviewRunIDs.remove(runID)
+                throw RuntimeError.requestFailed("成片版本已经变化，请重新播放并确认当前版本。")
+            }
             let support = try FileManager.default.url(for: .applicationSupportDirectory,
                 in: .userDomainMask, appropriateFor: nil, create: true)
             let storeURL = try FinalHumanReviewStore.resolvedDirectory(applicationSupport: support,
