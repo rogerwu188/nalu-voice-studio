@@ -209,6 +209,26 @@ def test_imported_chapters_reach_frozen_writer_context(tmp_path):
     assert updated["novel_source"]["passages"][0]["source_url"] == "https://example.com/2"
 
 
+def test_source_switch_and_restart_preserve_novel_reading_position(tmp_path):
+    service, project, _ = setup_import(tmp_path, lambda url: {
+        "url": url, "text": "甲" * 60000 + "乙" * 100, "truncated": False})
+    service.fetch_next(project)
+    story = InteractiveStory(service.database)
+    story.append(project, StoryInput(turn_id="novel", expected_revision=0,
+                 text="第一章", source_mode="web_source"))
+    own = story.append(project, StoryInput(turn_id="own", expected_revision=1,
+                       text="先听我讲自己的故事", source_mode="narrated_story"))
+    assert "甲" not in writer_request(own, "fixture-model").decode()
+    restarted_api = TestClient(create_app(tmp_path / "db", tmp_path / "data"))
+    restarted = InteractiveStory(restarted_api.app.state.repository.db)
+    request = StoryInput(turn_id="resume", expected_revision=2,
+                         text="继续改编小说下一段", source_mode="web_source")
+    resumed = restarted.append(project, request)
+    assert resumed["novel_source"]["passages"][0]["text"] == "乙" * 100
+    assert resumed["novel_source"]["passages"][0]["start_character"] == 60000
+    assert writer_request(restarted.append(project, request), "fixture-model") == writer_request(resumed, "fixture-model")
+
+
 @pytest.mark.parametrize("spoken_range", [
     "改编第一章到第一章", "请写第1至1章", "第一回—第一回",
     "只改编第一章", "请仅用第一章", "只把第一章写成第一集",

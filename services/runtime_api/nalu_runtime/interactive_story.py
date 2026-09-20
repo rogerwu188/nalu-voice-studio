@@ -57,6 +57,7 @@ class InteractiveStory:
     # project_bible is already local SQLite, exported/restored and deleted with
     # the project. Keep user conversation distinct from confirmed script revisions.
     key = "nalu_interactive_story_v1"
+    source_bookmark_key = "nalu_interactive_novel_bookmark_v1"
 
     def __init__(self, database: Database):
         self.database = database
@@ -123,11 +124,16 @@ class InteractiveStory:
             # Freeze source evidence with this input. Background import progress
             # must not mutate the body of an already charged/recoverable request.
             context = (writing_context(bible.get(NovelImport.key), request.text,
-                                       previous=state.get("novel_source"))
+                                       previous=state.get("novel_source") or bible.get(self.source_bookmark_key))
                        if request.source_mode == "web_source" else None)
             if context is not None:
                 state["novel_source"] = context
+                bible[self.source_bookmark_key] = context
             else:
+                # Keep the reading position outside the writer-visible state.
+                # Narration must not send inactive novel passages to the model.
+                if state.get("novel_source"):
+                    bible[self.source_bookmark_key] = state["novel_source"]
                 state.pop("novel_source", None)
             state["turns"].append({
                 "turn_id": request.turn_id, "text": request.text,

@@ -2761,6 +2761,7 @@ class ProductionService:
         # Full downloaded chapters and import queues are local source material,
         # not approved production instructions or provider attachments.
         production_project["project_bible"].pop("nalu_novel_import_v1", None)
+        production_project["project_bible"].pop("nalu_interactive_novel_bookmark_v1", None)
         package = ProductionPackage(
             project=production_project,
             season=season.model_dump(mode="json"),
