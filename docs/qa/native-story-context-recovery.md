@@ -44,3 +44,24 @@ and the complete25-character synthetic first chapter with SHA256
 This verifies first adaptation uses the saved import even without prior writing
 context. No real writer call, paid generation, search-result selection, speech
 recognition or final content acceptance is claimed.
+
+## Saved candidate selection after restart
+
+In the same isolated project, public story endpoints saved an explicitly synthetic
+candidate pointing to the already imported `https://example.com/qa-novel`, with
+writingRequested=true. This was fixture preparation, not a search result.
+After a normal app quit, both its PID and runtime18770 listener disappeared.
+Relaunched with the same isolated directory and invalid endpoint override.
+The native conversation restored the synthetic candidate prompt.
+
+Entered `选择第一个` and clicked Send. UI displayed saved1/1 chapters and then
+the expected writer failure. GET confirmed revision8: the import turn answered,
+the subsequent writing turn writer_failed, both web_source with the selected URL
+and retained request to generate episode drafts; one source passage remained.
+This verifies candidate recovery, explicit selection and import-to-writing handoff.
+The import reused an existing synthetic source, so it does not prove fresh network
+download, real search/provider execution, or successful script generation.
+
+UI automation initially timed out. App sampling showed its main thread waiting
+in the event loop, and runtime reads remained responsive. Recreating the automation
+session restored control; no force-kill or data deletion was used.
