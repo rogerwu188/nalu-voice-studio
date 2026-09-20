@@ -26,3 +26,17 @@ Observed via native accessibility UI:
 This closes this installed editor-guard scenario only, not SOP04 or the full
 release candidate. Current source HEAD includes later campaign changes absent
 from this artifact. Native restart after this approval remains untested here.
+
+## Approved revision to production preparation
+
+Sent `开始本集制作` through the same installed application's text interaction.
+UI first displayed a no-charge checking message, then preflight30% with explicit
+text that no video is currently being generated and no charge has occurred.
+Run: run_218d267de9b649178c7478374647ade2.
+Read its actual `data/runs/<run>/production-package.json` under the isolated
+support directory. `episode.approved_script_revision` and
+`approved_script.revision` are both2. Exact body and summary match the manually
+saved grandfather/home revision above; old grandmother/dock text is not the
+approved input. Origin is user_text, external_writer null, and runtime network
+writer flag false. This verifies the installed local handoff only, not AI writing
+or video production. Second episode remained planned0% in the UI.
