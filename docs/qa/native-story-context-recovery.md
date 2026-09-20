@@ -164,3 +164,16 @@ execution or generated-content quality.
 Local full test session20560 completed exit0:895 passed,2 dependency warnings,
 708.72seconds. It ran on263443a product/test code (subsequent changes were only
 evidence documentation). Do not restart or poll this completed session.
+
+### Native revised-script approval to preparation
+
+In the same installed263443a fixture, clicked `批准当前剧本` with revision2
+visible. UI labelled revision2 approved and episode one ready20%; episode two
+remained unapproved15%. Typed and sent `开始本集制作`. UI first reported local
+checks/no charge, then preflight passed30%, explicitly not generating video.
+GET returned exactly one run, `run_359f45fa9d744d17a01be209fdb5766b`, status
+preflight, dry_run=true, error=null. Its production-package.json under the isolated
+fixture data/runs directory contains approved_script.revision2 and the exact
+manually revised grandfather/home ending, not the old grandmother/dock text.
+This is installed script-to-preparation evidence only, not actual video creation,
+provider execution, human quality approval or publication.
