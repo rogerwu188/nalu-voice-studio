@@ -441,8 +441,8 @@ final class VoiceInterviewViewModel {
               let next = state.queued_inputs?.first,
               selectedProjectID == projectID, projectSelectionGeneration == generation,
               assistantActionStatus == nil else { return }
-        if next.source_mode == "web_source" {
-            handleAssistantAction(.webResearch(query: next.text), turnID: next.turn_id)
+        if let action = AssistantActionRouter.route(next.text) {
+            handleAssistantAction(action, turnID: next.turn_id)
         } else {
             handleInteractiveStoryInput(next.text, turnID: next.turn_id)
         }
@@ -484,7 +484,7 @@ final class VoiceInterviewViewModel {
                 if let waiting = existing.queued_inputs, !waiting.isEmpty,
                    !waiting.contains(where: { $0.turn_id == turnID }) {
                     var input = InteractiveStoryInput(turn_id: turnID, expected_revision: existing.revision,
-                        text: spoken, source_mode: existing.sourceMode(for: spoken))
+                        text: spoken, source_mode: existing.sourceMode(for: spoken, turnID: turnID))
                     input.queue_only = true
                     _ = try await runtime.appendStoryInput(projectID: projectID, input: input)
                     assistantActionStatus = nil
@@ -492,7 +492,7 @@ final class VoiceInterviewViewModel {
                 }
                 let state = try await runtime.appendStoryInput(projectID: projectID,
                     input: .init(turn_id: turnID, expected_revision: existing.revision,
-                                 text: spoken, source_mode: existing.sourceMode(for: spoken)))
+                                 text: spoken, source_mode: existing.sourceMode(for: spoken, turnID: turnID)))
                 revision = state.revision
                 let endpoint = try AIServiceEndpoint.current()
                 let answer: InteractiveStoryAnswer

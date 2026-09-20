@@ -2,6 +2,19 @@ import XCTest
 @testable import NaluVoiceStudio
 
 final class InteractiveStoryTests: XCTestCase {
+    func testQueuedWritingUsesItsSavedSourceNotLaterQueueEntries() {
+        var state = InteractiveStoryState(revision: 0, turns: [], summary: "", episode_drafts: [])
+        state.queued_inputs = [
+            .init(turn_id: "next", text: "继续下一集", source_mode: "web_source"),
+            .init(turn_id: "own", text: "听我讲自己的故事", source_mode: "narrated_story")
+        ]
+        XCTAssertEqual(state.sourceMode(for: "继续下一集", turnID: "next"), "web_source")
+        XCTAssertEqual(state.sourceMode(for: "听我讲自己的故事", turnID: "own"), "narrated_story")
+        XCTAssertNil(AssistantActionRouter.route("继续下一集"))
+        XCTAssertNil(AssistantActionRouter.route("把人物改成爷爷"))
+        XCTAssertEqual(AssistantActionRouter.route("网上搜索海边资料"), .webResearch(query: "网上搜索海边资料"))
+    }
+
     func testFollowupKeepsSourceUnlessExplicitlySwitched() {
         let state = InteractiveStoryState(revision: 1, turns: [
             .init(turn_id: "novel", text: "改编小说", source_mode: "web_source", status: "answered", answer: nil)

@@ -46,7 +46,10 @@ struct InteractiveStoryState: Codable, Sendable {
     var queued_inputs: [QueuedStoryInput]? = nil
     var novel_source: JSONValue? = nil
 
-    func sourceMode(for text: String) -> String {
+    func sourceMode(for text: String, turnID: String? = nil) -> String {
+        if let turnID, let saved = queued_inputs?.first(where: { $0.turn_id == turnID }) {
+            return saved.source_mode
+        }
         let cleaned = text.filter { !$0.isWhitespace }
         if ["不用小说", "不按小说", "讲我自己的故事", "听我讲", "切回自己讲故事"].contains(where: cleaned.contains) {
             return "narrated_story"
