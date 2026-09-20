@@ -67,7 +67,7 @@ class SourceLinksParser(HTMLParser):
         if tag == "a":
             values = dict(attrs)
             href = values.get("href")
-            self.anchor = [href, [], values.get("rel") or ""] if href else None
+            self.anchor = [href, [], values.get("rel") or "", values.get("title") or ""] if href else None
 
     def handle_data(self, data):
         if self.in_title:
@@ -80,7 +80,7 @@ class SourceLinksParser(HTMLParser):
             self.in_title = False
         if tag != "a" or self.anchor is None:
             return
-        href, parts, rel = self.anchor
+        href, parts, rel, title = self.anchor
         self.anchor = None
         try:
             url = urldefrag(urljoin(self.base_url, href))[0]
@@ -92,7 +92,7 @@ class SourceLinksParser(HTMLParser):
             return
         if valid and url not in self.seen:
             self.seen.add(url)
-            self.links.append({"url": url, "title": "".join(parts).strip(), "rel": rel})
+            self.links.append({"url": url, "title": title or "".join(parts).strip(), "rel": rel})
 
 
 class ChapterBodyParser(HTMLParser):
@@ -116,9 +116,20 @@ class ChapterBodyParser(HTMLParser):
                           "aside", "form", "button", "svg"}
                   or "hidden" in values or values.get("aria-hidden") == "true"
                   or bool(labels & {"advertisement", "ads", "ad-banner"}))
-        suppressed = hidden or any(entry[1] for entry in self.stack)
-        if not suppressed and (labels & self.markers or tag == "article"):
-            candidate = {"tag": tag, "parts": [], "explicit": bool(labels & self.markers)}
+        wiki_navigation = bool(labels & {
+            "mw-jump-link", "mw-editsection", "noprint", "sistersitebox", "sisitem",
+            "navigation-not-searchable", "catlinks", "printfooter",
+        })
+        wiki_metadata = tag == "div" and values.get("id") in {
+            "headerContainer", "footerContainer", "mw-navigation"
+        }
+        suppressed = hidden or wiki_navigation or wiki_metadata or any(entry[1] for entry in self.stack)
+        wiki_content = tag == "div" and "mw-parser-output" in labels
+        if not suppressed and (labels & self.markers or tag == "article" or wiki_content
+                               or tag == "main"):
+            candidate = {"tag": tag, "parts": [], "explicit": bool(labels & self.markers),
+                         "kind": ("article" if tag == "article" else
+                                  "wiki" if wiki_content else "main" if tag == "main" else "marker")}
             self.candidates.append(candidate)
         else:
             candidate = None
@@ -143,12 +154,33 @@ class ChapterBodyParser(HTMLParser):
             if candidate is not None:
                 candidate["parts"].append(data.strip())
 
+    def handle_entityref(self, name):
+        # Let the standard parser decode article body entities consistently.
+        from html import unescape
+        self.handle_data(unescape(f"&{name};"))
+
+    def handle_charref(self, name):
+        from html import unescape
+        self.handle_data(unescape(f"&#{name};"))
+
     def extracted(self):
-        candidates = [(item["explicit"], "\n".join(item["parts"])) for item in self.candidates]
+        candidates = [(item["explicit"], "\n".join(item["parts"]), item["kind"])
+                      for item in self.candidates]
         candidates = [item for item in candidates if item[1].strip()]
         if not candidates:
             return None
-        return max(candidates, key=lambda item: (item[0], len(item[1])))[1]
+        # An explicit reading container takes precedence; otherwise avoid choosing a
+        # broad <main> when a nested semantic <article> is available.
+        wiki = [item for item in candidates if item[2] == "wiki"]
+        explicit = [item for item in candidates if item[0]]
+        articles = [item for item in candidates if item[2] == "article"]
+        selected = (max(wiki, key=lambda item: len(item[1])) if wiki else
+                    max(explicit, key=lambda item: len(item[1])) if explicit else
+                    max(articles, key=lambda item: len(item[1])) if articles else
+                    max(candidates, key=lambda item: (item[0], len(item[1]))))
+        text = selected[1]
+        return "\n".join(line for line in text.splitlines()
+                          if not line.strip().startswith(("↑返回顶部", "取自“", "取自\"")))
 
 
 def public_target(url):

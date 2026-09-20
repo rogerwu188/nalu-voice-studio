@@ -24,6 +24,12 @@ def test_chapter_links_keep_directory_order_and_reject_unsafe_targets():
     assert parser.links[-1]["rel"] == "next"
 
 
+def test_chapter_links_prefer_accessible_title_over_arrow_label():
+    parser = source_reader.SourceLinksParser("https://example.com/book/")
+    parser.feed('<a href="2.html" title="第二回　悟徹菩提真妙理">→</a>')
+    assert parser.links[0]["title"] == "第二回　悟徹菩提真妙理"
+
+
 def fake_source_transport(monkeypatch, body):
     targets = []
     class Response:
@@ -97,6 +103,40 @@ def test_chapter_body_excludes_navigation_ads_and_footer(monkeypatch):
     assert result["body_extraction"] == "reading_container"
     assert result["links"][0]["url"] == "https://example.com/2.html"
     assert result["title"] == "网站名 第一章"
+
+
+def test_mediawiki_reading_container_excludes_page_chrome(monkeypatch):
+    html = '''<header>登录</header><div class="mw-jump-link"><a href="#body">跳转</a></div>
+    <div class="mw-parser-output"><div class="sistersitebox">姊妹计划</div>
+    <div id="body"><h2>第一回</h2><p>爷爷回到花果山。</p><p>石猴纵身跳入瀑布。</p></div>
+    <div class="printfooter">取自原始页面</div><div id="catlinks">分类</div></div>
+    <footer>隐私政策</footer>'''
+    fake_source_transport(monkeypatch, html.encode())
+    result = source_reader.read_public_chapter("https://example.com/wiki/chapter")
+    assert result["body_extraction"] == "reading_container"
+    assert result["text"] == "第一回\n爷爷回到花果山。\n石猴纵身跳入瀑布。"
+
+
+def test_mediawiki_book_header_and_download_controls_are_not_chapter_text(monkeypatch):
+    html = '''<div id="mw-content-text"><div class="mw-content-ltr mw-parser-output">
+    <div id="headerContainer"><table><tr><td>下载</td><td>第一回\n作者：吳承恩</td>
+    <td><a href="/wiki/book/2" title="第二回">→</a></td></tr></table></div>
+    <p>詩曰：</p><p>混沌未分天地亂。</p>
+    <div class="noprint"><a href="#">↑返回頂部</a></div>
+    <div id="footerContainer">分類</div></div></div>'''
+    fake_source_transport(monkeypatch, html.encode())
+    result = source_reader.read_public_chapter("https://example.com/wiki/book/1")
+    assert result["text"] == "詩曰：\n混沌未分天地亂。"
+    assert "下载" not in result["text"]
+
+
+def test_mediawiki_directory_link_uses_chapter_title_attribute(monkeypatch):
+    html = '''<div class="mw-parser-output">
+    <a href="/wiki/book/2" title="第二回　悟徹菩提真妙理">→</a>
+    <p>目录正文</p></div>'''
+    fake_source_transport(monkeypatch, html.encode())
+    result = source_reader.read_public_chapter("https://example.com/wiki/book/1")
+    assert result["links"][0]["title"] == "第二回　悟徹菩提真妙理"
 
 
 def test_unknown_page_structure_is_explicitly_unverified(monkeypatch):
