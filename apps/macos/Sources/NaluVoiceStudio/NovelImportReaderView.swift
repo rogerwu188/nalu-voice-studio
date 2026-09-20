@@ -25,7 +25,8 @@ struct NovelImportReaderView: View {
                         .disabled(chapterNumber <= 1 || status.chapters.isEmpty)
                     Text("第 \(chapterNumber) 章，共 \(status.chapters.count) 章")
                         .naluFont(.headline)
-                        .accessibilityLiveRegion(.polite)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel("第 \(chapterNumber) 章，共 \(status.chapters.count) 章")
                     Button("下一章") { onRead(chapterNumber + 1) }
                         .disabled(chapterNumber >= status.chapters.count)
                     Spacer(minLength: 8)
