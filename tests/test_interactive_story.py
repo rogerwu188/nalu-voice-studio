@@ -35,7 +35,12 @@ def test_writer_receives_scoped_season_and_episode_plan_snapshot(tmp_path):
     with TestClient(create_app(tmp_path / "db", tmp_path / "data")) as client:
         plan = client.post("/v1/project-plans", json={"project": {
             "title": "海边两集", "planned_episode_count": 2}, "episode_titles": ["相遇", "归来"]}).json()
-        client.post("/v1/project-plans", json={"project": {"title": "无关项目", "planned_episode_count": 1}})
+        unrelated = client.post("/v1/project-plans", json={"project": {
+            "title": "无关项目", "planned_episode_count": 1}}).json()
+        foreign_script = "隔离测试：另一家庭的私有剧本，不可进入当前项目。"
+        assert client.post(f"/v1/episodes/{unrelated['episodes'][0]['id']}/scripts", json={
+            "content": foreign_script, "summary_for_voice_review": "隔离测试",
+            "authoring": {"origin": "user_text"}}).status_code == 201
         episode_id = plan["episodes"][1]["id"]
         scripts_path = f"/v1/episodes/{episode_id}/scripts"
         draft = {"content": "爷爷乘船归来。", "summary_for_voice_review": "归来",
@@ -57,6 +62,7 @@ def test_writer_receives_scoped_season_and_episode_plan_snapshot(tmp_path):
         assert episodes[1]["approved_script_revision"] == 1
         body = writer_request(state, "fixture-model")
         assert "无关项目" not in body.decode()
+        assert foreign_script not in body.decode()
         assert client.post(scripts_path, json={**draft, "content": "用户改稿：爷爷坐火车归来。"}).status_code == 201
         assert client.patch(f"/v1/episodes/{episode_id}", json={"logline": "新的结尾"}).status_code == 200
         assert writer_request(client.post(path + "/turns", json=request).json(), "fixture-model") == body
@@ -66,6 +72,7 @@ def test_writer_receives_scoped_season_and_episode_plan_snapshot(tmp_path):
         assert updated["latest_review_script"]["content"] == "用户改稿：爷爷坐火车归来。"
         assert updated["latest_review_script"]["revision"] == 2
         assert updated["approved_script_revision"] is None
+        assert foreign_script not in writer_request(fresh, "fixture-model").decode()
 
 
 @pytest.mark.parametrize("source_mode", ["narrated_story", "web_source"])
