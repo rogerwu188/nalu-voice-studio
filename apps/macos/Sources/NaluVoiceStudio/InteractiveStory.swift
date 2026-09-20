@@ -46,6 +46,7 @@ struct InteractiveStoryState: Codable, Sendable {
     var queued_inputs: [QueuedStoryInput]? = nil
     var novel_source: JSONValue? = nil
     var project_bible: JSONValue? = nil
+    var planning_context: JSONValue? = nil
 
     func sourceMode(for text: String, turnID: String? = nil) -> String {
         if let turnID, let saved = queued_inputs?.first(where: { $0.turn_id == turnID }) {

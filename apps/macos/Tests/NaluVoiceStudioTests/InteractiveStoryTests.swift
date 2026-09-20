@@ -12,6 +12,16 @@ final class InteractiveStoryTests: XCTestCase {
         XCTAssertEqual((bible["characters"] as? [String: String])?["爷爷"], "修船匠")
     }
 
+    func testSeasonPlanSurvivesNativeWriterContextEncoding() throws {
+        let data = Data(#"{"revision":1,"turns":[],"summary":"","episode_drafts":[],"planning_context":{"project":{"planned_episode_count":2},"seasons":[{"title":"第一季","episodes":[{"title":"归来","logline":"爷爷归来"}]}]}}"#.utf8)
+        let state = try JSONDecoder().decode(InteractiveStoryState.self, from: data)
+        let body = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(state)) as? [String: Any])
+        let planning = try XCTUnwrap(body["planning_context"] as? [String: Any])
+        let seasons = try XCTUnwrap(planning["seasons"] as? [[String: Any]])
+        let episodes = try XCTUnwrap(seasons.first?["episodes"] as? [[String: Any]])
+        XCTAssertEqual(episodes.first?["logline"] as? String, "爷爷归来")
+    }
+
     func testQueuedWritingUsesItsSavedSourceNotLaterQueueEntries() {
         var state = InteractiveStoryState(revision: 0, turns: [], summary: "", episode_drafts: [])
         state.queued_inputs = [

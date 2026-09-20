@@ -31,6 +31,31 @@ def test_project_settings_are_frozen_with_input_not_reloaded_on_retry(tmp_path):
         assert next_state["project_bible"]["setting"] == "山村"
 
 
+def test_writer_receives_scoped_season_and_episode_plan_snapshot(tmp_path):
+    with TestClient(create_app(tmp_path / "db", tmp_path / "data")) as client:
+        plan = client.post("/v1/project-plans", json={"project": {
+            "title": "海边两集", "planned_episode_count": 2}, "episode_titles": ["相遇", "归来"]}).json()
+        client.post("/v1/project-plans", json={"project": {"title": "无关项目", "planned_episode_count": 1}})
+        episode_id = plan["episodes"][1]["id"]
+        update = client.patch(f"/v1/episodes/{episode_id}", json={"logline": "爷爷归来", "outline": {"ending": "团聚"}})
+        assert update.status_code == 200, update.text
+        path = f"/v1/projects/{plan['project']['id']}/interactive-story"
+        request = {"turn_id": "next", "expected_revision": 0, "text": "继续下一集", "source_mode": "narrated_story"}
+        state = client.post(path + "/turns", json=request).json()
+        planning = state["planning_context"]
+        assert planning["project"]["planned_episode_count"] == 2
+        assert len(planning["seasons"]) == 1
+        episodes = planning["seasons"][0]["episodes"]
+        assert [episode["title"] for episode in episodes] == ["相遇", "归来"]
+        assert episodes[1]["outline"] == {"ending": "团聚"}
+        body = writer_request(state, "fixture-model")
+        assert "无关项目" not in body.decode()
+        assert client.patch(f"/v1/episodes/{episode_id}", json={"logline": "新的结尾"}).status_code == 200
+        assert writer_request(client.post(path + "/turns", json=request).json(), "fixture-model") == body
+        fresh = client.post(path + "/turns", json={**request, "turn_id": "fresh", "expected_revision": 1}).json()
+        assert fresh["planning_context"]["seasons"][0]["episodes"][1]["logline"] == "新的结尾"
+
+
 @pytest.mark.parametrize("source_mode", ["narrated_story", "web_source"])
 def test_supplements_persist_without_superseding_inflight_answer(tmp_path, source_mode):
     database, data = tmp_path / "db", tmp_path / "data"

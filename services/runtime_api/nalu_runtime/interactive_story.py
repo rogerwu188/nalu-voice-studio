@@ -79,6 +79,32 @@ class InteractiveStory:
         with self.database.connect() as connection:
             return self._load(connection, project_id)[2]
 
+    def _planning_context(self, connection, project_id):
+        project = connection.execute(
+            "SELECT title, description, planned_episode_count, target_episode_seconds "
+            "FROM projects WHERE id=?", (project_id,),
+        ).fetchone()
+        seasons = []
+        for row in connection.execute(
+            "SELECT s.id, s.title, s.season_number, s.planned_episode_count, s.season_arc_json, "
+            "COALESCE((SELECT MAX(revision) FROM season_plan_revisions WHERE season_id=s.id), 0) AS plan_revision, "
+            "(SELECT MAX(plan_revision) FROM season_plan_approval_records WHERE season_id=s.id) AS approved_plan_revision "
+            "FROM seasons s WHERE s.project_id=? ORDER BY s.season_number",
+            (project_id,),
+        ):
+            season = dict(row)
+            season["season_arc"] = json.loads(season.pop("season_arc_json"))
+            season["episodes"] = []
+            for episode_row in connection.execute(
+                "SELECT id, title, episode_number, logline, outline_json, target_seconds, status "
+                "FROM episodes WHERE season_id=? ORDER BY episode_number", (season["id"],),
+            ):
+                episode = dict(episode_row)
+                episode["outline"] = json.loads(episode.pop("outline_json"))
+                season["episodes"].append(episode)
+            seasons.append(season)
+        return {"project": dict(project), "seasons": seasons}
+
     def _save(self, connection, project_id, bible, state):
         bible[self.key] = state
         connection.execute(
@@ -127,6 +153,7 @@ class InteractiveStory:
                 key: value for key, value in bible.items()
                 if not key.startswith("nalu_") and key != "draft_state"
             }
+            state["planning_context"] = self._planning_context(connection, project_id)
             # Freeze source evidence with this input. Background import progress
             # must not mutate the body of an already charged/recoverable request.
             context = (writing_context(bible.get(NovelImport.key), request.text,
