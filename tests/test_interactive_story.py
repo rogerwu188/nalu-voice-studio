@@ -5,6 +5,30 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 from nalu_runtime.app import create_app
+from nalu_runtime.interactive_writer_service import writer_request
+
+
+def test_project_settings_are_frozen_with_input_not_reloaded_on_retry(tmp_path):
+    with TestClient(create_app(tmp_path / "db", tmp_path / "data")) as client:
+        project = client.post("/v1/projects", json={"title": "故事设定", "project_bible": {
+            "setting": "海边", "characters": {"爷爷": "修船匠"},
+            "draft_state": "voice_interview", "nalu_internal_fixture": "not writer context"}}).json()["id"]
+        path = f"/v1/projects/{project}/interactive-story"
+        request = {"turn_id": "first", "expected_revision": 0,
+                   "text": "继续下一集", "source_mode": "narrated_story"}
+        state = client.post(path + "/turns", json=request).json()
+        assert state["project_bible"] == {"setting": "海边", "characters": {"爷爷": "修船匠"}}
+        body = writer_request(state, "fixture-model")
+        context = json.loads(json.loads(body)["messages"][1]["content"])
+        assert context["project_bible"] == state["project_bible"]
+        with client.app.state.repository.db.connect() as connection:
+            row = connection.execute("SELECT project_bible_json FROM projects WHERE id=?", (project,)).fetchone()
+            bible = json.loads(row[0])
+            bible["setting"] = "山村"
+            connection.execute("UPDATE projects SET project_bible_json=? WHERE id=?", (json.dumps(bible), project))
+        assert writer_request(client.post(path + "/turns", json=request).json(), "fixture-model") == body
+        next_state = client.post(path + "/turns", json={**request, "turn_id": "second", "expected_revision": 1}).json()
+        assert next_state["project_bible"]["setting"] == "山村"
 
 
 @pytest.mark.parametrize("source_mode", ["narrated_story", "web_source"])

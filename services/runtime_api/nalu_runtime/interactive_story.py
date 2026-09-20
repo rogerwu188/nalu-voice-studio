@@ -121,6 +121,12 @@ class InteractiveStory:
             if state["turns"] and state["turns"][-1]["status"] == "pending":
                 state["turns"][-1]["status"] = "superseded"
             state["revision"] += 1
+            # Freeze user-authored project settings with the turn, not with each
+            # provider retry. Runtime journals are not creative source material.
+            state["project_bible"] = {
+                key: value for key, value in bible.items()
+                if not key.startswith("nalu_") and key != "draft_state"
+            }
             # Freeze source evidence with this input. Background import progress
             # must not mutate the body of an already charged/recoverable request.
             context = (writing_context(bible.get(NovelImport.key), request.text,

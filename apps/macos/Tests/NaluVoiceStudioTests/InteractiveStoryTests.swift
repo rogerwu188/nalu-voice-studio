@@ -2,6 +2,16 @@ import XCTest
 @testable import NaluVoiceStudio
 
 final class InteractiveStoryTests: XCTestCase {
+    func testProjectSettingsSurviveNativeWriterContextEncoding() throws {
+        let data = Data(#"{"revision":1,"turns":[],"summary":"","episode_drafts":[],"project_bible":{"setting":"海边","characters":{"爷爷":"修船匠"}}}"#.utf8)
+        let state = try JSONDecoder().decode(InteractiveStoryState.self, from: data)
+        let encoded = try JSONEncoder().encode(state)
+        let body = try XCTUnwrap(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+        let bible = try XCTUnwrap(body["project_bible"] as? [String: Any])
+        XCTAssertEqual(bible["setting"] as? String, "海边")
+        XCTAssertEqual((bible["characters"] as? [String: String])?["爷爷"], "修船匠")
+    }
+
     func testQueuedWritingUsesItsSavedSourceNotLaterQueueEntries() {
         var state = InteractiveStoryState(revision: 0, turns: [], summary: "", episode_drafts: [])
         state.queued_inputs = [
