@@ -107,6 +107,11 @@ actor RuntimeClient {
         try await get("v1/projects/\(projectID)/novel-import")
     }
 
+    func importedNovelChapter(projectID: String, chapterNumber: Int) async throws -> NovelImportedChapter {
+        guard chapterNumber > 0 else { throw RuntimeError.requestFailed("章节编号无效。") }
+        return try await get("v1/projects/\(projectID)/novel-import/chapters/\(chapterNumber)")
+    }
+
     func startNovelImport(projectID: String, sourceURL: String) async throws -> NovelImportStatus {
         var request = URLRequest(url: baseURL.appending(path: "v1/projects/\(projectID)/novel-import"))
         request.httpMethod = "POST"

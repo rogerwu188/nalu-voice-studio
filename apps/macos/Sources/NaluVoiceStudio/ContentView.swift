@@ -526,6 +526,24 @@ struct ContentView: View {
                             .accessibilityElement(children: .combine)
                             .accessibilityIdentifier("nalu.assistant-action.status")
                         }
+                        if let novelImport = model.novelImportStatus {
+                            NovelImportReaderView(
+                                status: novelImport,
+                                chapterNumber: model.novelChapterNumber,
+                                chapter: model.novelImportedChapter,
+                                isLoading: model.novelChapterIsLoading,
+                                error: model.novelChapterReadError,
+                                onRead: { number in Task { await model.readNovelChapter(number) } }
+                            )
+                            .padding(.horizontal, 24)
+                            .padding(.vertical, 12)
+                        } else if let readerError = model.novelChapterReadError {
+                            Label(readerError, systemImage: "exclamationmark.triangle.fill")
+                                .naluFont(.body)
+                                .foregroundStyle(.orange)
+                                .padding(.horizontal, 24)
+                                .accessibilityIdentifier("nalu.novel-reader.error")
+                        }
                         LazyVStack(spacing: 18) {
                         ForEach(model.messages) { message in
                             bubble(message)

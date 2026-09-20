@@ -157,6 +157,12 @@ final class VoiceInterviewViewModel {
     var planningVoiceLabel: String? { planningVoiceFlow.mode?.prompt }
     var assistantActionStatus: String?
     private var novelControlBusy = false
+    var novelImportStatus: NovelImportStatus?
+    var novelChapterNumber = 1
+    var novelImportedChapter: NovelImportedChapter?
+    var novelChapterIsLoading = false
+    var novelChapterReadError: String?
+    private var novelChapterReadGeneration = UUID()
 
     var continuityExtractionWasEdited: Bool {
         guard let proposal = continuityExtractionProposal else { return false }
@@ -411,6 +417,7 @@ final class VoiceInterviewViewModel {
             do {
                 let state = try await runtime.controlNovelImport(projectID: projectID, action: control)
                 guard projectSelectionGeneration == generation else { return }
+                novelImportStatus = state
                 if control == .pause {
                     report(state.status == "complete" ? "已识别的章节都已保存，无需暂停。"
                            : "已暂停抓取，保存好的章节仍在本机。说“继续抓取”可以接着来。")
@@ -431,6 +438,41 @@ final class VoiceInterviewViewModel {
                 guard projectSelectionGeneration == generation else { return }
                 report("没有确认到可控制的小说导入任务，已有内容保留。目录可能仍在识别，请稍后再试。")
             }
+        }
+    }
+
+    func readNovelChapter(_ number: Int) async {
+        guard let projectID = selectedProjectID, let status = novelImportStatus,
+              !status.chapters.isEmpty, number >= 1, number <= status.chapters.count else {
+            novelChapterReadError = "没有找到这个章节；已保存内容保持不变。"
+            return
+        }
+        let expected = status.chapters[number - 1]
+        guard expected.status == "complete" else {
+            novelChapterReadError = "这一章还没有完整保存，不能当作已读取正文。"
+            novelImportedChapter = nil
+            return
+        }
+        novelChapterNumber = number
+        novelImportedChapter = nil
+        novelChapterReadError = nil
+        novelChapterIsLoading = true
+        let requestID = UUID()
+        novelChapterReadGeneration = requestID
+        let projectGeneration = projectSelectionGeneration
+        defer {
+            if novelChapterReadGeneration == requestID { novelChapterIsLoading = false }
+        }
+        do {
+            let chapter = try await runtime.importedNovelChapter(projectID: projectID, chapterNumber: number)
+            guard projectSelectionGeneration == projectGeneration,
+                  novelChapterReadGeneration == requestID else { return }
+            try chapter.validate(expectedNumber: number, expectedURL: expected.url)
+            novelImportedChapter = chapter
+        } catch {
+            guard projectSelectionGeneration == projectGeneration,
+                  novelChapterReadGeneration == requestID else { return }
+            novelChapterReadError = error.localizedDescription
         }
     }
 
@@ -1163,6 +1205,12 @@ final class VoiceInterviewViewModel {
         episodeOutlineSummary = ""
         productionProgressLastRefreshedAt = nil
         productionProgressRefreshWarning = nil
+        novelImportStatus = nil
+        novelImportedChapter = nil
+        novelChapterNumber = 1
+        novelChapterReadError = nil
+        novelChapterIsLoading = false
+        novelChapterReadGeneration = UUID()
         do {
             let loadedAssets = try await runtime.listAssets(projectID: projectID)
             guard projectSelectionGeneration == generation else { return }
@@ -1216,6 +1264,17 @@ final class VoiceInterviewViewModel {
             memoryCards = loadedMemories
             libraryEntities = loadedLibrary
             seasons = loadedSeasons
+            do {
+                novelImportStatus = try await runtime.savedNovelImport(projectID: projectID)
+                guard projectSelectionGeneration == generation else { return }
+                if let status = novelImportStatus, status.completed_chapters > 0 {
+                    novelChapterNumber = status.chapters.firstIndex(where: { $0.status == "complete" }).map { $0 + 1 } ?? 1
+                }
+            } catch {
+                guard projectSelectionGeneration == generation else { return }
+                novelImportStatus = nil
+                novelChapterReadError = "已保存的小说目录暂时无法读取；没有修改或删除原文。"
+            }
             if switchedProject {
                 do {
                     let story = try await runtime.interactiveStory(projectID: projectID)
@@ -3004,6 +3063,9 @@ final class VoiceInterviewViewModel {
                     if novelImportRequested, let sourceURL = AssistantActionRouter.sourceURL(in: query), let projectID {
                         guard let catalogURL = URL(string: sourceURL) else { throw WebResearchError.invalidResponse }
                         var imported = try await runtime.startNovelImport(projectID: projectID, sourceURL: sourceURL)
+                        guard projectSelectionGeneration == generation else { return }
+                        novelImportStatus = imported
+                        novelChapterReadError = nil
                         while imported.status == "ready" {
                             guard projectSelectionGeneration == generation, !Task.isCancelled else {
                                 assistantActionStatus = nil
@@ -3011,6 +3073,8 @@ final class VoiceInterviewViewModel {
                             }
                             assistantActionStatus = imported.progressText
                             imported = try await runtime.fetchNextNovelChapter(projectID: projectID)
+                            guard projectSelectionGeneration == generation else { return }
+                            novelImportStatus = imported
                             if imported.status == "ready" {
                                 try await Task.sleep(for: .seconds(1))
                             }

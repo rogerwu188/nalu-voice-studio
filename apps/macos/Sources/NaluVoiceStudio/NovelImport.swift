@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 
 struct NovelSourceChoice: Codable, Equatable, Sendable {
     let sources: [WebResearchSource]
@@ -53,6 +54,24 @@ struct NovelImportStatus: Decodable, Sendable {
 
     var progressText: String {
         "已保存 \(completed_chapters) / \(chapters.count) 章到这台 Mac"
+    }
+}
+
+struct NovelImportedChapter: Decodable, Sendable {
+    let chapter_number: Int
+    let url: String
+    let title: String
+    let status: String
+    let text: String
+    let sha256: String
+
+    func validate(expectedNumber: Int, expectedURL: String) throws {
+        let digest = SHA256.hash(data: Data(text.utf8))
+            .map { String(format: "%02x", $0) }.joined()
+        guard chapter_number == expectedNumber, url == expectedURL,
+              status == "complete", digest == sha256 else {
+            throw RuntimeError.requestFailed("章节内容或校验摘要不一致，已停止显示。")
+        }
     }
 }
 
