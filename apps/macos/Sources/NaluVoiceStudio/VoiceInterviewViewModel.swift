@@ -618,7 +618,10 @@ final class VoiceInterviewViewModel {
                     revision: script.revision, receipt: receipt)
             }
             guard projectSelectionGeneration == generation else { return }
-            await selectProject(projectID)
+            assistantActionStatus = nil
+            let reloadGeneration = UUID()
+            await selectProject(projectID, selectionGeneration: reloadGeneration)
+            guard projectSelectionGeneration == reloadGeneration else { return }
             selectEpisode(episode.id)
             let reply = "第\(number)集草稿已放进剧本审阅，尚未批准或启动付费制作。请核对内容，您也可以继续告诉我哪里要改。"
             messages.append(.init(speaker: .nalu, text: reply))
@@ -1119,11 +1122,11 @@ final class VoiceInterviewViewModel {
         }
     }
 
-    func selectProject(_ projectID: String) async {
+    func selectProject(_ projectID: String, selectionGeneration: UUID = UUID()) async {
         let switchedProject = selectedProjectID != projectID
         selectedProjectID = projectID
         // Also supersede a concurrent reload of the same project.
-        projectSelectionGeneration = UUID()
+        projectSelectionGeneration = selectionGeneration
         let generation = projectSelectionGeneration
         if switchedProject { messages = [] }
         shotCharacterReviewQueue = []

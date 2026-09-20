@@ -91,3 +91,19 @@ two dependency warnings, 6.71 seconds. Ruff and diff checks passed. This is
 mock-provider request/response and persistence coverage, not proof of real model
 obedience, real video generation or native UI acceptance. CI35532010023 on
 ed9c693 was pending when checked; no SOP status was promoted.
+
+## Native adoption project-switch follow-up
+
+c7eb603 adds generation checks between adoption's asynchronous reads/writes and
+an isolated delayed-read success/failure test. Further inspection found that its
+success path reloads the project, which also replaces the generation token.
+The follow-up clears the owned activity before that reload, passes an explicit
+reload token, and checks it before selecting the adopted episode or announcing
+success. Thus a late reload cannot announce success in a subsequently selected
+project. Already-dispatched writes remain scoped to their original project;
+this does not claim network cancellation or rollback.
+
+Local `swiftc -frontend -parse` could not validate the change: the installed
+CommandLineTools report duplicate `SwiftBridging` module definitions. Native
+compilation/tests and installed QA remain pending on GitHub CI. Diff checks pass;
+no native test or SOP PASS is claimed for this follow-up.
