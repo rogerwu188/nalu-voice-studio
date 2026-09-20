@@ -11,7 +11,7 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "7103b75f0c548c48039d37c0910c4ca8e7aa8b55",
+  "observed_head": "9ddf10e8f92950d012a9a5d17e2541ace2ada26f",
   "last_advanced_at": "2026-09-15T05:00:00Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-09",
     "status": "IN_PROGRESS",
-    "summary": "Native human review readback reports actual failed checks; CI 35477910992 passed all jobs after stabilizing the existing speech cancellation test under parallel load. Real human QA remains incomplete."
+    "summary": "Native human review journal rejects dangling/symlink paths instead of treating them as absent; CI 35491547288 passed all jobs. Real human QA remains incomplete."
   },
   "next_action": {
     "immediate_action": "Implement independent final-human-QA ingestion endpoint backed by immutable run/master binding and idempotent replay; then connect native explicit original-resolution controls.",
