@@ -30,7 +30,18 @@ struct FinalHumanReviewStore {
 
     func load(runID: String, masterSHA256: String, outputSealSHA256: String) throws -> FinalHumanReviewState? {
         let url = path(runID: runID)
-        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+        // fileExists follows symlinks, so a dangling journal link looks absent.
+        // Only ENOENT from lstat means there is no directory entry to recover.
+        var entry = stat()
+        if lstat(url.path, &entry) != 0 {
+            guard errno == ENOENT else {
+                throw RuntimeError.requestFailed("无法检查审核日志，未创建新的审核请求。")
+            }
+            return nil
+        }
+        guard (entry.st_mode & S_IFMT) == S_IFREG else {
+            throw RuntimeError.requestFailed("审核保存路径不安全，已停止恢复。")
+        }
         let attributes = try FileManager.default.attributesOfItem(atPath: url.path)
         guard attributes[.type] as? FileAttributeType == .typeRegular else {
             throw RuntimeError.requestFailed("审核保存路径不安全，已停止恢复。")
