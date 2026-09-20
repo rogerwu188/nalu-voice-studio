@@ -11,7 +11,7 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "bff6c4a28063d1c06464f12c7f19d213b0b09999",
+  "observed_head": "6e7d7f19beb0a7046af6c6b2310cf224b60cf45d",
   "last_advanced_at": "2026-09-20T00:00:00Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
@@ -25,7 +25,7 @@
   "current_checkpoint": {
     "sop": "SOP-09",
     "status": "IN_PROGRESS",
-    "summary": "Native human review journal rejects dangling/symlink paths instead of treating them as absent; CI 35491547288 passed all jobs. Native UI has explicit review controls, but actual installed-app human QA remains incomplete."
+    "summary": "Installed arm64 6e7d7f1 exercised synthetic master playback, explicit acknowledgement, failed-review submit/read and restart recovery. No real human QA or SOP completion. Speech check crashed under direct executable launch despite usage description in bundle; cause unresolved. See docs/qa/final-review-playback-fixture-2026-09-20.md."
   },
   "next_action": {
     "immediate_action": "Verify native CI for playback-to-review wiring, then exercise the installed version player and explicit review on isolated media: no playback must reject acknowledgement, playback must not auto-approve, changed master/seal must invalidate acknowledgement. Player samples ready/running/nonzero playback and forwards the downloaded master plus validated seal; submission rechecks identity. This is implementation only, not proof of full watching, original-resolution human QA or product completion. Prior guard CI 35526406520 is in_progress at this checkpoint; do not restart it. Local Swift toolchain still fails before tests. Keep SOP-09 IN_PROGRESS and continue installed source-to-script/episode workflow after this narrow gate.",

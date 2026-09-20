@@ -1,5 +1,15 @@
 # Final review playback QA preparation — incomplete
 
+## Restart recovery verified on isolated arm64 app
+
+Quit via Command-Q and verified the owned app/runtime PIDs and port 18767 were
+gone. Relaunched the same bundle/root through LaunchServices. The review panel
+again offered `我已观看当前原尺寸成片`, not the acknowledged label. Explicit
+read returned all five failed checks and the release-blocking message without
+requiring a new review submission. The local request journal exists under the
+isolated root with mode 0600; the backend record retains all five false values.
+This closes the synthetic native restart/readback check, not real human QA.
+
 ## Installed arm64 review transport exercised
 
 Standard LaunchServices launch loaded the isolated project. Named secondary
