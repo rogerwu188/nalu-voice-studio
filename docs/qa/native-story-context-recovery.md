@@ -65,3 +65,12 @@ download, real search/provider execution, or successful script generation.
 UI automation initially timed out. App sampling showed its main thread waiting
 in the event loop, and runtime reads remained responsive. Recreating the automation
 session restored control; no force-kill or data deletion was used.
+
+## Completed regression
+
+CI35530639796 for fa878a7 completed successfully: runtime, arm64, x86_64 and
+universal jobs all passed. Local full `pytest -q`, started at e7cdafa (no backend
+implementation or test edits during the run), completed session87056 with exit0:
+895 passed, two dependency deprecation warnings,1372.71 seconds. Do not restart
+this completed run as pending. These technical checks do not establish successful
+real-provider generation, human content acceptance or signed/notarized release.
