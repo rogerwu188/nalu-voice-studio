@@ -107,6 +107,9 @@ class ShotPlanningService:
     def recover(self, run_id: str, *, model: str):
         """Adopt an already durable response only; never dispatch or retry."""
         run = self.repository.get_run(run_id)
+        plan_types = {"shot_plan_drafted", "shot_plan_revised", "shot_plan_approved"}
+        if any(event.event_type in plan_types for event in self.repository.list_run_events(run_id)):
+            raise ConflictError("saved plan already exists; read the current version")
         execution_id = "shot-plan-" + hashlib.sha256(run_id.encode()).hexdigest()
         with self.repository.db.connect() as connection:
             saved = connection.execute(
@@ -127,7 +130,11 @@ class ShotPlanningService:
         # The normal execution ledger verifies the exact model/context digest
         # and stored response digest before returning it. The fallback cannot
         # access credentials or the network, even if the row disappears.
-        return self.generate(run_id, model=model, transport=LocalReplayOnly())
+        recovered = self.generate(run_id, model=model, transport=LocalReplayOnly())
+        plans = [event for event in self.repository.list_run_events(run_id) if event.event_type in plan_types]
+        if not plans or plans[-1].id != recovered.id:
+            raise ConflictError("saved plan changed during recovery; read the current version")
+        return recovered
 
     def _package(self, run, *, _read_saved=False):
         latest = self.repository.latest_run_for_episode(run.episode_id)

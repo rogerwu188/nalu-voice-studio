@@ -169,6 +169,8 @@ def test_approved_script_to_durable_shot_plan(tmp_path, monkeypatch, case):
         assert modified.status_code == 200, modified.text
         modified = modified.json()
         assert modified["payload"]["approved"] is False
+        assert restarted.post(endpoint + "/recover", json={"model": "fixture-model"}).status_code == 409
+        assert restarted.get(current_url).json()["id"] == modified["id"]
         assert modified["payload"]["source_event_id"] == source["id"]
         assert restarted.post(review_url, json=edit).json()["id"] == modified["id"]
         assert restarted.post(endpoint + f"/{modified['id']}/character-cards", json={
