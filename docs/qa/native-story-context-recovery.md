@@ -177,3 +177,14 @@ fixture data/runs directory contains approved_script.revision2 and the exact
 manually revised grandfather/home ending, not the old grandmother/dock text.
 This is installed script-to-preparation evidence only, not actual video creation,
 provider execution, human quality approval or publication.
+
+### Candidate CI and next production boundary
+
+CI35532371231 on263443a completed success for runtime, arm64, Intel and universal.
+The installed native shot-plan disclosure shows no saved plan and offers
+`生成本集分镜`; it does not claim the preflight is a completed storyboard.
+Source inspection confirms generation validates the configured Hops endpoint
+before reading the key and calls the model only through the explicit generation
+action. No generation action was taken in this check: paid writer authorization
+is unanswered and the historical Hops401 has not been retried. Successful real
+storyboard generation is still missing, as are actual video and release acceptance.
