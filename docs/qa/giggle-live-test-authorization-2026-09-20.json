@@ -1,0 +1,22 @@
+{
+  "schema_version": "nalu.live-test-authorization/v1",
+  "authorization_id": "giggle-live-test-2026-09-20",
+  "source": "explicit user text in current task",
+  "user_confirmation": "授权使用 Giggle 进行音频、图片、视频真实测试，本次累计预算上限为 10,000 credits，不含发行",
+  "provider": "Giggle",
+  "allowed_media": ["audio", "image", "video"],
+  "aggregate_limit_credits": 10000,
+  "scope": "one cumulative test campaign, not a per-task or per-episode allowance",
+  "publication_authorized": false,
+  "other_providers_authorized": false,
+  "credential_included": false,
+  "status": "authorized_pending_cost_and_existing_operation_reconciliation",
+  "execution_requirements": [
+    "Reconcile existing campaign operations before submitting new work.",
+    "Reserve a verified upper-bound cost before every paid submission across all three media types.",
+    "Persist request identity and submission intent before network dispatch.",
+    "Count unresolved outcomes against the budget and never automatically resubmit them.",
+    "Stop new paid submissions when remaining authorization cannot cover their upper-bound cost.",
+    "This authorization alone is not billing, generation, QA or SOP completion evidence."
+  ]
+}

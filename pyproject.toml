@@ -20,6 +20,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+live-test = [
+  "requests>=2.32.4,<3",
+]
 dev = [
   "jsonschema>=4.25,<5",
   "pytest>=8.4,<9",
