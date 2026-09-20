@@ -36,6 +36,14 @@ private final class HeldStoryLookupProtocol: URLProtocol, @unchecked Sendable {
 
 final class StoryLookupIsolationTests: XCTestCase {
     @MainActor func testLateLookupDoesNotWriteOrClearNewProjectActivity() async throws {
+        try await checkLateRead(command: "上网搜索一本海边故事的小说")
+    }
+
+    @MainActor func testLateDraftAdoptionDoesNotWriteOrClearNewProjectActivity() async throws {
+        try await checkLateRead(command: "采用第一集草稿")
+    }
+
+    @MainActor private func checkLateRead(command: String) async throws {
         for success in [true, false] {
             let started = expectation(description: "old project read")
             let unexpected = expectation(description: "no followup request after switching")
@@ -50,7 +58,7 @@ final class StoryLookupIsolationTests: XCTestCase {
                 baseURL: URL(string: "http://127.0.0.1:8765")!, session: session, accessCheck: { true }))
             model.setLocalVoiceEnabled(false)
             model.selectedProjectID = "A"
-            model.transcript = "上网搜索一本海边故事的小说"
+            model.transcript = command
             XCTAssertTrue(model.submitTypedTranscript())
             await fulfillment(of: [started], timeout: 10)
             model.selectedProjectID = "B"

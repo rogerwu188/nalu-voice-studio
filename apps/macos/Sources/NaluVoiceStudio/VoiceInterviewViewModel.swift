@@ -573,14 +573,18 @@ final class VoiceInterviewViewModel {
         let generation = projectSelectionGeneration
         let requestedSeason = episodes.first(where: { $0.id == selectedEpisodeID })?.seasonID
         assistantActionStatus = "正在把草稿放入本集剧本审阅…"
-        defer { assistantActionStatus = nil }
+        defer {
+            if projectSelectionGeneration == generation { assistantActionStatus = nil }
+        }
         do {
             let state = try await runtime.interactiveStory(projectID: projectID)
+            guard projectSelectionGeneration == generation else { return }
             guard let draft = state.episode_drafts.first(where: { $0.episode_number == number }),
                   let writer = state.draft_writers?[String(number)] ?? nil else {
                 throw InteractiveStoryWriter.WriterError.invalidResponse
             }
             let available = try await runtime.listSeasons(projectID: projectID)
+            guard projectSelectionGeneration == generation else { return }
             let season: NaluSeason
             if let matching = available.first(where: { $0.id == requestedSeason }) {
                 season = matching
@@ -591,10 +595,13 @@ final class VoiceInterviewViewModel {
                     draft: .init(title: "第一季", seasonNumber: 1,
                                  plannedEpisodeCount: max(number, state.episode_drafts.count)))
             } else { throw InteractiveStoryWriter.WriterError.invalidResponse }
+            guard projectSelectionGeneration == generation else { return }
             let episode = try await runtime.resolveReviewEpisode(seasonID: season.id,
                 draft: .init(title: draft.title, episodeNumber: number, logline: draft.outline,
                              targetSeconds: 60))
+            guard projectSelectionGeneration == generation else { return }
             let revisions = try await runtime.listScripts(episodeID: episode.id)
+            guard projectSelectionGeneration == generation else { return }
             let script: ScriptRevision
             if let existing = revisions.first(where: { $0.content == draft.script &&
                 $0.authoringProvenance?.externalWriter?.receiptSHA256 == writer.receiptSHA256 }) {
@@ -605,6 +612,7 @@ final class VoiceInterviewViewModel {
                     authoringOrigin: "external_ai_generated", externalWriter: writer,
                     idempotencyKey: "interactive-" + writer.receiptSHA256)
             }
+            guard projectSelectionGeneration == generation else { return }
             if let receipt = state.draft_receipts?[String(number)] ?? nil {
                 try await runtime.reconcileInteractiveReceipt(episodeID: episode.id,
                     revision: script.revision, receipt: receipt)
