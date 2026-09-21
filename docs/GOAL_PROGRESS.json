@@ -12,8 +12,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "4ac08c12bf1f8674a2312976fa4477e57a954094",
-  "last_audit_at": "2026-09-21T05:34:23Z",
+  "observed_head": "033c7068602d73eea5e8b1faf3482d1e3d63eb77",
+  "last_audit_at": "2026-09-21T05:50:23Z",
   "last_advanced_at": "2026-09-20T00:00:00Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
@@ -32,8 +32,9 @@
   },
   "last_audit": {
     "at": "2026-09-21T02:07:53Z",
-    "repo_head": "4ac08c12bf1f8674a2312976fa4477e57a954094",
-    "parent_ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/35563017091",
+    "repo_head": "033c7068602d73eea5e8b1faf3482d1e3d63eb77",
+    "parent_ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/35566082943",
+    "parent_ci_status": "in_progress",
     "parent_ci_conclusion": "success",
     "evidence": "docs/qa/native-novel-reader-current-candidate-2026-09-20.md",
     "project_complete": false
