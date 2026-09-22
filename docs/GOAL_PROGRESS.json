@@ -12,8 +12,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "feae02f0519c27860df3816ccd4ede96887f0e2c",
-  "last_audit_at": "2026-09-22T12:56:14Z",
+  "observed_head": "5458198be99614c282e84bca47f45cb21a721642",
+  "last_audit_at": "2026-09-22T13:12:44Z",
   "last_advanced_at": "2026-09-20T00:00:00Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
@@ -31,9 +31,9 @@
     "summary": "Current candidate6f2e69a installed arm64 artifact QA passed startup, persisted100-chapter project recovery, read-only chapter1→2 navigation and no auto-retry of incomplete writer request; evidence docs/qa/native-novel-reader-current-candidate-2026-09-20.md. CI35540824646 runtime/arm64/x86_64/universal passed. Persisted rows came from the earlier extractor and still show some Wikisource chrome; current MediaWiki extractor is verified by unmocked HTTPS and45 regression tests but requires a fresh import for installed cleaned-text QA. Next priority is fresh source-to-episodic-writing handoff, not another reader-only polish. AI screenplay, video, human review, release, signature/notarization remain incomplete."
   },
   "last_audit": {
-    "at": "2026-09-22T12:56:14Z",
-    "repo_head": "feae02f0519c27860df3816ccd4ede96887f0e2c",
-    "parent_ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/35728637931",
+    "at": "2026-09-22T13:12:44Z",
+    "repo_head": "5458198be99614c282e84bca47f45cb21a721642",
+    "parent_ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/35730325191",
     "parent_ci_status": "success",
     "parent_ci_conclusion": "success",
     "evidence": "docs/qa/native-novel-reader-current-candidate-2026-09-20.md",
