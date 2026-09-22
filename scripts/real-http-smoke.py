@@ -51,13 +51,17 @@ def main() -> int:
             env=environment,
         )
         try:
-            for _ in range(40):
+            # Cold-starting the full runtime can exceed four seconds on shared
+            # CI runners while dependencies import. Keep the smoke check
+            # bounded, but avoid turning normal runner variance into a false
+            # release failure.
+            for _ in range(100):
                 try:
                     status, health = request("/health")
                     if status == 200 and health["status"] == "ok":
                         break
                 except (urllib.error.URLError, TimeoutError):
-                    time.sleep(0.1)
+                    time.sleep(0.2)
             else:
                 raise RuntimeError("runtime did not become healthy")
 
