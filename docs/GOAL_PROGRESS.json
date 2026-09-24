@@ -12,8 +12,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "34ee5de7ca630fcbbe6a7619848a9d0e73c4e6f7",
-  "last_audit_at": "2026-09-24T04:07:09Z",
+  "observed_head": "24ad10263fd4791eb0a1e90777618f12a63eb236",
+  "last_audit_at": "2026-09-24T04:36:14Z",
   "last_advanced_at": "2026-09-20T00:00:00Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
@@ -31,12 +31,12 @@
     "summary": "A fresh isolated live import found current Wikisource chapter link titles use the book-prefixed form 西遊記/第001回; importer had rejected the real catalog and did not select those titles for source context. Commit3333013 fixes discovery and exact work-title scoping for both discovery and writing-context selection. Public HTTPS verification discovered100 chapters, persisted two chapter bodies across pause/restart, and attached chapter2 text with SHA-256 d173b279e1523f8f20246b836420d4142db5db42c69515d7fd76429e4d857529 to the writer request; 916 tests and ruff pass. No model call occurred. Installed-app fresh-import QA remains open because GitHub artifact download stalled; Hops HTTP401 remains un-retried, so real screenplay generation is still blocked. No downstream video/release/SOP acceptance is implied."
   },
   "last_audit": {
-    "at": "2026-09-24T04:07:09Z",
-    "repo_head": "34ee5de7ca630fcbbe6a7619848a9d0e73c4e6f7",
-    "parent_ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/35952725622",
+    "at": "2026-09-24T04:36:14Z",
+    "repo_head": "24ad10263fd4791eb0a1e90777618f12a63eb236",
+    "parent_ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/35954292950",
     "parent_ci_status": "success",
     "parent_ci_conclusion": "success",
-    "evidence": "Product code commit3333013f68a27d9418e554bd9ca4de33d7ab63a6 fixes live Wikisource book-prefixed chapter discovery and exact work-title scoping for writer context. Local:916 Python tests passed in437.57s; ruff clean; live HTTPS verify_live_novel_import.py found100 entries, persisted2 chapters across pause/restart, and carried chapter2 SHA into the writer request with model_called=false. Full CI35952222176 on product commit3333013 succeeded; follow-up full CI35952725622 on documentation head34ee5de succeeded. This closes only source-import-to-request-context; no AI screenplay call or approval.",
+    "evidence": "Product code commit3333013f68a27d9418e554bd9ca4de33d7ab63a6 fixes live Wikisource book-prefixed chapter discovery and exact work-title scoping for writer context. Local:916 Python tests passed in437.57s; ruff clean; live HTTPS verify_live_novel_import.py found100 entries, persisted2 chapters across pause/restart, and carried chapter2 SHA into the writer request with model_called=false. Full CI35952222176 passed on product commit3333013; CI35952725622 passed on docs commit34ee5de; latest full CI35954292950 passed on checkpoint commit24ad102 (runtime, macOS arm64, x86_64, universal). This closes only source-import-to-request-context; no AI screenplay call or approval. Fresh installed-app import UI QA remains open; an artifact download retry stalled.",
     "project_complete": false
   },
   "latest_product_checkpoint": {
@@ -45,9 +45,9 @@
     "product_commit": "3333013f68a27d9418e554bd9ca4de33d7ab63a6",
     "evidence_scope": "Current real public Wikisource book-prefixed chapter links are discovered, sorted and retained only when their title prefix matches the requested work. A real isolated import persisted two full chapter bodies across restart and included the requested chapter2 body plus digest in its writer-request context; regression covers source-title scoping and unrelated navigation. No model was called, so no script was generated or approved.",
     "local_verification": "pass: 916 Python tests in 437.57s; ruff clean; live HTTPS verify_live_novel_import.py passed with100 catalog entries,2 chapter bodies, restart recovery and writer-context digest. Fresh installed-app import QA not performed because artifact download stalled; local macOS SwiftPM remains blocked by existing Command Line Tools linker/module-map issues.",
-    "ci_status": "pass: full CI35952222176 on product commit3333013; follow-up full CI35952725622 on documentation head34ee5de",
+    "ci_status": "pass: full CI35952222176 on product commit3333013; follow-up full CI35952725622 on documentation head34ee5de; full CI35954292950 on checkpoint head24ad102",
     "next_action": "Only after confirmation that the existing Hops account can authenticate (without asking the older adult to re-enter a saved secret), and current gpt-5.4-mini price/login visibility is verified, use at most the already authorized single source-context writer request within the USD50 ceiling and stable idempotency. Do not retry the recorded HTTP401. Preserve explicit script review before production. Successful AI script generation, native fresh-import UI QA and all later episode/release acceptance remain open.",
-    "at": "2026-09-24T04:07:09Z"
+    "at": "2026-09-24T04:36:14Z"
   },
   "next_action": {
     "priority_drift": "Core-path product code advanced on 2026-09-24: the real Wikisource source-to-writer-context route was blocked by MediaWiki book-prefixed chapter labels and is now repaired in 3333013. Earlier work since 2026-09-20 had drifted into metadata/error guidance; neither those commits nor this source-context rehearsal is successful AI script generation or SOP completion.",
