@@ -13,7 +13,7 @@
     "WAITING_AUTHORIZATION": 0
   },
   "observed_head": "0e6b53835de05fb7e938dcd989634dbde191cbef",
-  "last_audit_at": "2026-09-24T02:55:56Z",
+  "last_audit_at": "2026-09-24T02:58:50Z",
   "last_advanced_at": "2026-09-20T00:00:00Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
@@ -31,11 +31,11 @@
     "summary": "Current candidate6f2e69a installed arm64 artifact QA passed startup, persisted100-chapter project recovery, read-only chapter1→2 navigation and no auto-retry of incomplete writer request; evidence docs/qa/native-novel-reader-current-candidate-2026-09-20.md. CI35540824646 runtime/arm64/x86_64/universal passed. Persisted rows came from the earlier extractor and still show some Wikisource chrome; current MediaWiki extractor is verified by unmocked HTTPS and45 regression tests but requires a fresh import for installed cleaned-text QA. Next priority is fresh source-to-episodic-writing handoff, not another reader-only polish. AI screenplay, video, human review, release, signature/notarization remain incomplete."
   },
   "last_audit": {
-    "at": "2026-09-24T02:55:56Z",
+    "at": "2026-09-24T02:58:50Z",
     "repo_head": "0e6b53835de05fb7e938dcd989634dbde191cbef",
-    "parent_ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/35944913951",
-    "parent_ci_status": "completed",
-    "parent_ci_conclusion": "success",
+    "parent_ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/35949345666",
+    "parent_ci_status": "in_progress",
+    "parent_ci_conclusion": "pending",
     "evidence": "apps/macos/Tests/NaluVoiceStudioTests/WriterAuthenticationErrorTests.swift; local swift test --filter WriterAuthenticationErrorTests blocked by installed Command Line Tools manifest-link failure and duplicate SwiftBridging module; code pushed for macOS CI verification",
     "project_complete": false
   },
@@ -45,9 +45,9 @@
     "product_commit": "0e6b53835de05fb7e938dcd989634dbde191cbef",
     "evidence_scope": "Exact upstream writer_http_401 is shown as saved-account authorization failure; other failures remain generic; regression covers one request only, no retry, and no key disclosure. This does not prove successful writing.",
     "local_verification": "blocked: SwiftPM manifest linker reports undefined PackageDescription symbol; direct swiftc parse reports existing duplicate SwiftBridging module",
-    "ci_status": "pending",
+    "ci_status": "in_progress",
     "next_action": "Verify macOS CI, then continue the source-to-episodic-writing journey only on an already authorized working writer route; do not retry the recorded Hops HTTP 401.",
-    "at": "2026-09-24T02:55:56Z"
+    "at": "2026-09-24T02:58:50Z"
   },
   "next_action": {
     "priority_drift": "The last product advancement remains 2026-09-20. Since then, supervised commits have only refreshed checkpoint/CI metadata, leaving the source-to-episodic-writing journey unchanged. Resume that highest-priority journey; do not count this error-message repair as successful writing or SOP progress.",
