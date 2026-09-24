@@ -482,8 +482,17 @@ actor RuntimeClient {
             "expected_revision": revision, "model": model,
         ])
         let (data, response) = try await authorizedData(for: request)
-        try validate(response, data: data)
+        try validateWriterGeneration(response, data: data)
         return try decoder.decode(InteractiveStoryState.self, from: data)
+    }
+
+    private func validateWriterGeneration(_ response: URLResponse, data: Data) throws {
+        if let http = response as? HTTPURLResponse, http.statusCode == 502,
+           let body = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           body["detail"] as? String == "writer_http_401" {
+            throw RuntimeError.writerAuthenticationRejected
+        }
+        try validate(response, data: data)
     }
 
     func currentShotPlan(runID: String) async throws -> EpisodeShotPlanEvent? {
@@ -1754,13 +1763,26 @@ actor RuntimeClient {
 
 enum RuntimeError: LocalizedError {
     case requestFailed(String)
+    case writerAuthenticationRejected
     case unmanagedRuntimeAccessDenied
 
     var errorDescription: String? {
         switch self {
         case .requestFailed(let message): message
+        case .writerAuthenticationRejected:
+            "编剧服务拒绝了当前已保存的账号凭据（401）。故事和剧本草稿已保留；本次请求没有自动重试。请检查当前服务账号是否有编剧 API 访问权限，无需重新输入已保存的密钥。"
         case .unmanagedRuntimeAccessDenied:
             "此窗口没有启动并持有自己的本地制片厂，因此不会读取或修改另一窗口的项目。"
         }
+    }
+}
+
+enum InteractiveWriterFailureMessage {
+    static func userMessage(for error: Error) -> String {
+        if let runtimeError = error as? RuntimeError,
+           case .writerAuthenticationRejected = runtimeError {
+            return runtimeError.localizedDescription
+        }
+        return "这次编剧请求没有完成，已有内容没有清空。我没有自动重复请求。您可以继续补充故事。"
     }
 }

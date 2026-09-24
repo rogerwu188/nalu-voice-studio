@@ -582,7 +582,7 @@ final class VoiceInterviewViewModel {
                 }
                 assistantActionStatus = nil
                 guard projectSelectionGeneration == generation else { return }
-                let reply = "这次编剧请求没有完成，已有内容没有清空。我没有自动重复请求。您可以继续补充故事。"
+                let reply = InteractiveWriterFailureMessage.userMessage(for: error)
                 messages.append(.init(speaker: .nalu, text: reply))
                 speechPlayback.speak(reply, rate: comfortPreferences.speechRate)
             }
