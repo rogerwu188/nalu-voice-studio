@@ -12,8 +12,8 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "651d26a91666421b1ac16a7e02082c9f722348e8",
-  "last_audit_at": "2026-09-24T01:53:18Z",
+  "observed_head": "0e6b53835de05fb7e938dcd989634dbde191cbef",
+  "last_audit_at": "2026-09-24T02:55:56Z",
   "last_advanced_at": "2026-09-20T00:00:00Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
@@ -31,18 +31,29 @@
     "summary": "Current candidate6f2e69a installed arm64 artifact QA passed startup, persisted100-chapter project recovery, read-only chapter1→2 navigation and no auto-retry of incomplete writer request; evidence docs/qa/native-novel-reader-current-candidate-2026-09-20.md. CI35540824646 runtime/arm64/x86_64/universal passed. Persisted rows came from the earlier extractor and still show some Wikisource chrome; current MediaWiki extractor is verified by unmocked HTTPS and45 regression tests but requires a fresh import for installed cleaned-text QA. Next priority is fresh source-to-episodic-writing handoff, not another reader-only polish. AI screenplay, video, human review, release, signature/notarization remain incomplete."
   },
   "last_audit": {
-    "at": "2026-09-24T01:53:18Z",
-    "repo_head": "651d26a91666421b1ac16a7e02082c9f722348e8",
-    "parent_ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/35920984073",
+    "at": "2026-09-24T02:55:56Z",
+    "repo_head": "0e6b53835de05fb7e938dcd989634dbde191cbef",
+    "parent_ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/35944913951",
     "parent_ci_status": "completed",
     "parent_ci_conclusion": "success",
-    "evidence": "docs/qa/native-novel-reader-current-candidate-2026-09-20.md",
+    "evidence": "apps/macos/Tests/NaluVoiceStudioTests/WriterAuthenticationErrorTests.swift; local swift test --filter WriterAuthenticationErrorTests blocked by installed Command Line Tools manifest-link failure and duplicate SwiftBridging module; code pushed for macOS CI verification",
     "project_complete": false
   },
+  "latest_product_checkpoint": {
+    "id": "native-writer-authentication-failure-guidance",
+    "sop": "SOP-04",
+    "product_commit": "0e6b53835de05fb7e938dcd989634dbde191cbef",
+    "evidence_scope": "Exact upstream writer_http_401 is shown as saved-account authorization failure; other failures remain generic; regression covers one request only, no retry, and no key disclosure. This does not prove successful writing.",
+    "local_verification": "blocked: SwiftPM manifest linker reports undefined PackageDescription symbol; direct swiftc parse reports existing duplicate SwiftBridging module",
+    "ci_status": "pending",
+    "next_action": "Verify macOS CI, then continue the source-to-episodic-writing journey only on an already authorized working writer route; do not retry the recorded Hops HTTP 401.",
+    "at": "2026-09-24T02:55:56Z"
+  },
   "next_action": {
+    "priority_drift": "The last product advancement remains 2026-09-20. Since then, supervised commits have only refreshed checkpoint/CI metadata, leaving the source-to-episodic-writing journey unchanged. Resume that highest-priority journey; do not count this error-message repair as successful writing or SOP progress.",
     "live_generation_priority": "Authoritative update superseding historical waiting-for-Giggle-authorization notes: user authorized 10000 credits aggregate for audio/image/video, excluding publication, and selected storybook option1. Task807de96b-f261-4ebc-9c73-ef14f47d8fd9 completed; result https://gigg.cc/377un5. Exact-task Pay observation100credits; retain130 reservation,9870unreserved. Do not resubmit. Evidence docs/qa/giggle-storybook-live-2026-09-20.md. IAB preview failed ERR_BLOCKED_BY_CLIENT; no visual/audio acceptance and no download workaround. Next integrate verified provider result into episode asset flow, complete audio/image tests and verify CI35534653123 (pending at inspection). This standalone video is not a complete episode or signed/notarized product. Hops authorization is separate; no automatic Hops401 retry.",
     "current_priority": "Reader follow-up is verified at CI and installed startup/navigation level; do not spend another cycle on reader-only polish. Continue the real source-to-episodic-writing handoff: use saved chapter context, explicit user confirmation and existing writer transport, preserving no-provider behavior for incomplete results. Hops remains authorized only for one plan request <=USD50; configured gpt-5.4-mini exact current price/login verification still needed before dispatch. No Hops spend has occurred. Giggle task807de96b-f261-4ebc-9c73-ef14f47d8fd9 completed; never resubmit. User's 10,000-credit Giggle allowance remains separate from USD50 Hops ceiling. Real AI screenplay, audio/image, complete episode E2E, human QA, signing/notarization and publication remain incomplete.",
-    "immediate_action": "CI35530639796 fa878a7 fully passed. Installed fa878a7 verified first adaptation without prior writer context and restart/synthetic candidate selection to saved import to writing; evidence qa/native-story-context-recovery.md. Local full backend session87056 finished exit0:895passed,2warnings,1372.71s; do not poll or restart as pending. Next close real search/writer and script-to-production acceptance gaps, with no automatic retry of historical Hops401. A one-call synthetic Hops writer authorization and spending-limit question was sent; no response yet. Continue safe unblocked production/recovery acceptance while awaiting that authority. Source search itself uses a potentially paid model API; do not claim synthetic candidate setup as real search. Signed/notarized same-candidate human/video/release acceptance remains open. Preserve PROJECT_GOAL.md and all SOP statuses.",
+    "immediate_action": "Core flow is still blocked at successful writer response: persisted 2026-09-06 evidence records one Hops HTTP 401, so do not resubmit or repeat credential entry. Code now maps only the exact upstream writer_http_401 response to an actionable native message; local Swift test execution is blocked by the installed Command Line Tools manifest linker / duplicate SwiftBridging module, so use the pushed macOS CI result as the compile/test evidence. Next continue source lookup/import to real episodic writing on an already authorized working writer route, then script-to-production acceptance. This diagnostic improvement does not prove successful writing or promote any SOP. Signed/notarized same-candidate human/video/release acceptance remains open.",
     "source_flow_checkpoint": "b3461ac fixes QA repair-context reads; e26cdf6 bounds exclusive chapter requests; 48cbb6c isolates narrated source; 52e548c persists novel bookmark outside writer/production context; 7d0cfca and 51b9528 extend fixture journey through third episode; 839b5f4 fixes native queued source routing. Prior 6e7d7f1 CI35526471420 and 7d0cfca CI35528293312 succeeded. Latest native implementation is not yet accepted. Evidence: docs/qa/story-source-switch-recovery.md and tests/test_story_to_review_journey.py.",
     "viewing_binding_checkpoint": "bff6c4a binds the explicit final-review viewed acknowledgement to the production run in the native view model; backend final-human-review tests passed 73; CI 35502628464 passed x86_64, arm64, universal, runtime. This is implementation evidence only; playback and same-candidate human QA remain required.",
     "repair_guard_regression": "Added test_repair_mix_qa_guard.py: rejected/stale edit exits before AssetService or any POST, even with synthetic-sound/render flags. One test passed1.12s; ruff and diff checks passed. This is a mocked QA-helper regression, not production or release acceptance. Sealed qv1poe20 result remains valid technical-only evidence; do not rerender it. Next continue real content/semantic and same-candidate native acceptance with existing authorization boundaries.",
