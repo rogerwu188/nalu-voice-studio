@@ -4,7 +4,7 @@ import hashlib
 import json
 import re
 import uuid
-from urllib.parse import urldefrag, urlsplit
+from urllib.parse import unquote, urldefrag, urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -63,8 +63,8 @@ def catalog_chapters(page):
     seen = set()
     for link in page.get("links", []):
         title = link.get("title", "").strip()
-        match = re.match(r"^第\s*([0-9０-９零〇一二三四五六七八九十百千万两]+)\s*[章节回]", title)
-        if not match:
+        number = chapter_label_number(title, page["url"])
+        if number is None:
             continue
         try:
             url = chapter_url(link["url"])
@@ -73,7 +73,7 @@ def catalog_chapters(page):
         if urlsplit(url).hostname != origin.hostname or url in seen or url == page["url"]:
             continue
         seen.add(url)
-        chapters.append({"url": url, "title": title[:500], "number": chapter_number(match[1])})
+        chapters.append({"url": url, "title": title[:500], "number": number})
     if not chapters:
         raise ValueError("no explicit chapter directory found")
     if len(chapters) > 2000:
@@ -120,6 +120,21 @@ def chapter_number(text):
     return total + section + number
 
 
+def chapter_label_number(title, source_url):
+    """Read a bare chapter label or a MediaWiki book-prefixed page title."""
+    numerals = r"[0-9０-９零〇一二三四五六七八九十百千万两]+"
+    match = re.search(rf"(?:^|[/／])\s*第\s*({numerals})\s*[章节回]", title)
+    if not match:
+        return None
+    if match.start() > 0:
+        prefix = title[:match.start()].rstrip("/／").strip()
+        parsed = urlsplit(source_url)
+        source_title = unquote(parsed.path.split("/wiki/", 1)[-1]).replace("_", " ")
+        if prefix != source_title:
+            return None
+    return chapter_number(match[1])
+
+
 def writing_context(state, user_text, *, character_budget=60000, previous=None):
     """Snapshot bounded source evidence, explicitly reporting uncovered material."""
     if not state:
@@ -141,9 +156,9 @@ def writing_context(state, user_text, *, character_budget=60000, previous=None):
     if chapter_range:
         available = set()
         for item in state["chapters"]:
-            label = re.match(rf"第\s*({numerals})\s*[章回节]", item["title"])
-            if label:
-                available.add(chapter_number(label[1]))
+            number = chapter_label_number(item["title"], state["selection"]["source_url"])
+            if number is not None:
+                available.add(number)
         # Bound this check by the catalog size, not an arbitrary spoken number.
         covered = sum(chapter_start <= number <= chapter_end for number in available)
         if covered != chapter_end - chapter_start + 1:
@@ -169,16 +184,16 @@ def writing_context(state, user_text, *, character_budget=60000, previous=None):
     if match:
         start_index = len(state["chapters"]) + 1
         for index, item in enumerate(state["chapters"], start=1):
-            label = re.match(r"第\s*([0-9０-９零〇一二三四五六七八九十百千万两]+)\s*[章回节]", item["title"])
-            if label and chapter_number(label[1]) == chapter_start:
+            number = chapter_label_number(item["title"], state["selection"]["source_url"])
+            if number == chapter_start:
                 start_index = index
                 break
     passages = []
     remaining = character_budget
     for index, item in enumerate(state["chapters"], start=1):
         if chapter_end is not None:
-            label = re.match(rf"第\s*({numerals})\s*[章回节]", item["title"])
-            if not label or chapter_number(label[1]) > chapter_end:
+            number = chapter_label_number(item["title"], state["selection"]["source_url"])
+            if number is None or number > chapter_end:
                 break
         if index < start_index or remaining <= 0:
             continue

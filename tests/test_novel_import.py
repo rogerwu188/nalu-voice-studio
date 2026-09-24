@@ -151,6 +151,21 @@ def test_catalog_does_not_silently_choose_between_volumes():
         catalog_chapters({**page, "truncated": True})
 
 
+def test_mediawiki_book_prefixed_chapter_titles_are_discovered_in_order():
+    page = {"url": "https://zh.wikisource.org/wiki/西遊記", "links": [
+        {"url": "https://zh.wikisource.org/wiki/西遊記/第002回", "title": "西遊記/第002回"},
+        {"url": "https://zh.wikisource.org/wiki/西遊記/第001回", "title": "西遊記/第001回"},
+        {"url": "https://zh.wikisource.org/wiki/帮助/第003回", "title": "帮助/第003回"},
+        {"url": "https://zh.wikisource.org/wiki/西遊記/其他2回", "title": "西遊記/其他2回"},
+    ]}
+
+    chapters = catalog_chapters(page)
+
+    assert [chapter["title"] for chapter in chapters] == [
+        "西遊記/第001回", "西遊記/第002回",
+    ]
+
+
 def test_long_chapter_continuation_is_bounded_and_does_not_restart(tmp_path):
     service, project, _ = setup_import(tmp_path, lambda url: {
         "url": url, "text": "abcdefghij", "truncated": False})
