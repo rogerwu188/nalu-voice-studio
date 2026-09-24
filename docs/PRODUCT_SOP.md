@@ -74,6 +74,15 @@ this checkpoint does not promote any SOP to PASS.
 
 ### Current user priority: core creative workflow (2026-09-06)
 
+2026-09-24 live source-to-writing-context checkpoint: fixed the current
+Wikisource catalog's book-prefixed chapter titles (`西遊記/第001回`) and applied
+the same source-title scoping when assembling writer passages. A fresh isolated
+public-HTTPS import now discovers 100 chapters, persists two complete chapters
+through pause/restart, and places chapter 2 in the writer request context. The
+model was not called; this does not prove a generated or approved screenplay.
+The existing Hops HTTP 401 remains unretried, so interactive writing and the
+downstream production path remain incomplete.
+
 2026-09-08 [alignment correction](qa/core-flow-alignment-2026-09-08.md): verify the
 two actual input journeys before expanding downstream controls. Four mandatory
 user-supplied sound roles are not an acceptable default elderly-user experience.
