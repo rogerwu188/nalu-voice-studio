@@ -12,7 +12,7 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "b214662e40d16376cd0c1f365181bf533391db7b",
+  "observed_head": "e31e3e7e08d89e637df903487c48c35e989c6eca",
   "last_audit_at": "2026-09-24T05:05:52Z",
   "last_advanced_at": "2026-09-20T00:00:00Z",
   "last_closed_checkpoint": {
@@ -29,6 +29,14 @@
     "status": "IN_PROGRESS",
     "id": "wikisource-catalog-to-writing-context",
     "summary": "A fresh isolated live import found current Wikisource chapter link titles use the book-prefixed form 西遊記/第001回; importer had rejected the real catalog and did not select those titles for source context. Commit3333013 fixes discovery and exact work-title scoping for both discovery and writing-context selection. Public HTTPS verification discovered100 chapters, persisted two chapter bodies across pause/restart, and attached chapter2 text with SHA-256 d173b279e1523f8f20246b836420d4142db5db42c69515d7fd76429e4d857529 to the writer request; 916 tests and ruff pass. No model call occurred. Installed-app fresh-import QA remains open because GitHub artifact download stalled; Hops HTTP401 remains un-retried, so real screenplay generation is still blocked. No downstream video/release/SOP acceptance is implied."
+  },
+  "native_qa_environment_checkpoint": {
+    "checked_at": "2026-10-03T08:07:52Z",
+    "scope": "Read-only local macOS build-environment preflight for the outstanding installed-app fresh-import QA; no application build, provider request, credential read, or system-tool change was attempted.",
+    "evidence": "`make macos-check` exited 2. The repository's `swift package --package-path apps/macos describe` preflight failed while invoking `/Library/Developer/CommandLineTools/usr/bin/swiftc`, with an undefined PackageDescription.Package.__allocating_init symbol. This establishes that the currently selected Command Line Tools cannot compile this package manifest in this environment; it does not establish a product-code defect or native QA result.",
+    "status": "BLOCKED_ENVIRONMENT",
+    "next_action": "Do not install, switch, or reconfigure system developer tools. After the user/system environment provides a valid full-Xcode SwiftPM toolchain, rerun the preflight once and continue the isolated installed-app source-import QA. Keep the existing Hops HTTP401 request unretried while awaiting account-access confirmation.",
+    "sop_effect": "No SOP status changes; installed-app fresh-import QA and real screenplay generation remain incomplete."
   },
   "last_audit": {
     "at": "2026-09-24T05:05:52Z",
