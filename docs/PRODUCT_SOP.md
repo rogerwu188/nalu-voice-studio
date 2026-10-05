@@ -83,6 +83,15 @@ model was not called; this does not prove a generated or approved screenplay.
 The existing Hops HTTP 401 remains unretried, so interactive writing and the
 downstream production path remain incomplete.
 
+2026-10-05 installed-app follow-up: the current product code was exercised from
+the existing universal CI artifact in a fresh isolated native project. The app
+imported the public Wikisource URL, saved 30/100 chapters, paused, restarted on
+the same isolated database, and displayed chapter 2's saved body after restart.
+Evidence: [native fresh-import/restart QA](qa/native-fresh-import-2026-10-05.md).
+This closes only the fresh-import native UI subgate. The artifact is ad-hoc
+signed, no Hops writer/model request was made, and SOP-04 remains `IN_PROGRESS`;
+script generation/approval and all downstream production/release checks remain open.
+
 2026-09-08 [alignment correction](qa/core-flow-alignment-2026-09-08.md): verify the
 two actual input journeys before expanding downstream controls. Four mandatory
 user-supplied sound roles are not an acceptable default elderly-user experience.
