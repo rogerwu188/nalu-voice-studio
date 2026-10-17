@@ -116,6 +116,16 @@ completed user journey. Real writer/provider integration, native interaction,
 script revision handoff and the complete production demonstration remain open.
 The authoritative next action is in `docs/GOAL_PROGRESS.json`.
 
+2026-10-17 public title lookup checkpoint: a title-only novel-writing request
+can use the fixed, read-only Chinese Wikisource catalog API without a model/API
+credential, then presents bounded candidates for explicit user selection. It
+does not claim the candidate body was read, does not fall back to paid search,
+and asks for a URL/title clarification when that catalog has no match. Backend
+coverage is mocked; native compilation/CI and installed-app acceptance remain
+required. Evidence and limitations: [public novel-title search QA](qa/public-novel-title-search-2026-10-17.md).
+No SOP status is promoted; screenplay generation/approval and all downstream
+acceptance remain open.
+
 [Native transcript controls](qa/native-transcript-controls-2026-09-07.md) now wire
 recognition, save-only retry, recovery, readback and cancellation into recording
 review. Installed/native QA and explicit final subtitle confirmation remain open.

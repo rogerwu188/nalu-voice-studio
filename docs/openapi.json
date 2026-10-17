@@ -20943,6 +20943,58 @@
         "summary": "Get Production Route"
       }
     },
+    "/v1/projects/{project_id}/public-novel-search": {
+      "get": {
+        "operationId": "search_public_novels_v1_projects__project_id__public_novel_search_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "query",
+            "required": true,
+            "schema": {
+              "maxLength": 120,
+              "minLength": 2,
+              "title": "Query",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Search Public Novels V1 Projects  Project Id  Public Novel Search Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Search Public Novels"
+      }
+    },
     "/v1/projects/{project_id}/seasons": {
       "get": {
         "operationId": "list_seasons_v1_projects__project_id__seasons_get",

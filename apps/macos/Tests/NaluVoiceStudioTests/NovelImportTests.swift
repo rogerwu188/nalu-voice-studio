@@ -11,6 +11,25 @@ final class NovelImportTests: XCTestCase {
             XCTAssertFalse(AssistantActionRouter.needsNovelSourceChoice(text), text)
         }
     }
+    func testBookTitleLookupUsesPublicCatalogOnlyWhenTitleIsPresent() {
+        XCTAssertEqual(
+            AssistantActionRouter.publicNovelSearchQuery("帮我找《西游记》小说，改编成短剧"),
+            "西游记"
+        )
+        XCTAssertEqual(
+            AssistantActionRouter.publicNovelSearchQuery("在网上找《西游记》，改编成短剧"),
+            "西游记"
+        )
+        XCTAssertNil(AssistantActionRouter.publicNovelSearchQuery("去网上下载这本小说"))
+        XCTAssertNil(AssistantActionRouter.publicNovelSearchQuery("只查这本小说"))
+
+        let choice = NovelSourceChoice(sources: [
+            .init(title: "西游记", url: URL(string: "https://zh.wikisource.org/wiki/西遊記")!)
+        ], writingRequested: true)
+        XCTAssertTrue(choice.prompt.contains("中文维基文库公开目录"))
+        XCTAssertTrue(choice.prompt.contains("还没有抓取正文"))
+        XCTAssertTrue(choice.prompt.contains("未确认改编授权"))
+    }
 
     func testExplicitNovelDownloadReachesImportInsteadOfGenericConfirmation() {
         for text in ["下载整本书", "导入这些章节", "下载小说 https://example.org/book，然后生成分集剧本草稿",

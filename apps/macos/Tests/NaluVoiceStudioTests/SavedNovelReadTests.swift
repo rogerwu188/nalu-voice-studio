@@ -20,6 +20,31 @@ private final class SavedNovelReadProtocol: URLProtocol, @unchecked Sendable {
 }
 
 @Suite(.serialized) struct SavedNovelReadTests {
+    @MainActor @Test func publicTitleSearchIsProjectBoundAndValidatesCandidateDomains() async throws {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [SavedNovelReadProtocol.self]
+        let session = URLSession(configuration: configuration)
+        defer { session.invalidateAndCancel() }
+        let runtime = RuntimeClient(baseURL: URL(string: "http://127.0.0.1:8765")!,
+                                    session: session, accessCheck: { true })
+        SavedNovelReadProtocol.requests = []
+        SavedNovelReadProtocol.status = 200
+        SavedNovelReadProtocol.body = #"{"scope":"zh.wikisource.org main namespace","sources":[{"title":"西遊記","url":"https://zh.wikisource.org/wiki/%E8%A5%BF%E9%81%8A%E8%A8%98"}]}"#
+        let result = try await runtime.searchPublicNovels(projectID: "project", query: "西遊記")
+        #expect(result.sources.first?.title == "西遊記")
+        #expect(SavedNovelReadProtocol.requests.count == 1)
+        #expect(SavedNovelReadProtocol.requests[0].httpMethod == "GET")
+        #expect(SavedNovelReadProtocol.requests[0].url?.path == "/v1/projects/project/public-novel-search")
+        #expect(URLComponents(url: SavedNovelReadProtocol.requests[0].url!, resolvingAgainstBaseURL: false)?
+            .queryItems?.first(where: { $0.name == "query" })?.value == "西遊記")
+
+        SavedNovelReadProtocol.body = #"{"scope":"zh.wikisource.org main namespace","sources":[{"title":"外站","url":"https://example.org/book"}]}"#
+        var rejectedForeignDomain = false
+        do { _ = try await runtime.searchPublicNovels(projectID: "project", query: "西遊記") }
+        catch { rejectedForeignDomain = true }
+        #expect(rejectedForeignDomain)
+    }
+
     @MainActor @Test func savedSourceReadDistinguishesAbsenceFromFailureWithoutImporting() async throws {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [SavedNovelReadProtocol.self]

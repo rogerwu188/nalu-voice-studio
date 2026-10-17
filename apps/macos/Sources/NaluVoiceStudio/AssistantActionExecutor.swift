@@ -20,14 +20,37 @@ enum AssistantActionRouter {
         requestsNovelImport(text) && sourceURL(in: text) == nil
     }
 
+    static func publicNovelSearchQuery(_ text: String) -> String? {
+        guard needsNovelSourceChoice(text) else { return nil }
+        var value = text
+        for phrase in ["请帮我找", "帮我找", "请在网上找", "在网上找", "网上帮我找", "网上找",
+                       "上网帮我找", "上网找", "去网上下载",
+                       "下载", "导入", "抓取", "找一下", "找一本", "请查找", "查找", "搜索",
+                       "然后生成分集剧本草稿", "生成分集剧本草稿", "改编成短剧", "改编成连续剧",
+                       "拿来写剧本", "用来写剧本", "作为整个剧本", "作为剧本", "写成剧本",
+                       "整本书", "小说", "章节", "这本", "那本", "这部"] {
+            value = value.replacingOccurrences(of: phrase, with: "")
+        }
+        let allowed = CharacterSet.alphanumerics.union(.whitespaces)
+        value = String(String.UnicodeScalarView(value.unicodeScalars.filter { allowed.contains($0) }))
+        value = value.split(whereSeparator: { $0.isWhitespace }).joined(separator: " ")
+        guard value.count >= 2 else { return nil }
+        return String(value.prefix(120))
+    }
+
     static func requestsNovelImport(_ text: String) -> Bool {
         let cleaned = text.filter { !$0.isWhitespace }
         guard !["不要", "先别", "暂不", "只查", "只找", "登录", "购买", "付款", "发布",
                 "下单", "上传", "发送", "删除", "注册"].contains(where: cleaned.contains)
         else { return false }
-        return ["小说", "章节", "整本书"].contains(where: cleaned.contains)
+        let namedBook = ["小说", "章节", "整本书", "本书", "书名", "原著", "名著"]
+            .contains(where: cleaned.contains)
+        let onlineBookWriting = requestsSourceWriting(cleaned)
+            && ["网上", "网络上", "上网", "搜索", "查找", "找"].contains(where: cleaned.contains)
+            && !["主页", "文章", "网页", "资料", "演员"].contains(where: cleaned.contains)
+        return (namedBook || onlineBookWriting)
             && (["抓取", "下载", "导入", "保存到本地"].contains(where: cleaned.contains)
-                || requestsSourceWriting(cleaned))
+                || requestsSourceWriting(cleaned) || onlineBookWriting)
     }
 
     static func requestsSourceWriting(_ text: String) -> Bool {

@@ -217,7 +217,7 @@ from .shot_character_library import ShotCharacterLibraryRequest, ShotCharacterLi
 from .shot_plan_inheritance import ShotPlanInheritanceRequest, ShotPlanInheritanceService
 from .shot_planning import ShotPlanningRequest, ShotPlanningService, validate_plan
 from .shot_review import ShotReviewRequest, ShotReviewService
-from .source_reader import read_public_source, source_failure_code
+from .source_reader import read_public_source, search_wikisource_titles, source_failure_code
 from .storage_diagnostics import inspect_storage
 from .task_observation_service import TaskObservationService
 from .video_budget import VideoBudgetApproval, VideoBudgetService
@@ -378,6 +378,17 @@ def create_app(
     @app.get("/v1/projects/{project_id}/interactive-story")
     def get_interactive_story(project_id: str) -> dict:
         return interactive_story.read(project_id)
+
+    @app.get("/v1/projects/{project_id}/public-novel-search")
+    def search_public_novels(project_id: str, query: str = Query(min_length=2, max_length=120)) -> dict:
+        interactive_story.read(project_id)
+        try:
+            return search_wikisource_titles(query)
+        except (ValueError, OSError, LookupError) as exc:
+            raise HTTPException(status_code=422, detail={
+                "code": source_failure_code(exc),
+                "message": "暂时无法检索中文维基文库目录；请补充作者或提供可访问的网址。",
+            }) from exc
 
     @app.get("/v1/projects/{project_id}/source-text")
     def read_source_text(project_id: str, url: str = Query(max_length=4000)) -> dict:

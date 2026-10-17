@@ -1,3 +1,4 @@
+import json
 import socket
 import ssl
 from email.message import Message
@@ -185,6 +186,90 @@ def test_source_endpoint_is_project_bound_and_handles_failure(tmp_path, monkeypa
         path = f"/v1/projects/{project}/source-text"
         assert client.get(path, params={"url": "https://example.com"}).json()["text"] == "海边童年"
         assert client.get(path, params={"url": "https://example.com/bad"}).status_code == 422
+
+
+def test_public_novel_search_is_bounded_fixed_host_and_candidate_only(monkeypatch):
+    targets = []
+    body = json.dumps({"query": {"search": [
+        {"title": "西遊記/第一回"}, {"title": "西遊記/第二回"},
+        {"title": "西遊記/第一回"}, {"title": None},
+    ]}}, ensure_ascii=False).encode()
+
+    class Response:
+        status = 200
+
+        def getheader(self, name, default=None):
+            return "application/json; charset=utf-8" if name == "Content-Type" else default
+
+        def read(self, limit):
+            return body[:limit]
+
+    class Connection:
+        def __init__(self, host, **kwargs):
+            assert host == "zh.wikisource.org"
+
+        def request(self, method, target, **kwargs):
+            assert method == "GET"
+            target.encode("ascii")
+            targets.append(target)
+
+        def getresponse(self):
+            return Response()
+
+        def close(self):
+            pass
+
+    class Context:
+        def wrap_socket(self, raw, **kwargs):
+            assert kwargs["server_hostname"] == "zh.wikisource.org"
+            return raw
+
+    monkeypatch.setattr(source_reader.http.client, "HTTPSConnection", Connection)
+    monkeypatch.setattr(source_reader.socket, "create_connection", lambda *a, **k: object())
+    monkeypatch.setattr(source_reader, "source_tls_context", Context)
+    monkeypatch.setattr(source_reader.socket, "getaddrinfo",
+                        lambda *a, **k: [(2, 1, 6, "", ("93.184.216.34", 443))])
+    result = source_reader.search_wikisource_titles("西遊記")
+    assert result["scope"] == "zh.wikisource.org main namespace"
+    assert [item["title"] for item in result["sources"]] == ["西遊記/第一回", "西遊記/第二回"]
+    assert result["sources"][0]["url"] == (
+        "https://zh.wikisource.org/wiki/%E8%A5%BF%E9%81%8A%E8%A8%98/%E7%AC%AC%E4%B8%80%E5%9B%9E"
+    )
+    assert len(targets) == 1 and "/w/api.php?" in targets[0]
+    assert "srsearch=%E8%A5%BF%E9%81%8A%E8%A8%98" in targets[0]
+    for invalid in ["x", "书" * 121]:
+        with pytest.raises(source_reader.SourceReadError, match="2..120"):
+            source_reader.search_wikisource_titles(invalid)
+    assert len(targets) == 1
+
+
+def test_public_novel_search_is_project_bound_and_failure_preserves_story(tmp_path, monkeypatch):
+    calls = []
+
+    def search(query):
+        calls.append(query)
+        return {"scope": "zh.wikisource.org main namespace", "sources": []}
+
+    monkeypatch.setattr("nalu_runtime.app.search_wikisource_titles", search)
+    with TestClient(create_app(tmp_path / "db", tmp_path / "data")) as client:
+        assert client.get("/v1/projects/missing/public-novel-search", params={"query": "西遊記"}).status_code == 404
+        assert calls == []
+        project = client.post("/v1/projects", json={"title": "原有故事"}).json()["id"]
+        before = client.get(f"/v1/projects/{project}").json()
+        response = client.get(f"/v1/projects/{project}/public-novel-search", params={"query": "西遊記"})
+        assert response.status_code == 200
+        assert calls == ["西遊記"]
+        assert response.json()["sources"] == []
+        assert client.get(f"/v1/projects/{project}").json() == before
+
+        def fail(_):
+            raise source_reader.SourceReadError("private diagnostic")
+
+        monkeypatch.setattr("nalu_runtime.app.search_wikisource_titles", fail)
+        failed = client.get(f"/v1/projects/{project}/public-novel-search", params={"query": "西遊記"})
+        assert failed.status_code == 422
+        assert "private diagnostic" not in failed.text
+        assert client.get(f"/v1/projects/{project}").json() == before
 
 
 @pytest.mark.parametrize("error,code", [

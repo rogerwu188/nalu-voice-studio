@@ -107,6 +107,27 @@ actor RuntimeClient {
         try await get("v1/projects/\(projectID)/novel-import")
     }
 
+    func searchPublicNovels(projectID: String, query: String) async throws -> PublicNovelSearchResult {
+        var components = URLComponents(
+            url: baseURL.appending(path: "v1/projects/\(projectID)/public-novel-search"),
+            resolvingAgainstBaseURL: false
+        )!
+        components.queryItems = [URLQueryItem(name: "query", value: query)]
+        var request = URLRequest(url: components.url!)
+        request.httpMethod = "GET"
+        let (data, response) = try await authorizedData(for: request)
+        try validate(response, data: data)
+        let result = try decoder.decode(PublicNovelSearchResult.self, from: data)
+        guard result.scope == "zh.wikisource.org main namespace",
+              result.sources.count <= 5,
+              result.sources.allSatisfy({
+                  $0.url.scheme == "https" && $0.url.host == "zh.wikisource.org"
+              }) else {
+            throw RuntimeError.requestFailed("公开目录返回了无法验证的候选来源。")
+        }
+        return result
+    }
+
     func importedNovelChapter(projectID: String, chapterNumber: Int) async throws -> NovelImportedChapter {
         guard chapterNumber > 0 else { throw RuntimeError.requestFailed("章节编号无效。") }
         return try await get("v1/projects/\(projectID)/novel-import/chapters/\(chapterNumber)")

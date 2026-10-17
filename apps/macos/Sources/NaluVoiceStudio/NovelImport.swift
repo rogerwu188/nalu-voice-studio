@@ -16,9 +16,14 @@ struct NovelSourceChoice: Codable, Equatable, Sendable {
     }
 
     var prompt: String {
-        "找到以下候选来源，还没有抓取正文。请说‘选择第一个’或其他编号，也可以提供另一个网址：\n"
+        "以下是中文维基文库公开目录中的候选；还没有抓取正文，也未确认改编授权。请说‘选择第一个’或其他编号，也可以提供另一个网址：\n"
             + sources.enumerated().map { "\($0.offset + 1). \($0.element.title) — \($0.element.url.absoluteString)" }.joined(separator: "\n")
     }
+}
+
+struct PublicNovelSearchResult: Decodable, Sendable {
+    let scope: String
+    let sources: [WebResearchSource]
 }
 
 enum NovelImportControl: String, Sendable {

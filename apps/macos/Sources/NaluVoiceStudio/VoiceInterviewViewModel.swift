@@ -3097,6 +3097,21 @@ final class VoiceInterviewViewModel {
                         result = WebResearchResult(
                             answer: "已读取这个网页的文字节选（不是整本书，也未确认改编授权）：\n" + String(source.text.prefix(8000)),
                             sources: [.init(title: "用户指定网页", url: url)])
+                    } else if novelImportRequested, let projectID {
+                        if let titleQuery = AssistantActionRouter.publicNovelSearchQuery(query) {
+                            let search = try await runtime.searchPublicNovels(
+                                projectID: projectID, query: titleQuery
+                            )
+                            result = WebResearchResult(
+                                answer: "我只在中文维基文库公开目录中按书名检索候选；还没有抓取正文。",
+                                sources: search.sources
+                            )
+                        } else {
+                            result = WebResearchResult(
+                                answer: "我还缺具体书名或作者。请告诉我书名、作者，或直接提供可访问的网址；我没有发起付费联网搜索。",
+                                sources: []
+                            )
+                        }
                     } else {
                         result = try await webResearch.research(query)
                     }
@@ -3104,7 +3119,9 @@ final class VoiceInterviewViewModel {
                     let choice = NovelSourceChoice(sources: Array(result.sources.prefix(5)),
                         writingRequested: AssistantActionRouter.requestsSourceWriting(query))
                     let response = needsNovelChoice
-                        ? (choice.sources.isEmpty ? "尚未找到可选择的小说来源，您可以提供网址，或补充书名和作者。" : choice.prompt)
+                        ? (choice.sources.isEmpty
+                            ? "我只在中文维基文库公开目录中检索；没有找到可选择的候选，或还缺少具体书名。请补充书名和作者，或提供可访问的网址。没有抓取正文，也没有发起付费搜索。"
+                            : choice.prompt)
                         : result.conversationText(resumePrompt: novelImportRequested ? nil : resumePrompt)
                     if let projectID, let savedRevision {
                         _ = try await runtime.saveStoryAnswer(

@@ -2,10 +2,11 @@
 
 import http.client
 import ipaddress
+import json
 import socket
 import ssl
 from html.parser import HTMLParser
-from urllib.parse import quote, urldefrag, urljoin, urlsplit
+from urllib.parse import quote, urldefrag, urlencode, urljoin, urlsplit
 
 import certifi
 
@@ -206,6 +207,74 @@ def read_public_chapter(url):
     Every fetched page and redirect still passes the pinned-IP public target check.
     """
     return _read_public_source(url, complete=True)
+
+
+def search_wikisource_titles(query):
+    """Search only the public Chinese Wikisource main namespace, without credentials."""
+    query = " ".join(str(query).split())
+    if not 2 <= len(query) <= 120:
+        raise SourceReadError("novel search query must contain 2..120 characters")
+    params = urlencode({
+        "action": "query", "list": "search", "srsearch": query,
+        "srnamespace": "0", "srlimit": "5", "format": "json",
+        "formatversion": "2", "utf8": "1",
+    })
+    url = "https://zh.wikisource.org/w/api.php?" + params
+    parsed, ip = public_target(url)
+    if parsed.hostname != "zh.wikisource.org" or parsed.path != "/w/api.php":
+        raise SourceReadError("unexpected public novel search target")
+    connection = http.client.HTTPSConnection(parsed.hostname, timeout=12)
+    try:
+        raw_socket = socket.create_connection((ip, 443), timeout=12)
+        try:
+            connection.sock = source_tls_context().wrap_socket(
+                raw_socket, server_hostname=parsed.hostname
+            )
+        except Exception:
+            raw_socket.close()
+            raise
+        target = parsed.path + "?" + parsed.query
+        connection.request("GET", target, headers={
+            "Accept": "application/json", "User-Agent": "Nalu-SourceReader/1.0",
+            "Accept-Encoding": "identity",
+        })
+        response = connection.getresponse()
+        if response.status != 200:
+            raise SourceReadError("public novel catalog search failed")
+        content_type = response.getheader("Content-Type", "").split(";")[0].strip()
+        if content_type != "application/json":
+            raise SourceReadError("public novel catalog returned unsupported content")
+        body = response.read(200_001)
+        if len(body) > 200_000:
+            raise SourceReadError("public novel catalog response exceeds limit")
+        try:
+            root = json.loads(body)
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise SourceReadError("public novel catalog response is invalid") from exc
+        search_payload = root.get("query") if isinstance(root, dict) else None
+        entries = search_payload.get("search") if isinstance(search_payload, dict) else None
+        if not isinstance(entries, list):
+            raise SourceReadError("public novel catalog response is invalid")
+        sources = []
+        seen = set()
+        for entry in entries[:5]:
+            title = entry.get("title") if isinstance(entry, dict) else None
+            if not isinstance(title, str):
+                continue
+            title = " ".join(title.split())
+            if not title or len(title) > 300 or title in seen:
+                continue
+            seen.add(title)
+            path = quote(title.replace(" ", "_"), safe="/")
+            sources.append({
+                "title": title,
+                "url": "https://zh.wikisource.org/wiki/" + path,
+            })
+        return {"scope": "zh.wikisource.org main namespace", "sources": sources}
+    except http.client.HTTPException as exc:
+        raise SourceReadError("public novel catalog returned an invalid response") from exc
+    finally:
+        connection.close()
 
 
 def _read_public_source(url, *, complete):
