@@ -117,25 +117,30 @@ script revision handoff and the complete production demonstration remain open.
 The authoritative next action is in `docs/GOAL_PROGRESS.json`.
 
 2026-10-17 public title lookup checkpoint: a title-only novel-writing request
-can use the fixed, read-only Chinese Wikisource catalog API without a model/API
+uses the fixed, read-only Chinese Wikisource catalog API without a model/API
 credential, then presents bounded candidates for explicit user selection. It
 does not claim the candidate body was read, does not fall back to paid search,
 and asks for a URL/title clarification when that catalog has no match. One live
 read-only query for `西遊記` returned the exact work-root candidate; transport
 regression tests are mocked. First full CI exposed an overly broad book-intent
 detector that bypassed an existing generic-download confirmation; matching was
-narrowed and a regression added, with corrected full CI pending. Installed-app
-acceptance remains required. Evidence and limitations: [public novel-title
-search QA](qa/public-novel-title-search-2026-10-17.md). Corrected CI
-`39054195834` passed all four jobs on `5cfd8f3`, but an isolated installed-app
-attempt then remained stuck on “正在替您上网查找…”. The title-only UI route had
-been incorrectly nested behind a URL-required import flag; source inspection
-showed it would fall through to the generic OpenAI research route. A typed
-lookup-intent fix and regression cases are now in the working tree, pending CI
-and a new native artifact. The trial's external-provider outcome was not
-captured; do not retry a provider request until reconciled. No SOP status is
-promoted; screenplay generation/approval and all downstream acceptance remain
-open.
+narrowed and the corrected full CI `39054195834` passed. The prior exact
+artifact's native UI attempt remained stuck at “正在替您上网查找…”. The
+title-only UI route had been incorrectly nested behind a URL-required import
+flag, which left it to fall through to generic OpenAI research. The typed
+`NovelLookupIntent` routing fix and regression cases are committed as
+`b12ac4d1d1811a437302f1c4b4c172ea0b8ff184`; full CI `39057644824` passed all
+four jobs, and evidence commit `1ff2600de57e163c45d91adbc1d35b8c0dd21f22` also
+passed full CI `39057720814`. Native UI recheck on the exact extracted arm64
+artifact then displayed five bounded Wikisource candidates for a distinct
+title-only query in fresh isolated support data; no candidate was selected,
+no source body was fetched, and no model/provider call was made. The artifact
+is ad-hoc signed and not installed in `/Applications`. The original trial's
+provider outcome/billing remains unknown; do not retry it until reconciled.
+This closes only candidate display, not source import, screenplay generation/
+approval, or downstream acceptance. See
+`docs/qa/public-novel-title-search-2026-10-17.md` for exact evidence and the
+initial launch isolation caveat. No SOP status is promoted.
 
 [Native transcript controls](qa/native-transcript-controls-2026-09-07.md) now wire
 recognition, save-only retry, recovery, readback and cancellation into recording
