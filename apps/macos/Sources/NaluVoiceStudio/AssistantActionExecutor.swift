@@ -43,7 +43,7 @@ enum AssistantActionRouter {
         guard !["不要", "先别", "暂不", "只查", "只找", "登录", "购买", "付款", "发布",
                 "下单", "上传", "发送", "删除", "注册"].contains(where: cleaned.contains)
         else { return false }
-        let namedBook = ["小说", "章节", "整本书", "本书", "书名", "原著", "名著"]
+        let namedBook = ["小说", "章节", "整本书", "书名", "原著", "名著"]
             .contains(where: cleaned.contains)
         let onlineBookWriting = requestsSourceWriting(cleaned)
             && ["网上", "网络上", "上网", "搜索", "查找", "找"].contains(where: cleaned.contains)

@@ -10,6 +10,10 @@ final class NovelImportTests: XCTestCase {
                      "只查这本小说", "不要下载小说"] {
             XCTAssertFalse(AssistantActionRouter.needsNovelSourceChoice(text), text)
         }
+        XCTAssertFalse(AssistantActionRouter.requestsNovelImport("去网上找到这本书并下载下来"))
+        guard case .requiresConfirmation = AssistantActionRouter.route("去网上找到这本书并下载下来") else {
+            return XCTFail("Book downloads without a novel-writing intent must keep the confirmation gate")
+        }
     }
     func testBookTitleLookupUsesPublicCatalogOnlyWhenTitleIsPresent() {
         XCTAssertEqual(

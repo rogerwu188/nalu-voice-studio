@@ -21,10 +21,21 @@ searches Chinese Wikisource; it does not claim general web discovery.
   ASCII-encoded query, bounded candidate parsing, project binding, and failure
   without story mutation. Focused source/import/story-journey regression: 51 tests passed;
   Ruff passed. OpenAPI contract was regenerated.
+- Live, read-only smoke at 2026-10-17 17:26 UTC queried the public API for
+  `西遊記`; the first result was the exact work root `西遊記` on the fixed host,
+  followed by related works. The API is MediaWiki's read-only `query+search`
+  module ([official API documentation](https://www.mediawiki.org/wiki/API:Search/en)).
+  This verifies public title discovery only: no result body was fetched in this
+  smoke, no user project was changed, and no model/provider call occurred.
 - Native unit coverage checks title extraction, the explicit-choice wording,
   query transport, and rejection of a candidate from another host. This local
   environment has a previously recorded Command Line Tools/SwiftPM incompatibility;
   these native tests require the repository macOS CI to compile and execute them.
+  The first full CI (`39053793497`) compiled and reached the Swift suite but
+  exposed a regression: matching “这本书” too broadly routed a generic download
+  around its existing confirmation gate. The title detector was narrowed and a
+  regression test added; the corrected full-CI run is pending. Until it passes,
+  native coverage is not accepted.
 - No live Wikisource search was issued for this checkpoint, no model/provider
   request was made, no body was read by the new title-search route, and no
   installed-app QA was performed. Existing HTTP 401 remains unretried.
