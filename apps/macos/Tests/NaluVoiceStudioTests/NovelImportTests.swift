@@ -17,6 +17,22 @@ final class NovelImportTests: XCTestCase {
     }
     func testBookTitleLookupUsesPublicCatalogOnlyWhenTitleIsPresent() {
         XCTAssertEqual(
+            AssistantActionRouter.novelLookupIntent("帮我找《西游记》小说，改编成短剧"),
+            .searchPublicCatalog(title: "西游记")
+        )
+        XCTAssertEqual(
+            AssistantActionRouter.novelLookupIntent("去网上下载这本小说"),
+            .clarifyTitle
+        )
+        XCTAssertEqual(
+            AssistantActionRouter.novelLookupIntent("去网上找到这本书并下载下来"),
+            .notRequested
+        )
+        XCTAssertEqual(
+            AssistantActionRouter.novelLookupIntent("下载小说 https://example.org/book，然后生成分集剧本草稿"),
+            .importURL("https://example.org/book")
+        )
+        XCTAssertEqual(
             AssistantActionRouter.publicNovelSearchQuery("帮我找《西游记》小说，改编成短剧"),
             "西游记"
         )

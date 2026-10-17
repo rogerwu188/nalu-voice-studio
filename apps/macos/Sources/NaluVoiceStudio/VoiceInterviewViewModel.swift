@@ -3000,8 +3000,11 @@ final class VoiceInterviewViewModel {
                 return
             }
             assistantActionStatus = "正在替您上网查找…"
-            let novelImportRequested = AssistantActionRouter.requestsNovelImport(query)
-                && AssistantActionRouter.sourceURL(in: query) != nil
+            let novelLookupIntent = AssistantActionRouter.novelLookupIntent(query)
+            let novelImportRequested: Bool = {
+                if case .importURL = novelLookupIntent { return true }
+                return false
+            }()
             let startMessage = novelImportRequested
                 ? "好的，我按您提供的网址识别小说目录，把可访问的章节保存到这台 Mac。不会购买或发布。"
                 : "好的，我现在替您上网查找。查找期间不会改变您的故事，也不会自动下载或发布任何内容。"
@@ -3065,8 +3068,8 @@ final class VoiceInterviewViewModel {
                     messages.append(.init(speaker: .nalu, text: startMessage))
                     speechPlayback.speak(startMessage, rate: comfortPreferences.speechRate)
                     let result: WebResearchResult
-                    var sourceWritingReady = !novelImportRequested
-                    if novelImportRequested, let sourceURL = AssistantActionRouter.sourceURL(in: query), let projectID {
+                    var sourceWritingReady = novelLookupIntent == .notRequested
+                    if case .importURL(let sourceURL) = novelLookupIntent, let projectID {
                         guard let catalogURL = URL(string: sourceURL) else { throw WebResearchError.invalidResponse }
                         var imported = try await runtime.startNovelImport(projectID: projectID, sourceURL: sourceURL)
                         guard projectSelectionGeneration == generation else { return }
@@ -3097,21 +3100,19 @@ final class VoiceInterviewViewModel {
                         result = WebResearchResult(
                             answer: "已读取这个网页的文字节选（不是整本书，也未确认改编授权）：\n" + String(source.text.prefix(8000)),
                             sources: [.init(title: "用户指定网页", url: url)])
-                    } else if novelImportRequested, let projectID {
-                        if let titleQuery = AssistantActionRouter.publicNovelSearchQuery(query) {
-                            let search = try await runtime.searchPublicNovels(
-                                projectID: projectID, query: titleQuery
-                            )
-                            result = WebResearchResult(
-                                answer: "我只在中文维基文库公开目录中按书名检索候选；还没有抓取正文。",
-                                sources: search.sources
-                            )
-                        } else {
-                            result = WebResearchResult(
-                                answer: "我还缺具体书名或作者。请告诉我书名、作者，或直接提供可访问的网址；我没有发起付费联网搜索。",
-                                sources: []
-                            )
-                        }
+                    } else if case .searchPublicCatalog(let titleQuery) = novelLookupIntent, let projectID {
+                        let search = try await runtime.searchPublicNovels(
+                            projectID: projectID, query: titleQuery
+                        )
+                        result = WebResearchResult(
+                            answer: "我只在中文维基文库公开目录中按书名检索候选；还没有抓取正文。",
+                            sources: search.sources
+                        )
+                    } else if novelLookupIntent == .clarifyTitle {
+                        result = WebResearchResult(
+                            answer: "我还缺具体书名或作者。请告诉我书名、作者，或直接提供可访问的网址；我没有发起付费联网搜索。",
+                            sources: []
+                        )
                     } else {
                         result = try await webResearch.research(query)
                     }

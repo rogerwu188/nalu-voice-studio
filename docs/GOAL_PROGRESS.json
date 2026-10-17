@@ -12,9 +12,9 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "b5e734c1cfbb5cc76a9fa4239a1ebe0784eff300",
-  "last_audit_at": "2026-10-05T22:06:15Z",
-  "last_advanced_at": "2026-10-05T17:39:11Z",
+  "observed_head": "5cfd8f3d8b6c1c4596eb06ea7c55cd621cdadfaa",
+  "last_audit_at": "2026-10-17T18:06:34Z",
+  "last_advanced_at": "2026-10-17T18:06:34Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -27,8 +27,8 @@
   "current_checkpoint": {
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
-    "id": "wikisource-catalog-to-writing-context",
-    "summary": "Commit3333013 fixes Wikisource book-prefixed chapter discovery and exact work-title scoping for writer context. Service verification discovered100 chapters, persisted two chapter bodies across pause/restart, and attached chapter2 text with SHA-256 d173b279e1523f8f20246b836420d4142db5db42c69515d7fd76429e4d857529 to writer-request context; 916 tests and ruff passed. A separate installed-app QA on the current product code imported the public URL, saved30/100 chapters, paused, restarted, and read chapter2 body back; evidence docs/qa/native-fresh-import-2026-10-05.md. The app candidate is ad-hoc signed and not notarized. No model call occurred; existing Hops HTTP401 remains unretried, so screenplay generation is blocked. SOP-04 remains IN_PROGRESS; no downstream video/release acceptance is implied."
+    "id": "native-title-search-routing-repair-pending",
+    "summary": "Full CI 39054195834 passed on 5cfd8f3, but an isolated installed-app title-only request remained pending and showed no app-originated catalog request. Source inspection found title lookup gated by URL-only import detection. A typed intent routing repair and regression cases are in the working tree but not yet committed or CI-validated. The trial's external provider outcome/billing was not captured; quarantine provider retries pending reconciliation. SOP-04 remains IN_PROGRESS; no downstream acceptance is implied."
   },
   "native_qa_environment_checkpoint": {
     "checked_at": "2026-10-03T08:07:52Z",
@@ -55,9 +55,9 @@
     "next_action": "Keep local SwiftPM preflight blocked on the existing Command Line Tools issue; do not change system toolchain. Await confirmation of existing Hops writer-account access and current model price/login visibility before the already-authorized single request. Do not retry HTTP401."
   },
   "last_audit": {
-    "at": "2026-10-05T22:21:17Z",
-    "repo_head": "8b49d2252ab813d2c5b9e0b355e3d7012845a5de",
-    "parent_ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/37380341081",
+    "at": "2026-10-17T18:06:34Z",
+    "repo_head": "5cfd8f3d8b6c1c4596eb06ea7c55cd621cdadfaa",
+    "parent_ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/39054195834",
     "parent_ci_status": "success",
     "parent_ci_conclusion": "success",
     "current_evidence_update": "No product code or SOP status changed since the prior checkpoint. The progress-record commit8b49d22 completed full CI run37380341081 (runtime, macOS arm64, x86_64, universal); it is docs-only and does not advance the blocked creative workflow. Prior full CI run37378651854 on b5e734c also passed. The source-to-review journey's targeted existing regression test passed locally: 3 passed in5.54s via the repository .venv; this is regression evidence only, not live model/script generation. The installed-app fresh-import/pause/restart/read-back remains a narrow pass only (docs/qa/native-fresh-import-2026-10-05.md); its artifact is ad-hoc signed and not notarized. No Hops/model/paid request or title-only Responses API search was made. The recorded Hops HTTP401 remains unretried; wait for confirmation of existing account access and current gpt-5.4-mini price/login visibility before the single already-authorized request <=USD50 with durable idempotency. Counts remain3 PASS/11 IN_PROGRESS; project incomplete.",
@@ -74,8 +74,23 @@
     "next_action": "The installed-app fresh-import/pause/restart/read-back subgate is now complete; no product/model action was performed. Only after confirmation that the existing Hops account can authenticate (without asking the older adult to re-enter a saved secret), and current gpt-5.4-mini price/login visibility is verified, use at most the already-authorized single source-context writer request within the USD50 ceiling and stable idempotency. Do not retry the recorded HTTP401. Preserve explicit script review before production. Script generation/approval and all later episode/release acceptance remain open.",
     "at": "2026-09-24T05:05:52Z"
   },
+  "latest_heartbeat_checkpoint": {
+    "at": "2026-10-17T18:06:34Z",
+    "sop": "SOP-04",
+    "status": "IN_PROGRESS",
+    "base_product_commit": "5cfd8f3d8b6c1c4596eb06ea7c55cd621cdadfaa",
+    "ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/39054195834",
+    "artifact_id": "12109366895",
+    "artifact_outer_sha256": "sha256:8c4b1b594a5db51262917352f2aa25430812bd0813edf23992bf81900439a531",
+    "app_zip_sha256": "2fca1bcac9f8d6eda8c80539b4d93da80e851ca12b2b3dadc36b020ad4dfb730",
+    "native_result": "FAIL_NARROW_SCOPE: exact artifact verified ad-hoc signature but title-only UI remained pending without an app-originated public catalog request; see docs/qa/public-novel-title-search-2026-10-17.md",
+    "working_tree_fix": "Typed NovelLookupIntent routing and four regression assertions; uncommitted/unvalidated at checkpoint creation",
+    "external_provider_outcome": "UNKNOWN; no response or billing evidence captured. Do not retry any provider request until reconciled.",
+    "local_test_blocker": "SwiftPM fails before compilation under the selected Command Line Tools PackageDescription linker; do not alter the system toolchain.",
+    "next_action": "Commit/push the route fix and tests, run full CI, then verify candidate choices in an isolated installed app without selecting a candidate or invoking a model."
+  },
   "next_action": {
-    "priority_drift": "Core-path product code advanced on 2026-09-24: the real Wikisource source-to-writer-context route was blocked by MediaWiki book-prefixed chapter labels and is now repaired in 3333013. Earlier work since 2026-09-20 had drifted into metadata/error guidance; neither those commits nor this source-context rehearsal is successful AI script generation or SOP completion.",
+    "priority_drift": "The current checkpoint directly repairs the user-priority path from naming an online novel to title discovery: the prior CI artifact's installed UI remained stuck before catalog candidates appeared, despite a separate backend request returning candidates. Avoid broadening this into voice polish or downstream controls. The typed-routing repair remains uncommitted and is not screenplay generation or SOP completion.",
     "live_generation_priority": "User authorized 10000 credits aggregate for audio/image/video, excluding publication, and selected storybook option1. Task807de96b-f261-4ebc-9c73-ef14f47d8fd9 completed; result https://gigg.cc/377un5; exact-task Pay observation100credits, retain130 reservation and9870 unreserved. Do not resubmit. Evidence docs/qa/giggle-storybook-live-2026-09-20.md. IAB preview failed ERR_BLOCKED_BY_CLIENT; no visual/audio acceptance and no download workaround. Defer episode integration until a script is actually generated and explicitly approved. This standalone video is not a complete episode or signed/notarized product.",
     "current_priority": "The installed-app fresh-import/pause/restart/read-back subgate passed on the verified ad-hoc CI artifact. The current product blocker remains the writer account: the single recorded Hops request returned HTTP401. Do not retry it and do not ask the older adult to re-enter a saved key. Await confirmation that the existing account has access and current gpt-5.4-mini price/login visibility. The real source importer/context route passes but makes no model call; after account confirmation use only the already-authorized single request <=USD50 with durable idempotency, then present the draft for explicit user review before production. Episode, human QA, signing/notarization and publication remain open.",
     "immediate_action": "The service source-to-writer-context path and the narrow installed-app fresh-import subgate now pass without a model call. Actual screenplay generation remains blocked by the single recorded Hops HTTP401; do not resubmit or repeat credential entry. Await confirmation that the existing writer account can authenticate and verify current model price/login. No SOP is promoted; signed/notarized same-candidate script/video/release acceptance remains open.",
@@ -102,7 +117,7 @@
     "repair_adoption_current": "Repair-video-reviews POST implemented;3 integration cases passed5.78s proving approved-plan gate, exact restart replay, Origin rejection, latest-decision CAS and stale accept rejection. Both encoded fixture candidates previously validated unmocked. Next connect validated adoption to AcceptedEpisodeService and EpisodePreviewService, retaining source run provenance and current revalidation, then native review. No actual repaired production or SOP PASS. Full-render handle80195 missing after interruption; rerun launched, do not claim old result.",
     "repair_reuse_current": "Native f4366e1 automatic draft recovery and restart GET-only validated; history play/pause reachable and synthetic picture displayed. CI34292299897 fully passed. QA apps quit; do not repeat those gates. New repair-video-candidates GET implemented;3 integration cases passed14.68s with positive media validator mocked. Next validate real encoded fixture and implement explicit durable candidate adoption plus downstream staging/native controls. Evidence docs/qa/repair-video-reuse-2026-09-08.md. Older download/native-next fields below superseded. No full production/SOP completion.",
     "sop": "SOP-04",
-    "id": "confirm-existing-writer-account-access",
+    "id": "verify-native-title-search-routing-fix",
     "repair_ui_recovery_next": "CI34292299897 arm64 job passed; runtime and Intel jobs remain in progress. Arm64 artifact download is active in exec session64737 to /tmp/nalu-repair-recovery-Zq59xd; poll this same handle rather than restart. Next launch isolated nel8waa9 fixture and explicitly create repair child, then verify automatic original-plan draft recovery and accessible history playback. qv1poe20 already contains a saved draft and cannot prove automatic creation. Existing work must remain GET-only; failed recovery must block paid regeneration. Then implement eligible media reuse. Novel-import19 tests passed3.76s this continuation, not full writer/video acceptance. No full-flow PASS.",
     "repair_draft_next": "Added repair-shot-draft endpoint: original creative plan becomes unapproved child draft without model call/provider authority copy.3 repair integration cases pass4.28s; native caller and real asset reuse still open. Evidence docs/qa/repair-shot-draft-2026-09-08.md. Next connect repair preparation to draft recovery, preserve per-version review, then validate eligible media reuse. Playback fix94b2cf4 still awaits artifact QA; no full-goal promotion.",
     "playback_fix_next": "Explicit large accessible history play-from-start/pause buttons now implemented; await fixed artifact and single native confirmation pass. Existing7ddce0c evidence already proves scoped list/original download/current-child preservation. Do not repeat those as missing. No playback PASS until actually exercised; next continue revision asset reuse. Local progress audit passed; no SOP promotion.",
@@ -114,13 +129,10 @@
     "player_checkpoint": "Native f8fbfa7 restored both saved cuts through GET-only history; do not repeat backend-only recovery work. Picture-preview returned200 then application exited134 while demangling AVPlayerView. c1b3689 explicitly links AVKit in direct release build and SwiftPM, and checks every binary slice. New release check correctly rejects crashing old artifact. CI34283360865 pending behind34281384986; actual fixed-player QA not yet performed. Next use new artifact with valid qv1poe20 fixture, restore edits, open preview, then confirm/cancel repair and verify parent preservation/restart. No provider generation or public release is authorized by this checkpoint. This field supersedes historical CI/next-step statements below.",
     "latest_evidence": "docs/qa/native-repair-reopen-2026-09-08.md",
     "recovery_checkpoint": "89cd1ec adds saved-input GET validation; 8a0da80 uses it before staging and tests GET-only saved-edit reopening. CI34280772668 pending behind34280702938, not accepted. Native fixture62851e2 now preserves consent; generation completed successfully at /private/var/folders/y4/k84st0yj7fz043tnxkfrjn1w0000gn/T/nalu-native-postproduction-qv1poe20. Old d7l59eeu fixture has revoked consent and must not be reused for happy-path QA. Next verify Swift tests, connect automatic saved preview restoration as needed, and repeat native repair cancel/confirm/restart without new paid calls. Historical summary below is superseded where it lists older CI status.",
-    "summary": "Current real source-to-writer-context transport passes for two saved Wikisource chapters without a model call. Actual interactive screenplay generation is blocked by the already observed Hops HTTP401; do not retry until existing account access is confirmed. Finish CI and preserve the explicit script-review gate. Native fresh-import app QA, script generation/approval, episode video, postproduction, release, signing and notarization remain incomplete.",
-    "requires_user_authorization": true
+    "summary": "The highest safe, unblocked action is to commit and push the typed-intent title lookup routing fix and regression tests, obtain full CI, then verify candidate choices in an isolated installed app without selecting one or calling a model. The stalled trial's provider result/billing is unknown; do not retry any provider request pending reconciliation. Existing Hops HTTP401 also remains unretried pending account-access confirmation. Script generation/approval, episode video, postproduction, controlled release, signing and notarization remain incomplete.",
+    "requires_user_authorization": false
   },
-  "waiting_authorization": {
-    "id": "confirm-existing-writer-account-access",
-    "requested_action": "Confirm or restore access for the already configured Hops writer account and verify current gpt-5.4-mini price/login visibility. Do not send or re-enter any API key. After confirmation, continue with at most the already authorized single request within the USD50 ceiling."
-  },
+  "waiting_authorization": null,
   "blocking_conditions": [
     {
       "id": "image-price-and-console-access",
@@ -143,6 +155,16 @@
       "continue_other_work": true,
       "evidence": "docs/qa/live-writer-authorization-2026-09-06.md",
       "detail": "Existing Keychain credential read successfully; single real Hops chat-completions request returned 401. Await Hops key/account access confirmation, no automatic retry."
+    },
+    {
+      "id": "ambiguous-title-lookup-provider-outcome",
+      "sops": [
+        "SOP-04"
+      ],
+      "requires_user_authorization": true,
+      "continue_other_work": true,
+      "evidence": "docs/qa/public-novel-title-search-2026-10-17.md",
+      "detail": "The installed-app title-only trial remained pending; provider response and billing evidence were not captured, so whether a provider request left the app is unknown. Do not retry the query or any provider request until this outcome is reconciled."
     },
     {
       "id": "paid-realtime-and-provider-qa",

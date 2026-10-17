@@ -126,7 +126,14 @@ regression tests are mocked. First full CI exposed an overly broad book-intent
 detector that bypassed an existing generic-download confirmation; matching was
 narrowed and a regression added, with corrected full CI pending. Installed-app
 acceptance remains required. Evidence and limitations: [public novel-title
-search QA](qa/public-novel-title-search-2026-10-17.md). No SOP status is
+search QA](qa/public-novel-title-search-2026-10-17.md). Corrected CI
+`39054195834` passed all four jobs on `5cfd8f3`, but an isolated installed-app
+attempt then remained stuck on “正在替您上网查找…”. The title-only UI route had
+been incorrectly nested behind a URL-required import flag; source inspection
+showed it would fall through to the generic OpenAI research route. A typed
+lookup-intent fix and regression cases are now in the working tree, pending CI
+and a new native artifact. The trial's external-provider outcome was not
+captured; do not retry a provider request until reconciled. No SOP status is
 promoted; screenplay generation/approval and all downstream acceptance remain
 open.
 

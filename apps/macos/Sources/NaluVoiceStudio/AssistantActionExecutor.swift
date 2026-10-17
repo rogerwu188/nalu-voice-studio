@@ -5,6 +5,13 @@ enum AssistantActionRequest: Equatable {
     case requiresConfirmation(description: String)
 }
 
+enum NovelLookupIntent: Equatable {
+    case notRequested
+    case clarifyTitle
+    case searchPublicCatalog(title: String)
+    case importURL(String)
+}
+
 enum AssistantActionRouter {
     static let maximumQueryCharacters = 2_000
 
@@ -18,6 +25,13 @@ enum AssistantActionRouter {
 
     static func needsNovelSourceChoice(_ text: String) -> Bool {
         requestsNovelImport(text) && sourceURL(in: text) == nil
+    }
+
+    static func novelLookupIntent(_ text: String) -> NovelLookupIntent {
+        guard requestsNovelImport(text) else { return .notRequested }
+        if let url = sourceURL(in: text) { return .importURL(url) }
+        if let title = publicNovelSearchQuery(text) { return .searchPublicCatalog(title: title) }
+        return .clarifyTitle
     }
 
     static func publicNovelSearchQuery(_ text: String) -> String? {
