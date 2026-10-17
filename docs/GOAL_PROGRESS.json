@@ -12,9 +12,9 @@
     "TODO": 0,
     "WAITING_AUTHORIZATION": 0
   },
-  "observed_head": "65ccf703d2115377a37f2b288da268a62ec028c3",
-  "last_audit_at": "2026-10-17T19:16:46Z",
-  "last_advanced_at": "2026-10-17T19:16:46Z",
+  "observed_head": "42fd09d4eb2c2158da09b984c4bd8a0ec41c7cd9",
+  "last_audit_at": "2026-10-17T19:34:50Z",
+  "last_advanced_at": "2026-10-17T19:34:50Z",
   "last_closed_checkpoint": {
     "id": "native-font-scaling-and-toolbar-confirmation",
     "sop": "SOP-02",
@@ -55,12 +55,12 @@
     "next_action": "Keep local SwiftPM preflight blocked on the existing Command Line Tools issue; do not change system toolchain. Await confirmation of existing Hops writer-account access and current model price/login visibility before the already-authorized single request. Do not retry HTTP401."
   },
   "last_audit": {
-    "at": "2026-10-17T19:16:46Z",
-    "repo_head": "65ccf703d2115377a37f2b288da268a62ec028c3",
-    "parent_ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/39061022976",
-    "parent_ci_status": "in_progress",
-    "parent_ci_conclusion": "pending",
-    "current_evidence_update": "Native UI recheck on the exact extracted arm64 CI artifact 12109804056 visibly returned five bounded Wikisource candidates for the distinct title-only query 红楼梦 in fresh isolated support data on port38197. Candidate display is a narrow native pass only: no candidate selection, source-body fetch, screenplay generation, approval, or paid/model request occurred; the artifact is ad-hoc signed and not installed in /Applications. A first startup attempt opened a second non-isolated Launch Services instance at the startup screen with Send disabled; no query/project action was taken there, but access to the existing default app-support database cannot be ruled out, so no claim of zero default-database touch is made. See docs/qa/public-novel-title-search-2026-10-17.md. Evidence commit 65ccf703d2115377a37f2b288da268a62ec028c3 is pushed; full CI 39061022976 is still running (macOS arm64 and x86_64 passed, runtime and universal pending at audit time). The previous title trial's provider outcome/billing remains unknown, and the recorded Hops HTTP401 remains unretried. Do not make provider requests or re-enter credentials pending user reconciliation. Counts remain3 PASS/11 IN_PROGRESS; project incomplete.",
+    "at": "2026-10-17T19:34:50Z",
+    "repo_head": "42fd09d4eb2c2158da09b984c4bd8a0ec41c7cd9",
+    "parent_ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/39061917275",
+    "parent_ci_status": "success",
+    "parent_ci_conclusion": "success",
+    "current_evidence_update": "Native UI recheck on the exact extracted arm64 CI artifact 12109804056 visibly returned five bounded Wikisource candidates for the distinct title-only query 红楼梦 in fresh isolated support data on port38197. Candidate display is a narrow native pass only: no candidate selection, source-body fetch, screenplay generation, approval, or paid/model request occurred; the artifact is ad-hoc signed and not installed in /Applications. A first startup attempt opened a second non-isolated Launch Services instance at the startup screen with Send disabled; no query/project action was taken there, but access to the existing default app-support database cannot be ruled out, so no claim of zero default-database touch is made. See docs/qa/public-novel-title-search-2026-10-17.md. Evidence commit 65ccf703d2115377a37f2b288da268a62ec028c3 passed full CI 39061022976 (runtime, macOS arm64, x86_64, universal); progress/evidence commit 42fd09d4eb2c2158da09b984c4bd8a0ec41c7cd9 passed full CI 39061917275 on all four jobs. The previous title trial's provider outcome/billing remains unknown, and the recorded Hops HTTP401 remains unretried. Do not make provider requests or re-enter credentials pending user reconciliation. Counts remain3 PASS/11 IN_PROGRESS; project incomplete.",
     "evidence": "Product code commit3333013f68a27d9418e554bd9ca4de33d7ab63a6 fixes live Wikisource book-prefixed chapter discovery and exact work-title scoping for writer context. Local:916 Python tests passed in437.57s; ruff clean; live HTTPS verify_live_novel_import.py found100 entries, persisted2 chapters across pause/restart, and carried chapter2 SHA into the writer request with model_called=false. Full CI35952222176 passed on product commit3333013; CI35952725622 passed on docs commit34ee5de; CI35954292950 passed on docs commit24ad102; latest full CI35956403023 passed on checkpoint docs commitb214662 (runtime, macOS arm64, x86_64, universal). This closes only source-import-to-request-context; no AI screenplay call or approval. Fresh installed-app import UI QA remains open; an artifact download retry stalled.",
     "current_checkpoint_evidence": "Typed title-only routing fix b12ac4d full CI39057644824 and evidence commit1ff2600 full CI39057720814 succeeded. Arm64 artifact12109804056 digest sha256:93f1ac7644a5bb06a32edc86396ebbdb311dd961295b88c4b696107df4ec80b8; app ZIP SHA-256 e17c8b394af309fb981f3625f8052758e07778f15d4b471c32df5ff36c1f6a5e. Exact extracted CI artifact now displayed five bounded Wikisource candidates in native UI for title-only 红楼梦; no selection, body fetch, model call, screenplay, or approval. Isolated temp support, port38197, runtime health200. Ad-hoc signature; not installed or notarized. Initial nonisolated startup caveat is documented. Prior provider outcome/billing remains unknown; no provider retry.",
     "project_complete": false
@@ -76,7 +76,7 @@
     "at": "2026-09-24T05:05:52Z"
   },
   "latest_heartbeat_checkpoint": {
-    "at": "2026-10-17T19:16:46Z",
+    "at": "2026-10-17T19:34:50Z",
     "sop": "SOP-04",
     "status": "IN_PROGRESS",
     "product_commit": "b12ac4d1d1811a437302f1c4b4c172ea0b8ff184",
@@ -86,7 +86,10 @@
     "evidence_ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/39057720814",
     "checkpoint_commit": "65ccf703d2115377a37f2b288da268a62ec028c3",
     "checkpoint_ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/39061022976",
-    "checkpoint_ci_status": "in_progress: macOS arm64 and x86_64 passed; runtime and universal in progress",
+    "checkpoint_ci_status": "success: runtime, macOS arm64, x86_64, universal",
+    "progress_commit": "42fd09d4eb2c2158da09b984c4bd8a0ec41c7cd9",
+    "progress_ci_run": "https://github.com/rogerwu188/nalu-voice-studio/actions/runs/39061917275",
+    "progress_ci_status": "success: runtime, macOS arm64, x86_64, universal",
     "artifact_id": "12109804056",
     "artifact_outer_sha256": "sha256:93f1ac7644a5bb06a32edc86396ebbdb311dd961295b88c4b696107df4ec80b8",
     "app_zip_sha256": "e17c8b394af309fb981f3625f8052758e07778f15d4b471c32df5ff36c1f6a5e",
